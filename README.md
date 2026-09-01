@@ -1,6 +1,18 @@
 # OpenQuest JDR — Jeu multijoueur
 
+> **🚧 Travaux en cours — jeu en développement**  
+> Prototype serveur + client Godot fonctionnels. Import et analyse du POC HTML en cours. Rien n'est jouable en l'état final du produit.
+
 Jeu de rôle multijoueur : client **Godot 4** + serveur **Node.js** (WebSocket).
+
+## État actuel
+
+| Phase | Statut | Détail |
+|-------|--------|--------|
+| Setup technique | ✅ Fait | Serveur WebSocket, squelette Godot, doc collaboration |
+| POC HTML | 🔄 En cours | Récupération et analyse (`poc/`, `docs/poc/`) |
+| Gameplay JDR | ⏳ À venir | Règles, fiches perso, dés, carte… |
+| Multijoueur complet | ⏳ À venir | Après intégration des règles du POC |
 
 ## Structure
 
@@ -8,7 +20,9 @@ Jeu de rôle multijoueur : client **Godot 4** + serveur **Node.js** (WebSocket).
 OpenQuest_jdr/
 ├── game/          # Projet Godot 4 (client)
 ├── server/        # Serveur Node.js (WebSocket)
-└── docs/          # Documentation technique
+├── poc/           # POC HTML original (référence)
+├── docs/          # Documentation technique et analyse POC
+└── scripts/       # Setup et lancement rapide
 ```
 
 ## Prérequis
@@ -41,33 +55,35 @@ Pour jouer à deux sur le réseau local, modifier `server_url` dans `game/script
 
 ## Travailler à deux
 
-Ce projet est fait pour **deux personnes** (client Godot + serveur Node).
+Ce projet est fait pour **deux personnes**.
 
 ```bash
-# Première fois sur une machine
+# Première fois sur une machine (Poisson / machine de dev)
 git clone https://github.com/Poisson48/OpenQuest_jdr.git
 cd OpenQuest_jdr
 ./scripts/setup.sh
 ```
 
-| Qui | Zone | Branches Git |
-|-----|------|--------------|
-| Poisson | `server/`, réseau, infra | `server/...` |
-| Copine | `game/`, UI, règles JDR | `game/...` |
-| Les deux | `docs/`, protocole WS | `docs/...` |
+| Qui | Zone | Branches Git | Phase actuelle |
+|-----|------|--------------|----------------|
+| Poisson | `server/`, `game/`, infra | `server/...`, `game/...` | Dev technique |
+| Copine | POC, règles JDR, design | `poc/...`, `docs/...` | Import POC HTML (sans install) |
+| Les deux | `docs/`, protocole WS | `docs/...` | — |
 
 **Workflow :** branche → commit → Pull Request → merge sur `main`.
 
 Guides :
 - [docs/COLLABORATION.md](docs/COLLABORATION.md) — workflow Git, conflits Godot, routine
+- [docs/IA_POUR_COPINE.md](docs/IA_POUR_COPINE.md) — guide pour l'IA qui l'accompagne (phase POC)
 - [CONTRIBUTING.md](CONTRIBUTING.md) — résumé rapide
 
-**Ajouter ta copine sur GitHub :** Settings → Collaborators → Add people (elle accepte l’invitation).
+**Ajouter ta copine sur GitHub :** Settings → Collaborators → Add people (elle accepte l'invitation).
 
 ## Documentation
 
 - [docs/STACK.md](docs/STACK.md) — architecture technique
 - [docs/COLLABORATION.md](docs/COLLABORATION.md) — bosser à deux
+- [docs/IA_POUR_COPINE.md](docs/IA_POUR_COPINE.md) — accompagnement IA (POC HTML)
 
 ## Licence
 
