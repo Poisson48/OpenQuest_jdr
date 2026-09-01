@@ -1,0 +1,7 @@
+# Revue automatique suggérée sur les PR (GitHub @mentionne les owners).
+# Remplacer @GITHUB_COPINE par le pseudo GitHub de ta copine une fois connu.
+
+/game/           @Poisson48 @GITHUB_COPINE
+/server/         @Poisson48
+/docs/           @Poisson48 @GITHUB_COPINE
+/server/src/types.ts  @Poisson48 @GITHUB_COPINE
