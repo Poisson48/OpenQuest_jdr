@@ -154,6 +154,8 @@ func _on_start_game_pressed() -> void:
 			
 	var quest_format: String = scn.get("questFormat", "oneshot")
 	var party_size := int(spin_party_size.value)
+	var map_ids: Array = MapData.get_map_ids_for_scenario(scn_id, quest_format)
+	map_ids = GameData.expand_map_ids_with_linked_locals(map_ids)
 	
 	if NetworkClient.is_server_connected():
 		_waiting_server_start = true
@@ -163,13 +165,13 @@ func _on_start_game_pressed() -> void:
 			NetworkClient.game_started.connect(_on_server_game_started, CONNECT_ONE_SHOT)
 		if not NetworkClient.error_received.is_connected(_on_server_error):
 			NetworkClient.error_received.connect(_on_server_error, CONNECT_ONE_SHOT)
-		NetworkClient.start_game(scn_id, party, mode_val, gm_val, quest_format, party_size)
+		NetworkClient.start_game(scn_id, party, mode_val, gm_val, quest_format, party_size, map_ids)
 		return
 	
-	_start_local_game(scn_id, mode_val, gm_val, quest_format, party)
+	_start_local_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
 
-func _start_local_game(scn_id: String, mode_val: String, gm_val: String, quest_format: String, party: Array) -> void:
-	GameData.create_new_game(scn_id, mode_val, gm_val, quest_format, party)
+func _start_local_game(scn_id: String, mode_val: String, gm_val: String, quest_format: String, party: Array, map_ids: Array = []) -> void:
+	GameData.create_new_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
 	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
 
 func _on_server_game_started(_game_id: String, state: Dictionary) -> void:

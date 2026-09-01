@@ -12,6 +12,7 @@ extends Control
 @onready var gm_panel: PanelContainer = %GmPanel
 @onready var gm_input: TextEdit = %GmInput
 @onready var net_status_lbl: Label = %NetStatusLabel
+@onready var map_panel: PanelContainer = %MapPanel
 
 var session_seconds: int = 0
 var timer_active: bool = true
@@ -83,8 +84,8 @@ func _create_fallback_game() -> void:
 	var scns: Array = GameData.get_scenarios()
 	var scn_id: String = scns[0].get("id", "demo-kharak") if not scns.is_empty() else "demo-kharak"
 	var default_party: Array = [
-		{ "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
-		{ "name": "Kael", "race": "Nain", "class": "Guerrier", "hp": 14, "ac": 16, "isPlayer": false, "isBot": true }
+		{ "id": "char-fallback-1", "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
+		{ "id": "bot-fallback-1", "name": "Kael", "race": "Nain", "class": "Guerrier", "hp": 14, "ac": 16, "isPlayer": false, "isBot": true }
 	]
 	GameData.create_new_game(scn_id, "solo", "ai", "oneshot", default_party)
 
@@ -107,6 +108,8 @@ func _refresh_session_ui() -> void:
 	
 	_render_party_list()
 	_render_log()
+	if map_panel and map_panel.has_method("refresh"):
+		map_panel.refresh()
 
 func _render_party_list() -> void:
 	for child in party_container.get_children():

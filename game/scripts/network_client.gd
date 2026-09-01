@@ -62,7 +62,7 @@ func send_message(data: Dictionary) -> void:
 func request_scenarios() -> void:
 	send_message({ "type": "list_scenarios" })
 
-func start_game(scenario_id: String, party: Array, mode: String, gm_type: String, quest_format: String, party_size: int) -> void:
+func start_game(scenario_id: String, party: Array, mode: String, gm_type: String, quest_format: String, party_size: int, map_ids: Array = []) -> void:
 	send_message({
 		"type": "start_game",
 		"scenarioId": scenario_id,
@@ -72,6 +72,7 @@ func start_game(scenario_id: String, party: Array, mode: String, gm_type: String
 		"questFormat": quest_format,
 		"partySizeTarget": party_size,
 		"fillWithBots": true,
+		"mapIds": map_ids,
 	})
 
 func send_action(action_text: String) -> void:

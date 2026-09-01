@@ -16,6 +16,7 @@ config/icon="res://icon.svg"
 
 ThemeColors="*res://scripts/autoload/theme_colors.gd"
 GameData="*res://scripts/autoload/game_data.gd"
+MapData="*res://scripts/autoload/map_data.gd"
 NetworkClient="*res://scripts/network_client.gd"
 
 [display]

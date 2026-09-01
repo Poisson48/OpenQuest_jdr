@@ -19,6 +19,7 @@ export type ClientMessage =
       questFormat?: string;
       partySizeTarget?: number;
       fillWithBots?: boolean;
+      mapIds?: string[];
     }
   | { type: "game_action"; gameId: string; action: string; playerId?: string }
   | { type: "dice_roll"; gameId?: string; formula: string; playerId?: string }

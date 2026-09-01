@@ -77,6 +77,7 @@ async function handleMessage(
           mode: message.mode ?? "solo",
           gmType: message.gmType ?? "ai",
           questFormat: (message.questFormat as "oneshot" | "long" | "investigation") || scenario.questFormat,
+          mapIds: Array.isArray(message.mapIds) ? message.mapIds : [],
         });
         sessions.set(session.state.id, session);
         client.gameId = session.state.id;

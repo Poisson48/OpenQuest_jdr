@@ -354,8 +354,10 @@ func save_active_game(state: Dictionary = {}) -> void:
 func has_active_game() -> bool:
 	return not active_game.is_empty() and active_game.get("status") == "playing"
 
-func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_format: String, party_members: Array) -> Dictionary:
+func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_format: String, party_members: Array, map_ids: Array = []) -> Dictionary:
 	var scenario := get_scenario_by_id(scenario_id)
+	var resolved_map_ids: Array = map_ids if not map_ids.is_empty() else MapData.get_map_ids_for_scenario(scenario_id, quest_format)
+	resolved_map_ids = expand_map_ids_with_linked_locals(resolved_map_ids)
 	var new_game := {
 		"id": generate_id("game"),
 		"scenarioId": scenario_id,
@@ -364,6 +366,9 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 		"mode": mode, # "solo" ou "multi"
 		"gmType": gm_type, # "ai" ou "human"
 		"party": party_members,
+		"mapIds": resolved_map_ids,
+		"mapPlayState": {},
+		"mapNavigation": { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null },
 		"currentSceneIndex": 0,
 		"turnIndex": 0,
 		"log": [],
@@ -388,6 +393,8 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 	})
 	
 	active_game = new_game
+	ensure_map_play_state()
+	init_all_world_map_fog()
 	save_active_game()
 	return active_game
 
@@ -413,6 +420,7 @@ func advance_scene() -> bool:
 		active_game["currentSceneIndex"] = cur + 1
 		var scene = scenes[cur + 1]
 		add_log_entry("MJ", "[b]Nouvelle Scène : %s[/b]\n%s" % [scene.get("title", ""), scene.get("content", "")], "gm")
+		_reveal_world_on_scene_advance()
 		save_active_game()
 		return true
 	else:
@@ -426,12 +434,247 @@ func apply_server_state(state: Dictionary) -> void:
 	if not active_game.has("scenarioTitle") and active_game.has("scenarioId"):
 		var scn := get_scenario_by_id(active_game["scenarioId"])
 		active_game["scenarioTitle"] = scn.get("title", "Aventure")
+	if not active_game.has("mapIds") or active_game["mapIds"].is_empty():
+		var scn_id: String = active_game.get("scenarioId", "")
+		var qf: String = active_game.get("questFormat", "oneshot")
+		active_game["mapIds"] = expand_map_ids_with_linked_locals(MapData.get_map_ids_for_scenario(scn_id, qf))
+	if not active_game.has("mapPlayState"):
+		active_game["mapPlayState"] = {}
+	if not active_game.has("mapNavigation"):
+		active_game["mapNavigation"] = { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null }
+	ensure_map_play_state()
+	init_all_world_map_fog()
 	active_game["status"] = "playing" if state.get("status", "playing") == "playing" else state.get("status", "playing")
 	save_active_game()
 
 func clear_active_game() -> void:
 	active_game = {}
 	save_active_game()
+
+# ==============================================================================
+# CARTES INTERACTIVES (port POC js/game.js + js/maps.js)
+# ==============================================================================
+
+func ensure_map_play_state() -> void:
+	if active_game.is_empty():
+		return
+	if not active_game.has("mapPlayState") or typeof(active_game["mapPlayState"]) != TYPE_DICTIONARY:
+		active_game["mapPlayState"] = {}
+	if not active_game.has("mapIds") or typeof(active_game["mapIds"]) != TYPE_ARRAY:
+		active_game["mapIds"] = []
+	if not active_game.has("mapNavigation") or typeof(active_game["mapNavigation"]) != TYPE_DICTIONARY:
+		active_game["mapNavigation"] = { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null }
+
+func get_map_play_entry(map_id: String) -> Dictionary:
+	ensure_map_play_state()
+	var mps: Dictionary = active_game["mapPlayState"]
+	if not mps.has(map_id):
+		mps[map_id] = { "tokens": [], "explored": [], "exploreLevel": 0 }
+	var entry: Dictionary = mps[map_id]
+	if not entry.has("tokens") or typeof(entry["tokens"]) != TYPE_ARRAY:
+		entry["tokens"] = []
+	if not entry.has("explored") or typeof(entry["explored"]) != TYPE_ARRAY:
+		entry["explored"] = []
+	if not entry.has("exploreLevel"):
+		entry["exploreLevel"] = 0
+	return entry
+
+func get_map_play_tokens(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["tokens"]
+
+func get_explored_cells(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["explored"]
+
+func cell_key(x: int, y: int) -> String:
+	return "%d,%d" % [x, y]
+
+func reveal_cell(map_id: String, x: int, y: int) -> void:
+	var entry := get_map_play_entry(map_id)
+	var key := cell_key(x, y)
+	if not entry["explored"].has(key):
+		entry["explored"].append(key)
+
+func reveal_radius(map_id: String, map_data: Dictionary, cx: int, cy: int, radius: int) -> void:
+	var w: int = map_data.get("width", 0)
+	var h: int = map_data.get("height", 0)
+	for y in range(cy - radius, cy + radius + 1):
+		for x in range(cx - radius, cx + radius + 1):
+			if x < 0 or x >= w or y < 0 or y >= h:
+				continue
+			if abs(x - cx) + abs(y - cy) <= radius:
+				reveal_cell(map_id, x, y)
+
+func get_world_map_ids() -> Array:
+	var result: Array = []
+	for map_id in active_game.get("mapIds", []):
+		var m := MapData.get_by_id(map_id)
+		if not m.is_empty() and MapData.is_world_map(m):
+			result.append(map_id)
+	return result
+
+func get_world_map_start_point(map_data: Dictionary) -> Vector2i:
+	for mk in map_data.get("markers", []):
+		var t: String = mk.get("type", "")
+		if t == "party" or t == "camp":
+			return Vector2i(mk.get("x", 0), mk.get("y", 0))
+	for tok in get_map_play_tokens(map_data.get("id", "")):
+		if tok.get("kind") == "member":
+			return Vector2i(tok.get("x", 0), tok.get("y", 0))
+	return Vector2i(map_data.get("width", 16) / 2, map_data.get("height", 12) / 2)
+
+func init_world_map_fog(map_id: String) -> void:
+	var map_data := MapData.get_by_id(map_id)
+	if map_data.is_empty() or not MapData.is_world_map(map_data):
+		return
+	var entry := get_map_play_entry(map_id)
+	if not entry["explored"].is_empty():
+		return
+	var start := get_world_map_start_point(map_data)
+	entry["exploreAnchor"] = { "x": start.x, "y": start.y }
+	entry["exploreLevel"] = 0
+	reveal_radius(map_id, map_data, start.x, start.y, 2)
+
+func init_all_world_map_fog() -> void:
+	for map_id in get_world_map_ids():
+		init_world_map_fog(map_id)
+
+func reveal_world_at(map_id: String, x: int, y: int, radius: int = 2) -> void:
+	var map_data := MapData.get_by_id(map_id)
+	if map_data.is_empty() or not MapData.is_world_map(map_data):
+		return
+	var entry := get_map_play_entry(map_id)
+	entry["exploreAnchor"] = { "x": x, "y": y }
+	reveal_radius(map_id, map_data, x, y, radius)
+
+func expand_map_ids_with_linked_locals(map_ids: Array) -> Array:
+	var expanded: Array = []
+	for id in map_ids:
+		if not id.is_empty() and not expanded.has(id):
+			expanded.append(id)
+	for id in map_ids:
+		var m := MapData.get_by_id(id)
+		if not m.is_empty() and MapData.is_world_map(m):
+			for linked in MapData.get_linked_local_map_ids(m):
+				if not expanded.has(linked):
+					expanded.append(linked)
+	return expanded
+
+func enter_local_map(world_map_id: String, x: int, y: int, target_map_id: String) -> void:
+	if target_map_id.is_empty():
+		return
+	ensure_map_play_state()
+	var ids: Array = active_game["mapIds"]
+	if not ids.has(target_map_id):
+		ids.append(target_map_id)
+	active_game["mapNavigation"] = {
+		"view": "local",
+		"worldMapId": world_map_id,
+		"localMapId": target_map_id,
+		"worldCell": { "x": x, "y": y },
+	}
+	save_active_game()
+
+func exit_to_world_map() -> void:
+	ensure_map_play_state()
+	var nav: Dictionary = active_game["mapNavigation"]
+	nav["view"] = "world"
+	nav["localMapId"] = null
+	active_game["mapNavigation"] = nav
+	save_active_game()
+
+func remove_map_token_at(map_id: String, x: int, y: int) -> void:
+	var entry := get_map_play_entry(map_id)
+	entry["tokens"] = entry["tokens"].filter(func(t): return not (t.get("x") == x and t.get("y") == y))
+
+func remove_member_tokens(map_id: String, member_id: String) -> void:
+	var entry := get_map_play_entry(map_id)
+	entry["tokens"] = entry["tokens"].filter(func(t): return t.get("memberId") != member_id)
+
+func place_member_token(map_id: String, x: int, y: int, member_id: String) -> void:
+	if member_id.is_empty():
+		return
+	remove_member_tokens(map_id, member_id)
+	remove_map_token_at(map_id, x, y)
+	var member := _find_party_member(member_id)
+	if member.is_empty():
+		return
+	var tokens: Array = get_map_play_tokens(map_id)
+	tokens.append({
+		"id": generate_id("tok"),
+		"x": x, "y": y,
+		"kind": "member",
+		"memberId": member_id,
+		"label": member.get("name", "Héros"),
+	})
+	var map_data := MapData.get_by_id(map_id)
+	if MapData.is_world_map(map_data):
+		reveal_world_at(map_id, x, y, 2)
+	save_active_game()
+
+func place_marker_token(map_id: String, x: int, y: int, marker_type: String) -> void:
+	if marker_type.is_empty():
+		return
+	remove_map_token_at(map_id, x, y)
+	var tokens: Array = get_map_play_tokens(map_id)
+	tokens.append({
+		"id": generate_id("tok"),
+		"x": x, "y": y,
+		"kind": "marker",
+		"markerType": marker_type,
+		"label": "",
+	})
+	save_active_game()
+
+func apply_map_play_action(map_id: String, x: int, y: int, tool: Dictionary) -> void:
+	if active_game.is_empty() or active_game.get("status") == "completed":
+		return
+	var mode: String = tool.get("mode", "")
+	if mode == "erase":
+		remove_map_token_at(map_id, x, y)
+	elif mode == "member":
+		place_member_token(map_id, x, y, tool.get("memberId", ""))
+	elif mode == "marker":
+		place_marker_token(map_id, x, y, tool.get("markerType", ""))
+	save_active_game()
+
+func _find_party_member(member_id: String) -> Dictionary:
+	for m in active_game.get("party", []):
+		if m.get("id") == member_id:
+			return m
+	return {}
+
+func _reveal_world_on_scene_advance() -> void:
+	for map_id in get_world_map_ids():
+		var map_data := MapData.get_by_id(map_id)
+		if map_data.is_empty():
+			continue
+		var entry := get_map_play_entry(map_id)
+		entry["exploreLevel"] = int(entry.get("exploreLevel", 0)) + 2
+		var anchor: Dictionary = entry.get("exploreAnchor", {})
+		if anchor.is_empty():
+			var start := get_world_map_start_point(map_data)
+			anchor = { "x": start.x, "y": start.y }
+		var radius := 2 + int(entry["exploreLevel"]) / 2
+		reveal_radius(map_id, map_data, int(anchor.get("x", 0)), int(anchor.get("y", 0)), radius)
+
+func get_session_display_map(active_map_id: String) -> Dictionary:
+	var active_map := MapData.get_by_id(active_map_id)
+	if active_map.is_empty():
+		return { "displayMap": {}, "navContext": {} }
+	var nav: Dictionary = active_game.get("mapNavigation", {})
+	if nav.get("view") == "local" and nav.get("worldMapId") == active_map_id:
+		var local_map := MapData.get_by_id(nav.get("localMapId", ""))
+		if not local_map.is_empty():
+			return {
+				"displayMap": local_map,
+				"navContext": {
+					"mode": "local",
+					"worldMap": active_map,
+					"worldCell": nav.get("worldCell", {}),
+					"localMap": local_map,
+				},
+			}
+	return { "displayMap": active_map, "navContext": {} }
 
 # ==============================================================================
 # MOTEUR DE DÉS (CONFORME AU POC JS)
