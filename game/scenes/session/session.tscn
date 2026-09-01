@@ -144,8 +144,8 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 3.0
-custom_minimum_size = Vector2(0, 280)
+size_flags_stretch_ratio = 2.0
+custom_minimum_size = Vector2(0, 100)
 
 [node name="LogVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/LogPanel"]
 layout_mode = 2
@@ -175,11 +175,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 custom_minimum_size = Vector2(0, 0)
-custom_maximum_size = Vector2(100000, 240)
+custom_maximum_size = Vector2(100000, 220)
 script = ExtResource("3_map_panel")
 
 [node name="DiceSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
+size_flags_vertical = 0
 
 [node name="DiceVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/DiceSection"]
 layout_mode = 2
@@ -249,6 +250,7 @@ horizontal_alignment = 2
 
 [node name="ActionSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
+size_flags_vertical = 0
 
 [node name="ActionVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection"]
 layout_mode = 2

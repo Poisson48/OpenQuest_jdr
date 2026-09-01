@@ -17,7 +17,46 @@ extends Control
 var session_seconds: int = 0
 var timer_active: bool = true
 
+func _configure_layout() -> void:
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	var log_panel: PanelContainer = main_area.get_node("LogPanel") as PanelContainer
+	var dice_section: Control = main_area.get_node("DiceSection")
+	var action_section: Control = main_area.get_node("ActionSection")
+
+	if main_area.has_node("MiddleScroll"):
+		return
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "MiddleScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+
+	var middle := VBoxContainer.new()
+	middle.name = "MiddleVBox"
+	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	middle.add_theme_constant_override("separation", 8)
+	scroll.add_child(middle)
+
+	main_area.remove_child(log_panel)
+	main_area.remove_child(map_panel)
+	middle.add_child(log_panel)
+	middle.add_child(map_panel)
+
+	main_area.add_child(scroll)
+	main_area.move_child(scroll, 0)
+
+	log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	log_panel.custom_minimum_size = Vector2(0, 120)
+	map_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	map_panel.custom_maximum_size = Vector2(100000, 220)
+
+	dice_section.size_flags_vertical = Control.SIZE_SHRINK_END
+	action_section.size_flags_vertical = Control.SIZE_SHRINK_END
+
 func _ready() -> void:
+	_configure_layout()
 	%BtnBackHub.pressed.connect(_on_leave_session_pressed)
 	%BtnAdvanceScene.pressed.connect(_on_advance_scene_pressed)
 	btn_send_action.pressed.connect(_on_send_action_pressed)

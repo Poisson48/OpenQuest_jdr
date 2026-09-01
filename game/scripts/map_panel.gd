@@ -70,8 +70,8 @@ func _build_ui() -> void:
 	map_style.set_border_width_all(1)
 	map_style.set_corner_radius_all(4)
 	map_panel.add_theme_stylebox_override("panel", map_style)
-	map_panel.custom_minimum_size = Vector2(0, 160)
-	map_panel.custom_maximum_size = Vector2(100000, 200)
+	map_panel.custom_minimum_size = Vector2(0, 110)
+	map_panel.custom_maximum_size = Vector2(100000, 150)
 	outer.add_child(map_panel)
 
 	_map_host = Control.new()
