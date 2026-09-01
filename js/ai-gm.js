@@ -1541,9 +1541,13 @@ const AiGM = {
     }
 
     if (format === 'investigation') {
+      const isLongInvestigation = scenario?.questFormat === 'long';
       state.investigationClues = 0;
-      state.investigationThreshold = 4;
+      state.investigationThreshold = isLongInvestigation ? 8 : 4;
       world.openFlags.investigationMode = true;
+      if (isLongInvestigation) {
+        world.openFlags.investigationLongArc = true;
+      }
       const mystery = scenario?.mystery
         || 'Recouper indices, témoins et preuves pour résoudre l\'affaire.';
       world.plotThreads.push({
@@ -1565,7 +1569,9 @@ const AiGM = {
         state,
         0,
         scenario?.title
-          ? `Mode enquête — affaire « ${scenario.title} » ouverte.`
+          ? isLongInvestigation
+            ? `Enquête longue — affaire « ${scenario.title} » ouverte (plusieurs sessions).`
+            : `Mode enquête — affaire « ${scenario.title} » ouverte.`
           : 'Mode enquête activé — le groupe doit résoudre une affaire fictive.',
       );
     }
@@ -1672,11 +1678,24 @@ const AiGM = {
       .trim();
   },
 
+  formatDurationLabel(ms) {
+    const totalSec = Math.floor(Math.max(0, ms) / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h} h`);
+    if (m > 0 || h > 0) parts.push(`${m} min`);
+    parts.push(`${s} s`);
+    return parts.join(' ');
+  },
+
   buildAdventureSummary(game, scenario) {
     const ai = game.aiState;
     const world = ai?.world;
     const started = new Date(game.createdAt || Date.now());
     const ended = new Date(game.completedAt || Date.now());
+    const durationMs = game.playTimeMs ?? Math.max(0, ended.getTime() - started.getTime());
     const totalScenes = scenario?.scenes?.length || 0;
     const scenesVisited = Math.min((game.currentSceneIndex || 0) + 1, totalScenes);
 
@@ -1695,6 +1714,7 @@ const AiGM = {
       `- **Maître du jeu :** ${game.gmType === 'ai' ? 'MJ IA' : game.gmName || 'Joueur'}`,
       `- **Début :** ${started.toLocaleString('fr-FR')}`,
       `- **Fin :** ${ended.toLocaleString('fr-FR')}`,
+      `- **Durée de la partie :** ${this.formatDurationLabel(durationMs)}`,
       `- **Scènes parcourues :** ${scenesVisited} / ${totalScenes}`,
       '',
     ];

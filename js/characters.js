@@ -6,7 +6,22 @@ const Characters = {
   list: [],
 
   load() {
-    this.list = Storage.load(Storage.KEYS.characters) || [];
+    this.list = Storage.loadArray(Storage.KEYS.characters);
+    this.list.forEach((c) => {
+      if (c.roster === 'investigation') return;
+      if (!c.roster) c.roster = 'general';
+    });
+  },
+
+  isInvestigation(c) {
+    return c?.roster === 'investigation';
+  },
+
+  getForQuestFormat(questFormat) {
+    const isInvestigation = questFormat === 'investigation';
+    return this.list.filter((c) => (
+      isInvestigation ? this.isInvestigation(c) : !this.isInvestigation(c)
+    ));
   },
 
   save() {
@@ -30,7 +45,17 @@ const Characters = {
       return;
     }
 
-    container.innerHTML = this.list.map((c) => `
+    const generalChars = this.list.filter((c) => !this.isInvestigation(c));
+    if (generalChars.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <p>Aucun héros d'aventure pour l'instant.</p>
+          <p>Les enquêteurs se gèrent dans l'onglet <strong>🔍 Enquête</strong>.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = generalChars.map((c) => `
       <div class="card" data-id="${c.id}">
         <h3>${this.escape(c.name)}</h3>
         <p class="card-meta">${this.escape(c.race || '?')} · ${this.escape(c.class || '?')}</p>
@@ -111,11 +136,13 @@ const Characters = {
     e.preventDefault();
 
     const id = document.getElementById('char-id').value;
+    const existing = id ? this.list.find((c) => c.id === id) : null;
     const character = {
       id: id || this.generateId(),
       name: document.getElementById('char-name').value.trim(),
       race: document.getElementById('char-race').value.trim(),
       class: document.getElementById('char-class').value.trim(),
+      roster: existing?.roster === 'investigation' ? 'investigation' : 'general',
       stats: {
         str: parseInt(document.getElementById('char-str').value, 10),
         dex: parseInt(document.getElementById('char-dex').value, 10),

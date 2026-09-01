@@ -61,9 +61,20 @@ const InvestigationRoster = {
     document.getElementById('btn-inv-launch')?.addEventListener('click', () => {
       App.showApp('play', { quest: 'investigation', gm: 'ai' });
     });
+    document.getElementById('btn-inv-launch-long')?.addEventListener('click', () => {
+      App.showApp('play', {
+        quest: 'investigation',
+        gm: 'ai',
+        scenario: Scenarios.getInvestigationLongScenarios()[0]?.id,
+      });
+    });
     document.getElementById('btn-inv-new-scenario')?.addEventListener('click', () => {
-      App.showApp('scenarios');
-      Scenarios.showForm(null, { roster: 'investigation' });
+      App.showApp('adventures');
+      Scenarios.showForm(null, { roster: 'investigation', questFormat: 'oneshot' });
+    });
+    document.getElementById('btn-inv-new-scenario-long')?.addEventListener('click', () => {
+      App.showApp('adventures');
+      Scenarios.showForm(null, { roster: 'investigation', questFormat: 'long' });
     });
     document.getElementById('inv-character-form-el')?.addEventListener('submit', (e) => {
       this.handleCharacterSubmit(e);
@@ -76,13 +87,6 @@ const InvestigationRoster = {
     });
     document.getElementById('btn-inv-cancel-bot')?.addEventListener('click', () => {
       this.hideBotForm();
-    });
-
-    document.querySelectorAll('.inv-preset-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const index = parseInt(btn.dataset.preset, 10);
-        this.addPresetCharacter(index);
-      });
     });
   },
 
@@ -97,23 +101,20 @@ const InvestigationRoster = {
     this.renderPresets();
   },
 
-  renderScenarios() {
-    const container = document.getElementById('inv-scenario-list');
-    if (!container) return;
-
-    const scenarios = Scenarios.getInvestigationScenarios();
+  renderScenarioCards(scenarios, emptyMessage) {
     if (scenarios.length === 0) {
-      container.innerHTML = `
+      return `
         <div class="empty-state">
-          <p>Aucun scénario d'enquête pour l'instant.</p>
-          <p>Les affaires d'exemple sont ajoutées automatiquement au premier chargement.</p>
+          <p>${emptyMessage}</p>
         </div>`;
-      return;
     }
 
-    container.innerHTML = scenarios.map((s) => `
+    return scenarios.map((s) => {
+      const isLong = s.questFormat === 'long';
+      const badge = isLong ? '📁 Enquête longue' : '🔍 Affaire';
+      return `
       <div class="card card-investigation" data-id="${s.id}">
-        <span class="bot-badge inv-badge">🔍 Affaire</span>
+        <span class="bot-badge inv-badge">${badge}</span>
         <h3>${Scenarios.escape(s.title)}</h3>
         <p class="card-meta">${s.scenes.length} scène(s) · ${s.npcs.length} PNJ / suspects</p>
         ${s.mystery ? `<p class="inv-scenario-mystery"><strong>Mystère :</strong> ${Scenarios.escape(s.mystery)}</p>` : ''}
@@ -121,9 +122,14 @@ const InvestigationRoster = {
         <div class="card-actions">
           <button type="button" class="btn btn-primary btn-small btn-inv-play-scenario" data-id="${s.id}">Jouer cette enquête</button>
           <button type="button" class="btn btn-secondary btn-small btn-inv-edit-scenario" data-id="${s.id}">Modifier</button>
+          <button type="button" class="btn btn-danger btn-small btn-inv-delete-scenario" data-id="${s.id}">Supprimer</button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
+  },
+
+  bindScenarioCardEvents(container) {
+    if (!container) return;
 
     container.querySelectorAll('.btn-inv-play-scenario').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -132,10 +138,36 @@ const InvestigationRoster = {
     });
     container.querySelectorAll('.btn-inv-edit-scenario').forEach((btn) => {
       btn.addEventListener('click', () => {
-        App.showApp('scenarios');
+        App.showApp('adventures');
         Scenarios.showForm(btn.dataset.id);
       });
     });
+    container.querySelectorAll('.btn-inv-delete-scenario').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        Scenarios.delete(btn.dataset.id);
+      });
+    });
+  },
+
+  renderScenarios() {
+    const oneshotContainer = document.getElementById('inv-scenario-list-oneshot');
+    const longContainer = document.getElementById('inv-scenario-list-long');
+    if (!oneshotContainer || !longContainer) return;
+
+    const oneshot = Scenarios.getInvestigationOneshotScenarios();
+    const long = Scenarios.getInvestigationLongScenarios();
+
+    oneshotContainer.innerHTML = this.renderScenarioCards(
+      oneshot,
+      'Aucune affaire one-shot. Les enquêtes courtes apparaîtront ici.',
+    );
+    longContainer.innerHTML = this.renderScenarioCards(
+      long,
+      'Aucune enquête longue. Crée une affaire multi-sessions pour ce format.',
+    );
+
+    this.bindScenarioCardEvents(oneshotContainer);
+    this.bindScenarioCardEvents(longContainer);
   },
 
   getInvestigationCharacters() {
@@ -494,5 +526,8 @@ const InvestigationRoster = {
     Bots.deleteInvestigationBot(id);
     this.renderBots();
     this.hideBotForm();
+    if (typeof Game !== 'undefined') {
+      Game.refreshSetupCharacters();
+    }
   },
 };

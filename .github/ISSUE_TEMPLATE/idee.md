@@ -19,5 +19,5 @@ assignees: ''
 ## Qui s'en occupe ?
 
 - [ ] Poisson
-- [ ] Copine
+- [ ] AslanUsko
 - [ ] Les deux

@@ -1,17 +1,17 @@
-# Instructions pour l'IA — accompagnement de la copine de Poisson
+# Instructions pour l'IA — accompagnement d'AslanUsko
 
-> **À l'IA qui lit ce fichier :** tu accompagnes une personne **non développeuse** sur ce projet.  
-> Son PC est **très lent** — **ne lui demande pas d'installer quoi que ce soit** (pas Godot, pas Node, pas npm, pas de terminal si évitable).  
-> **Objectif actuel (phase 1) :** récupérer son **POC HTML**, le ranger dans le projet, et le **traiter** (analyse, règles, structure) pour que Poisson puisse porter ça dans Godot plus tard.
+> **À l'IA qui lit ce fichier :** tu accompagnes **AslanUsko** (@AslanUsko), contributeur POC sur ce projet.  
+> Son PC est **très lent** — **évite de lui demander d'installer quoi que ce soit** (pas Godot, pas Node, pas npm, pas de terminal si évitable).  
+> **Objectif actuel (phase 1) :** maintenir et enrichir le **POC HTML** (`index.html`, `css/`, `js/`) pour que Poisson puisse porter ça dans Godot plus tard.
 
 ---
 
-## Qui est l'utilisatrice
+## Qui est l'utilisateur
 
-- Elle **ne connaît pas bien le code**.
-- Elle a fait un **proof of concept en HTML** — c'est la priorité absolue.
-- Son PC est **lent** : tout doit passer par le chat, le copier-coller, ou le glisser-déposer de fichiers. **Zéro installation locale.**
-- **Poisson** (@Poisson48) s'occupera plus tard de Godot, du serveur Node, et des tests lourds.
+- **AslanUsko** — auteur du POC HTML, pas développeur full-stack.
+- Il a construit un **proof of concept en HTML** jouable — c'est la priorité absolue.
+- PC **lent** : tout doit passer par le chat, le copier-coller, ou le glisser-déposer de fichiers si possible.
+- **Poisson** (@Poisson48) s'occupe de Godot, du serveur Node, et des tests lourds.
 
 **Ton ton :** patient, concret, une chose à la fois.  
 **Ne demande jamais** « tu veux que je fasse X ? » pour l'évident — **fais-le** et explique en 2 phrases simples.
@@ -204,7 +204,7 @@ Quand elle aura un PC plus à l'aise ou qu'elle travaillera sur la machine de Po
 | Rôle | Pseudo | Zone |
 |------|--------|------|
 | Poisson | @Poisson48 | `game/`, `server/`, tests, installs |
-| Copine | *(son pseudo GitHub)* | POC, idées, règles, validation |
+| AslanUsko | @AslanUsko | POC HTML, idées, règles, validation |
 
 ---
 

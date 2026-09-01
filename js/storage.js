@@ -10,6 +10,8 @@ const Storage = {
     scenarios: 'forge-rpg-scenarios',
     rollHistory: 'forge-rpg-roll-history',
     activeGame: 'forge-rpg-active-game',
+    maps: 'forge-rpg-maps',
+    removedDemos: 'forge-rpg-removed-demos',
   },
 
   load(key) {
@@ -19,6 +21,11 @@ const Storage = {
     } catch {
       return null;
     }
+  },
+
+  loadArray(key) {
+    const data = this.load(key);
+    return Array.isArray(data) ? data : [];
   },
 
   save(key, data) {

@@ -4,13 +4,37 @@
 
 const Scenarios = {
   list: [],
+  removedDemos: [],
 
   load() {
-    this.list = Storage.load(Storage.KEYS.scenarios) || [];
+    this.list = Storage.loadArray(Storage.KEYS.scenarios);
+    this.removedDemos = Storage.loadArray(Storage.KEYS.removedDemos);
+    this.list.forEach((s) => {
+      if (s.roster === 'investigation') {
+        if (!s.questFormat) {
+          s.questFormat = s.id === 'inv-demo-serpent-noir' ? 'long' : 'oneshot';
+        }
+        return;
+      }
+      if (!s.questFormat) {
+        s.questFormat = (s.id === 'demo-kharak' || s.id === 'demo-couronne-fracturee')
+          ? 'long'
+          : 'oneshot';
+      }
+    });
   },
 
   save() {
     Storage.save(Storage.KEYS.scenarios, this.list);
+  },
+
+  saveRemovedDemos() {
+    Storage.save(Storage.KEYS.removedDemos, this.removedDemos);
+  },
+
+  isBuiltInDemo(id) {
+    return this.DEMO_SCENARIOS.some((d) => d.id === id)
+      || this.INVESTIGATION_SCENARIOS.some((d) => d.id === id);
   },
 
   generateId() {
@@ -24,41 +48,32 @@ const Scenarios = {
   },
 
   renderList() {
-    const container = document.getElementById('scenario-list');
-    if (!container) return;
+    if (typeof AdventureRoster !== 'undefined') {
+      AdventureRoster.renderScenarios();
+    }
+  },
 
-    if (this.list.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <p>Aucun scénario pour l'instant.</p>
-          <p>Clique sur « + Nouveau scénario » pour écrire ton aventure !</p>
-        </div>`;
+  updateScenarioFormMode(isInvestigation, questFormatOption = null) {
+    const formatRow = document.getElementById('scenario-format-row');
+    const formatSelect = document.getElementById('scenario-quest-format');
+    const mysteryRow = document.getElementById('scenario-mystery-row');
+    mysteryRow?.classList.toggle('hidden', !isInvestigation);
+
+    if (isInvestigation && formatSelect) {
+      formatRow?.classList.remove('hidden');
+      formatSelect.innerHTML = `
+        <option value="oneshot">Affaire one-shot (1–2 sessions)</option>
+        <option value="long">Enquête longue durée (plusieurs semaines)</option>`;
+      formatSelect.value = questFormatOption === 'long' ? 'long' : 'oneshot';
       return;
     }
 
-    container.innerHTML = this.list.map((s) => {
-      const inv = s.roster === 'investigation';
-      return `
-      <div class="card ${inv ? 'card-investigation' : ''}" data-id="${s.id}">
-        ${inv ? '<span class="bot-badge inv-badge">🔍 Enquête</span>' : ''}
-        <h3>${this.escape(s.title)}</h3>
-        <p class="card-meta">${s.scenes.length} scène(s) · ${s.npcs.length} PNJ</p>
-        ${s.mystery ? `<p class="inv-scenario-mystery">${this.escape(s.mystery)}</p>` : ''}
-        <p style="font-size:0.9rem;color:var(--text-muted)">${this.escape(s.synopsis || 'Pas de synopsis').slice(0, 100)}${(s.synopsis || '').length > 100 ? '...' : ''}</p>
-        <div class="card-actions">
-          <button class="btn btn-secondary btn-edit" data-id="${s.id}">Modifier</button>
-          <button class="btn btn-danger btn-delete" data-id="${s.id}">Supprimer</button>
-        </div>
-      </div>`;
-    }).join('');
-
-    container.querySelectorAll('.btn-edit').forEach((btn) => {
-      btn.addEventListener('click', () => this.showForm(btn.dataset.id));
-    });
-
-    container.querySelectorAll('.btn-delete').forEach((btn) => {
-      btn.addEventListener('click', () => this.delete(btn.dataset.id));
-    });
+    if (formatSelect) {
+      formatSelect.innerHTML = `
+        <option value="oneshot">One-shot (3–4 h)</option>
+        <option value="long">Campagne longue durée</option>`;
+    }
+    formatRow?.classList.toggle('hidden', isInvestigation);
   },
 
   renderSceneItem(scene = { title: '', content: '' }) {
@@ -109,6 +124,7 @@ const Scenarios = {
     const scenesList = document.getElementById('scenes-list');
     const npcsList = document.getElementById('npcs-list');
     const rosterInput = document.getElementById('scenario-roster');
+    const formatSelect = document.getElementById('scenario-quest-format');
 
     form.classList.remove('hidden');
     scenesList.innerHTML = '';
@@ -118,7 +134,10 @@ const Scenarios = {
       const scenario = this.list.find((s) => s.id === id);
       if (!scenario) return;
 
-      title.textContent = scenario.roster === 'investigation'
+      const isInvestigation = scenario.roster === 'investigation';
+      this.updateScenarioFormMode(isInvestigation, scenario.questFormat);
+
+      title.textContent = isInvestigation
         ? 'Modifier le scénario d\'enquête'
         : 'Modifier le scénario';
       document.getElementById('scenario-id').value = scenario.id;
@@ -127,21 +146,30 @@ const Scenarios = {
       document.getElementById('scenario-setting').value = scenario.setting || '';
       document.getElementById('scenario-mystery').value = scenario.mystery || '';
       if (rosterInput) rosterInput.value = scenario.roster || '';
+      if (formatSelect) {
+        formatSelect.value = scenario.questFormat === 'long' ? 'long' : 'oneshot';
+      }
 
       scenario.scenes.forEach((scene) => scenesList.appendChild(this.renderSceneItem(scene)));
       scenario.npcs.forEach((npc) => npcsList.appendChild(this.renderNpcItem(npc)));
     } else {
       const isInvestigation = options.roster === 'investigation';
+      this.updateScenarioFormMode(isInvestigation, options.questFormat);
+
       title.textContent = isInvestigation ? 'Nouveau scénario d\'enquête' : 'Nouveau scénario';
       document.getElementById('scenario-form-el').reset();
       document.getElementById('scenario-id').value = '';
       if (rosterInput) rosterInput.value = isInvestigation ? 'investigation' : '';
+      if (formatSelect) {
+        formatSelect.value = options.questFormat === 'long' ? 'long' : 'oneshot';
+      }
       if (isInvestigation) {
         document.getElementById('scenario-setting').value = 'Ville brumeuse, nuit, tension et secrets…';
       }
       scenesList.appendChild(this.renderSceneItem());
     }
 
+    App.showApp('adventures');
     form.scrollIntoView({ behavior: 'smooth' });
   },
 
@@ -180,6 +208,13 @@ const Scenarios = {
     };
     if (roster) scenario.roster = roster;
     if (mystery) scenario.mystery = mystery;
+    if (!scenario.roster || scenario.roster !== 'investigation') {
+      const format = document.getElementById('scenario-quest-format')?.value;
+      scenario.questFormat = format === 'long' ? 'long' : 'oneshot';
+    } else {
+      const format = document.getElementById('scenario-quest-format')?.value;
+      scenario.questFormat = format === 'long' ? 'long' : 'oneshot';
+    }
 
     if (id) {
       const index = this.list.findIndex((s) => s.id === id);
@@ -202,13 +237,22 @@ const Scenarios = {
     const scenario = this.list.find((s) => s.id === id);
     if (!scenario) return;
 
-    if (confirm(`Supprimer le scénario « ${scenario.title} » ?`)) {
-      this.list = this.list.filter((s) => s.id !== id);
-      this.save();
-      this.renderList();
-      if (typeof InvestigationRoster !== 'undefined') {
-        InvestigationRoster.renderScenarios();
-      }
+    const label = scenario.roster === 'investigation' ? 'affaire' : 'scénario';
+    if (!confirm(`Supprimer ${label === 'affaire' ? 'l\'' : 'le '}${label} « ${scenario.title} » ?`)) return;
+
+    this.list = this.list.filter((s) => s.id !== id);
+    if (this.isBuiltInDemo(id) && !this.removedDemos.includes(id)) {
+      this.removedDemos.push(id);
+      this.saveRemovedDemos();
+    }
+    this.save();
+    this.renderList();
+    if (typeof InvestigationRoster !== 'undefined') {
+      InvestigationRoster.renderScenarios();
+    }
+    if (typeof Game !== 'undefined') {
+      Game.refreshSetupCharacters();
+      Game.refreshSetupMaps();
     }
   },
 
@@ -216,6 +260,7 @@ const Scenarios = {
   DEMO_SCENARIOS: [
     {
       id: 'demo-crypte',
+      questFormat: 'oneshot',
       title: 'La Crypte Oubliée',
       synopsis: 'Une crypte ancienne a été découverte sous le village de Brumeval. Des disparitions mystérieuses poussent les aventuriers à descendre dans les ténèbres.',
       setting: 'Village de Brumeval, sous une pluie fine. Torches, pierre humide, odeur de moisi.',
@@ -260,6 +305,7 @@ const Scenarios = {
     },
     {
       id: 'demo-manoir',
+      questFormat: 'oneshot',
       title: 'Le Manoir de Valenwood',
       synopsis: 'Le comte Valenwood a disparu. Son manoir isolé dans la forêt regorge de secrets, de pièges et de créatures qui rôdent la nuit.',
       setting: 'Manoir gothique en lisière de forêt, nuit pluvieuse, chandelles qui vacillent.',
@@ -304,6 +350,7 @@ const Scenarios = {
     },
     {
       id: 'demo-kharak',
+      questFormat: 'long',
       title: 'Les Sables de Kharak',
       synopsis: 'Une caravane a disparu dans le désert de Kharak. Les aventuriers doivent traverser dunes, tempêtes et ruines oubliées pour retrouver les marchands — et ce qu\'ils transportaient.',
       setting: 'Désert brûlant, ruines antiques à demi enfouies dans le sable, ciel orange au coucher du soleil.',
@@ -343,6 +390,134 @@ const Scenarios = {
           name: 'Le Seigneur des Sables',
           role: 'Antagoniste',
           description: 'Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse.',
+        },
+      ],
+    },
+    {
+      id: 'demo-couronne-fracturee',
+      questFormat: 'long',
+      title: 'La Couronne Fracturée',
+      synopsis: 'Campagne épique sur 10 à 15 sessions (plusieurs semaines) : le roi d\'Aldermar est mort sans héritier clair, cinq ducs se disputent le trône, et au nord un sceau millénaire se fissure. Les héros doivent naviguer intrigues, guerres et horreurs anciennes pour décider du sort du royaume.',
+      setting: 'Royaume médiéval-fantastique d\'Aldermar — capitale Valdris, forteresses de montagne, marches du nord gelées, cours nobles et champs de bataille.',
+      scenes: [
+        {
+          title: 'Acte I — La nouvelle de Valdris',
+          content: 'Les cloches sonnent le deuil. Le roi Aldric III est mort dans son lit, couronne encore vissée sur le crâne. À Valdris, la Garde royale verrouille les portes du palais ; les ducs convoquent leurs bannerets. Une servante murmure que la marque noire sur le poignet du roi n\'était pas là la veille. Le groupe arrive comme émissaires, mercenaires ou héros convoqués — le conseil doit se tenir dans trois jours.',
+        },
+        {
+          title: 'Acte I — Le conseil des cinq ducs',
+          content: 'Hall du trône surchargé de bannières rivales. Duc Harald (guerre), duchesse Mira (commerce), duc Corvin (foi), duc Lyonel (intrigues), duchess Sylka (marché du nord) — chacun réclame la couronne. Un messager épuisé annonce des pillards aux frontières et des lumières vertes au-dessus du fort de Brume-noire. Le régent provisoire demande aux aventuriers d\'enquêter avant que le royaume ne se déchire.',
+        },
+        {
+          title: 'Acte I — La route des réfugiés',
+          content: 'Sur la grand-route sud, des colonnes de paysans fuient vers Valdris. Ils parlent de « soldats sans visage » la nuit et de récoltes brûlées. Un convoi de la duchesse Mira est attaqué ; survivants implorent protection. Choix difficile : escorter les réfugiés (perte de temps) ou foncer vers le nord. Indices : une bannière arrachée porte le sigil du duc Lyonel — ou un faux.',
+        },
+        {
+          title: 'Acte I — Première nuit aux murailles',
+          content: 'Le fortin de Garde-Haute abrite le groupe pour la nuit. Le capitaine Elwen montre des flèches noircies trouvées sur les cadavres. À minuit, une attaque de créatures en lambeaux teste les remparts. Au matin, un éclaireur rapporte que les runes du pont de Brume-noire brillent faiblement — signe que le Sceau du Nord s\'affaiblit.',
+        },
+        {
+          title: 'Acte II — Le fort de Brume-noire',
+          content: 'Forteresse en ruine sur un éperon rocheux. La garnison est réduite de moitié ; le commandant Torval affirme avoir vu le Roi Corbeau dans ses rêves — entité légendaire scellée sous la montagne. Sous la chapelle, une porte de fer gravée de chaînes fissurées pulse. Il faudra plusieurs explorations pour comprendre l\'étendue du danger.',
+        },
+        {
+          title: 'Acte II — Les runes fissurées',
+          content: 'Crypte sous le fort : runes naines et elfiques entremêlées, datant de l\'Alliance des Trois Couronnes. Un grimoire poussiéreux explique que le sceau demande un « serment renouvelé » du titulaire légitime d\'Aldermar — ou se brisera en sept lunes. Quelqu\'un a gratté trois runes récemment. Piste vers la bibliothèque royale de Valdris.',
+        },
+        {
+          title: 'Acte II — Le village des Sans-Nom',
+          content: 'Hameau oublié dans la vallée, habitants terrifiés, enfants qui dessinent le même corbeau à trois yeux. La chamane Oldra connaît la légende : le premier roi scella son frère jumeau corrompu par une entité du Gouffre. Elle peut guider le groupe vers Keldorm, cité naine où reposent les archives du serment.',
+        },
+        {
+          title: 'Acte II — L\'ambassade naine de Keldorm',
+          content: 'Tunnels lumineux, forge éternelle, négociations tendues. L\'archiviste Thrain montre le Traité de Cendres : seul un roi couronné à Valdris avec les trois reliques peut renouveler le sceau. Problème : les reliques (épée, anneau, calice) ont été dispersées après la guerre civile d\'il y a cent ans. Thrain soupçonne le duc Corvin d\'en cacher une.',
+        },
+        {
+          title: 'Acte II — Trahison aux ponts de Sel',
+          content: 'Retour vers le sud : le pont stratégique de Sel est occupé par les hommes du duc Lyonel, qui exige la capture du groupe « pour le bon ordre du royaume ». Combat, négociation ou détour dangereux par les marécages. Un prisonnier révèle que Lyonel négocie en secret avec des cultistes du Gouffre — il croit pouvoir contrôler le Roi Corbeau.',
+        },
+        {
+          title: 'Acte III — Siège de la citadelle d\'Or',
+          content: 'Valdris bascule en guerre ouverte : Harald assiège la citadelle d\'Or où Mira a barricadé les entrepôts royaux. Le groupe doit traverser les lignes, négocier un cessez-le-feu ou voler les provisions. Dans les caves, première relique : l\'Anneau du Serment, gardé par un golem de cire mélée.',
+        },
+        {
+          title: 'Acte III — La bibliothèque des rois maudits',
+          content: 'Retour au palais — section interdite. Manuscrits racontent la chute du jumeau corrompu, Corvus. Sylka y est déjà, cherchant la vérité pour le nord. Ensemble ou en rivalité, vous découvrez que le roi mort a été empoisonné par le culte — la marque noire est une malédiction qui accélère la rupture du sceau. Deuxième relique : le Calice des Larmes, dissimulé dans un tombeau familial.',
+        },
+        {
+          title: 'Acte III — Le pacte oublié',
+          content: 'Corvin convoque le groupe en cathedrale : il possède l\'Épée de l\'Aube, troisième relique, mais refuse de la remettre sans garanties pour l\'Église. Révélation : le grand prêtre cache un cultiste parmi ses novices. Purifier la cathédrale ou forcer la main au duc — conséquences durables sur la confiance du peuple.',
+        },
+        {
+          title: 'Acte III — Marche des ombres',
+          content: 'Le Gouffre exhale des brumes ; des villages entiers somnolent d\'un sommeil sans fin. Le groupe mène une expédition nocturne pour sauver Oldra et récupérer un artefact de liaison. Première confrontation avec un avatar mineur du Roi Corbeau — il parle avec la voix du roi défunt. « Mon frère m\'a trahi une fois. Renouvelez le serment… ou rejoignez-moi. »',
+        },
+        {
+          title: 'Acte IV — Bataille des champs de cendre',
+          content: 'Armées des ducs s\'affrontent près de Brume-noire pendant que le ciel se déchire. Lyonel lance ses cultistes dans la mêlée. Objectif : tenir le pont jusqu\'à ce que le rituel de renouvellement soit possible, empêcher Lyonel d\'atteindre le fort, rallier au moins deux ducs à la cause du sceau. Session épique — plusieurs vagues, choix tactiques, pertes possibles.',
+        },
+        {
+          title: 'Acte IV — Le trône vide',
+          content: 'Valdris en chaos. Le régent est mort ; le trône est vacant. Le groupe doit convoquer un parlement d\'urgence : qui sera roi ou reine ? Un candidat doit accepter le fardeau du serment. Intrigue finale : Sylka propose un royaume partagé ; Harald veut la couronne par le sang ; Mira offre de financer la reconstruction. Les choix ici façonnent la fin.',
+        },
+        {
+          title: 'Acte IV — Descente dans le Gouffre Scellé',
+          content: 'Le sceau cède malgré tout — fissure centrale sous Brume-noire. Descente en plusieurs niveaux : vestiges de l\'ancien empire, pièges, échos du passé (visions du jumeau et du premier roi). Lyonel attend au seuil, fusionné partiellement avec l\'ombre. Boss intermédiaire avant le cœur du gouffre.',
+        },
+        {
+          title: 'Acte V — Le cœur du sceau',
+          content: 'Chambre primordiale : le Roi Corbeau enchaîné, colossal, lucide et fou. Combat final ou négociation selon les reliques et le serment. Trois issues majeures : renouveler le sceau (sacrifice du souverain), détruire Corvus au prix d\'une cicatrice sur le royaume, ou sceller à nouveau en exilant le nouveau roi dans la pierre. Conséquences narrées pour les générations futures.',
+        },
+        {
+          title: 'Acte V — Couronnement ou cendres',
+          content: 'Épilogue ouvert : couronnement à Valdris, funérailles nationales, reconstruction du nord, ou royaume fragmenté si l\'échec est total. Le MJ IA prolonge les quêtes annexes (déserteurs, cultes résiduels, reconstruction de Keldorm). Campagne conçue pour se terminer ici ou continuer en épilogue libre sur plusieurs sessions supplémentaires.',
+        },
+      ],
+      npcs: [
+        {
+          name: 'Commandant Torval',
+          role: 'Garde du nord',
+          description: 'Vétéran du fort de Brume-noire, hanté par des visions. Loyal au royaume, pas à un duc en particulier.',
+        },
+        {
+          name: 'Duc Lyonel de Sel',
+          role: 'Antagoniste politique',
+          description: 'Maître des intrigues, pactise avec le culte du Gouffre. Croit dompter le Roi Corbeau pour s\'emparer du trône.',
+        },
+        {
+          name: 'Duchesse Sylka du Nord',
+          role: 'Alliée potentielle',
+          description: 'Pragmatique, protège son peuple contre les brumes. Veut un royaume où le nord ne soit plus oublié.',
+        },
+        {
+          name: 'Duc Harald le Martel',
+          role: 'Factions / guerre',
+          description: 'Général brutal, veut la couronne par conquest. Respecte la force ; peut être rallié si on le bat ou lui sauve la face.',
+        },
+        {
+          name: 'Archiviste Thrain de Keldorm',
+          role: 'Informateur',
+          description: 'Nain érudit, garde les secrets du Traité de Cendres. Exige des preuves avant de révéler chaque parcelle du rituel.',
+        },
+        {
+          name: 'Oldra la chamane',
+          role: 'Guide spirituelle',
+          description: 'Ancienne du village des Sans-Nom, connaît la vraie histoire des jumeaux rois. Peut être possédée si le groupe tarde.',
+        },
+        {
+          name: 'Grand prêtre Alaric',
+          role: 'Autorité religieuse',
+          description: 'Chef de la foi d\'Aldermar, possède des indices sur le Calice. Son ordre cache un traître cultiste.',
+        },
+        {
+          name: 'Le Roi Corbeau (Corvus)',
+          role: 'Antagoniste final',
+          description: 'Jumeau scellé du premier roi, fusionné avec une entité du Gouffre. Offre pouvoir, vérité ou destruction selon les choix du groupe.',
+        },
+        {
+          name: 'Capitaine Elwen',
+          role: 'Alliée militaire',
+          description: 'Officier de Garde-Haute, compétente et directe. Peut commander des renforts si le groupe gagne sa confiance.',
         },
       ],
     },
@@ -751,14 +926,160 @@ const Scenarios = {
         },
       ],
     },
+    {
+      id: 'inv-demo-serpent-noir',
+      roster: 'investigation',
+      questFormat: 'long',
+      title: 'L\'Affaire du Serpent Noir',
+      synopsis: 'Enquête longue sur 10 à 15 sessions (plusieurs semaines) : à Marée-Haute, des meurtres rituels marqués d\'un serpent noir secouent la ville. Corruption policière, société secrète et secrets de famille — l\'équipe doit démêler une conspiration avant la prochaine victime.',
+      setting: 'Port de Marée-Haute — brumes salées, entrepôts, université, quartier noble, égouts et phare abandonné. Époque fin de siècle / fantasy urbaine.',
+      mystery: 'Qui dirige le culte du Serpent Noir ? Quel est le lien entre les victimes — et qui protège le tueur au sein de la ville ?',
+      scenes: [
+        {
+          title: 'Acte I — Cadavre sur le quai 7',
+          content: 'À l\'aube, un pêcheur trouve le corps du notaire Fontaine, marque de serpent gravée dans le dos. Le commissaire Varenne veut classer l\'affaire « bandits du port ». La presse s\'enflamme. Le groupe est mandaté par le préfet ou contacté en secret par la journaliste Nora Pike — première liste de témoins et accès limité à la scène de crime.',
+        },
+        {
+          title: 'Acte I — Autopsie et première trace',
+          content: 'Le légiste Dr. Selim révèle : victime droguée avant la mise en scène rituelle, poison rare d\'origine orientale. Dans la poche du notaire, un billet pour le bal de la Fondation Hale. Une écaille de métal noir, pas biologique, est retrouvée sous l\'ongle de la victime — artefact ou bijou de culte ?',
+        },
+        {
+          title: 'Acte I — Le bal masqué de la Fondation',
+          content: 'Soirée charitable des élites : tous les suspects se croisent en masques. Le banquier Hale, la veuve Fontaine, le professeur Orin, le capitaine des docks Mercier. Une serveuse glisse un pli : « Ne faites pas confiance à Varenne. » Un domino noir quitte la salle par la terrasse — poursuite possible ou perte de piste.',
+        },
+        {
+          title: 'Acte I — Archives du port',
+          content: 'Registres des navires : trois cargaisons « textiles » sans manifeste complet, capitaine Mercier signataire. Correspondance chiffrée dans un coffre administratif. Un clerk est retrouvé battu — il murmure « le Serpent paie en or et en silence » avant de perdre connaissance.',
+        },
+        {
+          title: 'Acte II — Deuxième victime : le professeur',
+          content: 'Orin est retrouvé dans son bureau universitaire, même marque. Ses notes portent sur les cultes maritimes oubliés. Un étudiant discret, Lio, admet qu\'Orin recevait des menaces depuis qu\'il enquêtait sur la Fondation Hale. Vol de carnets — piste vers la bibliothèque interdite.',
+        },
+        {
+          title: 'Acte II — Bibliothèque des marées',
+          content: 'Manuscrits sur le « Serpent des profondeurs », secte liée aux marées et aux sacrifices de notables corrompus. Symboles identiques à la marque des victimes. Une page arrachée mentionne un « nid » sous le phare. Garde archiviste corrompu — pot-de-vin ou intimidation à découvrir.',
+        },
+        {
+          title: 'Acte II — Interrogatoire du commissaire Varenne',
+          content: 'Varenne bloque l\'accès aux dossiers. Témoignages de flics honnêtes : plaintes classées sans suite, témoins menacés. Surveillance du commissariat : rendez-vous nocturne avec un homme encapuchonné. Mandat ou infiltration pour obtenir preuves de complicité.',
+        },
+        {
+          title: 'Acte II — Les docks la nuit',
+          content: 'Filature de Mercier : entrepôt 14, chants étouffés, cadavres d\'animaux disposés en cercle. Combat ou infiltration. Documents liant la Fondation Hale à des « cotisations occultes ». Mercier s\'échappe ou est capturé — il parle d\'un « Messager » plus haut placé.',
+        },
+        {
+          title: 'Acte III — La veuve et l\'héritage',
+          content: 'Madame Fontaine hérite d\'une fortune si l\'enquête s\'arrête. Contradictions dans son alibi. Testament du notaire léguant des terres au phare — terrains inexploitables selon la ville, mais registre cadastral secret dit autre chose. Jalousie, argent, ou complicité forcée ?',
+        },
+        {
+          title: 'Acte III — Le témoignage du prêtre',
+          content: 'Père Aldric confesse avoir béni des « pèlerins nocturnes » sans comprendre. Il mène le groupe à une chapelle oubliée dans les égouts — fresques du serpent, autel récent. Quelqu\'un a laissé une lanterne encore chaude. Embuscade de cultistes ou fuite organisée.',
+        },
+        {
+          title: 'Acte III — Nora Pike en danger',
+          content: 'La journaliste publie un article partiel — son appartement est saccagé. Elle possède une liste de noms raturés retrouvée chez Orin. Protection, planque, ou appât pour attraper le Messager. Choix moral : exposer la vérité tout de suite ou creuser encore.',
+        },
+        {
+          title: 'Acte III — Fausse piste : le syndicat des dockers',
+          content: 'Syndicat accusé publiquement par Hale de terrorisme. En creusant, alibi solide mais haine légitime contre Fontaine qui les ruina. Le vrai coupable pourrait utiliser la colère populaire. Grève imminente — fenêtre pour une nouvelle victime pendant le chaos.',
+        },
+        {
+          title: 'Acte IV — Descente dans les égouts',
+          content: 'Réseau sous la ville : passages vers le phare, ossements anciens, chambre d\'initiation. Journaux du culte listant les « offrandes » sur vingt ans — noms de victimes futures dont un membre du conseil municipal. Course contre la montre.',
+        },
+        {
+          title: 'Acte IV — Le phare abandonné',
+          content: 'Île rocheuse à marée basse. Le phare abrite le nid du culte : salle circulaire, carte de Marée-Haute avec des croix sur des maisons nobles. Le Messager se révèle — identité selon indices (Hale, Varenne, ou figure surprise). Confrontation partielle, fuite vers le sanctuaire final.',
+        },
+        {
+          title: 'Acte IV — Le conseil municipal',
+          content: 'Session d\'urgence : le groupe présente preuves ou échoue à convaincre. Hale accuse le groupe de diffamation. Alliés politiques à mobiliser (préfet, Nora, flics loyaux). Arrestation ratée si le culte a des hommes dans la garde — émeute ou siège de l\'hôtel de ville.',
+        },
+        {
+          title: 'Acte V — Sanctuaire sous la cathédrale',
+          content: 'Dernière piste : crypte sous la cathédrale, jamais cartographiée. Cérémonie en cours — victime vivante sur l\'autel. Le Serpent Noir n\'est pas qu\'un symbole : relique ou entité invoquée. Infiltration silencieuse ou assaut — conséquences sur la réputation du groupe.',
+        },
+        {
+          title: 'Acte V — Révélation du Serpent',
+          content: 'Vérité finale : le culte protège un trafic d\'artefacts marins et élimine quiconque approche du secret des Hale. Mobile : pouvoir, immortalité rituelle, ou peur d\'une malédiction familiale. Le Messager avoue, se bat, ou se sacrifie. Plusieurs coupables possibles selon les preuves accumulées.',
+        },
+        {
+          title: 'Acte V — Verdict de Marée-Haute',
+          content: 'Épilogue : procès public, réforme de la police, chute de la Fondation, ou cover-up partiel si le groupe a échoué. Nora rédige la chronique ; Dr. Selim enterre les derniers secrets. Affaire classée ou cicatrice ouverte — le MJ IA peut prolonger en enquêtes annexes (survivants du culte, artefacts restants).',
+        },
+      ],
+      npcs: [
+        {
+          name: 'Commissaire Varenne',
+          role: 'Suspect / obstacle',
+          description: 'Chef de police corrompu ou lâche, classe les meurtres. Protège quelqu\'un — ou tremble devant le culte.',
+        },
+        {
+          name: 'Nora Pike',
+          role: 'Alliée / journaliste',
+          description: 'Enquête depuis des mois, possède des sources. Risque sa vie pour la vérité — mobile personnel à découvrir.',
+        },
+        {
+          name: 'Dr. Selim',
+          role: 'Expert légiste',
+          description: 'Méticuleux, connaît les poisons rares. Cache peut-être un lien avec les victimes ou les Hale.',
+        },
+        {
+          name: 'Banquier Hale',
+          role: 'Suspect principal',
+          description: 'Philanthrope en surface, patron de la Fondation. Chaque victime menaçait ses intérêts ou connaissait un secret.',
+        },
+        {
+          name: 'Capitaine Mercier',
+          role: 'Suspect / trafic',
+          description: 'Contrôle les docks, signe des manifestes falsifiés. Peut être un pion ou un initié du culte.',
+        },
+        {
+          name: 'Madame Fontaine',
+          role: 'Suspecte / veuve',
+          description: 'Héritière, calme trop parfaite. Aimait-elle son mari ? Savait-elle pour ses dettes envers le culte ?',
+        },
+        {
+          name: 'Père Aldric',
+          role: 'Témoin / guide',
+          description: 'Prêtre troublé, a béni les cultistes sans le vouloir. Accès aux cryptes et à la conscience des pauvres.',
+        },
+        {
+          name: 'Lio l\'étudiant',
+          role: 'Témoin clé',
+          description: 'Assistant d\'Orin, terrorisé. A vu qui entrait la nuit du meurtre du professeur — s\'il ose parler.',
+        },
+        {
+          name: 'Le Messager',
+          role: 'Antagoniste',
+          description: 'Exécutant du culte, identité masquée jusqu\'à l\'acte IV. Obéit au « Serpent » — ou est la tête du serpent.',
+        },
+      ],
+    },
   ],
 
   getInvestigationScenarios() {
     return this.list.filter((s) => s.roster === 'investigation');
   },
 
+  getInvestigationOneshotScenarios() {
+    return this.getInvestigationScenarios().filter((s) => s.questFormat !== 'long');
+  },
+
+  getInvestigationLongScenarios() {
+    return this.getInvestigationScenarios().filter((s) => s.questFormat === 'long');
+  },
+
   getGeneralScenarios() {
     return this.list.filter((s) => s.roster !== 'investigation');
+  },
+
+  getOneshotScenarios() {
+    return this.getGeneralScenarios().filter((s) => (s.questFormat || 'oneshot') !== 'long');
+  },
+
+  getLongScenarios() {
+    return this.getGeneralScenarios().filter((s) => s.questFormat === 'long');
   },
 
   isInvestigationScenario(scenarioOrId) {
@@ -769,14 +1090,15 @@ const Scenarios = {
 
   /** Ajoute ou met à jour les scénarios d'exemple */
   ensureDemoScenario() {
-    const UPDATED_DEMOS = ['demo-crypte', 'demo-manoir', 'demo-kharak'];
+    const UPDATED_DEMOS = ['demo-crypte', 'demo-manoir', 'demo-kharak', 'demo-couronne-fracturee'];
     const UPDATED_INVESTIGATION = [
       'inv-demo-bal-masque', 'inv-demo-brumeval', 'inv-demo-alchimiste',
-      'inv-demo-oracle', 'inv-demo-train',
+      'inv-demo-oracle', 'inv-demo-train', 'inv-demo-serpent-noir',
     ];
     let changed = false;
 
     this.DEMO_SCENARIOS.forEach((demo) => {
+      if (this.removedDemos.includes(demo.id)) return;
       const index = this.list.findIndex((s) => s.id === demo.id);
       if (index === -1) {
         this.list.push(JSON.parse(JSON.stringify(demo)));
@@ -788,6 +1110,7 @@ const Scenarios = {
     });
 
     this.INVESTIGATION_SCENARIOS.forEach((demo) => {
+      if (this.removedDemos.includes(demo.id)) return;
       const index = this.list.findIndex((s) => s.id === demo.id);
       if (index === -1) {
         this.list.push(JSON.parse(JSON.stringify(demo)));
@@ -804,17 +1127,15 @@ const Scenarios = {
   init() {
     this.load();
     this.ensureDemoScenario();
-    this.renderList();
 
-    document.getElementById('btn-new-scenario').addEventListener('click', () => this.showForm());
-    document.getElementById('btn-cancel-scenario').addEventListener('click', () => this.hideForm());
-    document.getElementById('scenario-form-el').addEventListener('submit', (e) => this.handleSubmit(e));
+    document.getElementById('btn-cancel-scenario')?.addEventListener('click', () => this.hideForm());
+    document.getElementById('scenario-form-el')?.addEventListener('submit', (e) => this.handleSubmit(e));
 
-    document.getElementById('btn-add-scene').addEventListener('click', () => {
+    document.getElementById('btn-add-scene')?.addEventListener('click', () => {
       document.getElementById('scenes-list').appendChild(this.renderSceneItem());
     });
 
-    document.getElementById('btn-add-npc').addEventListener('click', () => {
+    document.getElementById('btn-add-npc')?.addEventListener('click', () => {
       document.getElementById('npcs-list').appendChild(this.renderNpcItem());
     });
   },

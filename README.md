@@ -1,27 +1,40 @@
 # OpenQuest JDR — Jeu multijoueur
 
 > **🚧 Travaux en cours — jeu en développement**  
-> Prototype serveur + client Godot fonctionnels. Import et analyse du POC HTML en cours. Rien n'est jouable en l'état final du produit.
+> POC HTML jouable + prototype serveur Godot en parallèle.
 
-Jeu de rôle multijoueur : client **Godot 4** + serveur **Node.js** (WebSocket).
+Jeu de rôle multijoueur : **POC HTML** (jouable tout de suite) + client **Godot 4** + serveur **Node.js** (WebSocket).
 
 ## État actuel
 
 | Phase | Statut | Détail |
 |-------|--------|--------|
+| **POC HTML** | ✅ Jouable | `index.html` — aventures, enquête, cartes, MJ IA |
 | Setup technique | ✅ Fait | Serveur WebSocket, squelette Godot, doc collaboration |
-| POC HTML | 🔄 En cours | Récupération et analyse (`poc/`, `docs/poc/`) |
-| Gameplay JDR | ⏳ À venir | Règles, fiches perso, dés, carte… |
+| Gameplay Godot | ⏳ À venir | Portage des règles du POC |
 | Multijoueur complet | ⏳ À venir | Après intégration des règles du POC |
+
+## POC HTML — lancer sans installation
+
+```bash
+# Ouvrir directement dans le navigateur
+./ouvrir-openquest.sh
+# ou double-clic sur index.html
+```
+
+Fonctionnalités : création de personnages, scénarios, bots, cartes interactives (monde + lieux), mode enquête, session de jeu avec MJ IA ou humain.
 
 ## Structure
 
 ```
 OpenQuest_jdr/
+├── index.html     # POC HTML — point d'entrée
+├── css/           # Styles du POC
+├── js/            # Logique du POC
 ├── game/          # Projet Godot 4 (client)
 ├── server/        # Serveur Node.js (WebSocket)
-├── poc/           # POC HTML original (référence)
-├── docs/          # Documentation technique et analyse POC
+├── poc/           # Références / exports POC
+├── docs/          # Documentation
 └── scripts/       # Setup et lancement rapide
 ```
 
@@ -67,23 +80,23 @@ cd OpenQuest_jdr
 | Qui | Zone | Branches Git | Phase actuelle |
 |-----|------|--------------|----------------|
 | Poisson | `server/`, `game/`, infra | `server/...`, `game/...` | Dev technique |
-| Copine | POC, règles JDR, design | `poc/...`, `docs/...` | Import POC HTML (sans install) |
+| **AslanUsko** | POC HTML, règles JDR, design | `index.html`, `css/`, `js/`, `docs/...` | POC HTML jouable |
 | Les deux | `docs/`, protocole WS | `docs/...` | — |
 
 **Workflow :** branche → commit → Pull Request → merge sur `main`.
 
 Guides :
 - [docs/COLLABORATION.md](docs/COLLABORATION.md) — workflow Git, conflits Godot, routine
-- [docs/IA_POUR_COPINE.md](docs/IA_POUR_COPINE.md) — guide pour l'IA qui l'accompagne (phase POC)
+- [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) — guide pour l'IA qui accompagne AslanUsko (phase POC)
 - [CONTRIBUTING.md](CONTRIBUTING.md) — résumé rapide
 
-**Ajouter ta copine sur GitHub :** Settings → Collaborators → Add people (elle accepte l'invitation).
+**Collaborateur GitHub :** @AslanUsko — POC HTML et documentation.
 
 ## Documentation
 
 - [docs/STACK.md](docs/STACK.md) — architecture technique
 - [docs/COLLABORATION.md](docs/COLLABORATION.md) — bosser à deux
-- [docs/IA_POUR_COPINE.md](docs/IA_POUR_COPINE.md) — accompagnement IA (POC HTML)
+- [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) — accompagnement IA (POC HTML)
 
 ## Licence
 

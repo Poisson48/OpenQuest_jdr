@@ -25,8 +25,9 @@ const App = {
     Bots.initEditor();
     Characters.init();
     InvestigationRoster.init();
-    Dice.init();
     Scenarios.init();
+    AdventureRoster.init();
+    Maps.init();
     Game.init();
 
     this.updateHomeResume();
@@ -43,7 +44,7 @@ const App = {
     });
 
     document.getElementById('btn-home-enter')?.addEventListener('click', () => {
-      this.showApp('characters');
+      this.showApp('adventures');
     });
 
     document.getElementById('btn-home-resume')?.addEventListener('click', () => {
@@ -127,7 +128,11 @@ const App = {
   },
 
   routeInitialView() {
-    if (Game.state?.status === 'playing') {
+    const canResume = Game.state?.status === 'playing'
+      && Array.isArray(Game.state.party)
+      && Game.state.party.length > 0;
+
+    if (canResume) {
       this.showApp('play');
       Game.showSession();
       return;
@@ -156,7 +161,7 @@ const App = {
     window.scrollTo(0, 0);
   },
 
-  showApp(tabId = 'characters', preset = null) {
+  showApp(tabId = 'adventures', preset = null) {
     this.hideAllViews();
     this.appView?.classList.remove('hidden');
     this.activateTab(tabId, preset);
@@ -167,13 +172,16 @@ const App = {
     this.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === target));
     this.panels.forEach((p) => p.classList.toggle('active', p.id === target));
 
-    if (target === 'characters' && typeof Bots !== 'undefined') {
-      Bots.load();
-      Bots.renderList();
+    if (target === 'adventures' && typeof AdventureRoster !== 'undefined') {
+      AdventureRoster.render();
     }
 
     if (target === 'investigation' && typeof InvestigationRoster !== 'undefined') {
       InvestigationRoster.render();
+    }
+
+    if (target === 'maps' && typeof Maps !== 'undefined') {
+      Maps.renderList();
     }
 
     if (target === 'play' && typeof Game !== 'undefined') {
@@ -192,5 +200,17 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  App.init();
+  try {
+    App.init();
+  } catch (err) {
+    console.error('OpenQuest — erreur au démarrage :', err);
+    const home = document.getElementById('home-view');
+    if (home) {
+      home.classList.remove('hidden');
+      const msg = document.createElement('p');
+      msg.className = 'home-resume-detail';
+      msg.textContent = 'Erreur au chargement — recharge la page (Ctrl+F5). Si le problème continue, vide le cache du navigateur.';
+      home.querySelector('.home-main')?.prepend(msg);
+    }
+  }
 });

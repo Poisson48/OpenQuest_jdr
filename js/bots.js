@@ -243,7 +243,13 @@ const Bots = {
       .filter((b) => !this.isRemovedDefault(b.id))
       .map((b) => this.getArchetype(b.id));
     const customs = this.customBots.map((b) => this.getArchetype(b.id)).filter(Boolean);
-    return [...defaults, ...customs];
+    return [...defaults, ...customs].filter((b) => b && !this.isInvestigationBot(b.id));
+  },
+
+  getBotsForQuestFormat(questFormat) {
+    return questFormat === 'investigation'
+      ? this.getInvestigationArchetypes()
+      : this.getArchetypes();
   },
 
   getInvestigationArchetype(id) {
@@ -376,11 +382,16 @@ const Bots = {
   deleteInvestigationBot(id) {
     if (this.isInvestigationCustomBot(id)) {
       this.investigationCustomBots = this.investigationCustomBots.filter((b) => b.id !== id);
-    } else if (this.isInvestigationDefaultBot(id) && !this.isInvestigationRemovedDefault(id)) {
-      this.investigationRemovedDefaults.push(id);
+    } else if (this.isInvestigationDefaultBot(id)) {
+      if (!this.isInvestigationRemovedDefault(id)) {
+        this.investigationRemovedDefaults.push(id);
+      }
       delete this.investigationCustomizations[id];
+    } else {
+      return false;
     }
     this.save();
+    return true;
   },
 
   isInvestigationCustomized(id) {
@@ -395,6 +406,16 @@ const Bots = {
   },
 
   deleteBot(id) {
+    if (this.isInvestigationBot(id)) {
+      if (!this.deleteInvestigationBot(id)) return;
+      if (typeof InvestigationRoster !== 'undefined') {
+        InvestigationRoster.renderBots();
+      }
+      if (typeof Game !== 'undefined') {
+        Game.refreshSetupCharacters();
+      }
+      return;
+    }
     if (this.isCustomBot(id)) {
       this.customBots = this.customBots.filter((b) => b.id !== id);
     } else if (this.isDefaultBot(id) && !this.isRemovedDefault(id)) {
@@ -545,13 +566,18 @@ const Bots = {
   },
 
   deleteBotConfirm(id) {
-    const bot = this.getArchetype(id);
+    const bot = this.getArchetype(id) || this.getInvestigationArchetype(id);
     if (!bot) return;
-    const label = this.isCustomBot(id) ? 'bot perso' : 'compagnon bot';
+    const label = this.isInvestigationBot(id)
+      ? (this.isInvestigationCustomBot(id) ? 'bot enquête perso' : 'compagnon d\'enquête')
+      : (this.isCustomBot(id) ? 'bot perso' : 'compagnon bot');
     if (!confirm(`Supprimer le ${label} « ${bot.name} » ?`)) return;
     this.deleteBot(id);
     this.renderList();
     this.hideForm();
+    if (typeof Game !== 'undefined') {
+      Game.refreshSetupCharacters();
+    }
   },
 
   initEditor() {

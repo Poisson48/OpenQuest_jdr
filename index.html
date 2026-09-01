@@ -116,33 +116,38 @@
         </ol>
       </section>
 
-      <section class="home-features" aria-label="Fonctionnalités">
-        <article class="home-card">
-          <span class="home-card-icon">👤</span>
-          <h2>Personnages</h2>
-          <p>Crée des héros avec stats, histoire et compagnons bots personnalisables.</p>
-          <button type="button" class="btn btn-secondary home-card-btn" data-go="characters">Gérer les personnages</button>
-        </article>
-        <article class="home-card">
-          <span class="home-card-icon">📜</span>
-          <h2>Scénarios</h2>
-          <p>Compose des aventures en scènes, avec PNJ et synopsis pour tes parties.</p>
-          <button type="button" class="btn btn-secondary home-card-btn" data-go="scenarios">Créer un scénario</button>
-        </article>
-        <article class="home-card">
-          <span class="home-card-icon">🎲</span>
-          <h2>Dés</h2>
-          <p>Lance des dés en un clic — le MJ IA s'en charge automatiquement en jeu.</p>
-          <button type="button" class="btn btn-secondary home-card-btn" data-go="dice">Ouvrir les dés</button>
+      <section class="home-modes-duo" aria-label="Préparer une partie">
+        <article class="home-card home-card-adventures">
+          <span class="home-card-deco home-card-deco-adv" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none"><path d="M24 4 L28 20 L24 24 L20 20 Z" stroke="currentColor" stroke-width="1.2" fill="currentColor" fill-opacity="0.15"/><line x1="24" y1="24" x2="24" y2="42" stroke="currentColor" stroke-width="1.5"/></svg>
+          </span>
+          <span class="home-card-icon">⚔️</span>
+          <h2>Aventures</h2>
+          <p>Crée tes héros, tes compagnons bots et tes scénarios one-shot ou campagne longue.</p>
+          <button type="button" class="btn btn-secondary home-card-btn" data-go="adventures">Préparer une aventure</button>
         </article>
         <article class="home-card home-card-investigation">
           <span class="home-card-deco" aria-hidden="true">
             <svg viewBox="0 0 48 48" fill="none"><circle cx="20" cy="20" r="12" stroke="currentColor" stroke-width="1.2"/><line x1="29" y1="29" x2="40" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </span>
           <span class="home-card-icon">🔍</span>
-          <h2>Mode enquête</h2>
-          <p>Enquêteurs, bots spécialisés et profils prêts à l'emploi pour mener une investigation fictive.</p>
+          <h2>Enquêtes</h2>
+          <p>Enquêteurs, bots spécialisés et affaires prêtes à jouer pour mener une investigation fictive.</p>
           <button type="button" class="btn btn-secondary home-card-btn" data-go="investigation">Préparer l'équipe d'enquête</button>
+        </article>
+      </section>
+
+      <section class="home-features" aria-label="Fonctionnalités">
+        <article class="home-card">
+          <span class="home-card-icon">🎲</span>
+          <h2>Dés intégrés</h2>
+          <p>En partie avec MJ humain, lance d4 à d20 directement depuis l'écran de jeu.</p>
+        </article>
+        <article class="home-card">
+          <span class="home-card-icon">🗺️</span>
+          <h2>Cartes</h2>
+          <p>Scènes locales ou cartes du monde complet — affichées pendant la partie.</p>
+          <button type="button" class="btn btn-secondary home-card-btn" data-go="maps">Créer une carte</button>
         </article>
         <article class="home-card home-card-highlight">
           <span class="home-card-icon">🤖</span>
@@ -400,25 +405,61 @@
   </header>
 
   <nav class="tabs">
-    <button class="tab" data-tab="characters">👤 Personnages</button>
+    <button class="tab" data-tab="adventures">⚔️ Aventures</button>
     <button class="tab" data-tab="investigation">🔍 Enquête</button>
-    <button class="tab" data-tab="dice">🎲 Dés</button>
-    <button class="tab" data-tab="scenarios">📜 Scénarios</button>
+    <button class="tab" data-tab="maps">🗺️ Cartes</button>
     <button class="tab" data-tab="play">🎮 Jouer</button>
   </nav>
 
   <main class="container">
-    <!-- ===== PERSONNAGES ===== -->
-    <section id="characters" class="panel">
-      <div class="panel-header">
-        <h2>Mes personnages</h2>
-        <button id="btn-new-character" class="btn btn-primary">+ Nouveau personnage</button>
+    <!-- ===== AVENTURES — PERSONNAGES, BOTS & SCÉNARIOS ===== -->
+    <section id="adventures" class="panel panel-adventures">
+      <div class="adv-bg-decor" aria-hidden="true">
+        <svg class="adv-deco adv-deco-sword" viewBox="0 0 55 130" fill="none">
+          <path d="M27 6 L31 82 L27 90 L23 82 Z" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity="0.08"/>
+          <line x1="27" y1="90" x2="27" y2="118" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+        <svg class="adv-deco adv-deco-shield" viewBox="0 0 50 60" fill="none">
+          <path d="M25 4 L42 12 L42 32 Q42 48 25 56 Q8 48 8 32 L8 12 Z" stroke="currentColor" stroke-width="1.2" fill="currentColor" fill-opacity="0.06"/>
+        </svg>
+        <svg class="adv-deco adv-deco-scroll" viewBox="0 0 80 100" fill="none">
+          <path d="M10 14 C10 8 70 8 70 14 L70 86 C70 92 10 92 10 86 Z" stroke="currentColor" stroke-width="1.2"/>
+          <line x1="20" y1="35" x2="60" y2="35" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+        </svg>
+        <svg class="adv-deco adv-deco-d20" viewBox="0 0 100 110" fill="none">
+          <path d="M50 8 L90 32 L90 72 L50 96 L10 72 L10 32 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>
+        <svg class="adv-deco adv-deco-castle" viewBox="0 0 90 110" fill="none">
+          <path d="M22 110 L22 50 L34 50 L34 32 L45 14 L56 32 L56 50 L68 50 L68 110" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.07"/>
+        </svg>
+        <svg class="adv-deco adv-deco-compass" viewBox="0 0 70 70" fill="none">
+          <circle cx="35" cy="35" r="28" stroke="currentColor" stroke-width="1"/>
+        </svg>
       </div>
-      <p class="panel-hint">Pour le <strong>mode enquête</strong>, utilise l'onglet <button type="button" class="link-btn" data-go-investigation>🔍 Enquête</button> — enquêteurs et bots dédiés.</p>
 
-      <div id="character-list" class="card-grid"></div>
+      <div class="inv-hero adv-hero">
+        <div class="inv-hero-text">
+          <p class="inv-eyebrow adv-eyebrow">One-shot &amp; campagne longue</p>
+          <h2>Héros, compagnons &amp; scénarios</h2>
+          <p class="inv-intro">Compose ton équipe d'aventuriers et tes bots compagnons, puis choisis un scénario one-shot ou une campagne longue durée. Pour les enquêtes, utilise l'onglet <button type="button" class="link-btn" data-go-investigation>🔍 Enquête</button>.</p>
+        </div>
+        <div class="adv-hero-actions">
+          <button type="button" id="btn-adv-launch-oneshot" class="btn btn-primary">⚡ Lancer un one-shot</button>
+          <button type="button" id="btn-adv-launch-long" class="btn btn-secondary">🏔️ Lancer une campagne</button>
+        </div>
+      </div>
 
-      <div id="character-form" class="form-panel hidden">
+      <section class="inv-section">
+        <div class="panel-header">
+          <div>
+            <h3>Mes personnages</h3>
+            <p class="subsection-hint">Héros joueurs pour les aventures classiques — one-shot et campagne longue.</p>
+          </div>
+          <button id="btn-new-character" class="btn btn-primary">+ Nouveau personnage</button>
+        </div>
+        <div id="character-list" class="card-grid"></div>
+
+        <div id="character-form" class="form-panel hidden">
         <h3 id="character-form-title">Nouveau personnage</h3>
         <form id="character-form-el">
           <input type="hidden" id="char-id">
@@ -490,19 +531,20 @@
             <button type="button" id="btn-cancel-character" class="btn btn-secondary">Annuler</button>
           </div>
         </form>
-      </div>
-
-      <div class="subsection-header">
-        <div>
-          <h3>Compagnons bots</h3>
-          <p class="subsection-hint">Ces personnages IA t'accompagnent en solo. Crée, modifie ou supprime des compagnons bots.</p>
         </div>
-        <button type="button" id="btn-new-bot" class="btn btn-primary">+ Nouveau bot</button>
-      </div>
+      </section>
 
-      <div id="bot-list" class="card-grid"></div>
+      <section class="inv-section">
+        <div class="panel-header">
+          <div>
+            <h3>Compagnons bots</h3>
+            <p class="subsection-hint">Ces personnages IA t'accompagnent en solo — création, modification et suppression.</p>
+          </div>
+          <button type="button" id="btn-new-bot" class="btn btn-primary">+ Nouveau bot</button>
+        </div>
+        <div id="bot-list" class="card-grid"></div>
 
-      <div id="bot-form" class="form-panel hidden">
+        <div id="bot-form" class="form-panel hidden">
         <h3 id="bot-form-title">Modifier le compagnon bot</h3>
         <form id="bot-form-el">
           <input type="hidden" id="bot-id">
@@ -599,7 +641,83 @@
             <button type="button" id="btn-cancel-bot" class="btn btn-secondary">Annuler</button>
           </div>
         </form>
-      </div>
+        </div>
+      </section>
+
+      <section class="inv-section">
+        <div class="panel-header">
+          <div>
+            <h3>Scénarios one-shot</h3>
+            <p class="subsection-hint">Aventures courtes (3–4 h) — idéales pour une session complète.</p>
+          </div>
+          <button type="button" id="btn-adv-new-scenario-oneshot" class="btn btn-primary">+ Nouveau one-shot</button>
+        </div>
+        <div id="adv-scenario-list-oneshot" class="card-grid"></div>
+      </section>
+
+      <section class="inv-section">
+        <div class="panel-header">
+          <div>
+            <h3>Scénarios longue durée</h3>
+            <p class="subsection-hint">Campagnes multi-sessions — arcs narratifs étendus et progression lente.</p>
+          </div>
+          <button type="button" id="btn-adv-new-scenario-long" class="btn btn-primary">+ Nouvelle campagne</button>
+        </div>
+        <div id="adv-scenario-list-long" class="card-grid"></div>
+
+        <div id="scenario-form" class="form-panel hidden">
+          <h3 id="scenario-form-title">Nouveau scénario</h3>
+          <form id="scenario-form-el">
+            <input type="hidden" id="scenario-id">
+            <input type="hidden" id="scenario-roster" value="">
+
+            <div class="form-row">
+              <label for="scenario-title">Titre de l'aventure</label>
+              <input type="text" id="scenario-title" placeholder="La crypte oubliée..." required>
+            </div>
+
+            <div class="form-row" id="scenario-format-row">
+              <label for="scenario-quest-format">Format de jeu</label>
+              <select id="scenario-quest-format">
+                <option value="oneshot">One-shot (3–4 h)</option>
+                <option value="long">Campagne longue durée</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="scenario-synopsis">Synopsis</label>
+              <textarea id="scenario-synopsis" rows="3" placeholder="Résumé de l'aventure en quelques lignes..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <label for="scenario-setting">Cadre & ambiance</label>
+              <textarea id="scenario-setting" rows="2" placeholder="Forêt sombre, ville médiévale, ruines..."></textarea>
+            </div>
+
+            <div class="form-row hidden" id="scenario-mystery-row">
+              <label for="scenario-mystery">Mystère à résoudre <span class="field-optional">(enquête)</span></label>
+              <input type="text" id="scenario-mystery" placeholder="Qui a empoisonné le baron ? Où est la victime ?">
+            </div>
+
+            <fieldset class="scenes-fieldset">
+              <legend>Scènes / Chapitres</legend>
+              <div id="scenes-list"></div>
+              <button type="button" id="btn-add-scene" class="btn btn-small">+ Ajouter une scène</button>
+            </fieldset>
+
+            <fieldset class="npcs-fieldset">
+              <legend>Personnages non-joueurs (PNJ)</legend>
+              <div id="npcs-list"></div>
+              <button type="button" id="btn-add-npc" class="btn btn-small">+ Ajouter un PNJ</button>
+            </fieldset>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Sauvegarder</button>
+              <button type="button" id="btn-cancel-scenario" class="btn btn-secondary">Annuler</button>
+            </div>
+          </form>
+        </div>
+      </section>
     </section>
 
     <!-- ===== MODE ENQUÊTE — PERSONNAGES & BOTS ===== -->
@@ -636,20 +754,34 @@
         <div class="inv-hero-text">
           <p class="inv-eyebrow">Mode enquête</p>
           <h2>Équipe &amp; affaires d'investigation</h2>
-          <p class="inv-intro">Choisis un scénario d'enquête, compose ton équipe d'enquêteurs et de bots spécialisés. Interrogatoires, traces, indices — tout est pensé pour le mode enquête.</p>
+          <p class="inv-intro">Compose ton équipe d'enquêteurs et de bots spécialisés. Choisis une affaire courte ou une enquête longue durée — interrogatoires, traces et indices à recouper sur plusieurs sessions.</p>
         </div>
-        <button type="button" id="btn-inv-launch" class="btn btn-primary">🎮 Lancer une enquête</button>
+        <div class="inv-hero-actions">
+          <button type="button" id="btn-inv-launch" class="btn btn-primary">🔍 Affaire one-shot</button>
+          <button type="button" id="btn-inv-launch-long" class="btn btn-secondary">📁 Enquête longue durée</button>
+        </div>
       </div>
 
       <section class="inv-section">
         <div class="panel-header">
           <div>
-            <h3>Scénarios d'enquête</h3>
-            <p class="subsection-hint">Mystères prêts à jouer — suspects, indices, scènes à fouiller et témoignages à recouper.</p>
+            <h3>Affaires one-shot</h3>
+            <p class="subsection-hint">Mystères courts (1–2 sessions) — suspects, indices et dénouement rapide.</p>
           </div>
-          <button type="button" id="btn-inv-new-scenario" class="btn btn-primary">+ Nouveau scénario enquête</button>
+          <button type="button" id="btn-inv-new-scenario" class="btn btn-primary">+ Nouvelle affaire</button>
         </div>
-        <div id="inv-scenario-list" class="card-grid"></div>
+        <div id="inv-scenario-list-oneshot" class="card-grid"></div>
+      </section>
+
+      <section class="inv-section">
+        <div class="panel-header">
+          <div>
+            <h3>Enquêtes longue durée</h3>
+            <p class="subsection-hint">Affaires multi-sessions sur plusieurs semaines — conspirations, filatures et révélations progressives.</p>
+          </div>
+          <button type="button" id="btn-inv-new-scenario-long" class="btn btn-primary">+ Nouvelle enquête longue</button>
+        </div>
+        <div id="inv-scenario-list-long" class="card-grid"></div>
       </section>
 
       <section class="inv-section">
@@ -797,92 +929,236 @@
       </section>
     </section>
 
-    <!-- ===== DÉS ===== -->
-    <section id="dice" class="panel">
-      <h2>Lanceur de dés</h2>
+    <!-- ===== CARTES ===== -->
+    <section id="maps" class="panel panel-maps">
+      <div class="maps-bg-decor" aria-hidden="true">
+        <svg class="maps-deco maps-deco-compass" viewBox="0 0 80 80" fill="none">
+          <circle cx="40" cy="40" r="32" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M40 12 L44 38 L40 44 L36 38 Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="0.8"/>
+          <path d="M40 68 L36 42 L40 36 L44 42 Z" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="0.8"/>
+        </svg>
+        <svg class="maps-deco maps-deco-grid" viewBox="0 0 100 80" fill="none">
+          <line x1="0" y1="20" x2="100" y2="20" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+          <line x1="0" y1="40" x2="100" y2="40" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+          <line x1="0" y1="60" x2="100" y2="60" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+          <line x1="25" y1="0" x2="25" y2="80" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+          <line x1="50" y1="0" x2="50" y2="80" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+          <line x1="75" y1="0" x2="75" y2="80" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+        </svg>
+      </div>
 
-      <div class="dice-section">
-        <p class="hint">Clique sur un dé pour le lancer, ou écris une formule personnalisée.</p>
-
-        <div class="quick-dice">
-          <button class="dice-btn" data-roll="1d4">d4</button>
-          <button class="dice-btn" data-roll="1d6">d6</button>
-          <button class="dice-btn" data-roll="1d8">d8</button>
-          <button class="dice-btn" data-roll="1d10">d10</button>
-          <button class="dice-btn" data-roll="1d12">d12</button>
-          <button class="dice-btn" data-roll="1d20">d20</button>
-          <button class="dice-btn d20-highlight" data-roll="1d20">d20 ⭐</button>
+      <div class="maps-hero">
+        <div class="maps-hero-text">
+          <p class="maps-eyebrow">Cartes de partie</p>
+          <h2>Création de cartes</h2>
+          <p class="maps-intro">Scènes locales (donjons, quartiers) ou cartes du monde complet (continents, royaumes, villes). Lie une carte à un scénario et affiche-la en partie.</p>
         </div>
-
-        <div class="custom-roll">
-          <input type="text" id="custom-roll-input" placeholder="Ex: 2d6+3, 1d20+5">
-          <button id="btn-custom-roll" class="btn btn-primary">Lancer</button>
-        </div>
-
-        <div id="dice-result" class="dice-result hidden">
-          <span class="result-label"></span>
-          <span class="result-value"></span>
-          <span class="result-detail"></span>
-        </div>
-
-        <div class="roll-history">
-          <h3>Historique</h3>
-          <ul id="roll-history-list"></ul>
+        <div class="maps-hero-actions">
+          <button type="button" id="btn-new-map-adventure" class="btn btn-primary">+ Scène aventure</button>
+          <button type="button" id="btn-new-map-investigation" class="btn btn-secondary">+ Scène enquête</button>
+          <button type="button" id="btn-new-map-world" class="btn btn-secondary">+ Carte du monde</button>
         </div>
       </div>
-    </section>
 
-    <!-- ===== SCÉNARIOS ===== -->
-    <section id="scenarios" class="panel">
-      <div class="panel-header">
-        <h2>Mes scénarios</h2>
-        <button id="btn-new-scenario" class="btn btn-primary">+ Nouveau scénario</button>
-      </div>
-      <p class="panel-hint">Les scénarios <strong>🔍 Enquête</strong> sont aussi listés dans l'onglet <button type="button" class="link-btn" data-go-investigation>Enquête</button>.</p>
-
-      <div id="scenario-list" class="card-grid"></div>
-
-      <div id="scenario-form" class="form-panel hidden">
-        <h3 id="scenario-form-title">Nouveau scénario</h3>
-        <form id="scenario-form-el">
-          <input type="hidden" id="scenario-id">
-          <input type="hidden" id="scenario-roster" value="">
-
-          <div class="form-row">
-            <label for="scenario-title">Titre de l'aventure</label>
-            <input type="text" id="scenario-title" placeholder="La crypte oubliée..." required>
+      <section class="maps-section maps-section-world">
+        <div class="panel-header">
+          <div>
+            <h3>Cartes du monde</h3>
+            <p class="subsection-hint">Cartes complètes à grande échelle — océans, continents, royaumes et villes pour campagnes longues.</p>
           </div>
+        </div>
+        <div id="map-list-world" class="card-grid"></div>
+      </section>
 
-          <div class="form-row">
-            <label for="scenario-synopsis">Synopsis</label>
-            <textarea id="scenario-synopsis" rows="3" placeholder="Résumé de l'aventure en quelques lignes..."></textarea>
+      <section class="maps-section">
+        <div class="panel-header">
+          <div>
+            <h3>Scènes aventure</h3>
+            <p class="subsection-hint">Donjons, tavernes et zones d'exploration (plans locaux).</p>
           </div>
+        </div>
+        <div id="map-list-adventure" class="card-grid"></div>
+      </section>
 
-          <div class="form-row">
-            <label for="scenario-setting">Cadre & ambiance</label>
-            <textarea id="scenario-setting" rows="2" placeholder="Forêt sombre, ville médiévale, ruines..."></textarea>
+      <section class="maps-section maps-section-investigation">
+        <div class="panel-header">
+          <div>
+            <h3>Scènes enquête</h3>
+            <p class="subsection-hint">Quartiers, commissariats et lieux de crime (plans locaux).</p>
           </div>
+        </div>
+        <div id="map-list-investigation" class="card-grid"></div>
+      </section>
 
-          <div class="form-row">
-            <label for="scenario-mystery">Mystère à résoudre <span class="field-optional">(enquête)</span></label>
-            <input type="text" id="scenario-mystery" placeholder="Qui a empoisonné le baron ? Où est la victime ?">
-          </div>
+      <div id="map-form" class="form-panel map-form hidden">
+        <h3 id="map-form-title">Nouvelle carte</h3>
+        <form id="map-form-el">
+          <input type="hidden" id="map-id">
+          <input type="hidden" id="map-roster" value="general">
+          <input type="hidden" id="map-kind" value="local">
 
-          <fieldset class="scenes-fieldset">
-            <legend>Scènes / Chapitres</legend>
-            <div id="scenes-list"></div>
-            <button type="button" id="btn-add-scene" class="btn btn-small">+ Ajouter une scène</button>
+          <fieldset class="map-size-fieldset">
+            <legend>Taille de la carte</legend>
+            <p id="map-size-intro" class="map-size-intro">Définis le nombre de carrés en largeur et en hauteur. La grille se met à jour automatiquement.</p>
+            <div class="map-size-row">
+              <div>
+                <label for="map-width">Largeur (carrés)</label>
+                <input type="number" id="map-width" min="4" max="40" value="16" step="1">
+              </div>
+              <div>
+                <label for="map-height">Hauteur (carrés)</label>
+                <input type="number" id="map-height" min="4" max="30" value="12" step="1">
+              </div>
+              <button type="button" id="btn-map-apply-size" class="btn btn-secondary btn-small">Actualiser</button>
+            </div>
+            <p id="map-size-summary" class="map-size-summary" aria-live="polite">16 × 12 = 192 carrés</p>
+            <div id="map-size-presets-local" class="map-size-presets">
+              <span class="map-size-presets-label">Scène locale :</span>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="8" data-map-h="8">8×8</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="10" data-map-h="10">10×10</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="12" data-map-h="8">12×8</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="16" data-map-h="12">16×12</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="20" data-map-h="15">20×15</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="24" data-map-h="18">24×18</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="30" data-map-h="20">30×20</button>
+            </div>
+            <div id="map-size-presets-world" class="map-size-presets hidden">
+              <span class="map-size-presets-label">Monde complet :</span>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="32" data-map-h="24">32×24</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="40" data-map-h="28">40×28</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="48" data-map-h="32">48×32</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="60" data-map-h="40">60×40</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="72" data-map-h="48">72×48</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="80" data-map-h="56">80×56</button>
+              <button type="button" class="btn btn-small map-preset-btn" data-map-w="96" data-map-h="64">96×64</button>
+            </div>
           </fieldset>
 
-          <fieldset class="npcs-fieldset">
-            <legend>Personnages non-joueurs (PNJ)</legend>
-            <div id="npcs-list"></div>
-            <button type="button" id="btn-add-npc" class="btn btn-small">+ Ajouter un PNJ</button>
+          <div class="form-row two-cols">
+            <div>
+              <label for="map-title">Titre</label>
+              <input type="text" id="map-title" required placeholder="Ex : Taverne du Vieux Port">
+            </div>
+            <div>
+              <label for="map-scenario">Scénario lié (optionnel)</label>
+              <select id="map-scenario">
+                <option value="">— Aucun scénario lié —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="map-description">Description</label>
+            <textarea id="map-description" rows="2" placeholder="Contexte, zones importantes, conseils MJ…"></textarea>
+          </div>
+
+          <fieldset class="map-tools-fieldset">
+            <legend>Outils</legend>
+            <div class="map-tool-row">
+              <button type="button" class="btn btn-small map-tool-btn active" data-map-tool="tile">Peindre</button>
+              <button type="button" class="btn btn-small map-tool-btn" data-map-tool="marker">Marqueur</button>
+              <button type="button" class="btn btn-small map-tool-btn hidden" data-map-tool="link">Lien lieu</button>
+              <button type="button" class="btn btn-small map-tool-btn" data-map-tool="erase">Effacer</button>
+              <button type="button" id="btn-map-clear" class="btn btn-small btn-danger">Tout effacer</button>
+            </div>
           </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-adventure">
+            <legend>Tuiles — aventure</legend>
+            <div class="map-palette map-palette-tiles">
+              <button type="button" class="map-tile-btn active" data-map-tile="grass" title="Herbe"><span class="map-swatch map-cell-grass"></span> Herbe</button>
+              <button type="button" class="map-tile-btn" data-map-tile="forest" title="Forêt"><span class="map-swatch map-cell-forest"></span> Forêt</button>
+              <button type="button" class="map-tile-btn" data-map-tile="stone" title="Pierre"><span class="map-swatch map-cell-stone"></span> Pierre</button>
+              <button type="button" class="map-tile-btn" data-map-tile="sand" title="Sable"><span class="map-swatch map-cell-sand"></span> Sable</button>
+              <button type="button" class="map-tile-btn" data-map-tile="water" title="Eau"><span class="map-swatch map-cell-water"></span> Eau</button>
+              <button type="button" class="map-tile-btn" data-map-tile="wall" title="Mur"><span class="map-swatch map-cell-wall"></span> Mur</button>
+              <button type="button" class="map-tile-btn" data-map-tile="road" title="Route"><span class="map-swatch map-cell-road"></span> Route</button>
+              <button type="button" class="map-tile-btn" data-map-tile="floor" title="Sol int."><span class="map-swatch map-cell-floor"></span> Sol int.</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-adventure">
+            <legend>Marqueurs — aventure</legend>
+            <div class="map-palette map-palette-markers">
+              <button type="button" class="map-marker-btn active" data-map-marker="party">⚔️ Héros</button>
+              <button type="button" class="map-marker-btn" data-map-marker="npc">🎭 PNJ</button>
+              <button type="button" class="map-marker-btn" data-map-marker="poi">📍 Lieu</button>
+              <button type="button" class="map-marker-btn" data-map-marker="danger">⚠️ Danger</button>
+              <button type="button" class="map-marker-btn" data-map-marker="treasure">💎 Trésor</button>
+              <button type="button" class="map-marker-btn" data-map-marker="exit">🚪 Sortie</button>
+            </div>
+          </fieldset>
+
+          <fieldset id="map-palette-links" class="map-palette-fieldset map-palette-world hidden">
+            <legend>Lien vers une scène locale</legend>
+            <p class="form-hint">Choisis une carte, active « Lien lieu », puis clique sur une case du monde pour y associer l'entrée.</p>
+            <select id="map-link-target" class="map-link-target-select">
+              <option value="">— Choisir une scène locale —</option>
+            </select>
+          </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-investigation hidden">
+            <legend>Tuiles — enquête</legend>
+            <div class="map-palette map-palette-tiles">
+              <button type="button" class="map-tile-btn" data-map-tile="street" title="Rue"><span class="map-swatch map-cell-street"></span> Rue</button>
+              <button type="button" class="map-tile-btn" data-map-tile="building" title="Bâtiment"><span class="map-swatch map-cell-building"></span> Bâtiment</button>
+              <button type="button" class="map-tile-btn" data-map-tile="office" title="Intérieur"><span class="map-swatch map-cell-office"></span> Intérieur</button>
+              <button type="button" class="map-tile-btn" data-map-tile="alley" title="Ruelle"><span class="map-swatch map-cell-alley"></span> Ruelle</button>
+              <button type="button" class="map-tile-btn" data-map-tile="water" title="Eau"><span class="map-swatch map-cell-water"></span> Eau</button>
+              <button type="button" class="map-tile-btn" data-map-tile="wall" title="Mur"><span class="map-swatch map-cell-wall"></span> Mur</button>
+              <button type="button" class="map-tile-btn" data-map-tile="road" title="Route"><span class="map-swatch map-cell-road"></span> Route</button>
+              <button type="button" class="map-tile-btn" data-map-tile="floor" title="Sol"><span class="map-swatch map-cell-floor"></span> Sol</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-investigation hidden">
+            <legend>Marqueurs — enquête</legend>
+            <div class="map-palette map-palette-markers">
+              <button type="button" class="map-marker-btn" data-map-marker="detective">🔍 Enquêteur</button>
+              <button type="button" class="map-marker-btn" data-map-marker="suspect">🕵️ Suspect</button>
+              <button type="button" class="map-marker-btn" data-map-marker="evidence">📎 Indice</button>
+              <button type="button" class="map-marker-btn" data-map-marker="witness">🗣️ Témoin</button>
+              <button type="button" class="map-marker-btn" data-map-marker="crime">🩸 Scène de crime</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-world hidden">
+            <legend>Tuiles — monde</legend>
+            <div class="map-palette map-palette-tiles">
+              <button type="button" class="map-tile-btn" data-map-tile="ocean" title="Océan"><span class="map-swatch map-cell-ocean"></span> Océan</button>
+              <button type="button" class="map-tile-btn" data-map-tile="coast" title="Côte"><span class="map-swatch map-cell-coast"></span> Côte</button>
+              <button type="button" class="map-tile-btn" data-map-tile="plains" title="Plaines"><span class="map-swatch map-cell-plains"></span> Plaines</button>
+              <button type="button" class="map-tile-btn" data-map-tile="forest" title="Forêt"><span class="map-swatch map-cell-forest"></span> Forêt</button>
+              <button type="button" class="map-tile-btn" data-map-tile="hills" title="Collines"><span class="map-swatch map-cell-hills"></span> Collines</button>
+              <button type="button" class="map-tile-btn" data-map-tile="mountain" title="Montagnes"><span class="map-swatch map-cell-mountain"></span> Montagnes</button>
+              <button type="button" class="map-tile-btn" data-map-tile="desert" title="Désert"><span class="map-swatch map-cell-desert"></span> Désert</button>
+              <button type="button" class="map-tile-btn" data-map-tile="snow" title="Neige"><span class="map-swatch map-cell-snow"></span> Neige</button>
+              <button type="button" class="map-tile-btn" data-map-tile="swamp" title="Marais"><span class="map-swatch map-cell-swamp"></span> Marais</button>
+              <button type="button" class="map-tile-btn" data-map-tile="city" title="Ville"><span class="map-swatch map-cell-city"></span> Ville</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="map-palette-fieldset map-palette-world hidden">
+            <legend>Marqueurs — monde</legend>
+            <div class="map-palette map-palette-markers">
+              <button type="button" class="map-marker-btn" data-map-marker="capital">👑 Capitale</button>
+              <button type="button" class="map-marker-btn" data-map-marker="city">🏙️ Ville</button>
+              <button type="button" class="map-marker-btn" data-map-marker="dungeon">🏰 Donjon</button>
+              <button type="button" class="map-marker-btn" data-map-marker="quest">❗ Quête</button>
+              <button type="button" class="map-marker-btn" data-map-marker="camp">⛺ Camp</button>
+              <button type="button" class="map-marker-btn" data-map-marker="ruin">🏛️ Ruines</button>
+              <button type="button" class="map-marker-btn" data-map-marker="party">⚔️ Héros</button>
+            </div>
+          </fieldset>
+
+          <div class="map-editor-wrap">
+            <p id="map-editor-hint" class="map-editor-hint">Clique sur une case pour peindre ou placer un marqueur.</p>
+            <div id="map-editor-grid" class="map-editor-grid"></div>
+          </div>
 
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Sauvegarder</button>
-            <button type="button" id="btn-cancel-scenario" class="btn btn-secondary">Annuler</button>
+            <button type="button" id="btn-cancel-map" class="btn btn-secondary">Annuler</button>
           </div>
         </form>
       </div>
@@ -1063,6 +1339,12 @@
           </div>
 
           <div class="form-row">
+            <label>Cartes (optionnel)</label>
+            <div id="setup-maps-list" class="setup-maps-picker" role="group" aria-label="Sélection des cartes"></div>
+            <p class="form-hint">Coche une ou plusieurs cartes — par ex. une scène locale et une carte du monde. Les cartes liées au scénario apparaissent en premier.</p>
+          </div>
+
+          <div class="form-row">
             <label>Format de quête</label>
             <div class="option-cards option-cards-three">
               <label class="option-card option-card-quest option-card-quest-long">
@@ -1174,7 +1456,10 @@
           </div>
           <div class="game-header-actions">
             <button type="button" id="btn-show-summary" class="btn btn-primary hidden">📥 Résumé</button>
-            <button id="btn-end-game" class="btn btn-secondary">Quitter la partie</button>
+            <div class="game-header-controls">
+              <button id="btn-end-game" class="btn btn-secondary">Quitter la partie</button>
+              <p id="session-timer" class="session-timer" aria-live="polite">⏱ 00:00</p>
+            </div>
           </div>
         </div>
 
@@ -1205,12 +1490,16 @@
               </div>
             </aside>
 
-            <div class="game-log-wrap">
-              <div class="game-log-header">
-                <span>Histoire</span>
-                <button type="button" id="btn-game-help" class="help-btn" title="Comment jouer ?" aria-label="Comment jouer ?">?</button>
+            <div class="game-main-panel">
+              <div id="session-maps-panel" class="session-maps hidden"></div>
+
+              <div class="game-log-wrap">
+                <div class="game-log-header">
+                  <span>Histoire</span>
+                  <button type="button" id="btn-game-help" class="help-btn" title="Comment jouer ?" aria-label="Comment jouer ?">?</button>
+                </div>
+                <div id="game-log" class="game-log"></div>
               </div>
-              <div id="game-log" class="game-log"></div>
             </div>
           </div>
 
@@ -1250,7 +1539,6 @@
               <div class="gm-actions">
                 <button type="button" id="btn-gm-narrate" class="btn btn-primary">Publier la narration</button>
                 <button type="button" id="btn-gm-next-scene" class="btn btn-secondary">Passer à la scène suivante →</button>
-                <button type="button" id="btn-gm-request-roll" class="btn btn-secondary">Demander un jet de dé</button>
               </div>
             </div>
 
@@ -1258,6 +1546,25 @@
             <div id="player-action-panel" class="action-panel">
               <p id="turn-indicator" class="turn-indicator"></p>
               <p id="action-hint" class="action-hint"></p>
+
+              <div id="session-dice-panel" class="session-dice session-dice-inline hidden">
+                <h4>🎲 Lanceur de dés</h4>
+                <p class="session-dice-hint">Un seul lanceur pour toute la table — le jet est attribué au joueur actif ou au MJ selon le tour.</p>
+                <div class="quick-dice quick-dice-compact">
+                  <button type="button" class="dice-btn session-dice-btn" data-roll="1d4">d4</button>
+                  <button type="button" class="dice-btn session-dice-btn" data-roll="1d6">d6</button>
+                  <button type="button" class="dice-btn session-dice-btn" data-roll="1d8">d8</button>
+                  <button type="button" class="dice-btn session-dice-btn" data-roll="1d10">d10</button>
+                  <button type="button" class="dice-btn session-dice-btn" data-roll="1d12">d12</button>
+                  <button type="button" class="dice-btn session-dice-btn d20-highlight" data-roll="1d20">d20</button>
+                </div>
+                <div class="custom-roll custom-roll-compact">
+                  <input type="text" id="session-dice-input" placeholder="Ex : 2d6+3, 1d20+5">
+                  <button type="button" id="btn-session-dice-roll" class="btn btn-secondary btn-small">Lancer</button>
+                </div>
+                <p id="session-dice-feedback" class="session-dice-feedback hidden"></p>
+              </div>
+
               <div class="action-row">
                 <input type="text" id="player-action-input" placeholder="Décris ton action en une phrase…">
                 <button id="btn-player-action" class="btn btn-primary">Agir</button>
@@ -1280,10 +1587,12 @@
   <script src="js/dice.js"></script>
   <script src="js/characters.js"></script>
   <script src="js/scenarios.js"></script>
+  <script src="js/adventure-roster.js"></script>
   <script src="js/bots.js"></script>
   <script src="js/npc-ai.js"></script>
   <script src="js/ai-gm.js"></script>
   <script src="js/investigation-roster.js"></script>
+  <script src="js/maps.js"></script>
   <script src="js/game.js"></script>
   <script src="js/app.js"></script>
 </body>

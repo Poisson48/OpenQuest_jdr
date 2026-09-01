@@ -17,7 +17,7 @@ OpenQuest JDR est un jeu multijoueur en temps réel avec une architecture **clie
         ▲                                              ▲
         │                                              │
    Joueur 1 (toi)                              Autorité serveur
-   Joueur 2 (copine)                           (état du monde)
+   Joueur 2 (AslanUsko)                         (état du monde)
 ```
 
 Le serveur Node est l'**autorité** : il reçoit les inputs des joueurs, met à jour l'état du monde, et diffuse la position de chacun. Les clients Godot n'affichent que ce que le serveur leur envoie.

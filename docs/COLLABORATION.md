@@ -1,6 +1,6 @@
 # Travailler à deux sur OpenQuest JDR
 
-Guide pour Poisson et sa copine — workflow Git, répartition du code, et bonnes pratiques.
+Guide pour Poisson et **AslanUsko** — workflow Git, répartition du code, et bonnes pratiques.
 
 ---
 
@@ -11,7 +11,7 @@ Guide pour Poisson et sa copine — workflow Git, répartition du code, et bonne
 ### Ajouter la deuxième personne (à faire une fois, par le propriétaire)
 
 1. GitHub → **Settings** → **Collaborators** → **Add people**
-2. Entrer le pseudo GitHub de ta copine
+2. Entrer le pseudo GitHub **@AslanUsko**
 3. Elle accepte l’invitation par e-mail
 
 Ensuite elle peut cloner et pousser comme toi :
@@ -90,7 +90,7 @@ Pas obligatoire, mais ça limite les conflits :
 | Personne | Zone naturelle | Compétences utiles |
 |----------|----------------|-------------------|
 | **Poisson** | `server/`, architecture réseau, déploiement | Node, TypeScript, Git |
-| **Copine** | `game/`, UI, règles JDR, assets visuels | Godot, GDScript, design (POC HTML) |
+| **AslanUsko** | `index.html`, `css/`, `js/`, UI, règles JDR | HTML/CSS/JS, design (POC) |
 | **Les deux** | `docs/`, protocole réseau (`server/src/types.ts`) | À discuter ensemble |
 
 ### Fichiers sensibles aux conflits
@@ -221,7 +221,7 @@ Pour éviter les conflits sans outil lourd :
 ## Résumé en une image
 
 ```
-     Poisson                      Copine
+     Poisson                      AslanUsko
       │                              │
       ▼                              ▼
   server/                         game/

@@ -6,6 +6,7 @@
 const Game = {
   state: null,
   MAX_PARTY_SIZE: 10,
+  sessionTimerInterval: null,
 
   init() {
     Characters.load();
@@ -13,12 +14,367 @@ const Game = {
     Scenarios.ensureDemoScenario();
     Bots.load();
 
-    this.state = Storage.load(Storage.KEYS.activeGame);
+    const rawState = Storage.load(Storage.KEYS.activeGame);
+    this.state = this.normalizeSavedState(rawState);
+    if (rawState && !this.state) {
+      Storage.save(Storage.KEYS.activeGame, null);
+    }
+
     this.bindSetupEvents();
     this.bindSessionEvents();
     this.renderSetup();
+  },
 
-    // La navigation initiale est gérée par App (accueil ou reprise de partie).
+  normalizeSavedState(state) {
+    if (!state || typeof state !== 'object') return null;
+    if (!Array.isArray(state.party) || state.party.length === 0) return null;
+    if (!Array.isArray(state.log)) state.log = [];
+    if (state.status !== 'playing' && state.status !== 'completed') return null;
+    if (!state.scenarioId) return null;
+    if (!state.createdAt) state.createdAt = Date.now();
+    if (!Array.isArray(state.mapIds)) {
+      state.mapIds = state.mapId ? [state.mapId] : [];
+    }
+    state.mapIds = state.mapIds.filter(Boolean);
+    delete state.mapId;
+    if (!state.mapPlayState || typeof state.mapPlayState !== 'object') {
+      state.mapPlayState = {};
+    }
+    if (!state.mapNavigation || typeof state.mapNavigation !== 'object') {
+      state.mapNavigation = { view: 'world', worldMapId: null, localMapId: null, worldCell: null };
+    }
+    return state;
+  },
+
+  enterLocalMap(worldMapId, x, y, targetMapId) {
+    if (!this.state || !targetMapId) return;
+    if (!this.state.mapIds.includes(targetMapId)) {
+      this.state.mapIds.push(targetMapId);
+    }
+    this.state.mapNavigation = {
+      view: 'local',
+      worldMapId,
+      localMapId: targetMapId,
+      worldCell: { x, y },
+    };
+    this.save();
+  },
+
+  exitToWorldMap() {
+    if (!this.state?.mapNavigation) return;
+    this.state.mapNavigation.view = 'world';
+    this.state.mapNavigation.localMapId = null;
+    this.save();
+  },
+
+  expandMapIdsWithLinkedLocals(mapIds) {
+    if (typeof Maps === 'undefined') return mapIds;
+    Maps.load();
+    const expanded = new Set(mapIds.filter(Boolean));
+    mapIds.forEach((id) => {
+      const map = Maps.getById(id);
+      if (map && Maps.isWorldMap(map)) {
+        Maps.getLinkedLocalMapIds(map).forEach((linkedId) => expanded.add(linkedId));
+      }
+    });
+    return [...expanded];
+  },
+
+  ensureMapPlayState() {
+    if (!this.state) return;
+    if (!this.state.mapPlayState || typeof this.state.mapPlayState !== 'object') {
+      this.state.mapPlayState = {};
+    }
+  },
+
+  getMapPlayTokens(mapId) {
+    return this.getMapPlayEntry(mapId).tokens;
+  },
+
+  getMapPlayEntry(mapId) {
+    this.ensureMapPlayState();
+    if (!this.state.mapPlayState[mapId]) {
+      this.state.mapPlayState[mapId] = { tokens: [], explored: [] };
+    }
+    const entry = this.state.mapPlayState[mapId];
+    if (!Array.isArray(entry.tokens)) entry.tokens = [];
+    if (!Array.isArray(entry.explored)) entry.explored = [];
+    if (entry.exploreLevel == null) entry.exploreLevel = 0;
+    return entry;
+  },
+
+  cellKey(x, y) {
+    return `${x},${y}`;
+  },
+
+  getExploredCells(mapId) {
+    return this.getMapPlayEntry(mapId).explored;
+  },
+
+  revealCell(mapId, x, y) {
+    const entry = this.getMapPlayEntry(mapId);
+    const key = this.cellKey(x, y);
+    if (!entry.explored.includes(key)) entry.explored.push(key);
+  },
+
+  revealRadius(mapId, map, cx, cy, radius) {
+    if (!map) return;
+    for (let y = cy - radius; y <= cy + radius; y += 1) {
+      for (let x = cx - radius; x <= cx + radius; x += 1) {
+        if (x < 0 || x >= map.width || y < 0 || y >= map.height) continue;
+        if (Math.abs(x - cx) + Math.abs(y - cy) <= radius) {
+          this.revealCell(mapId, x, y);
+        }
+      }
+    }
+  },
+
+  getWorldMapIds() {
+    if (!this.state?.mapIds?.length || typeof Maps === 'undefined') return [];
+    Maps.load();
+    return this.state.mapIds.filter((id) => {
+      const map = Maps.getById(id);
+      return map && Maps.isWorldMap(map);
+    });
+  },
+
+  getWorldMapStartPoint(map) {
+    const partyMarker = map.markers?.find((m) => m.type === 'party' || m.type === 'camp');
+    if (partyMarker) return { x: partyMarker.x, y: partyMarker.y };
+    const token = this.getMapPlayTokens(map.id).find((t) => t.kind === 'member');
+    if (token) return { x: token.x, y: token.y };
+    return { x: Math.floor(map.width / 2), y: Math.floor(map.height / 2) };
+  },
+
+  initWorldMapFog(mapId) {
+    if (typeof Maps === 'undefined') return;
+    const map = Maps.getById(mapId);
+    if (!map || !Maps.isWorldMap(map)) return;
+
+    const entry = this.getMapPlayEntry(mapId);
+    if (entry.explored.length > 0) return;
+
+    const start = this.getWorldMapStartPoint(map);
+    entry.exploreAnchor = { x: start.x, y: start.y };
+    entry.exploreLevel = 0;
+    this.revealRadius(mapId, map, start.x, start.y, 2);
+  },
+
+  initAllWorldMapFog() {
+    this.getWorldMapIds().forEach((mapId) => this.initWorldMapFog(mapId));
+  },
+
+  revealFrontierCells(mapId, map, count) {
+    const entry = this.getMapPlayEntry(mapId);
+    const explored = new Set(entry.explored);
+    const candidates = new Map();
+    const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+
+    entry.explored.forEach((key) => {
+      const [cx, cy] = key.split(',').map(Number);
+      dirs.forEach(([dx, dy]) => {
+        const x = cx + dx;
+        const y = cy + dy;
+        const key = this.cellKey(x, y);
+        if (x < 0 || x >= map.width || y < 0 || y >= map.height || explored.has(key)) return;
+        if (!candidates.has(key)) candidates.set(key, { x, y });
+      });
+    });
+
+    const anchor = entry.exploreAnchor || this.getWorldMapStartPoint(map);
+    [...candidates.values()]
+      .sort((a, b) => (
+        Math.abs(a.x - anchor.x) + Math.abs(a.y - anchor.y)
+        - (Math.abs(b.x - anchor.x) + Math.abs(b.y - anchor.y))
+      ))
+      .slice(0, count)
+      .forEach(({ x, y }) => this.revealCell(mapId, x, y));
+  },
+
+  revealWorldOnExplore(extraCells = 5) {
+    this.getWorldMapIds().forEach((mapId) => {
+      const map = Maps.getById(mapId);
+      if (!map) return;
+      const entry = this.getMapPlayEntry(mapId);
+      entry.exploreLevel += 1;
+      const anchor = entry.exploreAnchor || this.getWorldMapStartPoint(map);
+      const token = entry.tokens.find((t) => t.kind === 'member');
+      const center = token ? { x: token.x, y: token.y } : anchor;
+      entry.exploreAnchor = { ...center };
+      const radius = 2 + Math.floor(entry.exploreLevel / 2);
+      this.revealRadius(mapId, map, center.x, center.y, radius);
+      this.revealFrontierCells(mapId, map, extraCells);
+    });
+    this.save();
+  },
+
+  revealWorldOnSceneAdvance() {
+    this.getWorldMapIds().forEach((mapId) => {
+      const map = Maps.getById(mapId);
+      if (!map) return;
+      const entry = this.getMapPlayEntry(mapId);
+      entry.exploreLevel += 2;
+      const anchor = entry.exploreAnchor || this.getWorldMapStartPoint(map);
+      const radius = 2 + Math.floor(entry.exploreLevel / 2);
+      this.revealRadius(mapId, map, anchor.x, anchor.y, radius);
+      this.revealFrontierCells(mapId, map, 10 + Math.floor(Math.random() * 6));
+    });
+    this.save();
+  },
+
+  revealWorldAt(mapId, x, y, radius = 2) {
+    const map = Maps.getById(mapId);
+    if (!map || !Maps.isWorldMap(map)) return;
+    const entry = this.getMapPlayEntry(mapId);
+    entry.exploreAnchor = { x, y };
+    this.revealRadius(mapId, map, x, y, radius);
+    this.revealFrontierCells(mapId, map, 2);
+    this.save();
+  },
+
+  revealAllWorldMaps() {
+    this.getWorldMapIds().forEach((mapId) => {
+      const map = Maps.getById(mapId);
+      if (!map) return;
+      for (let y = 0; y < map.height; y += 1) {
+        for (let x = 0; x < map.width; x += 1) {
+          this.revealCell(mapId, x, y);
+        }
+      }
+    });
+  },
+
+  getWorldExplorationPercent(mapId, map) {
+    const total = map.width * map.height;
+    if (!total) return 0;
+    return Math.min(100, Math.round((this.getExploredCells(mapId).length / total) * 100));
+  },
+
+  removeMapTokenAt(mapId, x, y) {
+    const tokens = this.getMapPlayTokens(mapId);
+    this.state.mapPlayState[mapId].tokens = tokens.filter((t) => !(t.x === x && t.y === y));
+  },
+
+  removeMemberTokens(mapId, memberId) {
+    const tokens = this.getMapPlayTokens(mapId);
+    this.state.mapPlayState[mapId].tokens = tokens.filter((t) => t.memberId !== memberId);
+  },
+
+  placeMemberToken(mapId, x, y, memberId) {
+    if (!memberId) return;
+    this.removeMemberTokens(mapId, memberId);
+    this.removeMapTokenAt(mapId, x, y);
+    const member = this.state.party.find((m) => m.id === memberId);
+    if (!member) return;
+    const tokens = this.getMapPlayTokens(mapId);
+    tokens.push({
+      id: `tok-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      x,
+      y,
+      kind: 'member',
+      memberId,
+      label: member.name,
+    });
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      const map = Maps.getById(mapId);
+      if (map && Maps.isWorldMap(map)) {
+        this.revealWorldAt(mapId, x, y, 2);
+      }
+    }
+  },
+
+  placeMarkerToken(mapId, x, y, markerType) {
+    if (!markerType) return;
+    this.removeMapTokenAt(mapId, x, y);
+    const tokens = this.getMapPlayTokens(mapId);
+    tokens.push({
+      id: `tok-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      x,
+      y,
+      kind: 'marker',
+      markerType,
+      label: '',
+    });
+  },
+
+  applyMapPlayAction(mapId, x, y, tool) {
+    if (!this.state || this.state.status === 'completed' || !tool) return;
+    if (tool.mode === 'erase') {
+      this.removeMapTokenAt(mapId, x, y);
+    } else if (tool.mode === 'member') {
+      this.placeMemberToken(mapId, x, y, tool.memberId);
+    } else if (tool.mode === 'marker') {
+      this.placeMarkerToken(mapId, x, y, tool.markerType);
+    }
+    this.save();
+  },
+
+  getSelectedSetupMapIds() {
+    return [...document.querySelectorAll('#setup-maps-list input[name="setup-map"]:checked')]
+      .map((el) => el.value)
+      .filter(Boolean);
+  },
+
+  getSessionElapsedMs() {
+    if (!this.state) return 0;
+    if (this.state.status === 'completed' && this.state.playTimeMs != null) {
+      return this.state.playTimeMs;
+    }
+    return Math.max(0, Date.now() - (this.state.createdAt || Date.now()));
+  },
+
+  formatSessionDuration(ms) {
+    const totalSec = Math.floor(Math.max(0, ms) / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  },
+
+  formatSessionDurationLong(ms) {
+    const totalSec = Math.floor(Math.max(0, ms) / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h} h`);
+    if (m > 0 || h > 0) parts.push(`${m} min`);
+    parts.push(`${s} s`);
+    return parts.join(' ');
+  },
+
+  updateSessionTimer() {
+    const el = document.getElementById('session-timer');
+    if (!el || !this.state) {
+      el?.classList.add('hidden');
+      return;
+    }
+
+    el.classList.remove('hidden');
+    el.textContent = `⏱ ${this.formatSessionDuration(this.getSessionElapsedMs())}`;
+
+    if (this.state.status === 'completed') {
+      this.stopSessionTimer();
+    }
+  },
+
+  startSessionTimer() {
+    this.stopSessionTimer();
+    this.updateSessionTimer();
+    if (!this.state || this.state.status === 'completed') return;
+    this.sessionTimerInterval = setInterval(() => this.updateSessionTimer(), 1000);
+  },
+
+  stopSessionTimer() {
+    if (this.sessionTimerInterval) {
+      clearInterval(this.sessionTimerInterval);
+      this.sessionTimerInterval = null;
+    }
   },
 
   bindSetupEvents() {
@@ -39,6 +395,20 @@ const Game = {
       radio.addEventListener('change', () => this.refreshSetupCharacters());
     });
 
+    document.getElementById('setup-scenario')?.addEventListener('change', () => {
+      if (typeof Maps !== 'undefined') {
+        Maps.load();
+        const scenarioId = document.getElementById('setup-scenario')?.value || '';
+        const questFormat = this.getSetupQuestFormat();
+        const linked = Maps.getSetupMapPool(scenarioId, questFormat)
+          .filter((m) => m.scenarioId === scenarioId)
+          .map((m) => m.id);
+        this.refreshSetupMaps(linked.length ? linked : null);
+      } else {
+        this.refreshSetupMaps();
+      }
+    });
+
     document.getElementById('setup-party-size')?.addEventListener('input', () => this.updateSetupVisibility());
 
     document.getElementById('btn-add-player-slot').addEventListener('click', () => {
@@ -56,7 +426,8 @@ const Game = {
 
     document.getElementById('btn-gm-narrate').addEventListener('click', () => this.gmNarrate());
     document.getElementById('btn-gm-next-scene').addEventListener('click', () => this.gmNextScene());
-    document.getElementById('btn-gm-request-roll').addEventListener('click', () => this.gmRequestRoll());
+
+    this.bindSessionDiceEvents();
 
     document.getElementById('btn-game-help').addEventListener('click', () => this.openHelp());
     document.getElementById('btn-close-help').addEventListener('click', () => this.closeHelp());
@@ -125,6 +496,9 @@ const Game = {
     const scenario = Scenarios.list.find((s) => s.id === this.state.scenarioId);
     this.state.status = 'completed';
     this.state.completedAt = Date.now();
+    this.state.playTimeMs = this.getSessionElapsedMs();
+    this.stopSessionTimer();
+    this.updateSessionTimer();
 
     const summary = AiGM.buildAdventureSummary(this.state, scenario);
     this.state.adventureSummary = summary.markdown;
@@ -145,6 +519,7 @@ const Game = {
       '**🎉 Fin de l\'aventure !** Vous avez parcouru toutes les scènes. Un résumé complet est disponible au téléchargement.',
     );
 
+    this.revealAllWorldMaps();
     this.save();
     this.showAdventureSummaryModal();
     this.renderSession();
@@ -216,20 +591,47 @@ const Game = {
     this.updateSetupTheme(questFormat);
     const playerCharSelect = document.getElementById('setup-player-char');
     if (playerCharSelect) {
-      const current = playerCharSelect.value;
+      const current = this.isCharacterOptionValidForFormat(playerCharSelect.value, questFormat)
+        ? playerCharSelect.value
+        : this.getDefaultCharacterOption(questFormat);
       playerCharSelect.innerHTML = this.characterOptions(current, questFormat);
-      if (!playerCharSelect.value && playerCharSelect.options.length) {
-        playerCharSelect.selectedIndex = 0;
-      }
+      const fallback = this.getDefaultCharacterOption(questFormat);
+      playerCharSelect.value = [...playerCharSelect.options].some((o) => o.value === current)
+        ? current
+        : fallback;
     }
 
     document.querySelectorAll('.player-char').forEach((select) => {
-      const current = select.value;
+      const current = this.isCharacterOptionValidForFormat(select.value, questFormat)
+        ? select.value
+        : this.getDefaultCharacterOption(questFormat);
       select.innerHTML = this.characterOptions(current, questFormat);
+      const fallback = this.getDefaultCharacterOption(questFormat);
+      select.value = [...select.options].some((o) => o.value === current)
+        ? current
+        : fallback;
     });
 
     this.refreshSetupScenarios();
+    this.refreshSetupMaps();
     this.updateSetupVisibility();
+  },
+
+  refreshSetupMaps(selectedIds = null) {
+    const container = document.getElementById('setup-maps-list');
+    if (!container || typeof Maps === 'undefined') return;
+
+    Maps.load();
+    const scenarioId = document.getElementById('setup-scenario')?.value || '';
+    const questFormat = this.getSetupQuestFormat();
+    let current = selectedIds ?? this.getSelectedSetupMapIds();
+    if (!Array.isArray(current)) current = current ? [current] : [];
+
+    const pool = Maps.getSetupMapPool(scenarioId, questFormat);
+    const validIds = new Set(pool.map((m) => m.id));
+    current = current.filter((id) => validIds.has(id));
+
+    container.innerHTML = Maps.renderSetupMapPicker(current, scenarioId, questFormat);
   },
 
   refreshSetupScenarios(selectedId = null) {
@@ -237,31 +639,64 @@ const Game = {
     if (!scenarioSelect) return;
 
     const questFormat = this.getSetupQuestFormat();
-    const current = selectedId || scenarioSelect.value;
+    const currentRaw = selectedId || scenarioSelect.value;
+    const current = this.isScenarioValidForFormat(currentRaw, questFormat)
+      ? currentRaw
+      : this.getDefaultScenarioId(questFormat);
     scenarioSelect.innerHTML = this.scenarioOptions(current, questFormat);
+    scenarioSelect.value = scenarioSelect.querySelector(`option[value="${current}"]`)
+      ? current
+      : this.getDefaultScenarioId(questFormat);
+  },
 
-    if (!scenarioSelect.value && scenarioSelect.options.length) {
-      scenarioSelect.selectedIndex = 0;
+  getScenarioPool(questFormat) {
+    if (questFormat === 'investigation') return Scenarios.getInvestigationScenarios();
+    if (questFormat === 'long') return Scenarios.getLongScenarios();
+    if (questFormat === 'oneshot') return Scenarios.getOneshotScenarios();
+    return Scenarios.getGeneralScenarios();
+  },
+
+  isScenarioValidForFormat(scenarioId, questFormat) {
+    if (!scenarioId) return false;
+    const scenario = Scenarios.list.find((s) => s.id === scenarioId);
+    if (!scenario) return false;
+    if (questFormat === 'investigation') return scenario.roster === 'investigation';
+    if (scenario.roster === 'investigation') return false;
+    if (questFormat === 'long') return scenario.questFormat === 'long';
+    if (questFormat === 'oneshot') return (scenario.questFormat || 'oneshot') !== 'long';
+    return true;
+  },
+
+  getDefaultScenarioId(questFormat) {
+    const pool = this.getScenarioPool(questFormat);
+    if (questFormat === 'long') {
+      const flagship = pool.find((s) => s.id === 'demo-couronne-fracturee');
+      return flagship?.id || pool[0]?.id || '';
     }
+    if (questFormat === 'investigation') {
+      const flagship = pool.find((s) => s.id === 'inv-demo-serpent-noir');
+      return flagship?.id || pool[0]?.id || '';
+    }
+    return pool[0]?.id || '';
   },
 
   scenarioOptions(selectedId = '', questFormat = null) {
     const format = questFormat || this.getSetupQuestFormat();
     const isInvestigation = format === 'investigation';
 
-    const invScenarios = Scenarios.getInvestigationScenarios();
-    const generalScenarios = Scenarios.getGeneralScenarios();
-    const scenarios = isInvestigation
-      ? [...invScenarios, ...generalScenarios]
-      : [...generalScenarios, ...invScenarios];
+    const scenarios = this.getScenarioPool(format);
 
     if (scenarios.length === 0) {
-      return '<option value="">Aucun scénario — crée-en un dans l\'onglet Scénarios</option>';
+      return isInvestigation
+        ? '<option value="">Aucune enquête — crée-en une dans l\'onglet Enquête</option>'
+        : '<option value="">Aucun scénario — crée-en un dans l\'onglet Aventures</option>';
     }
+
+    const validSelected = this.isScenarioValidForFormat(selectedId, format) ? selectedId : '';
 
     return scenarios.map((s) => {
       const tag = s.roster === 'investigation' ? '🔍 ' : '';
-      const selected = s.id === selectedId ? 'selected' : '';
+      const selected = s.id === validSelected ? 'selected' : '';
       return `<option value="${s.id}" ${selected}>${tag}${s.title}</option>`;
     }).join('');
   },
@@ -284,6 +719,7 @@ const Game = {
       this.refreshSetupScenarios(scenarioId);
       const scenarioSelect = document.getElementById('setup-scenario');
       if (scenarioSelect) scenarioSelect.value = scenarioId;
+      this.refreshSetupMaps();
     }
   },
 
@@ -307,6 +743,7 @@ const Game = {
 
   initMultiPlayerSlots() {
     const container = document.getElementById('multi-player-slots');
+    if (!container) return;
     container.innerHTML = '';
     this.addPlayerSlot(1);
     this.addPlayerSlot(2);
@@ -314,9 +751,11 @@ const Game = {
 
   addPlayerSlot(num) {
     const container = document.getElementById('multi-player-slots');
+    if (!container) return;
     const max = this.getSetupPartySize();
     if (container.querySelectorAll('.player-slot').length >= max) return;
 
+    const questFormat = this.getSetupQuestFormat();
     const div = document.createElement('div');
     div.className = 'player-slot sub-item';
     div.innerHTML = `
@@ -327,52 +766,70 @@ const Game = {
         </div>
         <div>
           <label>Personnage</label>
-          <select class="player-char">${this.characterOptions()}</select>
+          <select class="player-char">${this.characterOptions(this.getDefaultCharacterOption(questFormat), questFormat)}</select>
         </div>
       </div>
     `;
     container.appendChild(div);
   },
 
+  isCharacterOptionValidForFormat(optionValue, questFormat) {
+    if (!optionValue) return false;
+    const isInvestigation = questFormat === 'investigation';
+
+    if (optionValue.startsWith('bot:')) {
+      const botId = optionValue.slice(4);
+      return isInvestigation
+        ? Bots.isInvestigationBot(botId)
+        : !Bots.isInvestigationBot(botId);
+    }
+
+    const char = Characters.list.find((c) => c.id === optionValue);
+    if (!char) return false;
+    return questFormat === 'investigation'
+      ? Characters.isInvestigation(char)
+      : !Characters.isInvestigation(char);
+  },
+
+  getDefaultCharacterOption(questFormat) {
+    const chars = Characters.getForQuestFormat(questFormat);
+
+    if (chars.length > 0) return chars[0].id;
+
+    const bots = Bots.getBotsForQuestFormat(questFormat);
+    return bots[0] ? `bot:${bots[0].id}` : '';
+  },
+
   characterOptions(selectedId = '', questFormat = null) {
     const format = questFormat || this.getSetupQuestFormat();
     const isInvestigation = format === 'investigation';
+    const chars = Characters.getForQuestFormat(format);
+    const bots = Bots.getBotsForQuestFormat(format);
 
-    const invChars = Characters.list.filter((c) => c.roster === 'investigation');
-    const generalChars = Characters.list.filter((c) => c.roster !== 'investigation');
-    const chars = isInvestigation
-      ? [...invChars, ...generalChars]
-      : [...generalChars, ...invChars];
-
-    const invBots = Bots.getInvestigationArchetypes();
-    const generalBots = Bots.getArchetypes().filter((b) => !Bots.isInvestigationBot(b.id));
-    const bots = isInvestigation
-      ? [...invBots, ...generalBots]
-      : [...generalBots, ...invBots];
+    const validSelected = this.isCharacterOptionValidForFormat(selectedId, format)
+      ? selectedId
+      : '';
 
     const charOptions = chars
-      .map((c) => {
-        const tag = c.roster === 'investigation' ? '🔍 ' : '';
-        return `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${tag}${c.name} (${c.class || '?'})</option>`;
-      })
+      .map((c) => `<option value="${c.id}" ${c.id === validSelected ? 'selected' : ''}>${isInvestigation ? '🔍 ' : ''}${c.name} (${c.class || '?'})</option>`)
       .join('');
 
     const botOptions = bots
       .map((b) => {
-        const tag = Bots.isInvestigationBot(b.id) ? '🔍🤖 ' : '🤖 ';
-        return `<option value="bot:${b.id}" ${('bot:' + b.id) === selectedId ? 'selected' : ''}>${tag}${b.name} (${b.class})</option>`;
+        const value = `bot:${b.id}`;
+        return `<option value="${value}" ${value === validSelected ? 'selected' : ''}>${isInvestigation ? '🔍🤖 ' : '🤖 '}${b.name} (${b.class})</option>`;
       })
       .join('');
 
-    if (chars.length === 0 && !selectedId) {
-      return botOptions;
+    if (chars.length === 0 && bots.length === 0) {
+      return isInvestigation
+        ? '<option value="">Aucun enquêteur — crée-en un dans l\'onglet Enquête</option>'
+        : '<option value="">Aucun personnage — crée-en un dans l\'onglet Personnages</option>';
     }
 
-    if (chars.length > 0) {
-      return charOptions + botOptions;
-    }
-
-    return botOptions;
+    if (chars.length === 0) return botOptions;
+    if (bots.length === 0) return charOptions;
+    return charOptions + botOptions;
   },
 
   renderSetup() {
@@ -381,30 +838,15 @@ const Game = {
     Scenarios.ensureDemoScenario();
     Bots.load();
 
-    const questFormat = this.getSetupQuestFormat();
-    const invScenarios = Scenarios.getInvestigationScenarios();
-    const defaultScenario = questFormat === 'investigation'
-      ? (invScenarios[0]?.id || Scenarios.list[0]?.id)
-      : (Scenarios.getGeneralScenarios()[0]?.id || Scenarios.list[0]?.id);
-
-    const scenarioSelect = document.getElementById('setup-scenario');
-    scenarioSelect.innerHTML = this.scenarioOptions(defaultScenario, questFormat);
-    if (!scenarioSelect.value && Scenarios.list.length) {
-      scenarioSelect.value = defaultScenario || Scenarios.list[0].id;
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      Maps.ensureDemoMap();
+      Maps.ensureDemoInvestigationMap();
+      Maps.ensureDemoWorldMap();
     }
 
-    const playerCharSelect = document.getElementById('setup-player-char');
-    const invChars = Characters.list.filter((c) => c.roster === 'investigation');
-    const defaultChar = questFormat === 'investigation'
-      ? (invChars[0]?.id || 'bot:bot-inv-elise')
-      : (Characters.list.find((c) => c.roster !== 'investigation')?.id || Characters.list[0]?.id || 'bot:bot-kael');
-    playerCharSelect.innerHTML = this.characterOptions(defaultChar, questFormat);
-
-    if (Characters.list.length === 0 && !playerCharSelect.value) {
-      playerCharSelect.value = questFormat === 'investigation' ? 'bot:bot-inv-elise' : 'bot:bot-kael';
-    }
-
-    this.updateSetupTheme(questFormat);
+    this.refreshSetupCharacters();
+    this.refreshSetupMaps();
     this.updateSetupVisibility();
   },
 
@@ -448,6 +890,8 @@ const Game = {
         return;
       }
 
+      const mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+
       const mode = document.querySelector('input[name="game-mode"]:checked').value;
       const gmType = document.querySelector('input[name="gm-type"]:checked').value;
       const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
@@ -458,7 +902,9 @@ const Game = {
 
       if (mode === 'solo') {
         let charId = document.getElementById('setup-player-char').value;
-        if (!charId) charId = 'bot:bot-kael';
+        if (!charId || !this.isCharacterOptionValidForFormat(charId, questFormat)) {
+          charId = this.getDefaultCharacterOption(questFormat) || (questFormat === 'investigation' ? 'bot:bot-inv-elise' : 'bot:bot-kael');
+        }
 
         const hero = this.buildMemberFromCharId(charId, 'Toi', true);
         if (hero) {
@@ -537,6 +983,9 @@ const Game = {
       this.state = {
         id: 'game-' + Date.now(),
         scenarioId,
+        mapIds,
+        mapPlayState: {},
+        mapNavigation: { view: 'world', worldMapId: null, localMapId: null, worldCell: null },
         mode,
         gmType,
         questFormat,
@@ -570,6 +1019,8 @@ const Game = {
       }
 
       this.renderSession();
+      this.initAllWorldMapFog();
+      this.renderSession();
     } catch (err) {
       console.error(err);
       alert('Erreur au lancement : ' + err.message);
@@ -582,15 +1033,18 @@ const Game = {
     if (this.state?.questFormat) {
       this.updateSetupTheme(this.state.questFormat);
     }
+    this.startSessionTimer();
   },
 
   hideSession() {
     document.getElementById('game-setup').classList.remove('hidden');
     document.getElementById('game-session').classList.add('hidden');
+    this.stopSessionTimer();
   },
 
   endGame() {
     if (!confirm('Quitter la partie en cours ?')) return;
+    this.stopSessionTimer();
     this.state = null;
     Storage.save(Storage.KEYS.activeGame, null);
     this.hideSession();
@@ -647,6 +1101,9 @@ const Game = {
     if (this.state.gmType === 'ai') {
       this.processAiResponse(action, actor);
     } else {
+      if (/explor|fouill|inspect|cherch|cartograph|voyage|carte|déplacement|deplacement/i.test(action)) {
+        this.revealWorldOnExplore(4);
+      }
       this.state.waitingForGm = true;
     }
 
@@ -660,6 +1117,8 @@ const Game = {
 
     if (response.shouldAdvanceScene) {
       this.advanceScene(false);
+    } else if (response.success && response.actionType === 'explore') {
+      this.revealWorldOnExplore();
     }
 
     this.renderSession();
@@ -717,6 +1176,8 @@ const Game = {
 
         if (response.shouldAdvanceScene) {
           this.advanceScene(false);
+        } else if (response.success && response.actionType === 'explore') {
+          this.revealWorldOnExplore(3);
         }
 
         this.renderSession();
@@ -777,14 +1238,67 @@ const Game = {
       if (npcIntro) this.addLog('gm', 'IA PNJ', npcIntro);
     }
 
+    this.revealWorldOnSceneAdvance();
     this.save();
   },
 
-  gmRequestRoll() {
-    const roll = Dice.roll('1d20');
-    this.addLog('gm', this.state.gmName,
-      `« Faites un jet de d20 ! » — Résultat proposé : **${roll.total}**.`);
+  bindSessionDiceEvents() {
+    const session = document.getElementById('game-session');
+    if (!session || session.dataset.diceBound) return;
+    session.dataset.diceBound = '1';
+
+    session.addEventListener('click', (e) => {
+      const btn = e.target.closest('.session-dice-btn');
+      if (!btn) return;
+      this.performSessionRoll(btn.dataset.roll);
+    });
+
+    document.getElementById('btn-session-dice-roll')?.addEventListener('click', () => {
+      const input = document.getElementById('session-dice-input');
+      this.performSessionRoll(input?.value?.trim() || '1d20');
+    });
+    document.getElementById('session-dice-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.performSessionRoll(e.target.value.trim() || '1d20');
+      }
+    });
+  },
+
+  getDiceRollAuthor() {
+    if (this.state.waitingForGm) {
+      return { author: this.state.gmName, type: 'gm' };
+    }
+    const actor = this.getActiveMember();
+    return { author: actor?.name || 'Joueur', type: 'player' };
+  },
+
+  performSessionRoll(formula) {
+    if (!this.state || this.state.gmType !== 'human' || this.state.status === 'completed') return;
+
+    const result = Dice.roll(formula || '1d20');
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    const { author, type } = this.getDiceRollAuthor();
+    const message = Dice.formatResult(result);
+    this.addLog(type, author, message);
+    this.showDiceFeedback(result, author);
     this.renderSession();
+  },
+
+  showDiceFeedback(result, author) {
+    const el = document.getElementById('session-dice-feedback');
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.textContent = `Dernier jet (${author}) : ${result.total} (${result.formula})`;
+  },
+
+  renderSessionDice() {
+    const panel = document.getElementById('session-dice-panel');
+    const show = this.state?.gmType === 'human' && this.state?.status !== 'completed';
+    panel?.classList.toggle('hidden', !show);
   },
 
   getHelpContent() {
@@ -836,10 +1350,10 @@ const Game = {
       <ul>
         <li><strong>Publier la narration</strong> — décris une scène, un PNJ ou une conséquence</li>
         <li><strong>Scène suivante</strong> — passe au chapitre suivant</li>
-        <li><strong>Jet de dé</strong> — propose un lancer aux joueurs</li>
+        <li><strong>Lanceur de dés</strong> — un seul lanceur partagé (d4 à d20, formule libre) : attribué au MJ en attente de réponse, sinon au joueur actif</li>
       </ul>
       <h4>Rôle des joueurs</h4>
-      <p>Chacun écrit son action dans la zone en bas, puis clique <strong>Agir</strong>.</p>
+      <p>Chacun écrit son action puis clique <strong>Agir</strong>. Les jets de dés passent par le lanceur unique — le résultat s'affiche dans l'histoire.</p>
     `;
 
     return modeBlock + rules;
@@ -871,6 +1385,12 @@ const Game = {
     this.renderTurnIndicator();
     this.renderActionHint();
     this.renderGmPanel();
+    this.renderSessionDice();
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      Maps.renderSessionMaps(this.state.mapIds, this.state);
+    }
+    this.updateSessionTimer();
     this.renderCompletedState();
     this.renderSuggestions();
     this.renderHelp();
@@ -890,8 +1410,12 @@ const Game = {
 
   renderParty() {
     const list = document.getElementById('party-list');
+    if (!list || !this.state?.party) return;
+
     list.innerHTML = this.state.party.map((m) => {
-      const badge = m.isBot ? '🤖' : '👤';
+      const badge = typeof Maps !== 'undefined'
+        ? Maps.getMemberEmoji(m, this.state?.questFormat)
+        : (m.isBot ? '🤖' : '⚔️');
       const role = m.isHuman && m.playerName ? ` (${m.playerName})` : '';
       return `
         <li class="party-member ${m.isBot ? 'is-bot' : 'is-human'}">
