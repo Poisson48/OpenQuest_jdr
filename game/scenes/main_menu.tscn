@@ -1,0 +1,269 @@
+[gd_scene load_steps=3 format=3 uid="uid://main_menu_001"]
+
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="2_script"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101961, 0.0784314, 0.0627451, 1)
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 28
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="HeaderBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Eyebrow" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
+text = "JEU DE RÔLE · SOLO & MULTIJOUEUR LOCAL"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 36
+text = "🗺️ OpenQuest JDR"
+horizontal_alignment = 1
+
+[node name="Tagline" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 16
+text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque action compte — avec un MJ humain ou une IA qui s'adapte à tes choix."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ResumePanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/ResumePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResumeLabel" type="Label" parent="ScrollContainer/Margin/VBox/ResumePanel/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "Une partie est en cours."
+
+[node name="BtnResume" type="Button" parent="ScrollContainer/Margin/VBox/ResumePanel/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "▶ Reprendre la partie"
+
+[node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="BtnPlay" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 18
+text = "🎮 Lancer une partie"
+
+[node name="BtnModes" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "📖 Modes de jeu"
+
+[node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "🏛️ Hub & Gestion"
+
+[node name="StepsPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/StepsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblStepsTitle" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 18
+text = "Comment ça marche ?"
+
+[node name="LblStep1" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
+layout_mode = 2
+text = "1. Prépare — Un ou plusieurs personnages et un scénario (ou utilise les démos intégrées)."
+
+[node name="LblStep2" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
+layout_mode = 2
+text = "2. Configure — Format de quête (longue, one-shot, enquête), solo ou multijoueur, MJ IA ou humain."
+
+[node name="LblStep3" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
+layout_mode = 2
+text = "3. Joue — Décris ton action, le MJ répond, les bots jouent après toi, lance les dés."
+
+[node name="LblStep4" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
+layout_mode = 2
+text = "4. Termine — Sauvegarde automatique de l'historique de tes quêtes."
+
+[node name="ModesPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -220.0
+offset_right = 340.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="ModesPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TopHBox" type="HBoxContainer" parent="ModesPanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="ModesPanel/VBox/TopHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 20
+text = "📖 Choisissez un mode de jeu"
+
+[node name="BtnCloseModes" type="Button" parent="ModesPanel/VBox/TopHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✕"
+
+[node name="Grid" type="GridContainer" parent="ModesPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 3
+
+[node name="CardLong" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardLong"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "🏰 Campagne Longue"
+
+[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "Grande saga épique en plusieurs chapitres avec progression et exploration."
+autowrap_mode = 2
+
+[node name="BtnModeLong" type="Button" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Jouer Campagne"
+
+[node name="CardOneshot" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardOneshot"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.266667, 0.666667, 0.6, 1)
+text = "⚔️ One-Shot"
+
+[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "Aventure rythmée et autonome en 1 session (3-4h) avec objectif direct."
+autowrap_mode = 2
+
+[node name="BtnModeOneshot" type="Button" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Jouer One-shot"
+
+[node name="CardInv" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardInv"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
+text = "🔍 Enquête"
+
+[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "Mystères urbains, interrogatoires, indices et déductions policières."
+autowrap_mode = 2
+
+[node name="BtnModeInvestigation" type="Button" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Jouer Enquête"

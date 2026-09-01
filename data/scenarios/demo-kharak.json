@@ -1,0 +1,45 @@
+{
+  "id": "demo-kharak",
+  "questFormat": "long",
+  "title": "Les Sables de Kharak",
+  "synopsis": "Une caravane a disparu dans le désert de Kharak. Les aventuriers doivent traverser dunes, tempêtes et ruines oubliées pour retrouver les marchands — et ce qu'ils transportaient.",
+  "setting": "Désert brûlant, ruines antiques à demi enfouies dans le sable, ciel orange au coucher du soleil.",
+  "scenes": [
+    {
+      "title": "L'oasis de Selim",
+      "content": "La dernière étape avant le désert profond. Des nomades parlent d'une « cité engloutie » et de mirages vivants. Une carte partielle est vendue au marché. Le vent porte une odeur de soufre."
+    },
+    {
+      "title": "La tempête de sable",
+      "content": "Visibilité nulle. Le groupe doit se lier avec des cordes pour ne pas se perdre. Des voix les appellent par leur nom — mirages du Seigneur des Sables. Un repaire de bandits offre un abri douteux."
+    },
+    {
+      "title": "Les ruines de Zhar-Rim",
+      "content": "Des colonnes de pierre émergent des sables. Des inscriptions préviennent les intrus. Au centre, un puits mène vers des catacombes fraîches. Des scarabées de pierre s'animent au passage du groupe."
+    },
+    {
+      "title": "Les catacombes fraîches",
+      "content": "Contraste saisissant : fraîcheur et silence sous le désert brûlant. Fresques racontent la chute de Zhar-Rim. Des urnes contiennent des cendres et des gemmes. Un passage s'effondre derrière le groupe."
+    },
+    {
+      "title": "Le trésor de la caravane",
+      "content": "Les marchands sont retrouvés, assiégés par des scarabées géants. Yasmina la caravanière protège un coffre scellé. Leur cargaison contient un artefact qui attire les créatures du désert."
+    },
+    {
+      "title": "Le tribunal du Seigneur des Sables",
+      "content": "L'esprit ancien émerge des dunes en tempête. Il exige un tribut, une épreuve de sagesse ou un combat. Le sort de la caravane et de l'artefact se joue ici, sous un ciel de feu."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Yasmina la caravanière",
+      "role": "Survivante",
+      "description": "Marchande épuisée qui cache la véritable nature de la cargaison."
+    },
+    {
+      "name": "Le Seigneur des Sables",
+      "role": "Antagoniste",
+      "description": "Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse."
+    }
+  ]
+}

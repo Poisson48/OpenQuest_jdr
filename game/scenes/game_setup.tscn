@@ -1,0 +1,181 @@
+[gd_scene load_steps=3 format=3 uid="uid://game_setup_001"]
+
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/game_setup.gd" id="2_script"]
+
+[node name="GameSetup" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101961, 0.0784314, 0.0627451, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← Retour au Hub"
+
+[node name="Title" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 20
+text = "⚙️ Configuration de la Partie"
+
+[node name="ScrollBody" type="ScrollContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Columns" type="HBoxContainer" parent="MainLayout/ScrollBody"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="LeftCol" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="PanelScenario" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblScnTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "1. Choix du Scénario"
+
+[node name="OptScenario" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ScenarioPreview" type="RichTextLabel" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="PanelRules" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblRulesTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "2. Mode de Jeu & Maître du Jeu"
+
+[node name="LblMode" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+layout_mode = 2
+text = "Mode de jeu :"
+
+[node name="OptMode" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblGm" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+layout_mode = 2
+text = "Rôle du Maître du Jeu :"
+
+[node name="OptGm" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RightCol" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="PanelParty" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/RightCol"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPartyTitle" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "3. Composition du Groupe"
+
+[node name="LblMainChar" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+layout_mode = 2
+text = "Votre Personnage principal :"
+
+[node name="OptMainChar" type="OptionButton" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxSize" type="HBoxContainer" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+layout_mode = 2
+
+[node name="LblSize" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox/HBoxSize"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Taille maximale du groupe :"
+
+[node name="SpinPartySize" type="SpinBox" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox/HBoxSize"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 10.0
+value = 4.0
+
+[node name="LblBots" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+layout_mode = 2
+text = "Compagnons Bots à recruter :"
+
+[node name="BotsContainer" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BottomAction" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="MainLayout/BottomAction"]
+layout_mode = 2
+alignment = 1
+
+[node name="BtnStartGame" type="Button" parent="MainLayout/BottomAction/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 18
+text = "🚀 Lancer l'Aventure !"

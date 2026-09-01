@@ -1,0 +1,62 @@
+{
+  "id": "inv-demo-brumeval",
+  "roster": "investigation",
+  "title": "Disparition à Brumeval",
+  "synopsis": "La fille du boulanger a disparu sans laisser de trace. Le village murmure malédiction, rançon ou fugue. L'enquête mène des ruelles brumeuses à la lisière de la forêt.",
+  "setting": "Village de Brumeval, brume matinale, cloches lointaines, rumeurs et secrets de voisinage.",
+  "mystery": "Où est Léna ? Kidnapping, accident ou départ volontaire ?",
+  "scenes": [
+    {
+      "title": "La boulangerie",
+      "content": "La mère Simone pleure devant un lit intact. La fenêtre est entrouverte, une écharpe arrachée au clou. Sur la table, un mot cryptique : trois chiffres grattés à la hâte. Le père accuse le garde du poste de négligence."
+    },
+    {
+      "title": "La place du village",
+      "content": "Les commerçants se disputent. Le tavernier Gérard prétend avoir vu Léna partir vers la forêt à l'aube avec un manteau gris. La vieille Thérèse parle d'une lumière près du cimetière. Un jouet en bois gît près du puits — est-ce le sien ?"
+    },
+    {
+      "title": "Le cimetière et la dalle",
+      "content": "Une dalle récemment bougée près du mausolée des Aubry. Des traces de petits pas mènent vers une crypte entrouverte. Eldric le fossoyeur avoue avoir entendu des voix la nuit dernière — il n'a rien dit par peur."
+    },
+    {
+      "title": "La maison du garde",
+      "content": "Le garde Tomas nie toute faute. Son registre de ronde comporte une page arrachée. Une clef rouillée manque à son trousseau. Sa fille admet que Tomas connaissait Léna « en secret » — relation interdite par les parents."
+    },
+    {
+      "title": "La lisière de la forêt",
+      "content": "Un campement abandonné : cendres encore tièdes, empreintes de bottes adultes et d'enfant. Une bouteille porte une marque de marchands itinérants. Un passage vers une grotte est dissimulé sous des branchages."
+    },
+    {
+      "title": "La vérité dans la brume",
+      "content": "Les témoignages se contredisent : rançon, enlèvement rituel, ou fuite avec un amoureux. Les indices matériels tranchent — si l'équipe sait les recouper. Léna est vivante… pour l'instant."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Simone la boulangère",
+      "role": "Mère / plaignante",
+      "description": "Épuisée, méfiante envers les étrangers. Elle cache que Léna recevait des lettres qu'elle brûlait."
+    },
+    {
+      "name": "Gérard le tavernier",
+      "role": "Témoin / rumeur",
+      "description": "Aime le sensationnalisme. Il exagère peut-être ce qu'il a vu pour attirer l'attention."
+    },
+    {
+      "name": "Tomas le garde",
+      "role": "Suspect",
+      "description": "Amoureux secret de Léna. Il a des trous dans son alibi et des pages manquantes dans son registre."
+    },
+    {
+      "name": "Eldric le fossoyeur",
+      "role": "Témoin",
+      "description": "Vieil homme superstitieux. Il connaît les passages sous le cimetière — personne ne l'écoute."
+    },
+    {
+      "name": "Thérèse la sage-femme",
+      "role": "Informateur",
+      "description": "Connaît tous les secrets du village. Elle insinue qu'une « société » se réunit près de la crypte."
+    }
+  ],
+  "questFormat": "oneshot"
+}

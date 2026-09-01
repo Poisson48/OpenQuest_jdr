@@ -1,0 +1,45 @@
+{
+  "id": "demo-crypte",
+  "questFormat": "oneshot",
+  "title": "La Crypte Oubliée",
+  "synopsis": "Une crypte ancienne a été découverte sous le village de Brumeval. Des disparitions mystérieuses poussent les aventuriers à descendre dans les ténèbres.",
+  "setting": "Village de Brumeval, sous une pluie fine. Torches, pierre humide, odeur de moisi.",
+  "scenes": [
+    {
+      "title": "Le cimetière de Brumeval",
+      "content": "Sous la pluie, Eldric le fossoyeur montre une dalle descellée près d'un mausolée effondré. Des traces de griffes marquent la terre. Des murmures montent du trou — ou est-ce le vent ?"
+    },
+    {
+      "title": "L'entrée de la crypte",
+      "content": "Un escalier de pierre descend dans l'obscurité. Des runes effacées ornent les murs. Au fond, une porte de fer entrouverte laisse échapper un courant d'air froid. Des ossements humains gisent sur les marches."
+    },
+    {
+      "title": "Le couloir des veilleurs",
+      "content": "Des niches abritent des statues de chevaliers pétrifiés. L'une d'elles a bougé depuis la dernière visite — impossible. Des mécanismes de flèches sont visibles dans le plafond. Un journal d'explorateur mort gît au sol."
+    },
+    {
+      "title": "La salle des offrandes",
+      "content": "Une salle circulaire avec un autel fissuré. Des offrandes pourries sont éparpillées. Trois passages mènent vers l'ouest, le nord et le bas. L'eau suinte des murs et forme des flaques d'un noir huileux."
+    },
+    {
+      "title": "La fosse aux morts-vivants",
+      "content": "Le passage du bas mène à une fosse où des cadavres se tordent péniblement. Une cloche rouillée peut les apaiser — ou les provoquer. Au fond, une échelle de corde mène plus bas."
+    },
+    {
+      "title": "Le sanctuaire interdit",
+      "content": "Une lueur verdâtre pulse au centre de la pièce. Le Gardien des Ombres veille devant un autel noir. Les disparus du village sont là, vivants mais transfigurés. Le secret de Brumeval se révèle enfin."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Eldric le fossoyeur",
+      "role": "Informateur",
+      "description": "Un vieil homme nerveux qui a vu des lumières sous le cimetière. Il offre une clé rouillée."
+    },
+    {
+      "name": "Le Gardien des Ombres",
+      "role": "Antagoniste",
+      "description": "Une entité liée à la crypte. Il teste la bravoure ou la ruse des intrus."
+    }
+  ]
+}

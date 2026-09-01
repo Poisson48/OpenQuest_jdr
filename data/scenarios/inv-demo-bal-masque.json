@@ -1,0 +1,62 @@
+{
+  "id": "inv-demo-bal-masque",
+  "roster": "investigation",
+  "title": "Le Meurtre au Bal Masqué",
+  "synopsis": "Lors d'un bal masqué au manoir de Lavière, le baron est retrouvé poisonné dans la bibliothèque. Cinq invités ont un mobile — et personne n'a quitté la salle avant le drame.",
+  "setting": "Manoir de Lavière, nuit d'hiver, bougies, masques vénitiens, orchestre étouffé par la panique.",
+  "mystery": "Qui a empoisonné le baron ? Quel masque cachait le coupable ?",
+  "scenes": [
+    {
+      "title": "La découverte du corps",
+      "content": "Le baron Lavière gît près du bureau, une coupe renversée à la main. L'odeur d'amandes amères flotte dans la bibliothèque. Le majordome Henri a verrouillé les portes sur ordre de la comtesse. Six masques sont posés sur le piano — chacun correspond à un invité encore présent."
+    },
+    {
+      "title": "Interrogatoires au salon",
+      "content": "Les invités sont rassemblés sous la tapisserie des Valenwood. La comtesse Eliane pleure ; le docteur Morvan examine les symptômes ; le capitaine Rourke clame son innocence. Une plume d'écriture appartenant au baron porte une note partielle : « Ce soir je révèle… »"
+    },
+    {
+      "title": "La bibliothèque — fouille",
+      "content": "Derrière une étagère basculante, un coffre contient des lettres compromettantes. Une fenêtre entrouverte laisse une empreinte de boue sur le rebord — impossible sans échelle. Un journal intime du baron mentionne un chantage et un rendez-vous à minuit."
+    },
+    {
+      "title": "Les cuisines et le poison",
+      "content": "La cuisinière Marthe jure n'avoir servi que du vin de la cave. Une fiole vide se cache dans le garde-manger, étiquetée en latin. Le docteur identifie de l'aconit — rare, réservé à son cabinet. Qui y a eu accès cette semaine ?"
+    },
+    {
+      "title": "Le jardin gelé",
+      "content": "Des traces mènent jusqu'à la serre abandonnée. Un masque brisé gît dans la neige — pas celui du baron. Une échelle portative manque au hangar. Un témoin affirme avoir vu une silhouette en domino noir traverser le couloir est."
+    },
+    {
+      "title": "Confrontation finale",
+      "content": "Les indices convergent : alibi contradictoires, mobile financier, jalousie, secret de famille. Il est temps de réunir les suspects, présenter les preuves et désigner le coupable — ou révéler une vérité plus sombre que prévu."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Comtesse Eliane de Lavière",
+      "role": "Suspecte / veuve",
+      "description": "Élégante, froide sous le choc. Elle hérite du manoir. Son alibi : elle dansait au salon — mais personne ne l'a vue pendant dix minutes."
+    },
+    {
+      "name": "Docteur Morvan",
+      "role": "Suspect / expert",
+      "description": "Médecin de campagne, connaît les poisons. Il a quitté le bal « pour prendre l'air ». Il détenait de l'aconit dans son cabinet."
+    },
+    {
+      "name": "Capitaine Rourke",
+      "role": "Suspect / créancier",
+      "description": "Officier en retraite, endetté envers le baron. Il menace souvent de « régler ses comptes ». Porte un masque de renard."
+    },
+    {
+      "name": "Henri le majordome",
+      "role": "Témoin clé",
+      "description": "Serviteur loyal de vingt ans. Il a servi le vin et verrouillé les portes. Il sait qui est monté à la bibliothèque — mais hésite à parler."
+    },
+    {
+      "name": "Marthe la cuisinière",
+      "role": "Témoin",
+      "description": "Nerveuse, protège son neveu apprenti. Elle a vu quelqu'un entrer dans la cave aux vins avant le bal."
+    }
+  ],
+  "questFormat": "oneshot"
+}

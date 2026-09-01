@@ -1,0 +1,92 @@
+{
+  "local": {
+    "grass": {
+      "label": "Herbe",
+      "color": "#3a6b45"
+    },
+    "forest": {
+      "label": "Forêt",
+      "color": "#1f4228"
+    },
+    "stone": {
+      "label": "Pierre",
+      "color": "#5c5c62"
+    },
+    "sand": {
+      "label": "Sable",
+      "color": "#c4a35a"
+    },
+    "water": {
+      "label": "Eau",
+      "color": "#2a5a8a"
+    },
+    "wall": {
+      "label": "Mur",
+      "color": "#2a2520"
+    },
+    "road": {
+      "label": "Route",
+      "color": "#6b5344"
+    },
+    "floor": {
+      "label": "Sol int.",
+      "color": "#4a4035"
+    }
+  },
+  "world": {
+    "ocean": {
+      "label": "Océan",
+      "color": "#1a3a6a"
+    },
+    "coast": {
+      "label": "Côte",
+      "color": "#c4a35a"
+    },
+    "plains": {
+      "label": "Plaines",
+      "color": "#5a8a45"
+    },
+    "hills": {
+      "label": "Collines",
+      "color": "#6b7a4a"
+    },
+    "mountain": {
+      "label": "Montagnes",
+      "color": "#6b6b72"
+    },
+    "desert": {
+      "label": "Désert",
+      "color": "#d4b86a"
+    },
+    "snow": {
+      "label": "Neige",
+      "color": "#e8eef5"
+    },
+    "swamp": {
+      "label": "Marais",
+      "color": "#3a5a40"
+    },
+    "city": {
+      "label": "Ville",
+      "color": "#8a7a62"
+    }
+  },
+  "investigation": {
+    "street": {
+      "label": "Rue",
+      "color": "#3d3d42"
+    },
+    "building": {
+      "label": "Bâtiment",
+      "color": "#6b4a3a"
+    },
+    "office": {
+      "label": "Intérieur",
+      "color": "#5a5048"
+    },
+    "alley": {
+      "label": "Ruelle",
+      "color": "#2a2830"
+    }
+  }
+}

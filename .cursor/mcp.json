@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "openquest-gm": {
+      "command": "npm",
+      "args": ["run", "mcp"],
+      "cwd": "/home/leo/Documents/github/OpenQuest_jdr/server"
+    }
+  }
+}

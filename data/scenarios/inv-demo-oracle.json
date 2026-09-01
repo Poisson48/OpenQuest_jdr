@@ -1,0 +1,62 @@
+{
+  "id": "inv-demo-oracle",
+  "roster": "investigation",
+  "title": "L'Oracle Silencieux",
+  "synopsis": "Dans le quartier des temples, un prêtre oracle a été retrouvé muet et marqué de symboles. Culte, rivalité religieuse ou machination politique ? Les fidèles exigent des réponses.",
+  "setting": "Temple d'Ilyra, encens, mosaïques, sous-sols interdits, cité portuaire agitée.",
+  "mystery": "Qui a réduit l'oracle au silence — et pourquoi ces symboles sur sa peau ?",
+  "scenes": [
+    {
+      "title": "Le sanctuaire profané",
+      "content": "Le prêtre Orin est assis devant l'autel, vivant mais incapable de parler. Des symboles arcanaïques sont gravés sur ses avant-bras — encre ou brûlure ? L'offrande du matin a été renversée. Une porte du sanctuaire menant aux cryptes est entrouverte."
+    },
+    {
+      "title": "Les prêtresses et le schisme",
+      "content": "Sœur Maelis dirige la faction orthodoxe ; le frère Kael prêche une réforme. Chacun accuse l'autre de profanation. Un registre des visiteurs liste un sénateur, une marchande et un inconnu masqué hier soir."
+    },
+    {
+      "title": "Les cryptes sous le temple",
+      "content": "Couloirs humides, fresques effacées. Un cercle de sel brisé au sol. Des bougies récentes. Un grimoire interdit manque à la niche scellée. Des traces de pas légères remontent vers une trappe de service."
+    },
+    {
+      "title": "Le marché des reliques",
+      "content": "La marchande Yara vend des amulettes « bénies ». Elle a vu Orin argumenter avec un client la veille. Une fausse relique porte le même symbole que sur le bras du prêtre — vendue par un colporteur au domino bleu."
+    },
+    {
+      "title": "Le sénateur Vorn",
+      "content": "Le politicien nie être venu au temple — pourtant il est inscrit au registre. Son chasseur admet l'avoir accompagné « pour des conseils privés ». Vorn profitait des prophéties d'Orin pour manipuler les élections."
+    },
+    {
+      "title": "Révélation au clair de lune",
+      "content": "Rituel interrompu, culte clandestin ou vengeance personnelle ? Les symboles mènent à un artisan tatoueur ou à un sort de silence. Orin peut peut-être encore communiquer par écrit — s'il ose."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Prêtre Orin",
+      "role": "Victime / témoin muet",
+      "description": "Oracle respecté, terrifié. Il peut écrire des mots simples si on lui fait confiance."
+    },
+    {
+      "name": "Sœur Maelis",
+      "role": "Suspecte",
+      "description": "Conservatrice rigide. Elle voulait exiler Orin pour ses prophéties trop libres."
+    },
+    {
+      "name": "Frère Kael",
+      "role": "Suspect",
+      "description": "Réformateur charismatique. Des fidèles jurent l'avoir vu dans les cryptes après la cloche du soir."
+    },
+    {
+      "name": "Yara la marchande",
+      "role": "Témoin",
+      "description": "Pragmatique, informée. Elle traque le colporteur au domino bleu pour d'autres raisons."
+    },
+    {
+      "name": "Sénateur Vorn",
+      "role": "Suspect",
+      "description": "Politicien lisse, menteur habile. Les prophéties d'Orin menaçaient sa campagne."
+    }
+  ],
+  "questFormat": "oneshot"
+}

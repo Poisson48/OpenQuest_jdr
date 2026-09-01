@@ -1,0 +1,128 @@
+{
+  "id": "demo-couronne-fracturee",
+  "questFormat": "long",
+  "title": "La Couronne Fracturée",
+  "synopsis": "Campagne épique sur 10 à 15 sessions (plusieurs semaines) : le roi d'Aldermar est mort sans héritier clair, cinq ducs se disputent le trône, et au nord un sceau millénaire se fissure. Les héros doivent naviguer intrigues, guerres et horreurs anciennes pour décider du sort du royaume.",
+  "setting": "Royaume médiéval-fantastique d'Aldermar — capitale Valdris, forteresses de montagne, marches du nord gelées, cours nobles et champs de bataille.",
+  "scenes": [
+    {
+      "title": "Acte I — La nouvelle de Valdris",
+      "content": "Les cloches sonnent le deuil. Le roi Aldric III est mort dans son lit, couronne encore vissée sur le crâne. À Valdris, la Garde royale verrouille les portes du palais ; les ducs convoquent leurs bannerets. Une servante murmure que la marque noire sur le poignet du roi n'était pas là la veille. Le groupe arrive comme émissaires, mercenaires ou héros convoqués — le conseil doit se tenir dans trois jours."
+    },
+    {
+      "title": "Acte I — Le conseil des cinq ducs",
+      "content": "Hall du trône surchargé de bannières rivales. Duc Harald (guerre), duchesse Mira (commerce), duc Corvin (foi), duc Lyonel (intrigues), duchess Sylka (marché du nord) — chacun réclame la couronne. Un messager épuisé annonce des pillards aux frontières et des lumières vertes au-dessus du fort de Brume-noire. Le régent provisoire demande aux aventuriers d'enquêter avant que le royaume ne se déchire."
+    },
+    {
+      "title": "Acte I — La route des réfugiés",
+      "content": "Sur la grand-route sud, des colonnes de paysans fuient vers Valdris. Ils parlent de « soldats sans visage » la nuit et de récoltes brûlées. Un convoi de la duchesse Mira est attaqué ; survivants implorent protection. Choix difficile : escorter les réfugiés (perte de temps) ou foncer vers le nord. Indices : une bannière arrachée porte le sigil du duc Lyonel — ou un faux."
+    },
+    {
+      "title": "Acte I — Première nuit aux murailles",
+      "content": "Le fortin de Garde-Haute abrite le groupe pour la nuit. Le capitaine Elwen montre des flèches noircies trouvées sur les cadavres. À minuit, une attaque de créatures en lambeaux teste les remparts. Au matin, un éclaireur rapporte que les runes du pont de Brume-noire brillent faiblement — signe que le Sceau du Nord s'affaiblit."
+    },
+    {
+      "title": "Acte II — Le fort de Brume-noire",
+      "content": "Forteresse en ruine sur un éperon rocheux. La garnison est réduite de moitié ; le commandant Torval affirme avoir vu le Roi Corbeau dans ses rêves — entité légendaire scellée sous la montagne. Sous la chapelle, une porte de fer gravée de chaînes fissurées pulse. Il faudra plusieurs explorations pour comprendre l'étendue du danger."
+    },
+    {
+      "title": "Acte II — Les runes fissurées",
+      "content": "Crypte sous le fort : runes naines et elfiques entremêlées, datant de l'Alliance des Trois Couronnes. Un grimoire poussiéreux explique que le sceau demande un « serment renouvelé » du titulaire légitime d'Aldermar — ou se brisera en sept lunes. Quelqu'un a gratté trois runes récemment. Piste vers la bibliothèque royale de Valdris."
+    },
+    {
+      "title": "Acte II — Le village des Sans-Nom",
+      "content": "Hameau oublié dans la vallée, habitants terrifiés, enfants qui dessinent le même corbeau à trois yeux. La chamane Oldra connaît la légende : le premier roi scella son frère jumeau corrompu par une entité du Gouffre. Elle peut guider le groupe vers Keldorm, cité naine où reposent les archives du serment."
+    },
+    {
+      "title": "Acte II — L'ambassade naine de Keldorm",
+      "content": "Tunnels lumineux, forge éternelle, négociations tendues. L'archiviste Thrain montre le Traité de Cendres : seul un roi couronné à Valdris avec les trois reliques peut renouveler le sceau. Problème : les reliques (épée, anneau, calice) ont été dispersées après la guerre civile d'il y a cent ans. Thrain soupçonne le duc Corvin d'en cacher une."
+    },
+    {
+      "title": "Acte II — Trahison aux ponts de Sel",
+      "content": "Retour vers le sud : le pont stratégique de Sel est occupé par les hommes du duc Lyonel, qui exige la capture du groupe « pour le bon ordre du royaume ». Combat, négociation ou détour dangereux par les marécages. Un prisonnier révèle que Lyonel négocie en secret avec des cultistes du Gouffre — il croit pouvoir contrôler le Roi Corbeau."
+    },
+    {
+      "title": "Acte III — Siège de la citadelle d'Or",
+      "content": "Valdris bascule en guerre ouverte : Harald assiège la citadelle d'Or où Mira a barricadé les entrepôts royaux. Le groupe doit traverser les lignes, négocier un cessez-le-feu ou voler les provisions. Dans les caves, première relique : l'Anneau du Serment, gardé par un golem de cire mélée."
+    },
+    {
+      "title": "Acte III — La bibliothèque des rois maudits",
+      "content": "Retour au palais — section interdite. Manuscrits racontent la chute du jumeau corrompu, Corvus. Sylka y est déjà, cherchant la vérité pour le nord. Ensemble ou en rivalité, vous découvrez que le roi mort a été empoisonné par le culte — la marque noire est une malédiction qui accélère la rupture du sceau. Deuxième relique : le Calice des Larmes, dissimulé dans un tombeau familial."
+    },
+    {
+      "title": "Acte III — Le pacte oublié",
+      "content": "Corvin convoque le groupe en cathedrale : il possède l'Épée de l'Aube, troisième relique, mais refuse de la remettre sans garanties pour l'Église. Révélation : le grand prêtre cache un cultiste parmi ses novices. Purifier la cathédrale ou forcer la main au duc — conséquences durables sur la confiance du peuple."
+    },
+    {
+      "title": "Acte III — Marche des ombres",
+      "content": "Le Gouffre exhale des brumes ; des villages entiers somnolent d'un sommeil sans fin. Le groupe mène une expédition nocturne pour sauver Oldra et récupérer un artefact de liaison. Première confrontation avec un avatar mineur du Roi Corbeau — il parle avec la voix du roi défunt. « Mon frère m'a trahi une fois. Renouvelez le serment… ou rejoignez-moi. »"
+    },
+    {
+      "title": "Acte IV — Bataille des champs de cendre",
+      "content": "Armées des ducs s'affrontent près de Brume-noire pendant que le ciel se déchire. Lyonel lance ses cultistes dans la mêlée. Objectif : tenir le pont jusqu'à ce que le rituel de renouvellement soit possible, empêcher Lyonel d'atteindre le fort, rallier au moins deux ducs à la cause du sceau. Session épique — plusieurs vagues, choix tactiques, pertes possibles."
+    },
+    {
+      "title": "Acte IV — Le trône vide",
+      "content": "Valdris en chaos. Le régent est mort ; le trône est vacant. Le groupe doit convoquer un parlement d'urgence : qui sera roi ou reine ? Un candidat doit accepter le fardeau du serment. Intrigue finale : Sylka propose un royaume partagé ; Harald veut la couronne par le sang ; Mira offre de financer la reconstruction. Les choix ici façonnent la fin."
+    },
+    {
+      "title": "Acte IV — Descente dans le Gouffre Scellé",
+      "content": "Le sceau cède malgré tout — fissure centrale sous Brume-noire. Descente en plusieurs niveaux : vestiges de l'ancien empire, pièges, échos du passé (visions du jumeau et du premier roi). Lyonel attend au seuil, fusionné partiellement avec l'ombre. Boss intermédiaire avant le cœur du gouffre."
+    },
+    {
+      "title": "Acte V — Le cœur du sceau",
+      "content": "Chambre primordiale : le Roi Corbeau enchaîné, colossal, lucide et fou. Combat final ou négociation selon les reliques et le serment. Trois issues majeures : renouveler le sceau (sacrifice du souverain), détruire Corvus au prix d'une cicatrice sur le royaume, ou sceller à nouveau en exilant le nouveau roi dans la pierre. Conséquences narrées pour les générations futures."
+    },
+    {
+      "title": "Acte V — Couronnement ou cendres",
+      "content": "Épilogue ouvert : couronnement à Valdris, funérailles nationales, reconstruction du nord, ou royaume fragmenté si l'échec est total. Le MJ IA prolonge les quêtes annexes (déserteurs, cultes résiduels, reconstruction de Keldorm). Campagne conçue pour se terminer ici ou continuer en épilogue libre sur plusieurs sessions supplémentaires."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Commandant Torval",
+      "role": "Garde du nord",
+      "description": "Vétéran du fort de Brume-noire, hanté par des visions. Loyal au royaume, pas à un duc en particulier."
+    },
+    {
+      "name": "Duc Lyonel de Sel",
+      "role": "Antagoniste politique",
+      "description": "Maître des intrigues, pactise avec le culte du Gouffre. Croit dompter le Roi Corbeau pour s'emparer du trône."
+    },
+    {
+      "name": "Duchesse Sylka du Nord",
+      "role": "Alliée potentielle",
+      "description": "Pragmatique, protège son peuple contre les brumes. Veut un royaume où le nord ne soit plus oublié."
+    },
+    {
+      "name": "Duc Harald le Martel",
+      "role": "Factions / guerre",
+      "description": "Général brutal, veut la couronne par conquest. Respecte la force ; peut être rallié si on le bat ou lui sauve la face."
+    },
+    {
+      "name": "Archiviste Thrain de Keldorm",
+      "role": "Informateur",
+      "description": "Nain érudit, garde les secrets du Traité de Cendres. Exige des preuves avant de révéler chaque parcelle du rituel."
+    },
+    {
+      "name": "Oldra la chamane",
+      "role": "Guide spirituelle",
+      "description": "Ancienne du village des Sans-Nom, connaît la vraie histoire des jumeaux rois. Peut être possédée si le groupe tarde."
+    },
+    {
+      "name": "Grand prêtre Alaric",
+      "role": "Autorité religieuse",
+      "description": "Chef de la foi d'Aldermar, possède des indices sur le Calice. Son ordre cache un traître cultiste."
+    },
+    {
+      "name": "Le Roi Corbeau (Corvus)",
+      "role": "Antagoniste final",
+      "description": "Jumeau scellé du premier roi, fusionné avec une entité du Gouffre. Offre pouvoir, vérité ou destruction selon les choix du groupe."
+    },
+    {
+      "name": "Capitaine Elwen",
+      "role": "Alliée militaire",
+      "description": "Officier de Garde-Haute, compétente et directe. Peut commander des renforts si le groupe gagne sa confiance."
+    }
+  ]
+}

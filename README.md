@@ -158,11 +158,13 @@ git push origin poc/ma-fonctionnalite
 ## Feuille de route
 
 - [x] POC HTML jouable (personnages, scénarios, bots, cartes, MJ IA)
-- [x] Mode enquête + cartes investigation
-- [x] Carte du monde, brouillard de guerre, navigation monde ↔ lieux
-- [ ] Portage des règles du POC dans Godot
-- [ ] Multijoueur réseau complet
-- [ ] Synchronisation sauvegardes (hors localStorage)
+- [x] Client Godot — menus, hub, persos, setup, session
+- [x] Serveur Node — MJ IA (`ai-gm.ts`), bots, dés, sessions JSON
+- [x] Serveur MCP — outils GM pour agents (`npm run mcp`)
+- [x] Données extraites — `data/scenarios/`, `data/bots/`, `data/tiles.json`
+- [ ] Éditeur de cartes Godot (aperçu basique fait)
+- [ ] Multijoueur réseau à 2 PC testé bout en bout
+- [ ] Synchronisation sauvegardes cloud
 
 ---
 

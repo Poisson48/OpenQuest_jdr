@@ -1,0 +1,45 @@
+{
+  "id": "demo-manoir",
+  "questFormat": "oneshot",
+  "title": "Le Manoir de Valenwood",
+  "synopsis": "Le comte Valenwood a disparu. Son manoir isolé dans la forêt regorge de secrets, de pièges et de créatures qui rôdent la nuit.",
+  "setting": "Manoir gothique en lisière de forêt, nuit pluvieuse, chandelles qui vacillent.",
+  "scenes": [
+    {
+      "title": "L'approche du manoir",
+      "content": "Allée de chênes tordus, portail rouillé, fenêtres éteintes. Une lettre du comte invite les aventuriers à « enquêter sur des troubles nocturnes ». Martha la servante les accueille, pâle et terrorisée."
+    },
+    {
+      "title": "Le hall d'entrée",
+      "content": "Un grand hall poussiéreux, un portrait du comte fixe les visiteurs. Une tapisserie dissimule peut-être un passage. Des pas résonnent à l'étage. Un chandelier tombe soudain — accident ou piège ?"
+    },
+    {
+      "title": "La salle à manger",
+      "content": "Vaisselle encore dressée, nourriture moisie. Six couverts, mais une chaise renversée. Des griffures sur la table forment un mot : « SORTEZ ». Une porte mène aux cuisines, une autre à l'étage."
+    },
+    {
+      "title": "La bibliothèque maudite",
+      "content": "Des livres jonchent le sol. Un grimoire ouvert pulse d'une lumière violette. Une fenêtre brisée laisse entrer le vent et la pluie. Derrière une étagère basculante se cache le passage secret."
+    },
+    {
+      "title": "La chambre secrète du comte",
+      "content": "Une chambre circulaire avec un cercle de sel brisé au sol. Le comte Aldric est enchaîné — ou possédé. Une entité murmure à travers lui. La fenêtre donne sur un jardin où des ombres dansent."
+    },
+    {
+      "title": "Le jardin des ombres",
+      "content": "Nuit noire, rosée glacée. Les ombres prennent forme humaine — d'anciens Valenwood piégés ici. Le comte peut être sauvé ou sacrifié. Le manoir tremble tandis que l'aube approche."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Martha la servante",
+      "role": "Témoin",
+      "description": "Elle tremble et murmure que « les murs écoutent ». Elle connaît un passage derrière la tapisserie."
+    },
+    {
+      "name": "Comte Aldric Valenwood",
+      "role": "Victime / allié ambigu",
+      "description": "Noble érudit, peut-être possédé. Il alterne entre lucidité et rage surnaturelle."
+    }
+  ]
+}

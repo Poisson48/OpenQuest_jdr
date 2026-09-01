@@ -8,15 +8,25 @@ config_version=5
 
 config/name="OpenQuest JDR"
 config/description="Jeu multijoueur OpenQuest — client Godot"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+ThemeColors="*res://scripts/autoload/theme_colors.gd"
+GameData="*res://scripts/autoload/game_data.gd"
+NetworkClient="*res://scripts/network_client.gd"
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+
+[gui]
+
+theme/custom="res://theme/openquest_theme.tres"
 
 [rendering]
 

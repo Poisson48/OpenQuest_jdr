@@ -1,34 +1,47 @@
-/** Messages échangés entre le client Godot et le serveur Node. */
+/** Messages WebSocket client ↔ serveur OpenQuest JDR */
+
+import type { ClientPartyMember } from "./party_utils.js";
+import type { ClientGameState } from "./state_serializer.js";
+import type { DiceResult } from "./dice.js";
+
+// --- Client → Serveur ---
 
 export type ClientMessage =
-  | { type: "join"; playerName: string }
   | { type: "ping" }
-  | { type: "player_input"; input: PlayerInput };
+  | { type: "join"; playerName: string }
+  | { type: "list_scenarios" }
+  | {
+      type: "start_game";
+      scenarioId: string;
+      party: ClientPartyMember[];
+      mode?: "solo" | "multi";
+      gmType?: "ai" | "human";
+      questFormat?: string;
+      partySizeTarget?: number;
+      fillWithBots?: boolean;
+    }
+  | { type: "game_action"; gameId: string; action: string; playerId?: string }
+  | { type: "dice_roll"; gameId?: string; formula: string; playerId?: string }
+  | { type: "get_game_state"; gameId: string }
+  | { type: "advance_scene"; gameId: string };
+
+// --- Serveur → Client ---
 
 export type ServerMessage =
   | { type: "welcome"; playerId: string; playerName: string }
   | { type: "pong" }
+  | { type: "error"; message: string }
+  | { type: "scenarios_list"; scenarios: Array<Record<string, unknown>> }
+  | { type: "game_started"; gameId: string; state: ClientGameState }
+  | { type: "game_state"; state: ClientGameState }
+  | { type: "log_entry"; entry: { author: string; type: string; text: string; time: string } }
+  | { type: "dice_result"; result: DiceResult; formatted: string }
   | { type: "player_joined"; playerId: string; playerName: string }
-  | { type: "player_left"; playerId: string }
-  | { type: "state_sync"; players: PlayerState[] }
-  | { type: "error"; message: string };
+  | { type: "player_left"; playerId: string };
 
-export interface PlayerInput {
-  moveX: number;
-  moveY: number;
-}
-
-export interface PlayerState {
+export interface ConnectedClient {
   id: string;
   name: string;
-  x: number;
-  y: number;
-}
-
-export interface ConnectedPlayer {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
+  gameId: string | null;
   ws: import("ws").WebSocket;
 }

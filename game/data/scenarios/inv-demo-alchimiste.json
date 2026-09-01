@@ -1,0 +1,62 @@
+{
+  "id": "inv-demo-alchimiste",
+  "roster": "investigation",
+  "title": "Le Poison du Grand Alchimiste",
+  "synopsis": "Maître Aldric, alchimiste réputé, est mort dans son laboratoire verrouillé de l'intérieur. Suicide, accident ou meurtre par procuration ? Ses trois apprentis et son rival ont tout à y gagner.",
+  "setting": "Tour-laboratoire d'Aldric, fumées acides, grimoires, fioles étiquetées, ville universitaire en contrebas.",
+  "mystery": "Comment le poison est-il entré dans une pièce verrouillée ?",
+  "scenes": [
+    {
+      "title": "Le laboratoire scellé",
+      "content": "Aldric est affalé sur son bureau, lèvres bleuies. La porte était verrouillée de l'intérieur, la clef dans la serrure. Une fiole de cyanure brisée sur le sol. Les fenêtres sont scellées depuis des années — sauf une trappe d'aération au plafond."
+    },
+    {
+      "title": "Les apprentis",
+      "content": "Lysa, Bram et Petronille sont interrogés séparément. Lysa veut reprendre le laboratoire ; Bram a volé des formules ; Petronille était amoureuse d'Aldric. Chacun a un motif, chacun a un alibi partiel pour la nuit du décès."
+    },
+    {
+      "title": "Le grimoire des formules",
+      "content": "Une page arrachée concernait un « élixir de silence » — poison retardé. Des taches chimiques sur le rebord de la fenêtre intérieure. Un parchemin signé par le rival Zephon menace Aldric de ruine publique."
+    },
+    {
+      "title": "La trappe d'aération",
+      "content": "La gaine mène au toit puis à la cheminée voisine — appartement de Zephon. Des traces de suie fraîche. Un mécanisme de corde permettrait de descendre un objet sans entrer. Un bout de gants brûlé gît sur le toit."
+    },
+    {
+      "title": "L'apothicaire du quartier",
+      "content": "Le marchand de produits rares confirme une vente de cyanure — signature illisible. Un témoin a vu un apprenti en cape noire la veille. Les registres de la guilde des mages mentionnent une dette d'Aldric envers Zephon."
+    },
+    {
+      "title": "Reconstitution du crime",
+      "content": "Locked room : suicide simulé, empoisonnement différé, ou complice dans la tour voisine ? Les preuves physiques et les témoignages permettent de reconstruire la méthode — et de nommer le coupable."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Lysa l'apprentie",
+      "role": "Suspecte",
+      "description": "Ambitieuse, froide. Elle hériterait du laboratoire si Aldric n'avait pas changé son testament la veille."
+    },
+    {
+      "name": "Bram l'apprenti",
+      "role": "Suspect",
+      "description": "Maladroit, endetté. Il a copié des formules pour un acheteur inconnu."
+    },
+    {
+      "name": "Petronille",
+      "role": "Suspecte / témoin",
+      "description": "Sensible, jalouse de Lysa. Elle affirme avoir entendu des pas sur le toit à minuit."
+    },
+    {
+      "name": "Zephon le rival",
+      "role": "Suspect principal",
+      "description": "Alchimiste vaniteux, voisin de tour. Son alibi est faible ; il avait accès au toit commun."
+    },
+    {
+      "name": "Maître Corbin",
+      "role": "Autorité / témoin",
+      "description": "Représentant de la guilde. Il possède une copie du testament et connaît les rivalités."
+    }
+  ],
+  "questFormat": "oneshot"
+}

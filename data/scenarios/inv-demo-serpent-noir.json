@@ -1,0 +1,130 @@
+{
+  "id": "inv-demo-serpent-noir",
+  "roster": "investigation",
+  "questFormat": "long",
+  "title": "L'Affaire du Serpent Noir",
+  "synopsis": "Enquête longue sur 10 à 15 sessions (plusieurs semaines) : à Marée-Haute, des meurtres rituels marqués d'un serpent noir secouent la ville. Corruption policière, société secrète et secrets de famille — l'équipe doit démêler une conspiration avant la prochaine victime.",
+  "setting": "Port de Marée-Haute — brumes salées, entrepôts, université, quartier noble, égouts et phare abandonné. Époque fin de siècle / fantasy urbaine.",
+  "mystery": "Qui dirige le culte du Serpent Noir ? Quel est le lien entre les victimes — et qui protège le tueur au sein de la ville ?",
+  "scenes": [
+    {
+      "title": "Acte I — Cadavre sur le quai 7",
+      "content": "À l'aube, un pêcheur trouve le corps du notaire Fontaine, marque de serpent gravée dans le dos. Le commissaire Varenne veut classer l'affaire « bandits du port ». La presse s'enflamme. Le groupe est mandaté par le préfet ou contacté en secret par la journaliste Nora Pike — première liste de témoins et accès limité à la scène de crime."
+    },
+    {
+      "title": "Acte I — Autopsie et première trace",
+      "content": "Le légiste Dr. Selim révèle : victime droguée avant la mise en scène rituelle, poison rare d'origine orientale. Dans la poche du notaire, un billet pour le bal de la Fondation Hale. Une écaille de métal noir, pas biologique, est retrouvée sous l'ongle de la victime — artefact ou bijou de culte ?"
+    },
+    {
+      "title": "Acte I — Le bal masqué de la Fondation",
+      "content": "Soirée charitable des élites : tous les suspects se croisent en masques. Le banquier Hale, la veuve Fontaine, le professeur Orin, le capitaine des docks Mercier. Une serveuse glisse un pli : « Ne faites pas confiance à Varenne. » Un domino noir quitte la salle par la terrasse — poursuite possible ou perte de piste."
+    },
+    {
+      "title": "Acte I — Archives du port",
+      "content": "Registres des navires : trois cargaisons « textiles » sans manifeste complet, capitaine Mercier signataire. Correspondance chiffrée dans un coffre administratif. Un clerk est retrouvé battu — il murmure « le Serpent paie en or et en silence » avant de perdre connaissance."
+    },
+    {
+      "title": "Acte II — Deuxième victime : le professeur",
+      "content": "Orin est retrouvé dans son bureau universitaire, même marque. Ses notes portent sur les cultes maritimes oubliés. Un étudiant discret, Lio, admet qu'Orin recevait des menaces depuis qu'il enquêtait sur la Fondation Hale. Vol de carnets — piste vers la bibliothèque interdite."
+    },
+    {
+      "title": "Acte II — Bibliothèque des marées",
+      "content": "Manuscrits sur le « Serpent des profondeurs », secte liée aux marées et aux sacrifices de notables corrompus. Symboles identiques à la marque des victimes. Une page arrachée mentionne un « nid » sous le phare. Garde archiviste corrompu — pot-de-vin ou intimidation à découvrir."
+    },
+    {
+      "title": "Acte II — Interrogatoire du commissaire Varenne",
+      "content": "Varenne bloque l'accès aux dossiers. Témoignages de flics honnêtes : plaintes classées sans suite, témoins menacés. Surveillance du commissariat : rendez-vous nocturne avec un homme encapuchonné. Mandat ou infiltration pour obtenir preuves de complicité."
+    },
+    {
+      "title": "Acte II — Les docks la nuit",
+      "content": "Filature de Mercier : entrepôt 14, chants étouffés, cadavres d'animaux disposés en cercle. Combat ou infiltration. Documents liant la Fondation Hale à des « cotisations occultes ». Mercier s'échappe ou est capturé — il parle d'un « Messager » plus haut placé."
+    },
+    {
+      "title": "Acte III — La veuve et l'héritage",
+      "content": "Madame Fontaine hérite d'une fortune si l'enquête s'arrête. Contradictions dans son alibi. Testament du notaire léguant des terres au phare — terrains inexploitables selon la ville, mais registre cadastral secret dit autre chose. Jalousie, argent, ou complicité forcée ?"
+    },
+    {
+      "title": "Acte III — Le témoignage du prêtre",
+      "content": "Père Aldric confesse avoir béni des « pèlerins nocturnes » sans comprendre. Il mène le groupe à une chapelle oubliée dans les égouts — fresques du serpent, autel récent. Quelqu'un a laissé une lanterne encore chaude. Embuscade de cultistes ou fuite organisée."
+    },
+    {
+      "title": "Acte III — Nora Pike en danger",
+      "content": "La journaliste publie un article partiel — son appartement est saccagé. Elle possède une liste de noms raturés retrouvée chez Orin. Protection, planque, ou appât pour attraper le Messager. Choix moral : exposer la vérité tout de suite ou creuser encore."
+    },
+    {
+      "title": "Acte III — Fausse piste : le syndicat des dockers",
+      "content": "Syndicat accusé publiquement par Hale de terrorisme. En creusant, alibi solide mais haine légitime contre Fontaine qui les ruina. Le vrai coupable pourrait utiliser la colère populaire. Grève imminente — fenêtre pour une nouvelle victime pendant le chaos."
+    },
+    {
+      "title": "Acte IV — Descente dans les égouts",
+      "content": "Réseau sous la ville : passages vers le phare, ossements anciens, chambre d'initiation. Journaux du culte listant les « offrandes » sur vingt ans — noms de victimes futures dont un membre du conseil municipal. Course contre la montre."
+    },
+    {
+      "title": "Acte IV — Le phare abandonné",
+      "content": "Île rocheuse à marée basse. Le phare abrite le nid du culte : salle circulaire, carte de Marée-Haute avec des croix sur des maisons nobles. Le Messager se révèle — identité selon indices (Hale, Varenne, ou figure surprise). Confrontation partielle, fuite vers le sanctuaire final."
+    },
+    {
+      "title": "Acte IV — Le conseil municipal",
+      "content": "Session d'urgence : le groupe présente preuves ou échoue à convaincre. Hale accuse le groupe de diffamation. Alliés politiques à mobiliser (préfet, Nora, flics loyaux). Arrestation ratée si le culte a des hommes dans la garde — émeute ou siège de l'hôtel de ville."
+    },
+    {
+      "title": "Acte V — Sanctuaire sous la cathédrale",
+      "content": "Dernière piste : crypte sous la cathédrale, jamais cartographiée. Cérémonie en cours — victime vivante sur l'autel. Le Serpent Noir n'est pas qu'un symbole : relique ou entité invoquée. Infiltration silencieuse ou assaut — conséquences sur la réputation du groupe."
+    },
+    {
+      "title": "Acte V — Révélation du Serpent",
+      "content": "Vérité finale : le culte protège un trafic d'artefacts marins et élimine quiconque approche du secret des Hale. Mobile : pouvoir, immortalité rituelle, ou peur d'une malédiction familiale. Le Messager avoue, se bat, ou se sacrifie. Plusieurs coupables possibles selon les preuves accumulées."
+    },
+    {
+      "title": "Acte V — Verdict de Marée-Haute",
+      "content": "Épilogue : procès public, réforme de la police, chute de la Fondation, ou cover-up partiel si le groupe a échoué. Nora rédige la chronique ; Dr. Selim enterre les derniers secrets. Affaire classée ou cicatrice ouverte — le MJ IA peut prolonger en enquêtes annexes (survivants du culte, artefacts restants)."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Commissaire Varenne",
+      "role": "Suspect / obstacle",
+      "description": "Chef de police corrompu ou lâche, classe les meurtres. Protège quelqu'un — ou tremble devant le culte."
+    },
+    {
+      "name": "Nora Pike",
+      "role": "Alliée / journaliste",
+      "description": "Enquête depuis des mois, possède des sources. Risque sa vie pour la vérité — mobile personnel à découvrir."
+    },
+    {
+      "name": "Dr. Selim",
+      "role": "Expert légiste",
+      "description": "Méticuleux, connaît les poisons rares. Cache peut-être un lien avec les victimes ou les Hale."
+    },
+    {
+      "name": "Banquier Hale",
+      "role": "Suspect principal",
+      "description": "Philanthrope en surface, patron de la Fondation. Chaque victime menaçait ses intérêts ou connaissait un secret."
+    },
+    {
+      "name": "Capitaine Mercier",
+      "role": "Suspect / trafic",
+      "description": "Contrôle les docks, signe des manifestes falsifiés. Peut être un pion ou un initié du culte."
+    },
+    {
+      "name": "Madame Fontaine",
+      "role": "Suspecte / veuve",
+      "description": "Héritière, calme trop parfaite. Aimait-elle son mari ? Savait-elle pour ses dettes envers le culte ?"
+    },
+    {
+      "name": "Père Aldric",
+      "role": "Témoin / guide",
+      "description": "Prêtre troublé, a béni les cultistes sans le vouloir. Accès aux cryptes et à la conscience des pauvres."
+    },
+    {
+      "name": "Lio l'étudiant",
+      "role": "Témoin clé",
+      "description": "Assistant d'Orin, terrorisé. A vu qui entrait la nuit du meurtre du professeur — s'il ose parler."
+    },
+    {
+      "name": "Le Messager",
+      "role": "Antagoniste",
+      "description": "Exécutant du culte, identité masquée jusqu'à l'acte IV. Obéit au « Serpent » — ou est la tête du serpent."
+    }
+  ]
+}

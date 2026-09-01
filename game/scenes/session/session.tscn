@@ -1,0 +1,271 @@
+[gd_scene load_steps=3 format=3 uid="uid://session_scene_001"]
+
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/session.gd" id="2_script"]
+
+[node name="Session" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101961, 0.0784314, 0.0627451, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderBar" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+
+[node name="HBox" type="HBoxContainer" parent="MainLayout/HeaderBar"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnBackHub" type="Button" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← Quitter la session"
+
+[node name="ScenarioTitle" type="Label" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 18
+text = "🗺️ Les Sables de Kharak"
+
+[node name="SceneProgress" type="Label" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Scène 1/6 : L'oasis"
+
+[node name="TimerLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⏱️ 00:00"
+
+[node name="NetStatusLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "○ Mode Local"
+
+[node name="BtnAdvanceScene" type="Button" parent="MainLayout/HeaderBar/HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Scène Suivante ⏭️"
+
+[node name="ContentSplit" type="HSplitContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 320
+
+[node name="Sidebar" type="VBoxContainer" parent="MainLayout/ContentSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PartyPanel" type="PanelContainer" parent="MainLayout/ContentSplit/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PartyScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/Sidebar/PartyPanel"]
+layout_mode = 2
+
+[node name="PartyVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="LblParty" type="Label" parent="MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll/PartyVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "👥 Membres du Groupe"
+
+[node name="PartyContainer" type="VBoxContainer" parent="MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll/PartyVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="GmPanel" type="PanelContainer" parent="MainLayout/ContentSplit/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="GmVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/Sidebar/GmPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblGm" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "👑 Panneau Maître du Jeu"
+
+[node name="GmInput" type="TextEdit" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+placeholder_text = "Écrire une narration pour les joueurs..."
+
+[node name="BtnGmSend" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Diffuser la Narration"
+
+[node name="MainGameArea" type="VBoxContainer" parent="MainLayout/ContentSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.4
+theme_override_constants/separation = 8
+
+[node name="LogPanel" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GameLog" type="RichTextLabel" parent="MainLayout/ContentSplit/MainGameArea/LogPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+bbcode_enabled = true
+scroll_following = true
+
+[node name="DiceSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
+layout_mode = 2
+
+[node name="DiceVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/DiceSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="QuickDiceHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnD4" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d4"
+
+[node name="BtnD6" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d6"
+
+[node name="BtnD8" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d8"
+
+[node name="BtnD10" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d10"
+
+[node name="BtnD12" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d12"
+
+[node name="BtnD20" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "🎲 d20"
+
+[node name="BtnD100" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "d100"
+
+[node name="VSeparator" type="VSeparator" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+layout_mode = 2
+
+[node name="CustomDiceInput" type="LineEdit" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+placeholder_text = "2d6+3"
+
+[node name="BtnRollCustom" type="Button" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Lancer"
+
+[node name="DiceResultLabel" type="Label" parent="MainLayout/ContentSplit/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "Prêt à lancer les dés"
+horizontal_alignment = 2
+
+[node name="ActionSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
+layout_mode = 2
+
+[node name="ActionVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SuggestionsHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnSuggExplore" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "🧭 Explorer"
+
+[node name="BtnSuggTalk" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "💬 Discuter"
+
+[node name="BtnSuggInspect" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "🔍 Examiner"
+
+[node name="BtnSuggCombat" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "⚔️ Combattre"
+
+[node name="ActionInputHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InputAction" type="LineEdit" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/ActionInputHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Décrivez votre action... (ex: J'avance prudemment vers la porte dérobée)"
+
+[node name="BtnSendAction" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/ActionInputHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "Envoyer ↵"

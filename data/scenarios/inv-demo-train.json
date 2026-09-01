@@ -1,0 +1,62 @@
+{
+  "id": "inv-demo-train",
+  "roster": "investigation",
+  "title": "Le Crime du Train de Minuit",
+  "synopsis": "Le train de luxe « Étoile du Nord » est immobilisé par une tempête de neige. Un passager est retrouvé mort dans son compartiment verrouillé — et chaque voyageur de la voiture-restaurant a un secret.",
+  "setting": "Train art déco, nuit d'hiver, neige, lumière tamisée, tension claustrophobique entre passagers.",
+  "mystery": "Qui a tué le banquier Hoffmann — et comment le meurtrier a-t-il quitté un compartiment verrouillé ?",
+  "scenes": [
+    {
+      "title": "Arrêt forcé en pleine neige",
+      "content": "Le convoi est bloqué entre deux gares. Le contrôleur Voss annonce qu'un passager de la première classe est mort. La police la plus proche n'arrivera qu'à l'aube. Les sept passagers de la voiture-restaurant sont invités à rester dans le salon — personne ne descend."
+    },
+    {
+      "title": "Le compartiment 7",
+      "content": "Hoffmann gît sur son lit, une plaie nette. La porte était verrouillée de l'intérieur, la fenêtre entrouverte sur le vide. Une mallette contient des dossiers compromettants sur chaque passager du train. Une carte à jouer — le valet de pique — est posée sur le corps."
+    },
+    {
+      "title": "Interrogatoire au salon",
+      "content": "La comtesse, l'inventeur, la veuve, le prêtre, la journaliste et le marchand d'art se contredisient sur les horaires. Voss le contrôleur possède une clef passe-partout. Chacun a quitté le salon « une minute » pendant le dîner."
+    },
+    {
+      "title": "La voiture-bagages",
+      "content": "Une valise ouverte contient un manteau taché et un couteau de chasse propre. Des empreintes sur la trappe du toit mènent à la voiture suivante. Un billet falsifié porte un nom différent de celui d'un passager présent."
+    },
+    {
+      "title": "La cabine du conducteur",
+      "content": "Le mécanicien admet avoir ralenti volontairement avant l'arrêt — on lui a payé. Un télégramme non envoyé mentionne une rançon. Le journal de bord du train comporte une page arrachée."
+    },
+    {
+      "title": "Révélation avant l'aube",
+      "content": "La tempête faiblit. Il faut accuser ou laisser filer le coupable au prochain départ. Les alibis, la mallette de Hoffmann et la carte à jouer convergent vers une vérité que personne n'avouera facilement."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Contrôleur Voss",
+      "role": "Suspect / témoin",
+      "description": "Sévère, connaît chaque compartiment. Il possède des passe et cache une dette envers Hoffmann."
+    },
+    {
+      "name": "Comtesse Adèle",
+      "role": "Suspecte",
+      "description": "Voyage en secret. Hoffmann menaçait de révéler une fausse identité qui lui permet d'hériter."
+    },
+    {
+      "name": "Inventeur Karl Bren",
+      "role": "Suspect",
+      "description": "Nerveux, brevet volé par Hoffmann. Il a quitté le salon pendant le dessert."
+    },
+    {
+      "name": "Père Anselme",
+      "role": "Témoin / suspect",
+      "description": "Prêtre discret. Il a entendu une dispute dans le couloir — mais refuse de dire entre qui."
+    },
+    {
+      "name": "Journaliste Nora Pike",
+      "role": "Suspecte / alliée",
+      "description": "Enquête sur Hoffmann depuis des mois. Elle possède des copies des dossiers de la mallette."
+    }
+  ],
+  "questFormat": "oneshot"
+}
