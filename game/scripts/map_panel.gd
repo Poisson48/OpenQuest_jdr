@@ -23,6 +23,7 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 6)
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(outer)
 
 	var header := HBoxContainer.new()
@@ -44,13 +45,22 @@ func _build_ui() -> void:
 	_nav_bar.visible = false
 	outer.add_child(_nav_bar)
 
+	var toolbar_scroll := ScrollContainer.new()
+	toolbar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	toolbar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	toolbar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.add_child(toolbar_scroll)
+
 	_toolbar_container = HBoxContainer.new()
 	_toolbar_container.add_theme_constant_override("separation", 4)
-	outer.add_child(_toolbar_container)
+	_toolbar_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	toolbar_scroll.add_child(_toolbar_container)
 
 	_hint_lbl = Label.new()
 	_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	_hint_lbl.add_theme_font_size_override("font_size", 12)
+	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer.add_child(_hint_lbl)
 
 	var map_panel := PanelContainer.new()
@@ -60,8 +70,8 @@ func _build_ui() -> void:
 	map_style.set_border_width_all(1)
 	map_style.set_corner_radius_all(4)
 	map_panel.add_theme_stylebox_override("panel", map_style)
-	map_panel.custom_minimum_size = Vector2(0, 220)
-	map_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_panel.custom_minimum_size = Vector2(0, 160)
+	map_panel.custom_maximum_size = Vector2(100000, 200)
 	outer.add_child(map_panel)
 
 	_map_host = Control.new()
@@ -163,7 +173,9 @@ func _render_toolbar(state: Dictionary) -> void:
 
 	for member in party:
 		var mid: String = member.get("id", "")
-		var btn := _make_tool_button(_member_emoji(member, quest_format) + " " + member.get("name", ""))
+		var em := _member_emoji(member, quest_format)
+		var btn := _make_tool_button(em)
+		btn.tooltip_text = member.get("name", "")
 		btn.button_pressed = _session_tool.get("mode") == "member" and _session_tool.get("member_id") == mid
 		btn.pressed.connect(func():
 			_session_tool = { "mode": "member", "member_id": mid }
@@ -174,7 +186,8 @@ func _render_toolbar(state: Dictionary) -> void:
 
 	for marker_type in MapData.get_session_marker_types(quest_format, display_map):
 		var em := MapData.get_marker_emoji(marker_type)
-		var btn := _make_tool_button("%s %s" % [em, MapData.get_marker_label(marker_type)])
+		var btn := _make_tool_button(em)
+		btn.tooltip_text = MapData.get_marker_label(marker_type)
 		btn.button_pressed = _session_tool.get("mode") == "marker" and _session_tool.get("marker_type") == marker_type
 		var captured_type: String = marker_type
 		btn.pressed.connect(func():
@@ -198,6 +211,7 @@ func _make_tool_button(text: String) -> Button:
 	btn.text = text
 	btn.toggle_mode = true
 	btn.add_theme_font_size_override("font_size", 12)
+	btn.custom_minimum_size = Vector2(32, 28)
 	return btn
 
 func _render_active_map(state: Dictionary) -> void:

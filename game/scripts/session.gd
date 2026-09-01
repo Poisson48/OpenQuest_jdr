@@ -28,6 +28,25 @@ func _ready() -> void:
 	
 	%BtnGmSend.pressed.connect(_on_gm_send_pressed)
 	
+	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	log_label.scroll_active = true
+	log_label.add_theme_constant_override("line_separation", 4)
+	
+	var log_panel: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
+	if log_panel:
+		var style := StyleBoxFlat.new()
+		style.bg_color = ThemeColors.BG_INPUT
+		style.border_color = ThemeColors.BORDER
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 8
+		style.content_margin_bottom = 8
+		log_panel.add_theme_stylebox_override("panel", style)
+	
 	_setup_quick_dice_buttons()
 	_setup_suggestion_buttons()
 	_connect_network_signals()
