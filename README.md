@@ -1,53 +1,102 @@
-# OpenQuest JDR — Jeu multijoueur
+# OpenQuest JDR
 
-> **🚧 Travaux en cours — jeu en développement**  
-> POC HTML jouable + prototype serveur Godot en parallèle.
+> Créateur et session de jeu de rôle — **POC HTML jouable** + prototype multijoueur Godot en cours.
 
-Jeu de rôle multijoueur : **POC HTML** (jouable tout de suite) + client **Godot 4** + serveur **Node.js** (WebSocket).
+**OpenQuest** permet de créer des personnages, scénarios et cartes, puis de jouer en solo ou à plusieurs (local) avec un MJ humain ou une **MJ IA**. Les données sont sauvegardées dans le navigateur (`localStorage`).
 
-## État actuel
+| Version | Statut | Lancement |
+|---------|--------|-----------|
+| **POC HTML** | ✅ Jouable | Double-clic sur `index.html` ou `./ouvrir-openquest.sh` |
+| **Client Godot + serveur Node** | 🚧 Prototype | Voir [Démarrage technique](#démarrage-technique-godot--serveur) |
 
-| Phase | Statut | Détail |
-|-------|--------|--------|
-| **POC HTML** | ✅ Jouable | `index.html` — aventures, enquête, cartes, MJ IA |
-| Setup technique | ✅ Fait | Serveur WebSocket, squelette Godot, doc collaboration |
-| Gameplay Godot | ⏳ À venir | Portage des règles du POC |
-| Multijoueur complet | ⏳ À venir | Après intégration des règles du POC |
+---
 
-## POC HTML — lancer sans installation
+## Fonctionnalités du POC HTML
+
+### Modes de jeu
+- **One-shot** — aventure courte
+- **Campagne longue** — scénarios étendus + carte du monde
+- **Enquête** — investigation avec roster et cartes dédiées
+
+### Création de contenu
+- **Personnages** — fiches aventure (race, classe, stats, PV, CA)
+- **Enquêteurs** — roster investigation avec archétypes
+- **Scénarios** — scènes, objectifs, PNJ liés
+- **Bots compagnons** — archétypes IA pour compléter le groupe
+- **Cartes** — éditeur de grilles :
+  - scènes locales (donjons, tavernes, quartiers…)
+  - **cartes du monde** (continents, villes, brouillard de guerre)
+  - liens **monde → lieu** (entrée dans une ville, retour via sortie 🚪)
+
+### Session de jeu
+- Groupe jusqu'à 10 participants (humains + bots)
+- **MJ IA** adaptatif ou **MJ humain**
+- Journal de partie, dés intégrés, timer de session
+- **Cartes interactives** en partie : placement des personnages, marqueurs, zoom, pan
+- **Brouillard de guerre** sur les cartes du monde (révélation progressive)
+- **PNJ IA** — génération et gestion de personnages improvisés
+
+### Aucune installation requise
+Le POC tourne entièrement dans le navigateur. Aucun Node, npm ou Godot nécessaire pour jouer.
+
+---
+
+## Lancer le POC HTML
 
 ```bash
-# Ouvrir directement dans le navigateur
+git clone https://github.com/Poisson48/OpenQuest_jdr.git
+cd OpenQuest_jdr
 ./ouvrir-openquest.sh
-# ou double-clic sur index.html
 ```
 
-Fonctionnalités : création de personnages, scénarios, bots, cartes interactives (monde + lieux), mode enquête, session de jeu avec MJ IA ou humain.
+Ou ouvrir directement **`index.html`** dans Chrome / Firefox / Edge.
 
-## Structure
+> Les sauvegardes restent sur la machine locale (navigateur). Pour repartir de zéro : vider les données du site dans les paramètres du navigateur.
+
+---
+
+## Structure du projet
 
 ```
 OpenQuest_jdr/
-├── index.html     # POC HTML — point d'entrée
-├── css/           # Styles du POC
-├── js/            # Logique du POC
-├── game/          # Projet Godot 4 (client)
-├── server/        # Serveur Node.js (WebSocket)
-├── poc/           # Références / exports POC
-├── docs/          # Documentation
-└── scripts/       # Setup et lancement rapide
+├── index.html              # Point d'entrée du POC
+├── ouvrir-openquest.sh     # Lance le POC dans le navigateur
+├── css/
+│   └── style.css           # Thèmes, cartes, session de jeu
+├── js/
+│   ├── app.js              # Navigation, onglets
+│   ├── storage.js          # Persistance localStorage
+│   ├── characters.js       # Fiches personnages
+│   ├── adventure-roster.js # Roster aventure
+│   ├── investigation-roster.js
+│   ├── scenarios.js        # Scénarios et scènes
+│   ├── bots.js             # Compagnons IA
+│   ├── maps.js             # Éditeur et cartes en session
+│   ├── dice.js             # Lanceur de dés
+│   ├── ai-gm.js            # MJ IA
+│   ├── npc-ai.js           # PNJ IA
+│   └── game.js             # Session de jeu
+├── game/                   # Client Godot 4 (prototype)
+├── server/                 # Serveur WebSocket Node.js
+├── docs/                   # Documentation
+├── scripts/                # Setup dev
+└── poc/                    # Références / exports
 ```
 
-## Prérequis
+---
 
-| Outil | Version | Installation |
-|-------|---------|--------------|
-| **Node.js** | ≥ 20 | [nodejs.org](https://nodejs.org) |
-| **Godot** | 4.4+ | [godotengine.org](https://godotengine.org/download) ou `flatpak install flathub org.godotengine.Godot` |
+## Démarrage technique (Godot + serveur)
 
-## Démarrage rapide
+> Optionnel — pour le prototype multijoueur réseau, pas pour le POC HTML.
 
-### 1. Serveur
+### Prérequis
+
+| Outil | Version |
+|-------|---------|
+| Node.js | ≥ 20 |
+| Godot | 4.4+ |
+
+### Serveur
 
 ```bash
 cd server
@@ -56,47 +105,66 @@ npm install
 npm run dev
 ```
 
-Le serveur écoute sur `ws://0.0.0.0:8080`.
+Écoute sur `ws://0.0.0.0:8080`.
 
-### 2. Client Godot
+### Client Godot
 
-1. Ouvrir le dossier `game/` dans Godot 4
-2. Lancer la scène principale (`scenes/main.tscn`)
-3. Flèches du clavier pour se déplacer
+1. Ouvrir `game/` dans Godot 4
+2. Lancer `scenes/main.tscn`
+3. Flèches clavier pour se déplacer
 
-Pour jouer à deux sur le réseau local, modifier `server_url` dans `game/scripts/network_client.gd` avec l'IP de la machine qui héberge le serveur.
+Pour le réseau local, adapter `server_url` dans `game/scripts/network_client.gd`.
 
-## Travailler à deux
+---
 
-Ce projet est fait pour **deux personnes**.
+## Contributeurs
+
+| Qui | GitHub | Rôle |
+|-----|--------|------|
+| **Poisson** | [@Poisson48](https://github.com/Poisson48) | Godot, serveur Node, infra |
+| **AslanUsko** | [@AslanUsko](https://github.com/AslanUsko) | POC HTML, règles JDR, design, cartes |
+
+### Workflow Git
 
 ```bash
-# Première fois sur une machine (Poisson / machine de dev)
 git clone https://github.com/Poisson48/OpenQuest_jdr.git
 cd OpenQuest_jdr
-./scripts/setup.sh
+git checkout -b poc/ma-fonctionnalite   # ou game/..., docs/...
+# … modifications …
+git commit -m "Description claire"
+git push origin poc/ma-fonctionnalite
+# → Pull Request sur main
 ```
 
-| Qui | Zone | Branches Git | Phase actuelle |
-|-----|------|--------------|----------------|
-| Poisson | `server/`, `game/`, infra | `server/...`, `game/...` | Dev technique |
-| **AslanUsko** | POC HTML, règles JDR, design | `index.html`, `css/`, `js/`, `docs/...` | POC HTML jouable |
-| Les deux | `docs/`, protocole WS | `docs/...` | — |
+| Zone | Fichiers | Qui |
+|------|----------|-----|
+| POC HTML | `index.html`, `css/`, `js/` | AslanUsko |
+| Jeu réseau | `game/`, `server/` | Poisson |
+| Documentation | `docs/` | Les deux |
 
-**Workflow :** branche → commit → Pull Request → merge sur `main`.
-
-Guides :
-- [docs/COLLABORATION.md](docs/COLLABORATION.md) — workflow Git, conflits Godot, routine
-- [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) — guide pour l'IA qui accompagne AslanUsko (phase POC)
-- [CONTRIBUTING.md](CONTRIBUTING.md) — résumé rapide
-
-**Collaborateur GitHub :** @AslanUsko — POC HTML et documentation.
+---
 
 ## Documentation
 
-- [docs/STACK.md](docs/STACK.md) — architecture technique
-- [docs/COLLABORATION.md](docs/COLLABORATION.md) — bosser à deux
-- [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) — accompagnement IA (POC HTML)
+| Fichier | Contenu |
+|---------|---------|
+| [docs/COLLABORATION.md](docs/COLLABORATION.md) | Git, branches, conflits, routine à deux |
+| [docs/STACK.md](docs/STACK.md) | Architecture technique |
+| [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) | Guide IA pour le POC HTML |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Résumé contribution |
+
+---
+
+## Feuille de route
+
+- [x] POC HTML jouable (personnages, scénarios, bots, cartes, MJ IA)
+- [x] Mode enquête + cartes investigation
+- [x] Carte du monde, brouillard de guerre, navigation monde ↔ lieux
+- [ ] Portage des règles du POC dans Godot
+- [ ] Multijoueur réseau complet
+- [ ] Synchronisation sauvegardes (hors localStorage)
+
+---
 
 ## Licence
 
