@@ -75,6 +75,39 @@ func get_map_ids_for_scenario(scenario_id: String, quest_format: String = "") ->
 				ids.append("demo-taverne")
 	return ids
 
+func get_setup_map_pool(scenario_id: String, quest_format: String) -> Array:
+	var pool: Array = []
+	var is_investigation := quest_format == "investigation" or scenario_id.begins_with("inv-")
+	for m in maps:
+		if is_investigation:
+			if m.get("roster", "general") != "investigation":
+				continue
+		else:
+			if m.get("roster", "") == "investigation":
+				continue
+		pool.append(m)
+	pool.sort_custom(func(a, b):
+		var a_linked := 0 if a.get("scenarioId", "") == scenario_id and not scenario_id.is_empty() else 1
+		var b_linked := 0 if b.get("scenarioId", "") == scenario_id and not scenario_id.is_empty() else 1
+		if a_linked != b_linked:
+			return a_linked < b_linked
+		var a_world := 0 if is_world_map(a) else 1
+		var b_world := 0 if is_world_map(b) else 1
+		if a_world != b_world:
+			return a_world < b_world
+		return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower()
+	)
+	return pool
+
+func get_default_selected_map_ids(scenario_id: String, quest_format: String) -> Array:
+	var ids: Array = []
+	for m in get_setup_map_pool(scenario_id, quest_format):
+		if m.get("scenarioId", "") == scenario_id:
+			ids.append(m.get("id", ""))
+	if ids.is_empty():
+		ids = get_map_ids_for_scenario(scenario_id, quest_format)
+	return ids
+
 func is_world_map(map_data: Dictionary) -> bool:
 	return map_data.get("mapKind", "local") == "world"
 

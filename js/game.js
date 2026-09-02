@@ -1034,17 +1034,24 @@ const Game = {
     });
 
     document.querySelectorAll('input[name="quest-format"]').forEach((radio) => {
-      radio.addEventListener('change', () => this.refreshSetupCharacters());
+      radio.addEventListener('change', () => {
+        this.refreshSetupCharacters();
+        if (typeof Maps !== 'undefined') {
+          Maps.load();
+          const scenarioId = document.getElementById('setup-scenario')?.value || '';
+          const questFormat = this.getSetupQuestFormat();
+          this.refreshSetupMaps(Maps.getDefaultSelectedMapIds(scenarioId, questFormat));
+        }
+      });
     });
 
     document.getElementById('setup-scenario')?.addEventListener('change', () => {
+      const questFormat = this.getSetupQuestFormat();
+      this.refreshSetupCharacters();
       if (typeof Maps !== 'undefined') {
         Maps.load();
         const scenarioId = document.getElementById('setup-scenario')?.value || '';
-        const questFormat = this.getSetupQuestFormat();
-        const linked = Maps.getSetupMapPool(scenarioId, questFormat)
-          .filter((m) => m.scenarioId === scenarioId)
-          .map((m) => m.id);
+        const linked = Maps.getDefaultSelectedMapIds(scenarioId, questFormat);
         this.refreshSetupMaps(linked.length ? linked : null);
       } else {
         this.refreshSetupMaps();
@@ -1272,6 +1279,9 @@ const Game = {
     const pool = Maps.getSetupMapPool(scenarioId, questFormat);
     const validIds = new Set(pool.map((m) => m.id));
     current = current.filter((id) => validIds.has(id));
+    if (!current.length) {
+      current = Maps.getDefaultSelectedMapIds(scenarioId, questFormat).filter((id) => validIds.has(id));
+    }
 
     container.innerHTML = Maps.renderSetupMapPicker(current, scenarioId, questFormat);
   },
@@ -1361,8 +1371,14 @@ const Game = {
       this.refreshSetupScenarios(scenarioId);
       const scenarioSelect = document.getElementById('setup-scenario');
       if (scenarioSelect) scenarioSelect.value = scenarioId;
-      this.refreshSetupMaps();
     }
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      const format = questFormat || this.getSetupQuestFormat();
+      const sid = scenarioId || document.getElementById('setup-scenario')?.value || '';
+      this.refreshSetupMaps(Maps.getDefaultSelectedMapIds(sid, format));
+    }
+    this.updateSetupVisibility();
   },
 
   getQuestFormatLabel(format) {
@@ -1595,7 +1611,13 @@ const Game = {
         return;
       }
 
-      const mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+      let mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+      if (!mapIds.length) {
+        const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
+        mapIds = this.expandMapIdsWithLinkedLocals(
+          Maps.getDefaultSelectedMapIds(scenarioId, questFormat),
+        );
+      }
 
       const mode = document.querySelector('input[name="game-mode"]:checked').value;
       const gmType = document.querySelector('input[name="gm-type"]:checked').value;

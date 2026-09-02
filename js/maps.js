@@ -1138,6 +1138,22 @@ const Maps = {
     });
   },
 
+  getDefaultSelectedMapIds(scenarioId, questFormat) {
+    const linked = this.getSetupMapPool(scenarioId, questFormat)
+      .filter((m) => m.scenarioId === scenarioId)
+      .map((m) => m.id);
+    if (linked.length) return linked;
+    if (questFormat === 'investigation' || String(scenarioId || '').startsWith('inv-')) {
+      const demo = this.getById('demo-quartier-serpent');
+      return demo?.id ? [demo.id] : [];
+    }
+    if (scenarioId === 'demo-couronne-fracturee') {
+      return ['demo-monde-couronne', 'demo-taverne'].filter((id) => this.getById(id));
+    }
+    const tavern = this.getById('demo-taverne');
+    return tavern?.id ? [tavern.id] : [];
+  },
+
   renderSetupMapPicker(selectedIds = [], scenarioId = null, questFormat = null) {
     const selected = new Set(Array.isArray(selectedIds) ? selectedIds : (selectedIds ? [selectedIds] : []));
     const pool = this.getSetupMapPool(scenarioId, questFormat);

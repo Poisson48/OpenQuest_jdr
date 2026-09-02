@@ -100,7 +100,7 @@ func _on_confirm_delete_resume() -> void:
 	_render_saved_games()
 
 func _on_play_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
+	GameData.go_to_game_setup()
 
 func _on_modes_pressed() -> void:
 	modes_panel.visible = true
@@ -109,7 +109,6 @@ func _on_discover_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")
 
 func _start_with_format(quest_format: String) -> void:
-	var scns := GameData.get_scenarios(quest_format if quest_format != "investigation" else "", "investigation" if quest_format == "investigation" else "")
-	if not scns.is_empty():
-		get_tree().set_meta("preselected_scenario_id", scns[0].get("id"))
-	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
+	var scns := GameData.get_scenarios_for_quest_format(quest_format)
+	var scenario_id := scns[0].get("id", "") if not scns.is_empty() else ""
+	GameData.go_to_game_setup(quest_format, scenario_id)

@@ -85,6 +85,36 @@ func get_characters(roster: String = "") -> Array:
 			result.append(c)
 	return result
 
+func get_characters_for_quest_format(quest_format: String) -> Array:
+	if quest_format == "investigation":
+		return get_characters("investigation")
+	var result: Array = []
+	for c in characters:
+		if c.get("roster", "general") != "investigation":
+			result.append(c)
+	return result
+
+func is_scenario_valid_for_format(scenario: Dictionary, quest_format: String) -> bool:
+	if scenario.is_empty():
+		return false
+	if quest_format == "investigation":
+		return scenario.get("roster", "general") == "investigation"
+	if scenario.get("roster", "general") == "investigation":
+		return false
+	var qf: String = scenario.get("questFormat", "oneshot")
+	if quest_format == "long":
+		return qf == "long"
+	if quest_format == "oneshot":
+		return qf != "long"
+	return true
+
+func get_scenarios_for_quest_format(quest_format: String) -> Array:
+	var result: Array = []
+	for s in scenarios:
+		if is_scenario_valid_for_format(s, quest_format):
+			result.append(s)
+	return result
+
 func get_character_by_id(id: String) -> Dictionary:
 	for c in characters:
 		if c.get("id") == id:
@@ -201,6 +231,26 @@ func get_scenario_by_id(id: String) -> Dictionary:
 			return s
 	return {}
 
+func get_quest_format_for_scenario(scenario_id: String) -> String:
+	var scn := get_scenario_by_id(scenario_id)
+	if scn.is_empty():
+		return "oneshot"
+	if scn.get("roster", "general") == "investigation":
+		return "investigation"
+	if scn.get("questFormat", "oneshot") == "long":
+		return "long"
+	return "oneshot"
+
+func go_to_game_setup(quest_format: String = "", scenario_id: String = "") -> void:
+	var fmt := quest_format
+	if fmt.is_empty() and not scenario_id.is_empty():
+		fmt = get_quest_format_for_scenario(scenario_id)
+	if not fmt.is_empty():
+		get_tree().set_meta("preselected_quest_format", fmt)
+	if not scenario_id.is_empty():
+		get_tree().set_meta("preselected_scenario_id", scenario_id)
+	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
+
 func save_scenario(scenario_dict: Dictionary) -> void:
 	if not scenario_dict.has("id") or scenario_dict["id"].is_empty():
 		scenario_dict["id"] = generate_id("scn")
@@ -291,13 +341,89 @@ func save_bots() -> void:
 	bots_updated.emit()
 
 func get_bots() -> Array:
-	return bots
+	return bots + _get_builtin_investigation_bots()
+
+func is_investigation_bot(bot: Dictionary) -> bool:
+	var bot_id: String = bot.get("id", "")
+	return bot.get("roster", "") == "investigation" or bot_id.begins_with("bot-inv")
+
+func get_bots_for_quest_format(quest_format: String) -> Array:
+	var is_inv := quest_format == "investigation"
+	var result: Array = []
+	for b in get_bots():
+		if is_inv == is_investigation_bot(b):
+			result.append(b)
+	return result
 
 func get_bot_by_id(id: String) -> Dictionary:
-	for b in bots:
+	for b in get_bots():
 		if b.get("id") == id:
 			return b
 	return {}
+
+func _get_builtin_investigation_bots() -> Array:
+	return [
+		{
+			"id": "bot-inv-elise",
+			"name": "Élise",
+			"race": "Humaine",
+			"class": "Inspectrice",
+			"personality": "diplomatic",
+			"roster": "investigation",
+			"stats": { "str": 10, "dex": 12, "con": 10, "int": 16, "wis": 14, "cha": 12 },
+			"hp": 10,
+			"ac": 11,
+			"traits": ["méthodique", "perspicace"]
+		},
+		{
+			"id": "bot-inv-noah",
+			"name": "Noah",
+			"race": "Nain",
+			"class": "Expert légiste",
+			"personality": "curious",
+			"roster": "investigation",
+			"stats": { "str": 12, "dex": 10, "con": 14, "int": 16, "wis": 12, "cha": 8 },
+			"hp": 12,
+			"ac": 12,
+			"traits": ["rigoureux", "patient"]
+		},
+		{
+			"id": "bot-inv-jade",
+			"name": "Jade",
+			"race": "Tieffeline",
+			"class": "Interrogatrice",
+			"personality": "bold",
+			"roster": "investigation",
+			"stats": { "str": 8, "dex": 14, "con": 10, "int": 14, "wis": 12, "cha": 16 },
+			"hp": 9,
+			"ac": 12,
+			"traits": ["charismatique", "tenace"]
+		},
+		{
+			"id": "bot-inv-oscar",
+			"name": "Oscar",
+			"race": "Humain",
+			"class": "Profiler",
+			"personality": "mystic",
+			"roster": "investigation",
+			"stats": { "str": 10, "dex": 12, "con": 10, "int": 16, "wis": 16, "cha": 10 },
+			"hp": 10,
+			"ac": 11,
+			"traits": ["analytique", "discret"]
+		},
+		{
+			"id": "bot-inv-luna",
+			"name": "Luna",
+			"race": "Elfe",
+			"class": "Photographe de scène",
+			"personality": "cheerful",
+			"roster": "investigation",
+			"stats": { "str": 8, "dex": 16, "con": 10, "int": 12, "wis": 14, "cha": 12 },
+			"hp": 9,
+			"ac": 13,
+			"traits": ["observatrice", "réactive"]
+		},
+	]
 
 func _load_default_bots() -> Array:
 	var data = _load_json_file("res://data/bots/archetypes.json")

@@ -172,9 +172,7 @@ func _on_play_selected_scenario() -> void:
 		_launch_game_with_scenario(selected_scenario_id)
 
 func _launch_game_with_scenario(scenario_id: String) -> void:
-	# Stocke le scénario sélectionné pour le setup de jeu
-	get_tree().set_meta("preselected_scenario_id", scenario_id)
-	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
+	GameData.go_to_game_setup("", scenario_id)
 
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")

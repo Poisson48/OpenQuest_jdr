@@ -19,15 +19,15 @@ func _ready() -> void:
 	%BtnAdvNewChar.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
 	%BtnAdvAllChars.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
 	%BtnAdvScenarios.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/scenario_list.tscn"))
-	%BtnAdvPlay.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/game_setup.tscn"))
-	
+	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
+
 	# Onglet Enquête
 	%BtnInvNewChar.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
 	%BtnInvScenarios.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/scenario_list.tscn"))
-	%BtnInvPlay.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/game_setup.tscn"))
-	
+	%BtnInvPlay.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
+
 	# Onglet Jouer
-	%BtnPlayNew.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/game_setup.tscn"))
+	%BtnPlayNew.pressed.connect(func(): GameData.go_to_game_setup())
 	%ConfirmDeleteSession.confirmed.connect(_on_confirm_delete_session)
 	
 	# Onglet Cartes

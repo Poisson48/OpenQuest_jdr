@@ -1,5 +1,6 @@
 extends Control
 
+@onready var opt_quest_format: OptionButton = %OptQuestFormat
 @onready var opt_scenario: OptionButton = %OptScenario
 @onready var opt_mode: OptionButton = %OptMode
 @onready var opt_gm: OptionButton = %OptGm
@@ -7,47 +8,116 @@ extends Control
 @onready var spin_party_size: SpinBox = %SpinPartySize
 @onready var bots_container: VBoxContainer = %BotsContainer
 @onready var scenario_preview_lbl: RichTextLabel = %ScenarioPreview
+@onready var maps_container: VBoxContainer = %MapsContainer
+@onready var maps_hint_lbl: Label = %MapsHint
 
 var available_scenarios: Array = []
 var available_chars: Array = []
 var available_bots: Array = []
 var selected_bot_ids: Array[String] = []
+var selected_map_ids: Array[String] = []
+var _current_scenario_id: String = ""
+var _current_quest_format: String = "oneshot"
 var _waiting_server_start: bool = false
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
 	%BtnStartGame.pressed.connect(_on_start_game_pressed)
-	
+
 	_setup_options()
-	_populate_data()
-	
+
+	var preselected_format := ""
+	var preselected_id := ""
+	if get_tree().has_meta("preselected_quest_format"):
+		preselected_format = str(get_tree().get_meta("preselected_quest_format"))
+		get_tree().remove_meta("preselected_quest_format")
+	if get_tree().has_meta("preselected_scenario_id"):
+		preselected_id = str(get_tree().get_meta("preselected_scenario_id"))
+		get_tree().remove_meta("preselected_scenario_id")
+
+	if preselected_format.is_empty() and not preselected_id.is_empty():
+		preselected_format = GameData.get_quest_format_for_scenario(preselected_id)
+	if preselected_format.is_empty():
+		preselected_format = "oneshot"
+
+	_set_quest_format_option(preselected_format)
+	_populate_data(preselected_id)
+
+	opt_quest_format.item_selected.connect(_on_quest_format_selected)
 	opt_scenario.item_selected.connect(_on_scenario_selected)
 	spin_party_size.value_changed.connect(_on_party_size_changed)
 
 func _setup_options() -> void:
+	opt_quest_format.clear()
+	opt_quest_format.add_item("📅 Campagne longue", 0)
+	opt_quest_format.set_item_metadata(0, "long")
+	opt_quest_format.add_item("⚡ One-shot", 1)
+	opt_quest_format.set_item_metadata(1, "oneshot")
+	opt_quest_format.add_item("🔍 Mode enquête", 2)
+	opt_quest_format.set_item_metadata(2, "investigation")
+
 	opt_mode.clear()
 	opt_mode.add_item("Solo (Joueur + Bots éventuels)", 0)
 	opt_mode.set_item_metadata(0, "solo")
 	opt_mode.add_item("Multijoueur (Local / Réseau)", 1)
 	opt_mode.set_item_metadata(1, "multi")
-	
+
 	opt_gm.clear()
 	opt_gm.add_item("🤖 Maître du Jeu IA (Adaptatif)", 0)
 	opt_gm.set_item_metadata(0, "ai")
 	opt_gm.add_item("👤 Maître du Jeu Humain", 1)
 	opt_gm.set_item_metadata(1, "human")
 
-func _populate_data() -> void:
-	available_scenarios = GameData.get_scenarios()
-	available_chars = GameData.get_characters()
-	available_bots = GameData.get_bots()
-	
+func _set_quest_format_option(quest_format: String) -> void:
+	for i in range(opt_quest_format.item_count):
+		if opt_quest_format.get_item_metadata(i) == quest_format:
+			opt_quest_format.selected = i
+			_current_quest_format = quest_format
+			return
+	opt_quest_format.selected = 1
+	_current_quest_format = "oneshot"
+
+func _get_quest_format() -> String:
+	if opt_quest_format.selected >= 0:
+		return str(opt_quest_format.get_item_metadata(opt_quest_format.selected))
+	return _current_quest_format
+
+func _populate_data(preselected_id: String = "") -> void:
+	_refresh_for_quest_format(true)
+
+	if preselected_id.is_empty():
+		return
+
+	for i in range(opt_scenario.item_count):
+		if opt_scenario.get_item_metadata(i) == preselected_id:
+			opt_scenario.selected = i
+			_on_scenario_selected(i)
+			return
+
+func _on_quest_format_selected(_idx: int) -> void:
+	_current_quest_format = _get_quest_format()
+	_refresh_for_quest_format(true)
+
+func _refresh_for_quest_format(reset_selection: bool = false) -> void:
+	_current_quest_format = _get_quest_format()
+	available_scenarios = GameData.get_scenarios_for_quest_format(_current_quest_format)
+	available_chars = GameData.get_characters_for_quest_format(_current_quest_format)
+	available_bots = GameData.get_bots_for_quest_format(_current_quest_format)
+
+	if reset_selection:
+		selected_bot_ids.clear()
+
+	_refresh_scenario_options(reset_selection)
+	_refresh_char_options()
+	_refresh_bots_checkboxes()
+	_refresh_maps_picker(reset_selection)
+
+func _refresh_scenario_options(reset_selection: bool) -> void:
+	var previous_id := ""
+	if opt_scenario.selected >= 0:
+		previous_id = str(opt_scenario.get_item_metadata(opt_scenario.selected))
+
 	opt_scenario.clear()
-	var preselected_id: String = ""
-	if get_tree().has_meta("preselected_scenario_id"):
-		preselected_id = get_tree().get_meta("preselected_scenario_id")
-		get_tree().remove_meta("preselected_scenario_id")
-		
 	var selected_idx := 0
 	for i in range(available_scenarios.size()):
 		var s: Dictionary = available_scenarios[i]
@@ -56,46 +126,158 @@ func _populate_data() -> void:
 		var icon := "⚔️" if qf == "oneshot" else ("🏰" if qf == "long" else "🔍")
 		opt_scenario.add_item("%s %s" % [icon, title], i)
 		opt_scenario.set_item_metadata(i, s.get("id"))
-		if s.get("id") == preselected_id:
+		if s.get("id") == previous_id:
 			selected_idx = i
-			
-	if not available_scenarios.is_empty():
-		opt_scenario.selected = selected_idx
-		_on_scenario_selected(selected_idx)
-		
+
+	if available_scenarios.is_empty():
+		scenario_preview_lbl.text = "[color=#9a8870]Aucun scénario pour ce format — crée-en un dans le Hub.[/color]"
+		_current_scenario_id = ""
+		return
+
+	if reset_selection or previous_id.is_empty() or not _scenario_id_in_list(previous_id):
+		selected_idx = 0
+
+	opt_scenario.selected = selected_idx
+	_on_scenario_selected(selected_idx)
+
+func _scenario_id_in_list(scenario_id: String) -> bool:
+	for s in available_scenarios:
+		if s.get("id") == scenario_id:
+			return true
+	return false
+
+func _refresh_char_options() -> void:
+	var previous_id := ""
+	if opt_main_char.selected >= 0 and opt_main_char.item_count > 0:
+		previous_id = str(opt_main_char.get_item_metadata(opt_main_char.selected))
+
 	opt_main_char.clear()
 	for i in range(available_chars.size()):
 		var c: Dictionary = available_chars[i]
-		opt_main_char.add_item("%s (%s %s)" % [c.get("name"), c.get("race"), c.get("class")], i)
+		var prefix := "🔍 " if _current_quest_format == "investigation" else ""
+		opt_main_char.add_item("%s%s (%s %s)" % [prefix, c.get("name"), c.get("race"), c.get("class")], i)
 		opt_main_char.set_item_metadata(i, c.get("id"))
-		
-	_refresh_bots_checkboxes()
+
+	if available_chars.is_empty():
+		opt_main_char.add_item("Aucun personnage — crée-en un dans le Hub", 0)
+		opt_main_char.set_item_metadata(0, "")
+		opt_main_char.selected = 0
+		return
+
+	var selected_idx := 0
+	for i in range(opt_main_char.item_count):
+		if opt_main_char.get_item_metadata(i) == previous_id:
+			selected_idx = i
+			break
+	opt_main_char.selected = selected_idx
 
 func _on_scenario_selected(idx: int) -> void:
 	if idx < 0 or idx >= available_scenarios.size():
 		scenario_preview_lbl.text = ""
+		_refresh_maps_picker(true)
 		return
 	var scn: Dictionary = available_scenarios[idx]
+	var scn_id: String = scn.get("id", "")
+	var reset_maps := scn_id != _current_scenario_id
+	_current_scenario_id = scn_id
 	var text := "[b]%s[/b]\n%s\n\n[color=#9a8870]Cadre : %s[/color]" % [
 		scn.get("title", ""),
 		scn.get("synopsis", ""),
 		scn.get("setting", "")
 	]
 	scenario_preview_lbl.text = text
+	_refresh_maps_picker(reset_maps)
+
+func _refresh_maps_picker(reset_selection: bool = false) -> void:
+	for child in maps_container.get_children():
+		child.queue_free()
+
+	if opt_scenario.selected < 0 or available_scenarios.is_empty():
+		maps_hint_lbl.text = "Choisis d'abord un scénario."
+		return
+
+	var scn_id: String = opt_scenario.get_item_metadata(opt_scenario.selected)
+	var quest_format: String = _get_quest_format()
+
+	if reset_selection or selected_map_ids.is_empty():
+		selected_map_ids.clear()
+		for map_id in MapData.get_default_selected_map_ids(scn_id, quest_format):
+			selected_map_ids.append(str(map_id))
+
+	var pool: Array = MapData.get_setup_map_pool(scn_id, quest_format)
+	if pool.is_empty():
+		maps_hint_lbl.text = "Aucune carte disponible pour ce format — crée-en dans le Hub (onglet Cartes)."
+		return
+
+	maps_hint_lbl.text = "Coche les cartes à inclure. Seules les cartes de ce format sont proposées."
+
+	var world_maps: Array = []
+	var local_maps: Array = []
+	for m in pool:
+		if MapData.is_world_map(m):
+			world_maps.append(m)
+		else:
+			local_maps.append(m)
+
+	if not world_maps.is_empty():
+		_add_map_group("🌍 Cartes du monde", world_maps, scn_id)
+	if not local_maps.is_empty():
+		var group_title := "🔍 Scènes enquête" if quest_format == "investigation" else "⚔️ Scènes locales"
+		_add_map_group(group_title, local_maps, scn_id)
+
+	var valid_ids: Array = pool.map(func(m): return m.get("id", ""))
+	selected_map_ids = selected_map_ids.filter(func(id): return valid_ids.has(id))
+
+func _add_map_group(title: String, map_list: Array, scenario_id: String) -> void:
+	var header := Label.new()
+	header.text = title
+	header.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	header.add_theme_font_size_override("font_size", 13)
+	maps_container.add_child(header)
+
+	for m in map_list:
+		var map_id: String = m.get("id", "")
+		var check := CheckBox.new()
+		var tag := "🌍" if MapData.is_world_map(m) else ("🔍" if m.get("roster") == "investigation" else "⚔️")
+		var linked := " · liée au scénario" if m.get("scenarioId", "") == scenario_id else ""
+		check.text = "%s %s (%d×%d%s)" % [
+			tag,
+			m.get("title", map_id),
+			int(m.get("width", 0)),
+			int(m.get("height", 0)),
+			linked,
+		]
+		check.button_pressed = selected_map_ids.has(map_id)
+		check.toggled.connect(func(toggled: bool):
+			if toggled and not selected_map_ids.has(map_id):
+				selected_map_ids.append(map_id)
+			elif not toggled and selected_map_ids.has(map_id):
+				selected_map_ids.erase(map_id)
+		)
+		maps_container.add_child(check)
+
+func _get_selected_map_ids() -> Array:
+	return selected_map_ids.duplicate()
 
 func _refresh_bots_checkboxes() -> void:
 	for child in bots_container.get_children():
 		child.queue_free()
-		
+
+	var valid_bot_ids: Array = available_bots.map(func(b): return b.get("id", ""))
+	selected_bot_ids = selected_bot_ids.filter(func(id): return valid_bot_ids.has(id))
+
 	for b in available_bots:
 		var check := CheckBox.new()
-		check.text = "🤖 %s (%s %s) - %s" % [
+		var prefix := "🔍🤖 " if _current_quest_format == "investigation" else "🤖 "
+		check.text = "%s%s (%s %s) - %s" % [
+			prefix,
 			b.get("name", "Bot"),
 			b.get("race", ""),
 			b.get("class", ""),
 			b.get("personality", "")
 		]
 		var bot_id: String = b.get("id", "")
+		check.button_pressed = selected_bot_ids.has(bot_id)
 		check.toggled.connect(func(toggled: bool):
 			if toggled and not selected_bot_ids.has(bot_id):
 				selected_bot_ids.append(bot_id)
@@ -110,39 +292,37 @@ func _on_party_size_changed(_val: float) -> void:
 func _on_start_game_pressed() -> void:
 	if available_scenarios.is_empty():
 		return
-	
+
 	var scn_idx := opt_scenario.selected
 	var scn_id: String = opt_scenario.get_item_metadata(scn_idx)
-	var scn := GameData.get_scenario_by_id(scn_id)
-	
+
 	var mode_idx := opt_mode.selected
 	var mode_val: String = opt_mode.get_item_metadata(mode_idx)
-	
+
 	var gm_idx := opt_gm.selected
 	var gm_val: String = opt_gm.get_item_metadata(gm_idx)
-	
+
 	var party: Array = []
-	
-	# Ajout du personnage principal
+
 	if not available_chars.is_empty() and opt_main_char.selected >= 0:
 		var char_id: String = opt_main_char.get_item_metadata(opt_main_char.selected)
-		var main_char := GameData.get_character_by_id(char_id)
-		if not main_char.is_empty():
-			var member := main_char.duplicate(true)
-			member["isPlayer"] = true
-			member["isHuman"] = true
-			member["isBot"] = false
-			party.append(member)
-	else:
-		# Personnage par défaut si aucun n'est créé
-		var default_char := GameData.create_blank_character()
-		default_char["name"] = "Aventurier"
+		if not char_id.is_empty():
+			var main_char := GameData.get_character_by_id(char_id)
+			if not main_char.is_empty():
+				var member := main_char.duplicate(true)
+				member["isPlayer"] = true
+				member["isHuman"] = true
+				member["isBot"] = false
+				party.append(member)
+	if party.is_empty():
+		var roster := "investigation" if _get_quest_format() == "investigation" else "general"
+		var default_char := GameData.create_blank_character(roster)
+		default_char["name"] = "Aventurier" if roster == "general" else "Enquêteur"
 		default_char["isPlayer"] = true
 		default_char["isHuman"] = true
 		default_char["isBot"] = false
 		party.append(default_char)
-		
-	# Ajout des bots sélectionnés
+
 	for bot_id in selected_bot_ids:
 		var bot := GameData.get_bot_by_id(bot_id)
 		if not bot.is_empty():
@@ -151,12 +331,14 @@ func _on_start_game_pressed() -> void:
 			bot_member["isHuman"] = false
 			bot_member["isBot"] = true
 			party.append(bot_member)
-			
-	var quest_format: String = scn.get("questFormat", "oneshot")
+
+	var quest_format: String = _get_quest_format()
 	var party_size := int(spin_party_size.value)
-	var map_ids: Array = MapData.get_map_ids_for_scenario(scn_id, quest_format)
+	var map_ids: Array = _get_selected_map_ids()
+	if map_ids.is_empty():
+		map_ids = MapData.get_map_ids_for_scenario(scn_id, quest_format)
 	map_ids = GameData.expand_map_ids_with_linked_locals(map_ids)
-	
+
 	if NetworkClient.is_server_connected():
 		_waiting_server_start = true
 		%BtnStartGame.disabled = true
@@ -167,7 +349,7 @@ func _on_start_game_pressed() -> void:
 			NetworkClient.error_received.connect(_on_server_error, CONNECT_ONE_SHOT)
 		NetworkClient.start_game(scn_id, party, mode_val, gm_val, quest_format, party_size, map_ids)
 		return
-	
+
 	_start_local_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
 
 func _start_local_game(scn_id: String, mode_val: String, gm_val: String, quest_format: String, party: Array, map_ids: Array = []) -> void:
