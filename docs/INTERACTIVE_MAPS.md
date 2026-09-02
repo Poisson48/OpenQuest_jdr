@@ -12,30 +12,56 @@ OpenQuest propose **deux modes de carte** coexistent sans régression :
 | Mode | Classe | Usage |
 |------|--------|-------|
 | **Simple** (`simple`) | `SimpleMapRenderer` → `InteractiveMap` | Cartes pixel/tuiles, monde, enquête, Naheulbeuk-style |
-| **Complexe** (`complex`) | `ComplexMapEngine` | VTT battlemap : image, tokens, grille, fog, effets, zones |
+| **Complexe** (`complex`) | `ComplexMapEngine3D` | VTT **3D top-down** : battlemap, tokens 3D, fog, effets particules, zones, élévations |
 
 Le MJ choisit le mode **par carte** via le sélecteur session (persisté dans `active_game.mapModeOverrides`).
 
 ---
 
-## 2. Architecture moteur (mode complexe)
+## 2. Architecture moteur (mode complexe — **3D top-down**)
+
+Vue par-dessus d'une **scène Godot 3D réelle** (ARPG / XCOM / Diablo-style), pas des astuces 2D.
 
 ```
 MapPanel (UI session)
-├── SimpleMapRenderer     ← mode simple (inchangé)
+├── SimpleMapRenderer     ← mode simple 2D (inchangé)
 └── ComplexMapEngine      ← SubViewportContainer
-        └── SubViewport
-              └── Camera (Node2D — pan/zoom)
-                    ├── Background (Sprite2D — PNG ou tuiles générées)
-                    ├── GridLayer
-                    ├── ZonesLayer      ← cercles/rects animés
-                    ├── TokensLayer       ← MapTokenNode (Area2D draggable)
-                    ├── EffectsLayer      ← MapEffectInstance (GPUParticles2D + aura)
-                    └── FogLayer          ← masque cellulaire (MJ voit tout)
-        Atmosphere + Vignette (Control overlay)
+        └── SubViewport (3D activé)
+              ├── WorldEnvironment (SSAO, ambient)
+              ├── DirectionalLight3D (ombres dynamiques)
+              ├── Camera3D (orthographique top-down ~52°, ou perspective/isométrique)
+              └── Scene (Node3D)
+                    ├── MapGround3D         ← PlaneMesh + texture PNG battlemap
+                    ├── Elevations          ← PlaneMesh surélevés (PNG overlay)
+                    ├── MapZone3D           ← disques AOE au sol
+                    ├── MapToken3D          ← CylinderMesh + Sprite3D portrait, ombres réelles
+                    ├── MapEffect3D         ← GPUParticles3D + OmniLight3D
+                    └── MapFog3D            ← dalles 3D semi-transparentes
+        Atmosphere + Vignette (Control overlay UI 2D)
 ```
 
-**Ordre de rendu :** fond → grille → zones → tokens → effets → fog → UI.
+**Rendu :** sol texturé → plateformes → zones → tokens (StaticBody3D, raycast drag) → particules 3D → fog 3D → overlays UI.
+
+### Tokens 3D (`MapToken3D`)
+
+- **CylinderMesh** avec ombres portées (`DirectionalLight3D`)
+- **Sprite3D** billboard portrait (initiale PJ)
+- Anneau de sélection 3D (TorusMesh émissif)
+- Drag par **raycast** sur le plan du sol (Y=0)
+- Lift vertical à la sélection
+
+### Effets 3D (`MapEffect3D`)
+
+- **GPUParticles3D** (feu, fumée, magie, pluie) via `MapEffectPresets.create_particles_3d()`
+- **OmniLight3D** sur feu/magie (éclairage volumétrique simulé)
+
+### Caméra & navigation
+
+- **Orthographique** par défaut (`perspective: topdown`) — zoom = `Camera3D.size`
+- `isometric` : rotation Y 45° + angle 58°
+- `perspective` : caméra perspective FOV 38° (battlemaps pré-rendered)
+- Pan = déplacement Camera3D sur XZ, molette = zoom ortho / dolly
+- Inertie légère au relâchement
 
 ### Extensibilité
 
@@ -56,16 +82,64 @@ MapPanel (UI session)
   "renderMode": "simple | complex",
   "backgroundImage": "user://map_assets/map-xxx.png",
   "fogEnabled": true,
-  "grid": { "size": 70, "opacity": 0.22, "color": "#ffffff", "enabled": true },
-  "atmosphere": { "enabled": false, "tint": "#1a1410", "opacity": 0.25, "vignette": 0.15 }
+  "perspective": "topdown | isometric | perspective",
+  "grid": { "size": 70, "opacity": 0.14, "color": "#ffffff", "enabled": true },
+  "atmosphere": { "enabled": true, "tint": "#141018", "opacity": 0.12, "vignette": 0.18 },
+  "lighting": {
+    "enabled": true,
+    "direction": "nw | ne | sw | se",
+    "intensity": 0.35,
+    "ambient": "#121018",
+    "sources": [{ "x": 8, "y": 5, "radius": 4, "color": "#ffaa55", "intensity": 0.6 }]
+  },
+  "elevationLayers": [
+    { "image": "user://map_assets/map-xxx-platform.png", "opacity": 0.92, "offset": { "x": 0, "y": 0 } },
+    {
+      "elevation": 1,
+      "opacity": 0.35,
+      "tint": "#8a7a60",
+      "platform": { "x": 4, "y": 3, "w": 6, "h": 4 }
+    }
+  ],
+  "playDefaults": {
+    "tokens": [{ "id", "x", "y", "label", "kind", "memberId", "memberIndex", "emoji", "color" }],
+    "effects": [{ "id", "type", "preset", "x", "y", "radius", "triggered", "label" }],
+    "zones": [{ "id", "shape", "x", "y", "radius", "label", "color" }],
+    "fogRevealed": ["3,4"],
+    "viewState": { "zoom", "panX", "panY" }
+  }
 }
 ```
+
+### Configuration via Gestion des cartes
+
+1. **Mode complexe** — sélecteur « ⚙️ Complexe » en édition (persisté dans `maps.json`).
+2. **Éditeur 3D intégré** — Hub → Cartes → Modifier une carte en mode complexe :
+   - Import battlemap PNG (Dungeon Alchemist, Dungeondraft…) + **calques overlay** (ponts, étages)
+   - **Auto-dimensionnement** de la grille depuis les pixels de l'image importée
+   - Taille grille, réglages grille / brouillard (pinceau réglable)
+   - Perspective (top-down / isométrique / perspective), atmosphère (teinte + opacité), éclairage directionnel
+   - **Plateformes surélevées 3D** (tool 🟫) + rendu `MapElevations3D`
+   - Outils : sélection 👆, tokens, marqueurs PNJ, effets 🔥💨✨🌧️, zones AOE, brouillard, gomme
+   - Rayons effet/zone configurables, aimantation grille, test ▶ des effets particules
+   - Liste des éléments placés avec suppression
+   - Disposition par défaut (`playDefaults`) enregistrée dans la carte et copiée en session au premier accès
+3. **Création rapide** — Hub → Cartes → **+ Battlemap 3D** (ou enquête 3D)
+4. **Perspective** — champ JSON `perspective` ou sélecteur éditeur :
+   - `topdown` : Camera3D orthographique ~52° (défaut)
+   - `isometric` : ortho + rotation Y 45°
+   - `perspective` : Camera3D perspective FOV 38° (maps Dungeon Alchemist / Dungeondraft)
+5. **Éclairage** — `DirectionalLight3D` + bloc `lighting` JSON (`direction`, `intensity`).
+6. **Élévation** — `elevationLayers` : PNG overlay sur PlaneMesh surélevé.
+7. **Atmosphère** — `atmosphere.enabled` + teinte/vignette pour ambiance scène.
+
+> L'éditeur 3D (`MapComplexEditor`) couvre l'essentiel de la configuration ; édition JSON directe dans `user://maps.json` reste possible pour champs avancés. pour l’instant ; UI dédiée roadmap Phase 3.
 
 ### État session (`mapPlayState[mapId]`)
 
 ```json
 {
-  "tokens": [{ "id", "x", "y", "kind", "memberId", "label", "hp", "maxHp" }],
+  "tokens": [{ "id", "x", "y", "kind", "memberId", "label", "hp", "maxHp", "elevation" }],
   "fogRevealed": ["3,4", "4,4"],
   "effects": [{ "id", "type", "preset", "x", "y", "radius", "triggered", "label" }],
   "zones": [{ "id", "shape", "x", "y", "radius", "label", "color" }],
@@ -99,13 +173,14 @@ D:\git\OpenQuest_jdr\scripts\play-godot.ps1 --headless --script res://scripts/te
 2. Vérifier grille tuiles, placement tokens, navigation monde (si applicable).
 3. Badge **▦ Simple** affiché.
 
-### Mode complexe
+### Mode complexe (3D)
 1. En session, sélecteur **⚙️ Complexe**.
-2. Placer un token PJ (toolbar ⚔️).
-3. Placer effets 🔥 💨 ✨ ; cliquer **▶ Déclencher**.
-4. Outil 🌫️ : révéler fog (MJ voit tout, simuler joueur via `is_gm_view_for_map`).
-5. Zone ⭕ : marqueur de sort.
-6. Pan molette / glisser / snap grille.
+2. Placer un token PJ — cylindre 3D + portrait billboard, **ombre portée réelle**.
+3. Sélectionner : anneau émissif + lift vertical.
+4. Effets 🔥 : **GPUParticles3D** + lumière ponctuelle ; **▶ Déclencher**.
+5. Fog 🌫️ : dalles 3D (MJ voit tout).
+6. Pan molette / glisser (inertie) / snap grille.
+7. Battlemap PNG + `perspective` / `lighting` dans `maps.json`.
 
 ### Import PNG (Hub)
 - `MapData.import_background_image(map_id, path)` — copie vers `user://map_assets/`.
@@ -120,7 +195,11 @@ D:\git\OpenQuest_jdr\scripts\play-godot.ps1 --headless --script res://scripts/te
 |---------|--------|---------|---------|---------------|
 | Battlemap image | ✅ | ✅ | ✅ | ✅ (import PNG) |
 | Grille configurable | ✅ | ✅ | ✅ | ✅ |
-| Tokens drag | ✅ | ✅ | ✅ | ✅ (complex) |
+| Tokens 3D + ombres réelles | ✅ | ✅ | ✅ | ✅ (complex) |
+| Particules GPUParticles3D | ⚠️ | ✅ | ❌ | ✅ |
+| Éclairage DirectionalLight3D | ✅ | ✅ | ❌ | ✅ |
+| Calques élévation 3D | ✅ | ✅ | ⚠️ | ✅ |
+| Caméra top-down / isométrique | ⚠️ | ✅ | ⚠️ | ✅ (Camera3D) |
 | Fog MJ/joueur | ✅ | ✅ | ✅ | ✅ (cellulaire) |
 | Particules / FX | ⚠️ | ✅ | ❌ | ✅ (3 presets + trigger) |
 | Zones AOE | ✅ | ✅ | ⚠️ | ✅ (foundation) |
@@ -130,7 +209,7 @@ D:\git\OpenQuest_jdr\scripts\play-godot.ps1 --headless --script res://scripts/te
 
 ### ❌ Manquant (roadmap Phases 2–6)
 
-- Éclairage dynamique / LOS / murs
+- Éclairage dynamique temps réel / LOS / murs (vraie occlusion)
 - Import Universal VTT (.dd2vtt)
 - Règle de mesure, ping, dessin éphémère
 - Tokens image (avatars PNG)

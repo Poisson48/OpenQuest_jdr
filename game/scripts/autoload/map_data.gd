@@ -13,6 +13,23 @@ const DEFAULT_GRID_CONFIG := {
 	"color": "#ffffff",
 	"enabled": true,
 }
+const DEFAULT_LIGHTING_CONFIG := {
+	"enabled": false,
+	"direction": "nw",
+	"intensity": 0.35,
+	"ambient": "#121018",
+	"sources": [],
+}
+const DEFAULT_PLAY_DEFAULTS := {
+	"tokens": [],
+	"effects": [],
+	"zones": [],
+	"fogRevealed": [],
+	"viewState": {},
+}
+const PERSPECTIVE_TOPDOWN := "topdown"
+const PERSPECTIVE_ISOMETRIC := "isometric"
+const PERSPECTIVE_TILT := "perspective"
 const MEMBER_COLOR_HEX := [
 	"#e8c547", "#47a8e8", "#e86a47",
 	"#47e88a", "#b847e8", "#e89247",
@@ -288,6 +305,22 @@ func get_grid_config(map_data: Dictionary) -> Dictionary:
 		cfg.merge(map_data["grid"], true)
 	return cfg
 
+func get_lighting_config(map_data: Dictionary) -> Dictionary:
+	var cfg: Dictionary = DEFAULT_LIGHTING_CONFIG.duplicate(true)
+	if map_data.get("lighting") is Dictionary:
+		cfg.merge(map_data["lighting"], true)
+	return cfg
+
+func get_perspective(map_data: Dictionary) -> String:
+	var p := str(map_data.get("perspective", PERSPECTIVE_TOPDOWN))
+	if p in [PERSPECTIVE_ISOMETRIC, PERSPECTIVE_TILT]:
+		return p
+	return PERSPECTIVE_TOPDOWN
+
+func get_elevation_layers(map_data: Dictionary) -> Array:
+	var layers = map_data.get("elevationLayers", [])
+	return layers if layers is Array else []
+
 func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	if not map_data.has("schemaVersion"):
 		map_data["schemaVersion"] = 1
@@ -297,7 +330,38 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["grid"] = DEFAULT_GRID_CONFIG.duplicate(true)
 	if not map_data.has("fogEnabled"):
 		map_data["fogEnabled"] = not is_world_map(map_data)
+	if not map_data.has("perspective"):
+		map_data["perspective"] = PERSPECTIVE_TOPDOWN
+	if not map_data.has("elevationLayers"):
+		map_data["elevationLayers"] = []
+	if not map_data.has("lighting"):
+		map_data["lighting"] = DEFAULT_LIGHTING_CONFIG.duplicate(true)
+	if not map_data.has("atmosphere"):
+		map_data["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.25, "vignette": 0.15}
+	if not map_data.has("playDefaults"):
+		map_data["playDefaults"] = DEFAULT_PLAY_DEFAULTS.duplicate(true)
 	return map_data
+
+func get_play_defaults(map_data: Dictionary) -> Dictionary:
+	var m := ensure_map_schema(map_data)
+	return m.get("playDefaults", DEFAULT_PLAY_DEFAULTS.duplicate(true)).duplicate(true)
+
+func ensure_play_defaults(map_data: Dictionary) -> Dictionary:
+	var m := ensure_map_schema(map_data)
+	var pd: Dictionary = m.get("playDefaults", {})
+	if typeof(pd) != TYPE_DICTIONARY:
+		pd = DEFAULT_PLAY_DEFAULTS.duplicate(true)
+		m["playDefaults"] = pd
+	for key in ["tokens", "effects", "zones", "fogRevealed"]:
+		if not pd.has(key) or typeof(pd[key]) != TYPE_ARRAY:
+			pd[key] = []
+	if not pd.has("viewState") or typeof(pd["viewState"]) != TYPE_DICTIONARY:
+		pd["viewState"] = {}
+	m["playDefaults"] = pd
+	return pd
+
+func generate_id(prefix: String) -> String:
+	return "%s-%d-%s" % [prefix, Time.get_unix_time_from_system(), str(randi() % 90000 + 10000)]
 
 func create_complex_map(title: String, roster: String, map_kind: String = "local", grid_cells_w: int = 20, grid_cells_h: int = 14) -> Dictionary:
 	var tiles: Array = []
@@ -318,6 +382,10 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"locationLinks": [],
 		"backgroundImage": "",
 		"fogEnabled": true,
+		"perspective": PERSPECTIVE_TOPDOWN,
+		"elevationLayers": [],
+		"lighting": DEFAULT_LIGHTING_CONFIG.duplicate(true),
+		"atmosphere": {"enabled": true, "tint": "#141018", "opacity": 0.12, "vignette": 0.18},
 		"schemaVersion": SCHEMA_VERSION,
 	})
 	maps.append(map)
@@ -347,6 +415,66 @@ func import_background_image(map_id: String, source_path: String) -> String:
 			maps[i]["backgroundImage"] = dest
 			maps[i]["renderMode"] = RENDER_MODE_COMPLEX
 			maps[i]["schemaVersion"] = SCHEMA_VERSION
+			save_maps()
+			return dest
+	return dest
+
+func get_image_pixel_size(source_path: String) -> Vector2i:
+	if source_path.is_empty() or not FileAccess.file_exists(source_path):
+		return Vector2i.ZERO
+	var img := Image.new()
+	if img.load(source_path) != OK:
+		return Vector2i.ZERO
+	return Vector2i(img.get_width(), img.get_height())
+
+func suggest_cells_from_image(source_path: String, grid_px: int = 70) -> Vector2i:
+	var px := get_image_pixel_size(source_path)
+	if px == Vector2i.ZERO:
+		return Vector2i(20, 14)
+	var gs := maxi(20, grid_px)
+	return Vector2i(clampi(int(roundf(float(px.x) / float(gs))), 4, 96), clampi(int(roundf(float(px.y) / float(gs))), 4, 96))
+
+func clear_background_image(map_id: String) -> void:
+	for i in range(maps.size()):
+		if maps[i].get("id") == map_id:
+			maps[i]["backgroundImage"] = ""
+			save_maps()
+			return
+
+func import_elevation_overlay(map_id: String, source_path: String) -> String:
+	if map_id.is_empty() or source_path.is_empty():
+		return ""
+	if not FileAccess.file_exists(source_path):
+		return ""
+	DirAccess.make_dir_recursive_absolute(MAP_ASSETS_DIR)
+	var ext := source_path.get_extension().to_lower()
+	if ext.is_empty():
+		ext = "png"
+	var dest := "%s%s-elev-%d.%s" % [MAP_ASSETS_DIR, map_id, Time.get_unix_time_from_system(), ext]
+	var src := FileAccess.open(source_path, FileAccess.READ)
+	if not src:
+		return ""
+	var dst := FileAccess.open(dest, FileAccess.WRITE)
+	if not dst:
+		return ""
+	dst.store_buffer(src.get_buffer(src.get_length()))
+	for i in range(maps.size()):
+		if maps[i].get("id") == map_id:
+			var map: Dictionary = ensure_map_schema(maps[i])
+			if not map.has("elevationLayers"):
+				map["elevationLayers"] = []
+			var layers: Array = map.get("elevationLayers", [])
+			layers.append({
+				"image": dest,
+				"opacity": 0.92,
+				"elevation": 0.18,
+				"offset": {"x": 0, "y": 0},
+				"mapWidth": int(map.get("width", 16)),
+				"mapHeight": int(map.get("height", 12)),
+			})
+			map["elevationLayers"] = layers
+			map["renderMode"] = RENDER_MODE_COMPLEX
+			maps[i] = map
 			save_maps()
 			return dest
 	return dest
@@ -422,6 +550,7 @@ func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():
 		return
+	map_data = ensure_map_schema(map_data)
 	for i in range(maps.size()):
 		if maps[i].get("id") == map_id:
 			maps[i] = map_data

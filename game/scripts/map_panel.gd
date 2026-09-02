@@ -14,7 +14,13 @@ const _MapTokenNodeScript := preload("res://scripts/maps/map_layers/map_token_no
 const _MapEffectInstanceScript := preload("res://scripts/maps/map_layers/map_effect_instance.gd")
 const _MapZoneNodeScript := preload("res://scripts/maps/map_layers/map_zone_node.gd")
 const _MapAuraNodeScript := preload("res://scripts/maps/map_layers/map_aura_node.gd")
-const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine.gd")
+const _MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
+const _MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
+const _MapToken3DScript := preload("res://scripts/maps/map_layers/map_token_3d.gd")
+const _MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.gd")
+const _MapZone3DScript := preload("res://scripts/maps/map_layers/map_zone_3d.gd")
+const _MapFog3DScript := preload("res://scripts/maps/map_layers/map_fog_3d.gd")
+const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine_3d.gd")
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 
@@ -467,7 +473,7 @@ func _render_active_map(state: Dictionary) -> void:
 	_apply_map_config(state, active_id, ctx)
 
 	if _current_mode == MapModeScript.COMPLEX:
-		_hint_lbl.text = "Mode VTT : glisser tokens · effets 🔥💨✨ · brouillard 🌫️ · zones ⭕ · ▶ déclencher"
+		_hint_lbl.text = "Mode VTT 3D : tokens ombrés · effets 🔥💨✨ (particules 3D) · brouillard 🌫️ · zones ⭕ · glisser / molette"
 	elif nav_ctx.get("mode") == "local":
 		_hint_lbl.text = "Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde."
 	elif MapData.is_world_map(display_map) and nav_ctx.is_empty():

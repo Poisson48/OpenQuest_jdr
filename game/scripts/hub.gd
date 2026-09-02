@@ -52,6 +52,7 @@ func _ready() -> void:
 	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
 	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
 	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
+	_add_vtt_map_button()
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
@@ -62,7 +63,6 @@ func _ready() -> void:
 	_setup_bots_filter()
 	
 	_populate_hub_data()
-	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
 
 func _setup_bots_filter() -> void:
 	bots_filter.clear()
@@ -289,6 +289,27 @@ func _edit_map(map_id: String) -> void:
 func _create_map(roster: String, map_kind: String) -> void:
 	var kind_label := "monde" if map_kind == "world" else ("enquête" if roster == "investigation" else "aventure")
 	var map := MapData.create_blank_map("Nouvelle carte %s" % kind_label, roster, map_kind)
+	MapData.preview_map_id = map.get("id", "")
+	MapData.editor_mode = "edit"
+	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")
+
+func _add_vtt_map_button() -> void:
+	if btn_new_map_adv == null or btn_new_map_adv.get_parent() == null:
+		return
+	var btn_vtt := Button.new()
+	btn_vtt.text = "+ Battlemap 3D"
+	btn_vtt.tooltip_text = "Crée une carte VTT complexe (tokens, brouillard, effets 3D)"
+	btn_vtt.pressed.connect(func(): _create_complex_map("general"))
+	btn_new_map_adv.get_parent().add_child(btn_vtt)
+	var btn_vtt_inv := Button.new()
+	btn_vtt_inv.text = "+ Battlemap enquête 3D"
+	btn_vtt_inv.tooltip_text = "Battlemap VTT pour scénarios d'enquête"
+	btn_vtt_inv.pressed.connect(func(): _create_complex_map("investigation"))
+	btn_new_map_adv.get_parent().add_child(btn_vtt_inv)
+
+func _create_complex_map(roster: String) -> void:
+	var label := "Battlemap enquête" if roster == "investigation" else "Battlemap VTT"
+	var map := MapData.create_complex_map(label, roster, "local", 24, 16)
 	MapData.preview_map_id = map.get("id", "")
 	MapData.editor_mode = "edit"
 	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")

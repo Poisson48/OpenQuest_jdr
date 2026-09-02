@@ -98,6 +98,42 @@ static func create_particles(preset_id: String) -> GPUParticles2D:
 	particles.one_shot = false
 	return particles
 
+static func create_particles_3d(preset_id: String) -> GPUParticles3D:
+	var preset := get_preset(preset_id)
+	var particles := GPUParticles3D.new()
+	particles.amount = int(preset.get("amount", 32))
+	particles.lifetime = float(preset.get("lifetime", 1.0))
+	particles.explosiveness = 0.08
+	particles.randomness = 0.4
+	particles.fixed_fps = 0
+	particles.local_coords = false
+
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = float(preset.get("spread", 45.0))
+	mat.initial_velocity_min = float(preset.get("speed", 20.0)) * 0.5
+	mat.initial_velocity_max = float(preset.get("speed", 20.0))
+	var grav: Vector2 = preset.get("gravity", Vector2(0, -20))
+	mat.gravity = Vector3(grav.x * 0.01, grav.y * 0.01, 0)
+	var col: Color = preset.get("color", Color.WHITE)
+	mat.color = col
+	mat.scale_min = float(preset.get("scale", 2.0)) * 0.08
+	mat.scale_max = float(preset.get("scale", 2.0)) * 0.14
+	particles.process_material = mat
+
+	if preset.has("emission_rect"):
+		var rect: Vector2 = preset["emission_rect"]
+		particles.emitting = false
+		mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		mat.emission_box_extents = Vector3(rect.x * 0.005, 0.05, rect.y * 0.005)
+	else:
+		mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		mat.emission_sphere_radius = 0.25
+
+	particles.emitting = false
+	particles.one_shot = false
+	return particles
+
 const MapAuraNodeScript := preload("res://scripts/maps/map_layers/map_aura_node.gd")
 
 static func create_aura(preset_id: String) -> Node2D:

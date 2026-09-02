@@ -8,6 +8,7 @@ const SCENES := [
 	"res://scenes/character_editor.tscn",
 	"res://scenes/scenario_list.tscn",
 	"res://scenes/scenario_editor.tscn",
+	"res://scenes/map_viewer.tscn",
 ]
 
 func _init() -> void:

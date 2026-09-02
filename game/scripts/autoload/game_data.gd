@@ -1289,7 +1289,24 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 		entry["viewState"] = {}
 	if not entry.has("selectedTokenId"):
 		entry["selectedTokenId"] = ""
+	_seed_play_defaults_from_map(map_id, entry)
 	return entry
+
+func _seed_play_defaults_from_map(map_id: String, entry: Dictionary) -> void:
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return
+	var pd := MapData.ensure_play_defaults(map_def)
+	if entry["tokens"].is_empty() and pd.get("tokens", []).size() > 0:
+		entry["tokens"] = pd["tokens"].duplicate(true)
+	if entry["effects"].is_empty() and pd.get("effects", []).size() > 0:
+		entry["effects"] = pd["effects"].duplicate(true)
+	if entry["zones"].is_empty() and pd.get("zones", []).size() > 0:
+		entry["zones"] = pd["zones"].duplicate(true)
+	if entry["fogRevealed"].is_empty() and pd.get("fogRevealed", []).size() > 0:
+		entry["fogRevealed"] = pd["fogRevealed"].duplicate(true)
+	if entry["viewState"].is_empty() and not pd.get("viewState", {}).is_empty():
+		entry["viewState"] = pd["viewState"].duplicate(true)
 
 func get_fog_revealed_cells(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["fogRevealed"]

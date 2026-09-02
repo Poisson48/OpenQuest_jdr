@@ -31,6 +31,7 @@ func _run() -> void:
 	var fire: Dictionary = MapEffectPresetsScript.get_preset("fire")
 	_assert("fire", fire.get("type") == "particles")
 	_assert("presets", MapEffectPresetsScript.PRESET_IDS.has("magic"))
+	_assert("fire3d", MapEffectPresetsScript.create_particles_3d("fire") != null)
 
 	gd.active_game = {
 		"id": "test-map-mode", "status": "playing", "scenarioId": "demo-couronne-fracturee",
@@ -67,6 +68,24 @@ func _run() -> void:
 
 	gd.move_complex_token(map_id, str(gd.get_map_play_tokens(map_id)[0].get("id", "")), 7.0, 2.0)
 	_assert("move", float(gd.get_map_play_tokens(map_id)[0].get("x", 0)) == 7.0)
+
+	var pd: Dictionary = md.ensure_play_defaults(complex_map)
+	pd["tokens"] = [{"id": "seed-tok", "x": 2.0, "y": 3.0, "label": "Garde", "kind": "member", "memberId": "editor-mock-0"}]
+	pd["fogRevealed"] = ["1,1", "2,2"]
+	complex_map["playDefaults"] = pd
+	md.update_map(complex_map)
+
+	gd.active_game["mapPlayState"] = {}
+	gd.ensure_map_play_state()
+	var seeded_entry: Dictionary = gd.get_map_play_entry(map_id)
+	_assert("play_defaults_seed", seeded_entry["tokens"].size() == 1)
+	_assert("play_defaults_fog", seeded_entry["fogRevealed"].size() == 2)
+
+	var editor_script: GDScript = load("res://scripts/maps/map_complex_editor.gd") as GDScript
+	_assert("editor_script", editor_script != null)
+
+	var cells: Vector2i = md.suggest_cells_from_image("res://icon.svg", 70)
+	_assert("suggest_cells", cells.x >= 4 and cells.y >= 4)
 
 	print("map_mode_test:PASS")
 	quit(0)

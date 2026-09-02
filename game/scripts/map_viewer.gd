@@ -2,6 +2,7 @@ extends Control
 
 const InteractiveMapScript := preload("res://scripts/interactive_map.gd")
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
+const MapComplexEditorScript := preload("res://scripts/maps/map_complex_editor.gd")
 
 @onready var top_bar: HBoxContainer = $VBox/TopBar
 @onready var title_lbl: Label = %MapTitle
@@ -34,6 +35,11 @@ var _btn_mode_simple: Button
 var _btn_mode_complex: Button
 var _mode_group: ButtonGroup
 var _mode_hint_lbl: Label
+var _map_frame: PanelContainer
+var _map_header: HBoxContainer
+var _zoom_row: HBoxContainer
+var _tool_row: HBoxContainer
+var _complex_editor: Control
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/hub.tscn"))
@@ -68,6 +74,7 @@ func _build_ui() -> void:
 	_editor_panel.add_child(_hint_lbl)
 
 	var map_header := HBoxContainer.new()
+	_map_header = map_header
 	map_header.add_theme_constant_override("separation", 8)
 	_editor_panel.add_child(map_header)
 
@@ -79,6 +86,7 @@ func _build_ui() -> void:
 	_build_zoom_controls(map_header)
 
 	var map_frame := PanelContainer.new()
+	_map_frame = map_frame
 	var map_style := StyleBoxFlat.new()
 	map_style.bg_color = ThemeColors.BG_INPUT
 	map_style.border_color = ThemeColors.BORDER
@@ -100,6 +108,13 @@ func _build_ui() -> void:
 	_interactive_map.paint_drag_finished.connect(_on_paint_drag_finished)
 	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
 	map_frame.add_child(_interactive_map)
+
+	_complex_editor = MapComplexEditorScript.new()
+	_complex_editor.visible = false
+	_complex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_complex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_complex_editor.custom_minimum_size = Vector2(0, 560)
+	_editor_panel.add_child(_complex_editor)
 
 	if _edit_mode:
 		_build_bottom_bar()
@@ -199,14 +214,38 @@ func _set_render_mode(mode: String) -> void:
 	_map_data["renderMode"] = mode
 	_map_data = MapData.ensure_map_schema(_map_data)
 	MapData.update_map(_map_data)
+	_sync_editor_mode()
 	_sync_render_mode_ui()
 	_update_hint()
+	_refresh_map_view(true)
+
+func _sync_editor_mode() -> void:
+	if _map_data.is_empty():
+		return
+	var is_complex := MapData.is_complex_map(_map_data)
+	var show_simple := not is_complex
+	if _tool_row:
+		_tool_row.visible = show_simple and _edit_mode
+	if _palettes_root:
+		_palettes_root.visible = show_simple and _edit_mode
+	if _map_header:
+		_map_header.visible = show_simple
+	if _map_frame:
+		_map_frame.visible = show_simple
+	if _complex_editor:
+		_complex_editor.visible = is_complex
+		if is_complex:
+			_complex_editor.set_editable(_edit_mode)
+			_complex_editor.load_map(_map_data)
+			_complex_editor.custom_minimum_size = Vector2(0, 640 if _edit_mode else 520)
+	if _editor_panel and is_complex:
+		_hint_lbl.visible = not is_complex or not _edit_mode
 
 func _build_tool_row() -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	_editor_panel.add_child(row)
-	_editor_panel.move_child(row, 1 if _mode_row else 0)
+	_tool_row = HBoxContainer.new()
+	_tool_row.add_theme_constant_override("separation", 6)
+	_editor_panel.add_child(_tool_row)
+	_editor_panel.move_child(_tool_row, 1 if _mode_row else 0)
 
 	for spec in [
 		["tile", "🖌 Tuile"],
@@ -220,7 +259,7 @@ func _build_tool_row() -> void:
 		btn.button_pressed = spec[0] == "tile"
 		btn.pressed.connect(func(): _set_tool(spec[0]))
 		_tool_buttons[spec[0]] = btn
-		row.add_child(btn)
+		_tool_row.add_child(btn)
 
 func _build_palettes() -> void:
 	_palettes_root = VBoxContainer.new()
@@ -335,6 +374,8 @@ func _build_bottom_bar() -> void:
 	var btn_preview := Button.new()
 	btn_preview.text = "👁 Aperçu"
 	btn_preview.pressed.connect(func():
+		if MapData.is_complex_map(_map_data) and _complex_editor:
+			_map_data = _complex_editor.apply_to_map_data()
 		_edit_mode = false
 		MapData.editor_mode = "preview"
 		_rebuild_for_mode()
@@ -342,34 +383,34 @@ func _build_bottom_bar() -> void:
 	row.add_child(btn_preview)
 
 func _build_zoom_controls(parent: HBoxContainer) -> void:
-	var zoom_row := HBoxContainer.new()
-	zoom_row.add_theme_constant_override("separation", 4)
-	parent.add_child(zoom_row)
+	_zoom_row = HBoxContainer.new()
+	_zoom_row.add_theme_constant_override("separation", 4)
+	parent.add_child(_zoom_row)
 
 	var btn_zoom_out := Button.new()
 	btn_zoom_out.text = "−"
 	btn_zoom_out.custom_minimum_size = Vector2(32, 30)
 	btn_zoom_out.pressed.connect(func(): _interactive_map.zoom_out())
-	zoom_row.add_child(btn_zoom_out)
+	_zoom_row.add_child(btn_zoom_out)
 
 	_zoom_lbl = Label.new()
 	_zoom_lbl.text = "100%"
 	_zoom_lbl.custom_minimum_size = Vector2(48, 0)
 	_zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_zoom_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	zoom_row.add_child(_zoom_lbl)
+	_zoom_row.add_child(_zoom_lbl)
 
 	var btn_zoom_in := Button.new()
 	btn_zoom_in.text = "+"
 	btn_zoom_in.custom_minimum_size = Vector2(32, 30)
 	btn_zoom_in.pressed.connect(func(): _interactive_map.zoom_in())
-	zoom_row.add_child(btn_zoom_in)
+	_zoom_row.add_child(btn_zoom_in)
 
 	var btn_reset := Button.new()
 	btn_reset.text = "⟲"
 	btn_reset.custom_minimum_size = Vector2(32, 30)
 	btn_reset.pressed.connect(func(): _interactive_map.reset_zoom())
-	zoom_row.add_child(btn_reset)
+	_zoom_row.add_child(btn_reset)
 
 func _load_map() -> void:
 	_map_data = {}
@@ -397,6 +438,7 @@ func _load_map() -> void:
 	_set_tool("link" if open_link_tool else "tile")
 	_refresh_palettes()
 	_update_hint()
+	_sync_editor_mode()
 	_refresh_map_view(true)
 
 func _refresh_link_ui() -> void:
@@ -575,12 +617,17 @@ func _make_palette_button(label_text: String, color_hex: String) -> Button:
 	return btn
 
 func _refresh_map_view(reset_view: bool = false) -> void:
+	if MapData.is_complex_map(_map_data):
+		if _complex_editor:
+			_complex_editor.set_editable(_edit_mode)
+			_complex_editor.load_map(_map_data)
+		return
 	var explored: Array = _all_explored()
 	_interactive_map.paint_drag_enabled = _edit_mode and _tool in ["tile", "marker", "erase"]
 	_interactive_map.configure(_map_data, [], [], explored, "oneshot", not _edit_mode, {})
 	call_deferred("_update_zoom_label")
 	if reset_view:
-		call_deferred("_interactive_map.reset_zoom")
+		_interactive_map.call_deferred("reset_zoom")
 
 func _all_explored() -> Array:
 	var explored: Array = []
@@ -637,7 +684,13 @@ func _update_hint() -> void:
 	if not _edit_mode:
 		var mode := MapData.get_render_mode(_map_data) if not _map_data.is_empty() else MapModeScript.SIMPLE
 		var mode_note := " · %s" % MapModeScript.badge(mode)
-		_hint_lbl.text = "Molette ou boutons ± pour zoomer · clic-glisser pour déplacer la vue.%s" % mode_note
+		if mode == MapModeScript.COMPLEX:
+			_hint_lbl.text = "Aperçu battlemap 3D — tokens, effets et brouillard configurés dans l'éditeur.%s" % mode_note
+		else:
+			_hint_lbl.text = "Molette ou boutons ± pour zoomer · clic-glisser pour déplacer la vue.%s" % mode_note
+		return
+	if MapData.is_complex_map(_map_data):
+		_hint_lbl.text = "Éditeur VTT 3D — importez un PNG, placez tokens/effets/zones, révélez le brouillard. Enregistrez pour persister."
 		return
 	match _tool:
 		"tile":
@@ -739,6 +792,8 @@ func _save_map() -> void:
 		_map_data["title"] = _title_input.text.strip_edges()
 		if _map_data["title"].is_empty():
 			_map_data["title"] = "Carte sans titre"
+	if MapData.is_complex_map(_map_data) and _complex_editor:
+		_map_data = _complex_editor.apply_to_map_data()
 	MapData.update_map(_map_data)
 	title_lbl.text = "🗺️ %s" % _map_data.get("title", "Carte")
 
