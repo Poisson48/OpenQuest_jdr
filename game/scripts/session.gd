@@ -256,13 +256,27 @@ func _refresh_session_ui() -> void:
 	else:
 		scene_progress_lbl.text = "Épilogue"
 		
-	# Affiche le GM panel uniquement si mode GM humain
-	gm_panel.visible = state.get("gmType", "ai") == "human"
+	# Panneau MJ : mode humain uniquement, et seulement pour le MJ en ligne
+	var show_gm := _is_human_gm_user()
+	gm_panel.visible = show_gm
+	btn_advance_scene.visible = show_gm
+	btn_gm_send.visible = show_gm
+	gm_input.editable = show_gm
 	
 	_render_party_list()
 	_render_log()
 	if map_panel and map_panel.has_method("refresh"):
 		map_panel.refresh()
+
+func _is_human_gm_user() -> bool:
+	var state := GameData.active_game
+	if state.get("gmType", "ai") != "human":
+		return false
+	if MultiplayerManager.is_p2p_active() and MultiplayerManager.is_in_room():
+		return MultiplayerManager.is_mj() or MultiplayerManager.is_game_master()
+	if NetworkClient.is_server_connected():
+		return NetworkClient.is_host()
+	return true
 
 func _render_party_list() -> void:
 	for child in party_container.get_children():
@@ -321,12 +335,26 @@ func _render_party_list() -> void:
 		party_container.add_child(panel)
 
 func _render_log() -> void:
-	log_label.text = ""
+	var saved_scroll := _get_session_scroll()
 	var log_entries: Array = GameData.active_game.get("log", [])
+	var last_is_dice := not log_entries.is_empty() and log_entries[-1].get("type", "") == "dice"
+
+	log_label.text = ""
 	for entry in log_entries:
-		_append_log_entry_bbcode(entry)
+		_append_log_entry_bbcode(entry, false)
 	call_deferred("_sync_log_layout")
-	call_deferred("_scroll_session_to_bottom")
+	if last_is_dice:
+		call_deferred("_restore_session_scroll", saved_scroll)
+	else:
+		call_deferred("_scroll_session_to_bottom")
+
+func _get_session_scroll() -> float:
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	if not main_area.has_node("SessionScroll"):
+		return 0.0
+	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
+	var bar := scroll.get_v_scroll_bar()
+	return bar.value if bar else 0.0
 
 func _scroll_session_to_bottom() -> void:
 	await get_tree().process_frame
@@ -338,7 +366,18 @@ func _scroll_session_to_bottom() -> void:
 	if bar:
 		bar.value = bar.max_value
 
-func _append_log_entry_bbcode(entry: Dictionary) -> void:
+func _restore_session_scroll(saved: float) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	if not main_area.has_node("SessionScroll"):
+		return
+	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
+	var bar := scroll.get_v_scroll_bar()
+	if bar:
+		bar.value = clampf(saved, 0.0, bar.max_value)
+
+func _append_log_entry_bbcode(entry: Dictionary, auto_scroll: bool = true) -> void:
 	var author: String = entry.get("author", "Inconnu")
 	var type: String = entry.get("type", "player")
 	var text: String = entry.get("text", "")
@@ -360,9 +399,16 @@ func _append_log_entry_bbcode(entry: Dictionary) -> void:
 	var formatted := "[color=#%s][font_size=15][b]%s[/b][/font_size][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n[font_size=15]%s[/font_size]\n\n" % [
 		author_color, author, time, text
 	]
+	var is_dice := type == "dice"
+	var saved_scroll := _get_session_scroll() if (auto_scroll and is_dice) else -1.0
 	log_label.append_text(formatted)
 	call_deferred("_sync_log_layout")
-	call_deferred("_scroll_session_to_bottom")
+	if not auto_scroll:
+		return
+	if is_dice:
+		call_deferred("_restore_session_scroll", saved_scroll)
+	else:
+		call_deferred("_scroll_session_to_bottom")
 
 func _on_send_action_pressed() -> void:
 	var action_text := input_action.text.strip_edges()
@@ -443,17 +489,21 @@ func _simulate_ai_response(player_action: String) -> void:
 		})
 
 func _roll_dice_formula(formula: String) -> void:
+	var saved_scroll := _get_session_scroll()
 	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
 		MultiplayerManager.client_request_dice_roll(formula)
+		call_deferred("_restore_session_scroll", saved_scroll)
 		return
 
 	if NetworkClient.is_server_connected():
 		NetworkClient.send_dice_roll(formula)
+		call_deferred("_restore_session_scroll", saved_scroll)
 		return
 	
 	var res := GameData.roll_dice(formula)
 	if res.has("error"):
 		dice_result_lbl.text = str(res["error"])
+		call_deferred("_restore_session_scroll", saved_scroll)
 		return
 	var formatted := GameData.format_dice_result(res)
 	dice_result_lbl.text = formatted
@@ -464,7 +514,8 @@ func _roll_dice_formula(formula: String) -> void:
 		"type": "dice",
 		"text": formatted,
 		"time": Time.get_time_string_from_system()
-	})
+	}, false)
+	call_deferred("_restore_session_scroll", saved_scroll)
 
 func _on_roll_custom_dice() -> void:
 	var f := custom_dice_input.text.strip_edges()
@@ -472,6 +523,8 @@ func _on_roll_custom_dice() -> void:
 		_roll_dice_formula(f)
 
 func _on_gm_send_pressed() -> void:
+	if not _is_human_gm_user():
+		return
 	var text := gm_input.text.strip_edges()
 	if text.is_empty():
 		return
@@ -486,6 +539,8 @@ func _on_gm_send_pressed() -> void:
 	})
 
 func _on_advance_scene_pressed() -> void:
+	if not _is_human_gm_user():
+		return
 	if MultiplayerManager.is_p2p_active():
 		MultiplayerManager.client_advance_scene()
 		_refresh_session_ui()

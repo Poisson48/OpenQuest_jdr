@@ -2199,7 +2199,7 @@ const Game = {
     const message = Dice.formatResult(result);
     this.addLog(type, author, message);
     this.showDiceFeedback(result, author);
-    this.renderSession();
+    this.renderSession({ preserveScroll: true });
   },
 
   showDiceFeedback(result, author) {
@@ -2282,7 +2282,7 @@ const Game = {
     }
   },
 
-  renderSession() {
+  renderSession(options = {}) {
     if (!this.state) return;
 
     if (this.state.questFormat) {
@@ -2306,7 +2306,7 @@ const Game = {
 
     this.renderParty();
     this.renderNpcPanel();
-    this.renderLog();
+    this.renderLog(options);
     this.renderTurnIndicator();
     this.renderActionHint();
     this.renderGmPanel();
@@ -2386,9 +2386,12 @@ const Game = {
     }
   },
 
-  renderLog() {
+  renderLog(options = {}) {
     const log = document.getElementById('game-log');
+    const layout = document.querySelector('#game-session .game-layout');
+    const savedScroll = layout?.scrollTop ?? 0;
     const entries = this.state.log.filter((e) => e.type !== 'system');
+    const lastIsDice = entries.length > 0 && entries[entries.length - 1].type === 'dice';
     log.innerHTML = entries.map((entry) => `
       <div class="log-entry log-${entry.type}">
         <span class="log-author">${this.escape(entry.author)}</span>
@@ -2396,9 +2399,12 @@ const Game = {
         <div class="log-text">${this.formatLogText(entry.text)}</div>
       </div>
     `).join('');
-    const layout = document.querySelector('#game-session .game-layout');
     if (layout) {
-      layout.scrollTop = layout.scrollHeight;
+      if (options.preserveScroll || lastIsDice) {
+        layout.scrollTop = Math.min(savedScroll, Math.max(0, layout.scrollHeight - layout.clientHeight));
+      } else {
+        layout.scrollTop = layout.scrollHeight;
+      }
     }
   },
 
