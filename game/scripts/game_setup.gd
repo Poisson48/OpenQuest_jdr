@@ -206,10 +206,10 @@ func _refresh_maps_picker(reset_selection: bool = false) -> void:
 
 	var pool: Array = MapData.get_setup_map_pool(scn_id, quest_format)
 	if pool.is_empty():
-		maps_hint_lbl.text = "Aucune carte disponible pour ce format — crée-en dans le Hub (onglet Cartes)."
+		maps_hint_lbl.text = "Aucune carte pour ce mode et ce scénario — crée-en une dans le Hub (onglet Cartes)."
 		return
 
-	maps_hint_lbl.text = "Coche les cartes à inclure. Seules les cartes de ce format sont proposées."
+	maps_hint_lbl.text = "Cartes compatibles avec ce mode et ce scénario uniquement."
 
 	var world_maps: Array = []
 	var local_maps: Array = []
@@ -302,20 +302,23 @@ func _on_start_game_pressed() -> void:
 	var gm_idx := opt_gm.selected
 	var gm_val: String = opt_gm.get_item_metadata(gm_idx)
 
+	var quest_format: String = _get_quest_format()
+	var valid_bot_ids: Array = available_bots.map(func(b): return b.get("id", ""))
+
 	var party: Array = []
 
 	if not available_chars.is_empty() and opt_main_char.selected >= 0:
 		var char_id: String = opt_main_char.get_item_metadata(opt_main_char.selected)
 		if not char_id.is_empty():
 			var main_char := GameData.get_character_by_id(char_id)
-			if not main_char.is_empty():
+			if not main_char.is_empty() and GameData.is_character_valid_for_format(main_char, quest_format):
 				var member := main_char.duplicate(true)
 				member["isPlayer"] = true
 				member["isHuman"] = true
 				member["isBot"] = false
 				party.append(member)
 	if party.is_empty():
-		var roster := "investigation" if _get_quest_format() == "investigation" else "general"
+		var roster := "investigation" if quest_format == "investigation" else "general"
 		var default_char := GameData.create_blank_character(roster)
 		default_char["name"] = "Aventurier" if roster == "general" else "Enquêteur"
 		default_char["isPlayer"] = true
@@ -324,19 +327,23 @@ func _on_start_game_pressed() -> void:
 		party.append(default_char)
 
 	for bot_id in selected_bot_ids:
+		if not valid_bot_ids.has(bot_id):
+			continue
 		var bot := GameData.get_bot_by_id(bot_id)
-		if not bot.is_empty():
-			var bot_member := bot.duplicate(true)
-			bot_member["isPlayer"] = false
-			bot_member["isHuman"] = false
-			bot_member["isBot"] = true
-			party.append(bot_member)
+		if bot.is_empty() or not GameData.is_bot_valid_for_format(bot, quest_format):
+			continue
+		var bot_member := bot.duplicate(true)
+		bot_member["isPlayer"] = false
+		bot_member["isHuman"] = false
+		bot_member["isBot"] = true
+		party.append(bot_member)
 
-	var quest_format: String = _get_quest_format()
 	var party_size := int(spin_party_size.value)
 	var map_ids: Array = _get_selected_map_ids()
+	var valid_map_pool: Array = MapData.get_setup_map_pool(scn_id, quest_format).map(func(m): return m.get("id", ""))
+	map_ids = map_ids.filter(func(id): return valid_map_pool.has(id))
 	if map_ids.is_empty():
-		map_ids = MapData.get_map_ids_for_scenario(scn_id, quest_format)
+		map_ids = MapData.get_default_selected_map_ids(scn_id, quest_format)
 	map_ids = GameData.expand_map_ids_with_linked_locals(map_ids)
 
 	if NetworkClient.is_server_connected():

@@ -1158,7 +1158,14 @@ const Maps = {
   },
 
   getSetupMapPool(scenarioId, questFormat) {
-    const pool = [...this.getMapsForFormat(questFormat)];
+    const isInvestigation = questFormat === 'investigation';
+    const pool = this.getMapsForFormat(questFormat).filter((m) => {
+      if (isInvestigation && this.isWorldMap(m)) return false;
+      if (questFormat === 'oneshot' && this.isWorldMap(m)) return false;
+      const linked = m.scenarioId || '';
+      if (linked && linked !== scenarioId) return false;
+      return true;
+    });
     return pool.sort((a, b) => {
       const aLinked = a.scenarioId && a.scenarioId === scenarioId ? 0 : 1;
       const bLinked = b.scenarioId && b.scenarioId === scenarioId ? 0 : 1;
@@ -1193,8 +1200,8 @@ const Maps = {
 
     if (pool.length === 0) {
       return `<p class="setup-maps-empty">${isInvestigation
-        ? 'Aucune carte enquête — crée-en une dans l\'onglet Cartes.'
-        : 'Aucune carte — crée-en une dans l\'onglet Cartes.'}</p>`;
+        ? 'Aucune carte enquête pour ce scénario — crée-en une dans l\'onglet Cartes.'
+        : 'Aucune carte pour ce mode et ce scénario — crée-en une dans l\'onglet Cartes.'}</p>`;
     }
 
     const worldMaps = pool.filter((m) => this.isWorldMap(m));

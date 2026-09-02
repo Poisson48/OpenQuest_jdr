@@ -89,12 +89,21 @@ func get_characters(roster: String = "") -> Array:
 			result.append(c)
 	return result
 
+func is_character_valid_for_format(char: Dictionary, quest_format: String) -> bool:
+	if char.is_empty():
+		return false
+	var is_inv := quest_format == "investigation"
+	return (char.get("roster", "general") == "investigation") == is_inv
+
+func is_bot_valid_for_format(bot: Dictionary, quest_format: String) -> bool:
+	if bot.is_empty():
+		return false
+	return (quest_format == "investigation") == is_investigation_bot(bot)
+
 func get_characters_for_quest_format(quest_format: String) -> Array:
-	if quest_format == "investigation":
-		return get_characters("investigation")
 	var result: Array = []
 	for c in characters:
-		if c.get("roster", "general") != "investigation":
+		if is_character_valid_for_format(c, quest_format):
 			result.append(c)
 	return result
 
@@ -443,10 +452,9 @@ func is_investigation_bot(bot: Dictionary) -> bool:
 	return bot.get("roster", "") == "investigation" or bot_id.begins_with("bot-inv")
 
 func get_bots_for_quest_format(quest_format: String) -> Array:
-	var is_inv := quest_format == "investigation"
 	var result: Array = []
 	for b in get_bots():
-		if is_inv == is_investigation_bot(b):
+		if is_bot_valid_for_format(b, quest_format):
 			result.append(b)
 	return result
 

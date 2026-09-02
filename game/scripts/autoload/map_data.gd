@@ -82,9 +82,16 @@ func get_setup_map_pool(scenario_id: String, quest_format: String) -> Array:
 		if is_investigation:
 			if m.get("roster", "general") != "investigation":
 				continue
+			if is_world_map(m):
+				continue
 		else:
 			if m.get("roster", "") == "investigation":
 				continue
+			if quest_format == "oneshot" and is_world_map(m):
+				continue
+		var linked_id: String = str(m.get("scenarioId", ""))
+		if not linked_id.is_empty() and linked_id != scenario_id:
+			continue
 		pool.append(m)
 	pool.sort_custom(func(a, b):
 		var a_linked := 0 if a.get("scenarioId", "") == scenario_id and not scenario_id.is_empty() else 1

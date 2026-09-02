@@ -1757,9 +1757,14 @@ const Game = {
         return;
       }
 
+      const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
+
       let mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+      const validMapPool = new Set(
+        Maps.getSetupMapPool(scenarioId, questFormat).map((m) => m.id),
+      );
+      mapIds = mapIds.filter((id) => validMapPool.has(id));
       if (!mapIds.length) {
-        const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
         mapIds = this.expandMapIdsWithLinkedLocals(
           Maps.getDefaultSelectedMapIds(scenarioId, questFormat),
         );
@@ -1767,7 +1772,6 @@ const Game = {
 
       const mode = document.querySelector('input[name="game-mode"]:checked').value;
       const gmType = document.querySelector('input[name="gm-type"]:checked').value;
-      const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
       const gmName = document.getElementById('setup-gm-name').value.trim() || 'Maître du jeu';
       const partySize = this.getSetupPartySize();
 
