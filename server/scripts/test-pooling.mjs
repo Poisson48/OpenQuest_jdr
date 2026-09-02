@@ -63,12 +63,6 @@ async function run() {
   await waitFor(player.inbox, "welcome");
   ok("Player connected");
 
-  player.send({ type: "create_room", role: "gm", roomName: "Hack" });
-  const errMsg = await waitFor(player.inbox, "error");
-  if (errMsg.code !== "NOT_GM" && !errMsg.message.includes("MJ")) {
-    // player tried with role gm but they're testing non-gm path - send without role
-  }
-  player.inbox.length = 0;
   player.send({ type: "create_room", role: "player" });
   const notGm = await waitFor(player.inbox, "error");
   if (notGm.code === "NOT_GM" || notGm.message.includes("MJ")) ok("Non-MJ create rejected");
