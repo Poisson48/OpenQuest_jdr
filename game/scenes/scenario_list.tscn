@@ -51,84 +51,139 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 20
 text = "📜 Bibliothèque de Scénarios"
 
-[node name="FormatFilter" type="OptionButton" parent="MainLayout/TopBar"]
+[node name="LblModeFilter" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Mode :"
+
+[node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
+custom_minimum_size = Vector2(220, 0)
 
-[node name="RosterFilter" type="OptionButton" parent="MainLayout/TopBar"]
+[node name="ScenariosCountLabel" type="Label" parent="MainLayout/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "0 scénario(s)"
 
-[node name="ContentSplit" type="HSplitContainer" parent="MainLayout"]
+[node name="ContentArea" type="Control" parent="MainLayout"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
-split_offset = 500
 
-[node name="ListScroll" type="ScrollContainer" parent="MainLayout/ContentSplit"]
-layout_mode = 2
-size_flags_horizontal = 3
+[node name="ListScroll" type="ScrollContainer" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
 
-[node name="ScenarioList" type="VBoxContainer" parent="MainLayout/ContentSplit/ListScroll"]
+[node name="ScenarioSectionsRoot" type="VBoxContainer" parent="MainLayout/ContentArea/ListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 16
 
-[node name="DetailPanel" type="PanelContainer" parent="MainLayout/ContentSplit"]
+[node name="DetailPanel" type="PanelContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="DetailScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/DetailPanel"]
-layout_mode = 2
+[node name="DetailScroll" type="ScrollContainer" parent="MainLayout/ContentArea/DetailPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
 
-[node name="DetailVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll"]
+[node name="DetailVBox" type="VBoxContainer" parent="MainLayout/ContentArea/DetailPanel/DetailScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="DetailHeader" type="HBoxContainer" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="DetailHeader" type="HBoxContainer" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="DetailTitle" type="Label" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
+[node name="DetailTitle" type="Label" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "Titre du Scénario"
+autowrap_mode = 3
 
-[node name="BtnCloseDetail" type="Button" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
+[node name="BtnCloseDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "✕"
+text = "✕ Fermer"
 
-[node name="DetailSynopsis" type="RichTextLabel" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="DetailSynopsis" type="RichTextLabel" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 bbcode_enabled = true
 fit_content = true
+autowrap_mode = 3
+scroll_active = false
 
-[node name="HSeparator1" type="HSeparator" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="HSeparator1" type="HSeparator" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 layout_mode = 2
 
-[node name="DetailScenes" type="RichTextLabel" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="DetailScenes" type="RichTextLabel" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 bbcode_enabled = true
 fit_content = true
+autowrap_mode = 3
+scroll_active = false
 
-[node name="HSeparator2" type="HSeparator" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="HSeparator2" type="HSeparator" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 layout_mode = 2
 
-[node name="DetailNpcs" type="RichTextLabel" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="DetailNpcs" type="RichTextLabel" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 bbcode_enabled = true
 fit_content = true
+autowrap_mode = 3
+scroll_active = false
 
-[node name="BtnPlayDetail" type="Button" parent="MainLayout/ContentSplit/DetailPanel/DetailScroll/DetailVBox"]
+[node name="BtnPlayDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "🎮 Lancer cette aventure"
+
+[node name="BtnDeleteDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Supprimer"
+
+[node name="ConfirmDeleteScenario" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Supprimer le scénario"
+initial_position = 2
+size = Vector2i(440, 120)
+dialog_text = "Supprimer ce scénario ?"
+ok_button_text = "Supprimer"
+cancel_button_text = "Annuler"

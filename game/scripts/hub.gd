@@ -1,7 +1,10 @@
 extends Control
 
 @onready var tab_container: TabContainer = %TabContainer
-@onready var bots_grid: GridContainer = %BotsGrid
+@onready var bots_sections_root: VBoxContainer = %BotsSectionsRoot
+@onready var bots_scroll: ScrollContainer = %BotsScroll
+@onready var bots_filter: OptionButton = %BotsFilter
+@onready var bots_count_lbl: Label = %BotsCountLabel
 @onready var adv_summary_lbl: Label = %AdvSummaryLabel
 @onready var inv_summary_lbl: Label = %InvSummaryLabel
 @onready var play_status_lbl: Label = %PlayStatusLabel
@@ -11,6 +14,8 @@ extends Control
 
 var _pending_delete_id: String = ""
 var _pending_delete_map_id: String = ""
+var _pending_delete_bot_id: String = ""
+var _last_bot_grid_cols: int = -1
 
 func _ready() -> void:
 	%BtnHome.pressed.connect(_on_home_pressed)
@@ -35,10 +40,38 @@ func _ready() -> void:
 	%BtnNewMapAdv.pressed.connect(func(): _create_map("general", "local"))
 	%BtnNewMapInv.pressed.connect(func(): _create_map("investigation", "local"))
 	%ConfirmDeleteMap.confirmed.connect(_on_confirm_delete_map)
+	%ConfirmDeleteBot.confirmed.connect(_on_confirm_delete_bot)
 	MapData.maps_updated.connect(_render_maps_tab)
+	GameData.bots_updated.connect(_render_bots)
 	_setup_maps_sort()
+	_setup_bots_filter()
 	
 	_populate_hub_data()
+
+func _setup_bots_filter() -> void:
+	bots_filter.clear()
+	bots_filter.add_item("Tous les modes", 0)
+	bots_filter.set_item_metadata(0, "all")
+	bots_filter.add_item("⚔️ Aventure & one-shots", 1)
+	bots_filter.set_item_metadata(1, "adventure")
+	bots_filter.add_item("🔍 Enquête", 2)
+	bots_filter.set_item_metadata(2, "investigation")
+	bots_filter.item_selected.connect(func(_idx): _render_bots())
+	if not bots_scroll.resized.is_connected(_on_bots_scroll_resized):
+		bots_scroll.resized.connect(_on_bots_scroll_resized)
+
+func _on_bots_scroll_resized() -> void:
+	if bots_sections_root.get_child_count() == 0:
+		return
+	var cols := _bot_grid_columns()
+	if cols != _last_bot_grid_cols:
+		_render_bots()
+
+func _current_bots_filter_mode() -> String:
+	var idx := bots_filter.selected
+	if idx >= 0 and idx < bots_filter.item_count:
+		return str(bots_filter.get_item_metadata(idx))
+	return "all"
 
 func _populate_hub_data() -> void:
 	# Stats aventures
@@ -284,7 +317,7 @@ func _build_saved_game_row(game: Dictionary) -> PanelContainer:
 	info.add_theme_constant_override("separation", 2)
 	
 	var title_lbl := Label.new()
-	title_lbl.text = "« %s »" % game.get("scenarioTitle", "Aventure")
+	title_lbl.text = "« %s »" % GameData.get_scenario_display_title(game.get("scenarioId", ""))
 	title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 	info.add_child(title_lbl)
 	
@@ -330,64 +363,173 @@ func _on_confirm_delete_session() -> void:
 	_populate_hub_data()
 
 func _render_bots() -> void:
-	for child in bots_grid.get_children():
+	for child in bots_sections_root.get_children():
 		child.queue_free()
-		
-	var bots := GameData.get_bots()
+
+	var mode := _current_bots_filter_mode()
+	var total := 0
+	if mode == "all":
+		var adv_bots := _sorted_bots(_bots_for_mode("adventure"))
+		var inv_bots := _sorted_bots(_bots_for_mode("investigation"))
+		total = adv_bots.size() + inv_bots.size()
+		if total == 0:
+			_add_bots_empty_state()
+		else:
+			if not adv_bots.is_empty():
+				_add_bot_section("⚔️ Aventure & one-shots", adv_bots)
+			if not inv_bots.is_empty():
+				_add_bot_section("🔍 Enquête", inv_bots)
+	else:
+		var bots := _sorted_bots(_bots_for_mode(mode))
+		total = bots.size()
+		if bots.is_empty():
+			_add_bots_empty_state()
+		else:
+			var title := "🔍 Enquête" if mode == "investigation" else "⚔️ Aventure & one-shots"
+			_add_bot_section(title, bots)
+
+	bots_count_lbl.text = "%d compagnon%s" % [total, "s" if total != 1 else ""]
+	_last_bot_grid_cols = _bot_grid_columns()
+
+func _bots_for_mode(mode: String) -> Array:
+	match mode:
+		"investigation":
+			return GameData.get_bots_for_quest_format("investigation")
+		"adventure":
+			return GameData.get_bots_for_quest_format("oneshot")
+		_:
+			return GameData.get_bots()
+
+func _sorted_bots(bots: Array) -> Array:
+	var copy: Array = bots.duplicate()
+	copy.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return str(a.get("name", "")).to_lower() < str(b.get("name", "")).to_lower()
+	)
+	return copy
+
+func _bot_grid_columns() -> int:
+	var available := int(bots_scroll.size.x)
+	if available < 320:
+		available = int(get_viewport().get_visible_rect().size.x) - 96
+	var cols := clampi(available / 210, 4, 5)
+	return cols
+
+func _add_bots_empty_state() -> void:
+	var empty_lbl := Label.new()
+	empty_lbl.text = "Aucun compagnon bot pour ce mode."
+	empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	bots_sections_root.add_child(empty_lbl)
+
+func _add_bot_section(title: String, bots: Array) -> void:
+	var section := VBoxContainer.new()
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section.add_theme_constant_override("separation", 8)
+
+	var header := Label.new()
+	header.text = "%s (%d)" % [title, bots.size()]
+	header.add_theme_color_override("font_color", ThemeColors.GOLD)
+	header.theme_type_variation = "HeaderMedium"
+	section.add_child(header)
+
+	var grid := GridContainer.new()
+	grid.columns = _bot_grid_columns()
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
 	for b in bots:
-		var card := PanelContainer.new()
-		var style := StyleBoxFlat.new()
-		style.bg_color = ThemeColors.BG_CARD
-		style.border_color = ThemeColors.BORDER
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(6)
-		style.content_margin_left = 12
-		style.content_margin_right = 12
-		style.content_margin_top = 10
-		style.content_margin_bottom = 10
-		card.add_theme_stylebox_override("panel", style)
-		
-		var vbox := VBoxContainer.new()
-		vbox.add_theme_constant_override("separation", 4)
-		
-		var header := HBoxContainer.new()
-		var name_lbl := Label.new()
-		name_lbl.text = "🤖 " + b.get("name", "Bot")
-		name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		header.add_child(name_lbl)
-		
-		var bot_tag := Label.new()
-		bot_tag.text = b.get("personality", "").to_upper()
-		bot_tag.add_theme_color_override("font_color", ThemeColors.BOT_ACCENT)
-		header.add_child(bot_tag)
-		vbox.add_child(header)
-		
-		var meta_lbl := Label.new()
-		meta_lbl.text = "%s · %s" % [b.get("race", ""), b.get("class", "")]
-		meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		vbox.add_child(meta_lbl)
-		
-		var traits: Array = b.get("traits", [])
-		if not traits.is_empty():
-			var traits_lbl := Label.new()
-			traits_lbl.text = "Traits : " + ", ".join(traits)
-			traits_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-			traits_lbl.add_theme_font_size_override("font_size", 12)
-			vbox.add_child(traits_lbl)
-			
-		var stats: Dictionary = b.get("stats", {})
-		var stats_lbl := Label.new()
-		stats_lbl.text = "PV %d · CA %d · FOR %d DEX %d INT %d" % [
-			b.get("hp", 10), b.get("ac", 10),
-			stats.get("str", 10), stats.get("dex", 10), stats.get("int", 10)
-		]
-		stats_lbl.add_theme_font_size_override("font_size", 12)
-		stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		vbox.add_child(stats_lbl)
-		
-		card.add_child(vbox)
-		bots_grid.add_child(card)
+		grid.add_child(_build_bot_card(b))
+	section.add_child(grid)
+
+	bots_sections_root.add_child(section)
+
+func _build_bot_card(b: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = ThemeColors.BG_CARD
+	style.border_color = ThemeColors.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	card.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "🤖 " + b.get("name", "Bot")
+	name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(name_lbl)
+
+	var mode_lbl := Label.new()
+	if GameData.is_investigation_bot(b):
+		mode_lbl.text = "🔍 Enquête"
+		mode_lbl.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
+	else:
+		mode_lbl.text = "⚔️ Aventure"
+		mode_lbl.add_theme_color_override("font_color", ThemeColors.ONESHOT_ACCENT)
+	vbox.add_child(mode_lbl)
+
+	var meta_lbl := Label.new()
+	meta_lbl.text = "%s · %s" % [b.get("race", ""), b.get("class", "")]
+	meta_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	meta_lbl.add_theme_font_size_override("font_size", 12)
+	vbox.add_child(meta_lbl)
+
+	var bot_tag := Label.new()
+	bot_tag.text = str(b.get("personality", "")).to_upper()
+	bot_tag.add_theme_color_override("font_color", ThemeColors.BOT_ACCENT)
+	bot_tag.add_theme_font_size_override("font_size", 11)
+	vbox.add_child(bot_tag)
+
+	var traits: Array = b.get("traits", [])
+	if not traits.is_empty():
+		var traits_lbl := Label.new()
+		traits_lbl.text = ", ".join(traits)
+		traits_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		traits_lbl.add_theme_font_size_override("font_size", 11)
+		traits_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
+		vbox.add_child(traits_lbl)
+
+	var stats: Dictionary = b.get("stats", {})
+	var stats_lbl := Label.new()
+	stats_lbl.text = "PV %d · CA %d · FOR %d" % [b.get("hp", 10), b.get("ac", 10), stats.get("str", 10)]
+	stats_lbl.add_theme_font_size_override("font_size", 11)
+	stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	vbox.add_child(stats_lbl)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 2)
+	vbox.add_child(spacer)
+
+	var bot_id: String = b.get("id", "")
+	var bot_name: String = b.get("name", "Bot")
+	var btn_delete := Button.new()
+	btn_delete.text = "Supprimer"
+	btn_delete.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_delete.pressed.connect(func(): _ask_delete_bot(bot_id, bot_name))
+	vbox.add_child(btn_delete)
+
+	card.add_child(vbox)
+	return card
+
+func _ask_delete_bot(bot_id: String, name: String) -> void:
+	_pending_delete_bot_id = bot_id
+	%ConfirmDeleteBot.dialog_text = "Supprimer le compagnon bot « %s » ?" % name
+	%ConfirmDeleteBot.popup_centered()
+
+func _on_confirm_delete_bot() -> void:
+	if _pending_delete_bot_id.is_empty():
+		return
+	GameData.delete_bot(_pending_delete_bot_id)
+	_pending_delete_bot_id = ""
+	_render_bots()
 
 func _on_home_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")

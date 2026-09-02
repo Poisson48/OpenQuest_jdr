@@ -53,7 +53,7 @@ func _build_saved_game_row(game: Dictionary) -> PanelContainer:
 	info.add_theme_constant_override("separation", 2)
 	
 	var title_lbl := Label.new()
-	title_lbl.text = "« %s »" % game.get("scenarioTitle", "Aventure")
+	title_lbl.text = "« %s »" % GameData.get_scenario_display_title(game.get("scenarioId", ""))
 	title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 	info.add_child(title_lbl)
 	
@@ -110,5 +110,7 @@ func _on_discover_pressed() -> void:
 
 func _start_with_format(quest_format: String) -> void:
 	var scns := GameData.get_scenarios_for_quest_format(quest_format)
-	var scenario_id := scns[0].get("id", "") if not scns.is_empty() else ""
+	var scenario_id: String = ""
+	if not scns.is_empty():
+		scenario_id = str(scns[0].get("id", ""))
 	GameData.go_to_game_setup(quest_format, scenario_id)

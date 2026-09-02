@@ -13,6 +13,21 @@ extends Control
 @onready var gm_input: TextEdit = %GmInput
 @onready var net_status_lbl: Label = %NetStatusLabel
 @onready var map_panel: PanelContainer = %MapPanel
+@onready var btn_back_hub: Button = %BtnBackHub
+@onready var btn_advance_scene: Button = %BtnAdvanceScene
+@onready var btn_roll_custom: Button = %BtnRollCustom
+@onready var btn_gm_send: Button = %BtnGmSend
+@onready var btn_d4: Button = %BtnD4
+@onready var btn_d6: Button = %BtnD6
+@onready var btn_d8: Button = %BtnD8
+@onready var btn_d10: Button = %BtnD10
+@onready var btn_d12: Button = %BtnD12
+@onready var btn_d20: Button = %BtnD20
+@onready var btn_d100: Button = %BtnD100
+@onready var btn_sugg_explore: Button = %BtnSuggExplore
+@onready var btn_sugg_talk: Button = %BtnSuggTalk
+@onready var btn_sugg_inspect: Button = %BtnSuggInspect
+@onready var btn_sugg_combat: Button = %BtnSuggCombat
 
 var session_seconds: int = 0
 var timer_active: bool = true
@@ -131,43 +146,49 @@ func _sync_log_layout() -> void:
 		log_panel_node.custom_minimum_size = Vector2(0, body_h + 52)
 
 func _ready() -> void:
+	if not GameData.has_active_game():
+		_create_fallback_game()
+	_refresh_session_ui()
+
 	_configure_layout()
-	%BtnBackHub.pressed.connect(_on_leave_session_pressed)
-	%BtnAdvanceScene.pressed.connect(_on_advance_scene_pressed)
+
+	btn_back_hub.pressed.connect(_on_leave_session_pressed)
+	btn_advance_scene.pressed.connect(_on_advance_scene_pressed)
 	btn_send_action.pressed.connect(_on_send_action_pressed)
 	input_action.text_submitted.connect(func(_t): _on_send_action_pressed())
-	
-	%BtnRollCustom.pressed.connect(_on_roll_custom_dice)
+
+	btn_roll_custom.pressed.connect(_on_roll_custom_dice)
 	custom_dice_input.text_submitted.connect(func(_t): _on_roll_custom_dice())
-	
-	%BtnGmSend.pressed.connect(_on_gm_send_pressed)
-	
+
+	btn_gm_send.pressed.connect(_on_gm_send_pressed)
+
 	_configure_log_readability()
-	
 	_setup_quick_dice_buttons()
 	_setup_suggestion_buttons()
 	_connect_network_signals()
-	
-	if not GameData.has_active_game():
-		_create_fallback_game()
-		
+	_connect_game_data_signals()
+
 	_refresh_session_ui()
 	_update_net_status()
 
 func _setup_quick_dice_buttons() -> void:
-	%BtnD4.pressed.connect(func(): _roll_dice_formula("1d4"))
-	%BtnD6.pressed.connect(func(): _roll_dice_formula("1d6"))
-	%BtnD8.pressed.connect(func(): _roll_dice_formula("1d8"))
-	%BtnD10.pressed.connect(func(): _roll_dice_formula("1d10"))
-	%BtnD12.pressed.connect(func(): _roll_dice_formula("1d12"))
-	%BtnD20.pressed.connect(func(): _roll_dice_formula("1d20"))
-	%BtnD100.pressed.connect(func(): _roll_dice_formula("1d100"))
+	btn_d4.pressed.connect(func(): _roll_dice_formula("1d4"))
+	btn_d6.pressed.connect(func(): _roll_dice_formula("1d6"))
+	btn_d8.pressed.connect(func(): _roll_dice_formula("1d8"))
+	btn_d10.pressed.connect(func(): _roll_dice_formula("1d10"))
+	btn_d12.pressed.connect(func(): _roll_dice_formula("1d12"))
+	btn_d20.pressed.connect(func(): _roll_dice_formula("1d20"))
+	btn_d100.pressed.connect(func(): _roll_dice_formula("1d100"))
 
 func _setup_suggestion_buttons() -> void:
-	%BtnSuggExplore.pressed.connect(func(): _set_and_send_action("J'explore attentivement les environs à la recherche d'indices."))
-	%BtnSuggTalk.pressed.connect(func(): _set_and_send_action("J'engage la conversation avec les personnes présentes."))
-	%BtnSuggInspect.pressed.connect(func(): _set_and_send_action("J'examine minutieusement cet endroit."))
-	%BtnSuggCombat.pressed.connect(func(): _set_and_send_action("Je dégaine mon arme et me prépare au combat !"))
+	btn_sugg_explore.pressed.connect(func(): _set_and_send_action("J'explore attentivement les environs à la recherche d'indices."))
+	btn_sugg_talk.pressed.connect(func(): _set_and_send_action("J'engage la conversation avec les personnes présentes."))
+	btn_sugg_inspect.pressed.connect(func(): _set_and_send_action("J'examine minutieusement cet endroit."))
+	btn_sugg_combat.pressed.connect(func(): _set_and_send_action("Je dégaine mon arme et me prépare au combat !"))
+
+func _connect_game_data_signals() -> void:
+	if not GameData.active_game_updated.is_connected(_refresh_session_ui):
+		GameData.active_game_updated.connect(_refresh_session_ui)
 
 func _set_and_send_action(action_text: String) -> void:
 	input_action.text = action_text
@@ -206,8 +227,9 @@ func _create_fallback_game() -> void:
 	GameData.create_new_game(scn_id, "solo", "ai", "oneshot", default_party)
 
 func _refresh_session_ui() -> void:
+	GameData.sync_active_game_scenario_metadata()
 	var state := GameData.active_game
-	scenario_title_lbl.text = "🗺️ " + state.get("scenarioTitle", "Aventure")
+	scenario_title_lbl.text = "🗺️ " + GameData.get_scenario_display_title()
 	
 	var scenario := GameData.get_scenario_by_id(state.get("scenarioId", ""))
 	var scenes: Array = scenario.get("scenes", [])
@@ -347,6 +369,8 @@ func _on_send_action_pressed() -> void:
 	if GameData.try_auto_move_from_action(action_text):
 		map_panel.refresh()
 	if GameData.active_game.get("gmType", "ai") == "ai":
+		GameData.maybe_reveal_investigation_from_action(action_text)
+		map_panel.refresh()
 		_simulate_ai_response(action_text)
 
 func _simulate_ai_response(player_action: String) -> void:

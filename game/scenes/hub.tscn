@@ -340,19 +340,40 @@ text = "🤖 Archétypes de Compagnons Bots"
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Bots/VBox/PanelHeader/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "Ces compagnons peuvent vous accompagner en solo ou compléter votre groupe d'aventuriers."
+text = "Compagnons IA classés par mode de jeu — aventure, one-shot ou enquête."
 
-[node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]
+[node name="BotsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Bots/VBox"]
 layout_mode = 2
-size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="BotsGrid" type="GridContainer" parent="MainLayout/TabContainer/Bots/VBox/BotsScroll"]
+[node name="LblBotsFilter" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Afficher :"
+
+[node name="BotsFilter" type="OptionButton" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(220, 0)
+
+[node name="BotsCountLabel" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "0 compagnon(s)"
+
+[node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="BotsSectionsRoot" type="VBoxContainer" parent="MainLayout/TabContainer/Bots/VBox/BotsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
 
 [node name="ConfirmDeleteSession" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
@@ -361,4 +382,13 @@ initial_position = 2
 size = Vector2i(420, 120)
 dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
 ok_button_text = "Effacer"
+cancel_button_text = "Annuler"
+
+[node name="ConfirmDeleteBot" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Supprimer le bot"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Supprimer ce compagnon bot ?"
+ok_button_text = "Supprimer"
 cancel_button_text = "Annuler"

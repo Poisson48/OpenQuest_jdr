@@ -82,6 +82,12 @@ const Game = {
     this.state = game;
     Storage.save(Storage.KEYS.lastActiveGameId, gameId);
     this.initAllWorldMapFog();
+    if (this.state?.questFormat === 'investigation') {
+      (this.state.mapIds || []).forEach((mapId) => {
+        const entry = this.getMapPlayEntry(mapId);
+        if (!entry.revealedMarkers?.length) this.initInvestigationClues(mapId);
+      });
+    }
     this.ensurePartyTokensOnWorldMaps();
     if (!options.silent) {
       this.showSession();
@@ -175,13 +181,151 @@ const Game = {
   getMapPlayEntry(mapId) {
     this.ensureMapPlayState();
     if (!this.state.mapPlayState[mapId]) {
-      this.state.mapPlayState[mapId] = { tokens: [], explored: [] };
+      this.state.mapPlayState[mapId] = { tokens: [], explored: [], revealedMarkers: [], revealedLinks: [] };
     }
     const entry = this.state.mapPlayState[mapId];
     if (!Array.isArray(entry.tokens)) entry.tokens = [];
     if (!Array.isArray(entry.explored)) entry.explored = [];
     if (entry.exploreLevel == null) entry.exploreLevel = 0;
+    if (!Array.isArray(entry.revealedMarkers)) entry.revealedMarkers = [];
+    if (!Array.isArray(entry.revealedLinks)) entry.revealedLinks = [];
     return entry;
+  },
+
+  getRevealedMarkers(mapId) {
+    return this.getMapPlayEntry(mapId).revealedMarkers;
+  },
+
+  getRevealedLinks(mapId) {
+    return this.getMapPlayEntry(mapId).revealedLinks;
+  },
+
+  revealMapMarker(mapId, x, y) {
+    const key = this.cellKey(x, y);
+    const entry = this.getMapPlayEntry(mapId);
+    if (entry.revealedMarkers.includes(key)) return false;
+    entry.revealedMarkers.push(key);
+    return true;
+  },
+
+  revealMapLink(mapId, x, y) {
+    const key = this.cellKey(x, y);
+    const entry = this.getMapPlayEntry(mapId);
+    if (entry.revealedLinks.includes(key)) return false;
+    entry.revealedLinks.push(key);
+    return true;
+  },
+
+  initInvestigationCluesForGame() {
+    if (this.state?.questFormat !== 'investigation') return;
+    (this.state.mapIds || []).forEach((mapId) => this.initInvestigationClues(mapId));
+  },
+
+  initInvestigationClues(mapId) {
+    if (typeof Maps === 'undefined') return;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return;
+    const entry = this.getMapPlayEntry(mapId);
+    const revealed = [];
+    (map.markers || []).forEach((mk) => {
+      if (Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      const key = this.cellKey(mk.x, mk.y);
+      if (!revealed.includes(key)) revealed.push(key);
+    });
+    entry.revealedMarkers = revealed;
+    entry.revealedLinks = [];
+  },
+
+  investigationClueDistance(mapId, x, y) {
+    if (typeof Maps === 'undefined') return 9999;
+    const tokens = this.getMapPlayTokens(mapId).filter((t) => t.kind === 'member');
+    if (tokens.length) {
+      return Math.min(...tokens.map((t) => Math.abs(t.x - x) + Math.abs(t.y - y)));
+    }
+    const map = Maps.getById(mapId);
+    if (!map) return 9999;
+    const start = this.getWorldMapStartPoint(map);
+    return Math.abs(start.x - x) + Math.abs(start.y - y);
+  },
+
+  revealInvestigationNear(mapId, cx, cy, radius = 1) {
+    if (typeof Maps === 'undefined') return 0;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return 0;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return 0;
+    let count = 0;
+    (map.markers || []).forEach((mk) => {
+      if (!Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      if (Math.abs(mk.x - cx) + Math.abs(mk.y - cy) > radius) return;
+      if (this.revealMapMarker(mapId, mk.x, mk.y)) count += 1;
+    });
+    if (Maps.isWorldMap(map)) {
+      (map.locationLinks || []).forEach((link) => {
+        if (Math.abs(link.x - cx) + Math.abs(link.y - cy) > radius) return;
+        if (this.revealMapLink(mapId, link.x, link.y)) count += 1;
+      });
+    }
+    return count;
+  },
+
+  revealNextInvestigationClues(mapId, count = 1) {
+    if (typeof Maps === 'undefined') return 0;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return 0;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return 0;
+    const hidden = [];
+    (map.markers || []).forEach((mk) => {
+      if (!Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      if (this.getRevealedMarkers(mapId).includes(this.cellKey(mk.x, mk.y))) return;
+      hidden.push({ x: mk.x, y: mk.y, dist: this.investigationClueDistance(mapId, mk.x, mk.y) });
+    });
+    if (Maps.isWorldMap(map)) {
+      (map.locationLinks || []).forEach((link) => {
+        if (this.getRevealedLinks(mapId).includes(this.cellKey(link.x, link.y))) return;
+        hidden.push({ x: link.x, y: link.y, dist: this.investigationClueDistance(mapId, link.x, link.y), link: true });
+      });
+    }
+    if (!hidden.length) return 0;
+    hidden.sort((a, b) => a.dist - b.dist);
+    let revealed = 0;
+    hidden.slice(0, count).forEach((item) => {
+      if (item.link) {
+        if (this.revealMapLink(mapId, item.x, item.y)) revealed += 1;
+      } else if (this.revealMapMarker(mapId, item.x, item.y)) {
+        revealed += 1;
+      }
+    });
+    return revealed;
+  },
+
+  maybeRevealInvestigationFromAction(actionText) {
+    if (this.state?.questFormat !== 'investigation') return;
+    const text = String(actionText || '').toLowerCase();
+    const investigative = /fouill|examin|inspect|explor|cherch|regard|interroge|parl|question|indice|enquêt|analys|deduis|recouvr/i;
+    if (!investigative.test(text)) return;
+    const mapId = this.getActivePlayMapId?.() || this.state?.mapIds?.[0];
+    if (!mapId) return;
+    const actor = this.getActiveMember?.();
+    let pos = actor ? this.getMemberTokenPosition?.(mapId, actor.id) : null;
+    if (!pos || pos.x < 0) {
+      Maps.load();
+      const map = Maps.getById(mapId);
+      pos = map ? this.getWorldMapStartPoint(map) : { x: 0, y: 0 };
+    }
+    this.revealInvestigationNear(mapId, pos.x, pos.y, 2);
+    this.revealNextInvestigationClues(mapId, 1);
+  },
+
+  revealInvestigationOnSceneAdvance() {
+    if (this.state?.questFormat !== 'investigation') return;
+    (this.state.mapIds || []).forEach((mapId) => this.revealNextInvestigationClues(mapId, 1));
   },
 
   cellKey(x, y) {
@@ -361,6 +505,8 @@ const Game = {
       const map = Maps.getById(mapId);
       if (map && Maps.isWorldMap(map)) {
         this.revealWorldAt(mapId, x, y, 2);
+      } else if (map && Maps.isInvestigationMapContext(map, this.state?.questFormat)) {
+        this.revealInvestigationNear(mapId, x, y, 1);
       }
     }
   },
@@ -1747,6 +1893,7 @@ const Game = {
 
       this.renderSession();
       this.initAllWorldMapFog();
+      this.initInvestigationCluesForGame();
       this.ensurePartyTokensOnWorldMaps();
       this.renderSession();
     } catch (err) {
@@ -1845,8 +1992,10 @@ const Game = {
     this.tryAutoMoveFromAction(action, actor.id);
 
     if (this.state.gmType === 'ai') {
+      this.maybeRevealInvestigationFromAction(action);
       this.processAiResponse(action, actor);
     } else {
+      this.maybeRevealInvestigationFromAction(action);
       if (/explor|fouill|inspect|cherch|cartograph|voyage|carte|déplacement|deplacement/i.test(action)) {
         this.revealWorldOnExplore(4);
       }
@@ -1866,6 +2015,18 @@ const Game = {
       this.advanceScene(false);
     } else if (response.success && response.actionType === 'explore') {
       this.revealWorldOnExplore();
+      if (this.state.questFormat === 'investigation') {
+        const mapId = this.getActivePlayMapId?.() || this.state?.mapIds?.[0];
+        if (mapId && actor?.id) {
+          const pos = this.getMemberTokenPosition(mapId, actor.id);
+          if (pos?.x >= 0) {
+            this.revealInvestigationNear(mapId, pos.x, pos.y, 2);
+          }
+          this.revealNextInvestigationClues(mapId, 1);
+        }
+      }
+    } else if (response.success && response.actionType === 'talk' && this.state.questFormat === 'investigation') {
+      this.maybeRevealInvestigationFromAction(playerAction);
     }
 
     this.renderSession();
@@ -1987,6 +2148,7 @@ const Game = {
     }
 
     this.revealWorldOnSceneAdvance();
+    this.revealInvestigationOnSceneAdvance();
     this.save();
   },
 
@@ -2107,6 +2269,15 @@ const Game = {
     return modeBlock + rules;
   },
 
+  syncScenarioMetadata(state = this.state) {
+    if (!state?.scenarioId) return;
+    Scenarios.load();
+    const scenario = Scenarios.list.find((s) => s.id === state.scenarioId);
+    if (scenario?.title) {
+      state.scenarioTitle = scenario.title;
+    }
+  },
+
   renderSession() {
     if (!this.state) return;
 
@@ -2118,8 +2289,10 @@ const Game = {
       this.state.aiState.questFormat = this.state.questFormat;
     }
 
+    this.syncScenarioMetadata();
+    Scenarios.load();
     const scenario = Scenarios.list.find((s) => s.id === this.state.scenarioId);
-    document.getElementById('game-scenario-title').textContent = scenario?.title || 'Partie';
+    document.getElementById('game-scenario-title').textContent = scenario?.title || this.state.scenarioTitle || 'Partie';
 
     const modeLabel = this.state.mode === 'solo' ? 'Solo' : 'Multijoueur local';
     const gmLabel = this.state.gmType === 'ai' ? 'MJ IA adaptatif' : `MJ : ${this.state.gmName}`;

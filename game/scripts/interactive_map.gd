@@ -16,6 +16,8 @@ const DRAG_THRESHOLD := 5.0
 var map_data: Dictionary = {}
 var tokens: Array = []
 var explored: Array = []
+var revealed_markers: Array = []
+var revealed_links: Array = []
 var party: Array = []
 var quest_format: String = "oneshot"
 var fog_enabled: bool = false
@@ -42,7 +44,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
 
-func configure(p_map: Dictionary, p_tokens: Array, p_party: Array, p_explored: Array, p_quest_format: String, p_readonly: bool = false, p_nav: Dictionary = {}) -> void:
+func configure(p_map: Dictionary, p_tokens: Array, p_party: Array, p_explored: Array, p_quest_format: String, p_readonly: bool = false, p_nav: Dictionary = {}, p_revealed_markers: Array = [], p_revealed_links: Array = []) -> void:
 	var new_map_id: String = p_map.get("id", "")
 	var same_map := not new_map_id.is_empty() and new_map_id == _loaded_map_id
 
@@ -53,6 +55,8 @@ func configure(p_map: Dictionary, p_tokens: Array, p_party: Array, p_explored: A
 	quest_format = p_quest_format
 	readonly = p_readonly
 	nav_context = p_nav
+	revealed_markers = p_revealed_markers
+	revealed_links = p_revealed_links
 	_loaded_map_id = new_map_id
 	fog_enabled = MapData.is_world_map(map_data) and nav_context.is_empty() and not readonly
 	if session_tool.get("memberId", "").is_empty() and not party.is_empty():
@@ -183,13 +187,15 @@ func _draw() -> void:
 			var static_mk: Dictionary = _static_marker_at(x, y)
 			var link: Dictionary = MapData.get_location_link_at(map_data, x, y) if nav_context.is_empty() and MapData.is_world_map(map_data) else {}
 			var token: Dictionary = _token_at(x, y)
+			var show_link := _should_show_location_link(x, y)
+			var show_marker := static_mk.is_empty() or _should_show_static_marker(static_mk)
 
-			if link.has("targetMapId") and token.is_empty():
+			if show_link and token.is_empty():
 				_draw_centered_text(rect, "🌀", cs)
 				var link_label: String = str(link.get("label", "")).strip_edges()
 				if link_label.length() > 0 and cs >= 14:
 					_draw_centered_text(rect, link_label.substr(0, mini(6, link_label.length())), cs, 0.35)
-			elif static_mk and token.is_empty():
+			elif show_marker and static_mk and token.is_empty():
 				_draw_static_marker(static_mk, key, rect, cs, cluster_info)
 			if not token.is_empty():
 				_draw_token(rect, token, cs)
@@ -198,10 +204,14 @@ func _build_marker_cluster_info(w: int, h: int, cs: int) -> Dictionary:
 	var cell_info: Dictionary = {}
 	var marker_types: Dictionary = {}
 	for mk in map_data.get("markers", []):
+		if not _should_show_static_marker(mk):
+			continue
 		marker_types[_marker_key(int(mk.get("x", 0)), int(mk.get("y", 0)))] = str(mk.get("type", ""))
 
 	var visited: Dictionary = {}
 	for mk in map_data.get("markers", []):
+		if not _should_show_static_marker(mk):
+			continue
 		var mx: int = int(mk.get("x", 0))
 		var my: int = int(mk.get("y", 0))
 		var start_key := _marker_key(mx, my)
@@ -284,6 +294,36 @@ func _draw_static_marker(mk: Dictionary, key: String, rect: Rect2, cs: int, clus
 
 func _marker_key(x: int, y: int) -> String:
 	return "%d,%d" % [x, y]
+
+func _revealed_marker_set() -> Dictionary:
+	var result := {}
+	for key in revealed_markers:
+		result[str(key)] = true
+	return result
+
+func _revealed_link_set() -> Dictionary:
+	var result := {}
+	for key in revealed_links:
+		result[str(key)] = true
+	return result
+
+func _should_show_static_marker(static_mk: Dictionary) -> bool:
+	if static_mk.is_empty():
+		return false
+	var mk_type: String = str(static_mk.get("type", ""))
+	var mx: int = int(static_mk.get("x", 0))
+	var my: int = int(static_mk.get("y", 0))
+	if not MapData.is_investigation_hidden_marker(mk_type, map_data, quest_format):
+		return true
+	return _revealed_marker_set().has(_marker_key(mx, my))
+
+func _should_show_location_link(x: int, y: int) -> bool:
+	var link: Dictionary = MapData.get_location_link_at(map_data, x, y)
+	if link.is_empty() or not link.has("targetMapId"):
+		return false
+	if not MapData.is_investigation_hidden_link(map_data, quest_format):
+		return true
+	return _revealed_link_set().has(_marker_key(x, y))
 
 func _draw_emoji_in_rect(rect: Rect2, text: String, font_size: int) -> void:
 	var font := ThemeDB.fallback_font

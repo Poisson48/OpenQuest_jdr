@@ -261,7 +261,12 @@ func _render_active_map(state: Dictionary) -> void:
 	if nav_ctx.get("mode") == "local":
 		_hint_lbl.text = "Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde."
 	elif is_world:
-		_hint_lbl.text = "Clique sur une ville liée 🌀 pour entrer · glisser pour déplacer · molette ou +/− pour zoomer."
+		if quest_format == "investigation":
+			_hint_lbl.text = "Les lieux d'intérêt se dévoilent au fil de l'enquête · clique sur une ville liée 🌀 pour entrer."
+		else:
+			_hint_lbl.text = "Clique sur une ville liée 🌀 pour entrer · glisser pour déplacer · molette ou +/− pour zoomer."
+	elif quest_format == "investigation" or display_map.get("roster", "") == "investigation":
+		_hint_lbl.text = "Les indices et points d'intérêt apparaissent progressivement — explore et interroge pour les révéler."
 	else:
 		_hint_lbl.text = "Glisser pour déplacer · molette ou +/− pour zoomer · ⟲ pour tout afficher."
 
@@ -312,7 +317,9 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 		explored,
 		state.get("questFormat", "oneshot"),
 		_readonly,
-		nav_ctx
+		nav_ctx,
+		GameData.get_revealed_markers(map_id),
+		GameData.get_revealed_links(map_id)
 	)
 	_interactive_map.set_session_tool(tool.get("mode", "member"), tool)
 	_update_zoom_label()

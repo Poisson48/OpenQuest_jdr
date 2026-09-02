@@ -7,13 +7,17 @@ signal active_game_updated
 
 const CHARACTERS_PATH = "user://characters.json"
 const SCENARIOS_PATH = "user://scenarios.json"
+const SCENARIOS_REMOVED_PATH = "user://scenarios_removed.json"
 const BOTS_PATH = "user://bots.json"
+const BOTS_REMOVED_PATH = "user://bots_removed.json"
 const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
 
 var characters: Array = []
 var scenarios: Array = []
+var removed_scenario_ids: Array = []
 var bots: Array = []
+var removed_bot_ids: Array = []
 var saved_games: Array = []
 var active_game: Dictionary = {}
 
@@ -111,6 +115,9 @@ func is_scenario_valid_for_format(scenario: Dictionary, quest_format: String) ->
 func get_scenarios_for_quest_format(quest_format: String) -> Array:
 	var result: Array = []
 	for s in scenarios:
+		var scn_id: String = s.get("id", "")
+		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
+			continue
 		if is_scenario_valid_for_format(s, quest_format):
 			result.append(s)
 	return result
@@ -209,7 +216,18 @@ func load_scenarios() -> void:
 	else:
 		scenarios = _load_default_scenarios()
 		save_scenarios()
+	_load_removed_scenarios()
 	scenarios_updated.emit()
+
+func _load_removed_scenarios() -> void:
+	var data = _load_json_file(SCENARIOS_REMOVED_PATH)
+	if data is Array:
+		removed_scenario_ids = data
+	else:
+		removed_scenario_ids = []
+
+func _save_removed_scenarios() -> void:
+	_save_json_file(SCENARIOS_REMOVED_PATH, removed_scenario_ids)
 
 func save_scenarios() -> void:
 	_save_json_file(SCENARIOS_PATH, scenarios)
@@ -218,6 +236,9 @@ func save_scenarios() -> void:
 func get_scenarios(quest_format: String = "", roster: String = "") -> Array:
 	var result := []
 	for s in scenarios:
+		var scn_id: String = s.get("id", "")
+		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
+			continue
 		if not quest_format.is_empty() and s.get("questFormat", "") != quest_format:
 			continue
 		if not roster.is_empty() and s.get("roster", "general") != roster:
@@ -230,6 +251,33 @@ func get_scenario_by_id(id: String) -> Dictionary:
 		if s.get("id") == id:
 			return s
 	return {}
+
+func sync_game_scenario_metadata(game: Dictionary) -> Dictionary:
+	if game.is_empty():
+		return game
+	var scn_id: String = game.get("scenarioId", "")
+	if scn_id.is_empty():
+		return game
+	var scn := get_scenario_by_id(scn_id)
+	if not scn.is_empty():
+		game["scenarioTitle"] = scn.get("title", "Aventure")
+	return game
+
+func sync_active_game_scenario_metadata() -> void:
+	if active_game.is_empty():
+		return
+	active_game = sync_game_scenario_metadata(active_game)
+
+func get_scenario_display_title(scenario_id: String = "") -> String:
+	var scn_id := scenario_id
+	if scn_id.is_empty() and not active_game.is_empty():
+		scn_id = active_game.get("scenarioId", "")
+	var scn := get_scenario_by_id(scn_id)
+	if not scn.is_empty():
+		return scn.get("title", "Aventure")
+	if not active_game.is_empty():
+		return active_game.get("scenarioTitle", "Aventure")
+	return "Aventure"
 
 func get_quest_format_for_scenario(scenario_id: String) -> String:
 	var scn := get_scenario_by_id(scenario_id)
@@ -265,11 +313,25 @@ func save_scenario(scenario_dict: Dictionary) -> void:
 		scenarios.append(scenario_dict)
 	save_scenarios()
 
-func delete_scenario(id: String) -> void:
+func delete_scenario(id: String) -> bool:
+	if id.is_empty() or removed_scenario_ids.has(id):
+		return false
 	for i in range(scenarios.size() - 1, -1, -1):
 		if scenarios[i].get("id") == id:
 			scenarios.remove_at(i)
-	save_scenarios()
+			save_scenarios()
+			break
+	removed_scenario_ids.append(id)
+	_save_removed_scenarios()
+	scenarios_updated.emit()
+	return true
+
+func get_scenario_mode_label(scenario: Dictionary) -> String:
+	if scenario.get("roster", "general") == "investigation":
+		return "investigation"
+	if scenario.get("questFormat", "oneshot") == "long":
+		return "long"
+	return "oneshot"
 
 func _load_default_scenarios() -> Array:
 	var list := []
@@ -334,14 +396,47 @@ func load_bots() -> void:
 	else:
 		bots = _load_default_bots()
 		save_bots()
+	_load_removed_bots()
 	bots_updated.emit()
+
+func _load_removed_bots() -> void:
+	var data = _load_json_file(BOTS_REMOVED_PATH)
+	if data is Array:
+		removed_bot_ids = data
+	else:
+		removed_bot_ids = []
+
+func _save_removed_bots() -> void:
+	_save_json_file(BOTS_REMOVED_PATH, removed_bot_ids)
 
 func save_bots() -> void:
 	_save_json_file(BOTS_PATH, bots)
 	bots_updated.emit()
 
 func get_bots() -> Array:
-	return bots + _get_builtin_investigation_bots()
+	var result: Array = []
+	for b in bots:
+		var bot_id: String = b.get("id", "")
+		if not bot_id.is_empty() and not removed_bot_ids.has(bot_id):
+			result.append(b)
+	for b in _get_builtin_investigation_bots():
+		var bot_id: String = b.get("id", "")
+		if not bot_id.is_empty() and not removed_bot_ids.has(bot_id):
+			result.append(b)
+	return result
+
+func delete_bot(id: String) -> bool:
+	if id.is_empty() or removed_bot_ids.has(id):
+		return false
+	for i in range(bots.size() - 1, -1, -1):
+		if bots[i].get("id") == id:
+			bots.remove_at(i)
+			save_bots()
+			break
+	removed_bot_ids.append(id)
+	_save_removed_bots()
+	bots_updated.emit()
+	return true
 
 func is_investigation_bot(bot: Dictionary) -> bool:
 	var bot_id: String = bot.get("id", "")
@@ -518,6 +613,7 @@ func save_active_game(state: Dictionary = {}) -> void:
 		delete_game(active_game.get("id", ""))
 		return
 	if status == "playing" or status == "completed":
+		sync_active_game_scenario_metadata()
 		active_game["updatedAt"] = Time.get_unix_time_from_system()
 		_upsert_saved_game_entry(active_game.duplicate(true))
 	else:
@@ -536,10 +632,7 @@ func get_playing_games() -> Array:
 func load_game_by_id(game_id: String) -> bool:
 	for g in saved_games:
 		if g.get("id") == game_id:
-			active_game = g.duplicate(true)
-			if not active_game.has("scenarioTitle") and active_game.has("scenarioId"):
-				var scn := get_scenario_by_id(active_game["scenarioId"])
-				active_game["scenarioTitle"] = scn.get("title", "Aventure")
+			active_game = sync_game_scenario_metadata(g.duplicate(true))
 			ensure_map_play_state()
 			init_all_world_map_fog()
 			_ensure_party_tokens_on_world_maps()
@@ -621,6 +714,7 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 	active_game = new_game
 	ensure_map_play_state()
 	init_all_world_map_fog()
+	init_investigation_clues_for_game()
 	_ensure_party_tokens_on_world_maps()
 	save_active_game()
 	return active_game
@@ -648,6 +742,7 @@ func advance_scene() -> bool:
 		var scene = scenes[cur + 1]
 		add_log_entry("MJ", "[b]Nouvelle Scène : %s[/b]\n%s" % [scene.get("title", ""), scene.get("content", "")], "gm")
 		_reveal_world_on_scene_advance()
+		_reveal_investigation_on_scene_advance()
 		save_active_game()
 		return true
 	else:
@@ -657,10 +752,7 @@ func advance_scene() -> bool:
 		return false
 
 func apply_server_state(state: Dictionary) -> void:
-	active_game = state.duplicate(true)
-	if not active_game.has("scenarioTitle") and active_game.has("scenarioId"):
-		var scn := get_scenario_by_id(active_game["scenarioId"])
-		active_game["scenarioTitle"] = scn.get("title", "Aventure")
+	active_game = sync_game_scenario_metadata(state.duplicate(true))
 	if not active_game.has("mapIds") or active_game["mapIds"].is_empty():
 		var scn_id: String = active_game.get("scenarioId", "")
 		var qf: String = active_game.get("questFormat", "oneshot")
@@ -671,6 +763,10 @@ func apply_server_state(state: Dictionary) -> void:
 		active_game["mapNavigation"] = { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null }
 	ensure_map_play_state()
 	init_all_world_map_fog()
+	if active_game.get("questFormat", "") == "investigation":
+		for map_id in active_game.get("mapIds", []):
+			if get_revealed_markers(str(map_id)).is_empty():
+				init_investigation_clues(str(map_id))
 	active_game["status"] = "playing" if state.get("status", "playing") == "playing" else state.get("status", "playing")
 	save_active_game()
 
@@ -692,7 +788,7 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 	ensure_map_play_state()
 	var mps: Dictionary = active_game["mapPlayState"]
 	if not mps.has(map_id):
-		mps[map_id] = { "tokens": [], "explored": [], "exploreLevel": 0 }
+		mps[map_id] = { "tokens": [], "explored": [], "exploreLevel": 0, "revealedMarkers": [], "revealedLinks": [] }
 	var entry: Dictionary = mps[map_id]
 	if not entry.has("tokens") or typeof(entry["tokens"]) != TYPE_ARRAY:
 		entry["tokens"] = []
@@ -700,7 +796,177 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 		entry["explored"] = []
 	if not entry.has("exploreLevel"):
 		entry["exploreLevel"] = 0
+	if not entry.has("revealedMarkers") or typeof(entry["revealedMarkers"]) != TYPE_ARRAY:
+		entry["revealedMarkers"] = []
+	if not entry.has("revealedLinks") or typeof(entry["revealedLinks"]) != TYPE_ARRAY:
+		entry["revealedLinks"] = []
 	return entry
+
+func get_revealed_markers(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["revealedMarkers"]
+
+func get_revealed_links(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["revealedLinks"]
+
+func is_marker_revealed(map_id: String, x: int, y: int) -> bool:
+	return get_revealed_markers(map_id).has(cell_key(x, y))
+
+func is_link_revealed(map_id: String, x: int, y: int) -> bool:
+	return get_revealed_links(map_id).has(cell_key(x, y))
+
+func reveal_map_marker(map_id: String, x: int, y: int) -> bool:
+	var key := cell_key(x, y)
+	var entry := get_map_play_entry(map_id)
+	if entry["revealedMarkers"].has(key):
+		return false
+	entry["revealedMarkers"].append(key)
+	return true
+
+func reveal_map_link(map_id: String, x: int, y: int) -> bool:
+	var key := cell_key(x, y)
+	var entry := get_map_play_entry(map_id)
+	if entry["revealedLinks"].has(key):
+		return false
+	entry["revealedLinks"].append(key)
+	return true
+
+func init_investigation_clues_for_game() -> void:
+	if active_game.is_empty():
+		return
+	if active_game.get("questFormat", "") != "investigation":
+		return
+	for map_id in active_game.get("mapIds", []):
+		init_investigation_clues(str(map_id))
+
+func init_investigation_clues(map_id: String) -> void:
+	var map_data := MapData.get_by_id(map_id)
+	if map_data.is_empty():
+		return
+	var quest_format: String = active_game.get("questFormat", "oneshot")
+	if not MapData.is_investigation_map_context(map_data, quest_format):
+		return
+	var entry := get_map_play_entry(map_id)
+	var revealed: Array = []
+	for mk in map_data.get("markers", []):
+		var mk_type: String = str(mk.get("type", ""))
+		if MapData.is_investigation_hidden_marker(mk_type, map_data, quest_format):
+			continue
+		var key := cell_key(int(mk.get("x", 0)), int(mk.get("y", 0)))
+		if not revealed.has(key):
+			revealed.append(key)
+	entry["revealedMarkers"] = revealed
+	entry["revealedLinks"] = []
+
+func reveal_investigation_near(map_id: String, cx: int, cy: int, radius: int = 1) -> int:
+	var map_data := MapData.get_by_id(map_id)
+	if map_data.is_empty() or active_game.is_empty():
+		return 0
+	var quest_format: String = active_game.get("questFormat", "oneshot")
+	if not MapData.is_investigation_map_context(map_data, quest_format):
+		return 0
+	var count := 0
+	for mk in map_data.get("markers", []):
+		var mx: int = int(mk.get("x", 0))
+		var my: int = int(mk.get("y", 0))
+		var mk_type: String = str(mk.get("type", ""))
+		if not MapData.is_investigation_hidden_marker(mk_type, map_data, quest_format):
+			continue
+		if abs(mx - cx) + abs(my - cy) > radius:
+			continue
+		if reveal_map_marker(map_id, mx, my):
+			count += 1
+	if MapData.is_world_map(map_data):
+		for link in map_data.get("locationLinks", []):
+			var lx: int = int(link.get("x", 0))
+			var ly: int = int(link.get("y", 0))
+			if abs(lx - cx) + abs(ly - cy) > radius:
+				continue
+			if reveal_map_link(map_id, lx, ly):
+				count += 1
+	return count
+
+func reveal_next_investigation_clues(map_id: String, count: int = 1) -> int:
+	var map_data := MapData.get_by_id(map_id)
+	if map_data.is_empty() or active_game.is_empty():
+		return 0
+	var quest_format: String = active_game.get("questFormat", "oneshot")
+	if not MapData.is_investigation_map_context(map_data, quest_format):
+		return 0
+	var hidden: Array = []
+	for mk in map_data.get("markers", []):
+		var mx: int = int(mk.get("x", 0))
+		var my: int = int(mk.get("y", 0))
+		var mk_type: String = str(mk.get("type", ""))
+		if not MapData.is_investigation_hidden_marker(mk_type, map_data, quest_format):
+			continue
+		if is_marker_revealed(map_id, mx, my):
+			continue
+		hidden.append({ "x": mx, "y": my, "dist": _investigation_clue_distance(map_id, mx, my) })
+	if MapData.is_world_map(map_data):
+		for link in map_data.get("locationLinks", []):
+			var lx: int = int(link.get("x", 0))
+			var ly: int = int(link.get("y", 0))
+			if is_link_revealed(map_id, lx, ly):
+				continue
+			hidden.append({ "x": lx, "y": ly, "dist": _investigation_clue_distance(map_id, lx, ly), "link": true })
+	if hidden.is_empty():
+		return 0
+	hidden.sort_custom(func(a, b): return a.get("dist", 999) < b.get("dist", 999))
+	var revealed := 0
+	for i in range(mini(count, hidden.size())):
+		var item: Dictionary = hidden[i]
+		if item.get("link", false):
+			if reveal_map_link(map_id, int(item["x"]), int(item["y"])):
+				revealed += 1
+		elif reveal_map_marker(map_id, int(item["x"]), int(item["y"])):
+			revealed += 1
+	return revealed
+
+func _investigation_clue_distance(map_id: String, x: int, y: int) -> int:
+	var best := 9999
+	for tok in get_map_play_tokens(map_id):
+		if tok.get("kind") != "member":
+			continue
+		best = mini(best, abs(int(tok.get("x", 0)) - x) + abs(int(tok.get("y", 0)) - y))
+	if best < 9999:
+		return best
+	var map_data := MapData.get_by_id(map_id)
+	if not map_data.is_empty():
+		var start := get_world_map_start_point(map_data)
+		return abs(start.x - x) + abs(start.y - y)
+	return 9999
+
+func maybe_reveal_investigation_from_action(action_text: String) -> void:
+	if active_game.is_empty() or active_game.get("questFormat", "") != "investigation":
+		return
+	var text := _normalize_action_text(action_text)
+	var investigative := [
+		"fouill", "examin", "inspect", "explor", "cherch", "regard", "interroge",
+		"parl", "question", "indice", "enquêt", "analys", "deduis", "recouvr",
+	]
+	var matched := false
+	for kw in investigative:
+		if text.contains(kw):
+			matched = true
+			break
+	if not matched:
+		return
+	var map_id := get_active_play_map_id()
+	if map_id.is_empty():
+		return
+	var member_id := ""
+	for m in active_game.get("party", []):
+		if m.get("isPlayer", false):
+			member_id = str(m.get("id", ""))
+			break
+	var pos := get_member_token_position(map_id, member_id)
+	if pos.x < 0:
+		var map_data := MapData.get_by_id(map_id)
+		if not map_data.is_empty():
+			pos = get_world_map_start_point(map_data)
+	reveal_investigation_near(map_id, pos.x, pos.y, 2)
+	reveal_next_investigation_clues(map_id, 1)
+	save_active_game()
 
 func get_map_play_tokens(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["tokens"]
@@ -830,8 +1096,11 @@ func place_member_token(map_id: String, x: int, y: int, member_id: String) -> vo
 		"label": member.get("name", "Héros"),
 	})
 	var map_data := MapData.get_by_id(map_id)
+	var quest_format: String = active_game.get("questFormat", "oneshot") if not active_game.is_empty() else "oneshot"
 	if MapData.is_world_map(map_data):
 		reveal_world_at(map_id, x, y, 2)
+	elif MapData.is_investigation_map_context(map_data, quest_format):
+		reveal_investigation_near(map_id, x, y, 1)
 	save_active_game()
 
 func place_marker_token(map_id: String, x: int, y: int, marker_type: String) -> void:
@@ -1424,6 +1693,12 @@ func _find_party_member(member_id: String) -> Dictionary:
 		if m.get("id") == member_id:
 			return m
 	return {}
+
+func _reveal_investigation_on_scene_advance() -> void:
+	if active_game.get("questFormat", "") != "investigation":
+		return
+	for map_id in active_game.get("mapIds", []):
+		reveal_next_investigation_clues(str(map_id), 1)
 
 func _reveal_world_on_scene_advance() -> void:
 	for map_id in get_world_map_ids():

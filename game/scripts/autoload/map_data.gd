@@ -143,7 +143,26 @@ func get_session_marker_types(quest_format: String, map_data: Dictionary) -> Arr
 		return ["detective", "suspect", "evidence", "witness", "crime", "poi", "danger"]
 	if is_world_map(map_data):
 		return ["capital", "city", "dungeon", "quest", "camp", "ruin", "danger"]
-	return ["npc", "poi", "danger", "treasure"]
+	return ["npc", "poi", "danger", "treasure", "exit"]
+
+const INVESTIGATION_VISIBLE_MARKERS := ["detective", "party", "camp"]
+const INVESTIGATION_HIDDEN_LOCAL := ["evidence", "witness", "suspect", "crime", "poi", "danger"]
+const INVESTIGATION_HIDDEN_WORLD := ["city", "capital", "quest", "dungeon", "ruin"]
+
+func is_investigation_map_context(map_data: Dictionary, quest_format: String) -> bool:
+	return quest_format == "investigation" or map_data.get("roster", "") == "investigation"
+
+func is_investigation_hidden_marker(marker_type: String, map_data: Dictionary, quest_format: String) -> bool:
+	if not is_investigation_map_context(map_data, quest_format):
+		return false
+	if marker_type in INVESTIGATION_VISIBLE_MARKERS:
+		return false
+	if is_world_map(map_data):
+		return marker_type in INVESTIGATION_HIDDEN_WORLD
+	return marker_type in INVESTIGATION_HIDDEN_LOCAL
+
+func is_investigation_hidden_link(map_data: Dictionary, quest_format: String) -> bool:
+	return is_investigation_map_context(map_data, quest_format) and is_world_map(map_data)
 
 func get_marker_label(marker_type: String) -> String:
 	var labels := {
