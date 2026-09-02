@@ -40,7 +40,7 @@ func _ready() -> void:
 
 	btn_adv_new_char.pressed.connect(func(): GameData.go_to_character_editor("general"))
 	btn_adv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
-	btn_adv_play.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
+	btn_adv_play.pressed.connect(func(): GameData.go_to_game_setup("adventure"))
 
 	btn_inv_new_char.pressed.connect(func(): GameData.go_to_character_editor("investigation"))
 	btn_inv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
@@ -62,6 +62,7 @@ func _ready() -> void:
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
 
 func _setup_bots_filter() -> void:
 	bots_filter.clear()

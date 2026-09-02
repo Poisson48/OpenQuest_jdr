@@ -286,13 +286,6 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "🎮 Lancer une partie"
 
-[node name="BtnModes" type="Button" parent="ScrollContainer/Margin/VBox/HeroActionsScroll/HeroActions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "📖 Modes de jeu"
-
 [node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActionsScroll/HeroActions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
@@ -319,7 +312,7 @@ text = "1. Prépare — Un ou plusieurs personnages et un scénario (ou utilise 
 
 [node name="LblStep2" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
 layout_mode = 2
-text = "2. Configure — Format de quête (longue, one-shot, enquête), solo ou multijoueur, MJ IA ou humain."
+text = "2. Configure — Mode aventure ou enquête, solo ou multijoueur, MJ IA ou humain."
 
 [node name="LblStep3" type="Label" parent="ScrollContainer/Margin/VBox/StepsPanel/VBox"]
 layout_mode = 2
@@ -329,132 +322,63 @@ text = "3. Joue — Décris ton action, le MJ répond, les bots jouent après to
 layout_mode = 2
 text = "4. Termine — Sauvegarde automatique de l'historique de tes quêtes."
 
-[node name="ModesPanel" type="PanelContainer" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 32.0
-offset_top = 32.0
-offset_right = -32.0
-offset_bottom = -32.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ModesScroll" type="ScrollContainer" parent="ModesPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll"]
+[node name="ModesCardsPanel" type="VBoxContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="TopHBox" type="HBoxContainer" parent="ModesPanel/ModesScroll/VBox"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="ModesPanel/ModesScroll/VBox/TopHBox"]
+[node name="ModesGrid" type="GridContainer" parent="ScrollContainer/Margin/VBox/ModesCardsPanel"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
-text = "📖 Choisissez un mode de jeu"
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 2
 
-[node name="BtnCloseModes" type="Button" parent="ModesPanel/ModesScroll/VBox/TopHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "✕"
-
-[node name="Grid" type="GridContainer" parent="ModesPanel/ModesScroll/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-columns = 3
-
-[node name="CardLong" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
+[node name="CardAdventure" type="PanelContainer" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong"]
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardAdventure"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
+[node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-text = "🏰 Campagne Longue"
+theme_override_font_sizes/font_size = 16
+text = "⚔️ Aventure"
 
-[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
+[node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 theme_override_font_sizes/font_size = 13
-text = "Grande saga épique en plusieurs chapitres avec progression et exploration."
-autowrap_mode = 2
+text = "One-shots en une session (3–4 h) ou campagnes longues sur plusieurs chapitres — exploration, combat et arcs narratifs."
+autowrap_mode = 3
 
-[node name="BtnModeLong" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Jouer Campagne"
-
-[node name="CardOneshot" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
+[node name="CardInv" type="PanelContainer" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot"]
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardInv"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.266667, 0.666667, 0.6, 1)
-text = "⚔️ One-Shot"
-
-[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Aventure rythmée et autonome en 1 session (3-4h) avec objectif direct."
-autowrap_mode = 2
-
-[node name="BtnModeOneshot" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Jouer One-shot"
-
-[node name="CardInv" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
+[node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
+theme_override_font_sizes/font_size = 16
 text = "🔍 Enquête"
 
-[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
+[node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 theme_override_font_sizes/font_size = 13
-text = "Mystères urbains, interrogatoires, indices et déductions policières."
-autowrap_mode = 2
-
-[node name="BtnModeInvestigation" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Jouer Enquête"
+text = "Mystères urbains, interrogatoires, indices cachés et déductions policières en mode polar."
+autowrap_mode = 3
 
 [node name="ConfirmDeleteResume" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

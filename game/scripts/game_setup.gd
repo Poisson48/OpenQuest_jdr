@@ -50,7 +50,7 @@ func _ready() -> void:
 	if preselected_format.is_empty() and not preselected_id.is_empty():
 		preselected_format = GameData.get_quest_format_for_scenario(preselected_id)
 	if preselected_format.is_empty():
-		preselected_format = "oneshot"
+		preselected_format = "adventure"
 
 	_set_quest_format_option(preselected_format)
 	_populate_data(preselected_id)
@@ -70,12 +70,10 @@ func _ready() -> void:
 
 func _setup_options() -> void:
 	opt_quest_format.clear()
-	opt_quest_format.add_item("📅 Campagne longue", 0)
-	opt_quest_format.set_item_metadata(0, "long")
-	opt_quest_format.add_item("⚡ One-shot", 1)
-	opt_quest_format.set_item_metadata(1, "oneshot")
-	opt_quest_format.add_item("🔍 Mode enquête", 2)
-	opt_quest_format.set_item_metadata(2, "investigation")
+	opt_quest_format.add_item("⚔️ Aventure", 0)
+	opt_quest_format.set_item_metadata(0, "adventure")
+	opt_quest_format.add_item("🔍 Mode enquête", 1)
+	opt_quest_format.set_item_metadata(1, "investigation")
 
 	opt_mode.clear()
 	opt_mode.add_item("Solo (Joueur + Bots éventuels)", 0)
@@ -92,18 +90,29 @@ func _setup_options() -> void:
 	opt_gm.item_selected.connect(_on_gm_type_selected)
 
 func _set_quest_format_option(quest_format: String) -> void:
+	var fmt := quest_format
+	if fmt == "long" or fmt == "oneshot":
+		fmt = "adventure"
 	for i in range(opt_quest_format.item_count):
-		if opt_quest_format.get_item_metadata(i) == quest_format:
+		if opt_quest_format.get_item_metadata(i) == fmt:
 			opt_quest_format.selected = i
-			_current_quest_format = quest_format
+			_current_quest_format = fmt
 			return
-	opt_quest_format.selected = 1
-	_current_quest_format = "oneshot"
+	opt_quest_format.selected = 0
+	_current_quest_format = "adventure"
 
 func _get_quest_format() -> String:
 	if opt_quest_format.selected >= 0:
 		return str(opt_quest_format.get_item_metadata(opt_quest_format.selected))
 	return _current_quest_format
+
+func _get_effective_quest_format() -> String:
+	var fmt := _get_quest_format()
+	if fmt == "adventure":
+		if not _current_scenario_id.is_empty():
+			return GameData.get_quest_format_for_scenario(_current_scenario_id)
+		return "oneshot"
+	return fmt
 
 func _get_gm_type() -> String:
 	if opt_gm.selected >= 0:
@@ -304,7 +313,7 @@ func _refresh_maps_picker(reset_selection: bool = false) -> void:
 		return
 
 	var scn_id: String = opt_scenario.get_item_metadata(opt_scenario.selected)
-	var quest_format: String = _get_quest_format()
+	var quest_format: String = _get_effective_quest_format()
 
 	if reset_selection or selected_map_ids.is_empty():
 		selected_map_ids.clear()
@@ -438,7 +447,8 @@ func _on_start_game_pressed() -> void:
 	var gm_idx := opt_gm.selected
 	var gm_val: String = opt_gm.get_item_metadata(gm_idx)
 
-	var quest_format: String = _get_quest_format()
+	var setup_format: String = _get_quest_format()
+	var quest_format: String = GameData.get_quest_format_for_scenario(scn_id) if setup_format == "adventure" else setup_format
 	var valid_bot_ids: Array = available_bots.map(func(b): return b.get("id", ""))
 
 	var party: Array = []
