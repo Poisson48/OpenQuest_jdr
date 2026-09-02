@@ -18,8 +18,9 @@ var _pending_delete_bot_id: String = ""
 var _last_bot_grid_cols: int = -1
 
 func _ready() -> void:
+	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
 	%BtnHome.pressed.connect(_on_home_pressed)
-	NetworkClient.game_started.connect(_on_remote_game_started)
+	MultiplayerManager.game_started.connect(_on_remote_game_started)
 	
 	# Onglet Aventures
 	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
@@ -530,6 +531,23 @@ func _on_confirm_delete_bot() -> void:
 	GameData.delete_bot(_pending_delete_bot_id)
 	_pending_delete_bot_id = ""
 	_render_bots()
+
+func _wrap_tab_scroll(tab_names: Array) -> void:
+	for tab_name in tab_names:
+		var tab := tab_container.get_node_or_null(tab_name) as MarginContainer
+		if tab == null or tab.get_child_count() == 0:
+			continue
+		var content := tab.get_child(0)
+		if content is ScrollContainer:
+			continue
+		tab.remove_child(content)
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		scroll.add_child(content)
+		tab.add_child(scroll)
 
 func _on_home_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")

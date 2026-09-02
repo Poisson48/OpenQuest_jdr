@@ -78,7 +78,9 @@ game/                          server/
 ├── scripts/
 │   ├── data/                  # Charge les JSON
 │   ├── dice.gd                # Affichage seulement en solo local
-│   └── network_client.gd
+│   ├── multiplayer/
+│   │   └── multiplayer_manager.gd   # Pooling + ENet P2P
+│   └── main_menu.gd
 └── data/                      # Schémas partagés
     ├── characters.schema.json
     ├── scenarios/

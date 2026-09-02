@@ -252,6 +252,18 @@ func client_advance_scene() -> void:
 	if GameData.advance_scene():
 		broadcast_state()
 
+func client_go_to_scene(scene_id: String, reason: String = "") -> void:
+	if not is_p2p_host():
+		return
+	if GameData.go_to_scene(scene_id, reason):
+		broadcast_state()
+
+func client_complete_scenario(reason: String = "") -> void:
+	if not is_p2p_host():
+		return
+	GameData.complete_scenario(reason)
+	broadcast_state()
+
 func client_gm_broadcast(author: String, text: String, log_type: String = "gm") -> void:
 	if not is_p2p_active():
 		return
