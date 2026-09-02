@@ -23,37 +23,67 @@ func _configure_layout() -> void:
 	var dice_section: Control = main_area.get_node("DiceSection")
 	var action_section: Control = main_area.get_node("ActionSection")
 
-	if main_area.has_node("MiddleScroll"):
-		return
+	_remove_legacy_middle_scroll(main_area, log_panel)
 
-	var scroll := ScrollContainer.new()
-	scroll.name = "MiddleScroll"
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	var play_scroll: ScrollContainer
+	if main_area.has_node("PlayScroll"):
+		play_scroll = main_area.get_node("PlayScroll") as ScrollContainer
+	else:
+		play_scroll = ScrollContainer.new()
+		play_scroll.name = "PlayScroll"
+		play_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		play_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		play_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		play_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 
-	var middle := VBoxContainer.new()
-	middle.name = "MiddleVBox"
-	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	middle.add_theme_constant_override("separation", 8)
-	scroll.add_child(middle)
+		var play_vbox := VBoxContainer.new()
+		play_vbox.name = "PlayVBox"
+		play_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		play_vbox.add_theme_constant_override("separation", 8)
+		play_scroll.add_child(play_vbox)
+		main_area.add_child(play_scroll)
+		main_area.move_child(play_scroll, 0)
 
-	main_area.remove_child(log_panel)
-	main_area.remove_child(map_panel)
-	middle.add_child(log_panel)
-	middle.add_child(map_panel)
+	var play_vbox: VBoxContainer = play_scroll.get_node("PlayVBox")
 
-	main_area.add_child(scroll)
-	main_area.move_child(scroll, 0)
+	if map_panel.get_parent() != play_vbox:
+		var map_parent := map_panel.get_parent()
+		if map_parent:
+			map_parent.remove_child(map_panel)
+		play_vbox.add_child(map_panel)
+
+	if log_panel.get_parent() != play_vbox:
+		var log_parent := log_panel.get_parent()
+		if log_parent:
+			log_parent.remove_child(log_panel)
+		play_vbox.add_child(log_panel)
+
+	play_vbox.move_child(map_panel, 0)
+	play_vbox.move_child(log_panel, 1)
+
+	map_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	map_panel.custom_minimum_size = Vector2(0, 320)
+	map_panel.custom_maximum_size = Vector2(100000, 420)
 
 	log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_panel.custom_minimum_size = Vector2(0, 120)
-	map_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	map_panel.custom_maximum_size = Vector2(100000, 220)
+	log_panel.size_flags_stretch_ratio = 1.0
+	log_panel.custom_minimum_size = Vector2(0, 200)
 
 	dice_section.size_flags_vertical = Control.SIZE_SHRINK_END
 	action_section.size_flags_vertical = Control.SIZE_SHRINK_END
+	main_area.move_child(dice_section, main_area.get_child_count() - 2)
+	main_area.move_child(action_section, main_area.get_child_count() - 1)
+
+func _remove_legacy_middle_scroll(main_area: VBoxContainer, log_panel: PanelContainer) -> void:
+	if not main_area.has_node("MiddleScroll"):
+		return
+	var scroll: ScrollContainer = main_area.get_node("MiddleScroll")
+	var middle: VBoxContainer = scroll.get_node("MiddleVBox")
+	if map_panel.get_parent() == middle:
+		middle.remove_child(map_panel)
+	if log_panel.get_parent() == middle:
+		middle.remove_child(log_panel)
+	scroll.queue_free()
 
 func _ready() -> void:
 	_configure_layout()
@@ -278,6 +308,8 @@ func _on_send_action_pressed() -> void:
 		"text": action_text,
 		"time": Time.get_time_string_from_system()
 	})
+	if GameData.try_auto_move_from_action(action_text):
+		map_panel.refresh()
 	if GameData.active_game.get("gmType", "ai") == "ai":
 		_simulate_ai_response(action_text)
 

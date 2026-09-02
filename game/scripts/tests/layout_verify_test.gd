@@ -6,7 +6,7 @@ func _init() -> void:
 func _run() -> void:
 	await process_frame
 	var gd = get_root().get_node("GameData")
-	gd.clear_active_game()
+	gd.clear_all_saved_games()
 	var party := [
 		{ "id": "p1", "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
 		{ "id": "p2", "name": "Sera", "race": "Demi-elfe", "class": "Clerc", "hp": 11, "ac": 15, "isPlayer": false, "isBot": true },

@@ -16,7 +16,7 @@ func _run() -> void:
 	_gd = get_root().get_node("GameData")
 	_md = get_root().get_node("MapData")
 	DirAccess.make_dir_recursive_absolute(SCREENSHOT_DIR)
-	_gd.clear_active_game()
+	_gd.clear_all_saved_games()
 	await process_frame
 
 	await _step("01_menu_accueil", func():

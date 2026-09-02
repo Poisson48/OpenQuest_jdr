@@ -305,18 +305,16 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
-text = "État de la session"
+text = "Parties en cours"
+
+[node name="SavedGamesList" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="HBox" type="HBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
-
-[node name="BtnPlayResume" type="Button" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 44)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "▶ Reprendre la session"
 
 [node name="BtnPlayNew" type="Button" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox/HBox"]
 unique_name_in_owner = true
@@ -365,3 +363,12 @@ size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 2
+
+[node name="ConfirmDeleteSession" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Effacer la partie"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
+ok_button_text = "Effacer"
+cancel_button_text = "Annuler"

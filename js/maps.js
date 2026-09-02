@@ -1269,7 +1269,7 @@ const Maps = {
     const map = this.getById(mapId);
     const isWorld = map && this.isWorldMap(map);
     const min = isWorld ? 0.5 : 0.65;
-    const max = isWorld ? 3 : 2.5;
+    const max = isWorld ? 5 : 4;
     this.sessionMapZoom[mapId] = Math.max(min, Math.min(max, zoom));
   },
 

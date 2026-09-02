@@ -9,7 +9,8 @@ var _session_tool: Dictionary = { "mode": "member", "member_id": "" }
 var _toolbar_container: HBoxContainer
 var _tabs_container: HBoxContainer
 var _nav_bar: HBoxContainer
-var _map_host: Control
+var _map_frame: PanelContainer
+var _map_viewport: Control
 var _interactive_map: Control
 var _title_lbl: Label
 var _hint_lbl: Label
@@ -24,6 +25,7 @@ func _build_ui() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 6)
 	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	add_child(outer)
 
 	var header := HBoxContainer.new()
@@ -39,6 +41,8 @@ func _build_ui() -> void:
 	_tabs_container = HBoxContainer.new()
 	_tabs_container.add_theme_constant_override("separation", 4)
 	header.add_child(_tabs_container)
+
+	_build_zoom_controls(header)
 
 	_nav_bar = HBoxContainer.new()
 	_nav_bar.add_theme_constant_override("separation", 8)
@@ -63,53 +67,73 @@ func _build_ui() -> void:
 	_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer.add_child(_hint_lbl)
 
-	var map_panel := PanelContainer.new()
+	var map_frame := PanelContainer.new()
+	_map_frame = map_frame
 	var map_style := StyleBoxFlat.new()
 	map_style.bg_color = ThemeColors.BG_INPUT
 	map_style.border_color = ThemeColors.BORDER
 	map_style.set_border_width_all(1)
 	map_style.set_corner_radius_all(4)
-	map_panel.add_theme_stylebox_override("panel", map_style)
-	map_panel.custom_minimum_size = Vector2(0, 110)
-	map_panel.custom_maximum_size = Vector2(100000, 150)
-	outer.add_child(map_panel)
+	map_frame.add_theme_stylebox_override("panel", map_style)
+	map_frame.custom_minimum_size = Vector2(0, 320)
+	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	map_frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	map_frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	map_frame.gui_input.connect(_on_map_frame_gui_input)
+	outer.add_child(map_frame)
 
-	_map_host = Control.new()
-	_map_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_map_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_panel.add_child(_map_host)
+	_map_viewport = Control.new()
+	_map_viewport.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_map_viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_viewport.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_map_viewport.clip_contents = true
+	_map_viewport.custom_minimum_size = Vector2(0, 320)
+	map_frame.add_child(_map_viewport)
 
 	_interactive_map = InteractiveMapScript.new()
 	_interactive_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_interactive_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_interactive_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_interactive_map.set_offsets_preset(Control.PRESET_FULL_RECT)
 	_interactive_map.cell_clicked.connect(_on_cell_clicked)
 	_interactive_map.navigation_requested.connect(_on_navigation_requested)
-	_map_host.add_child(_interactive_map)
+	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
+	_map_viewport.add_child(_interactive_map)
 
+func _build_zoom_controls(parent: HBoxContainer) -> void:
 	var zoom_row := HBoxContainer.new()
-	zoom_row.alignment = BoxContainer.ALIGNMENT_END
-	outer.add_child(zoom_row)
+	zoom_row.add_theme_constant_override("separation", 4)
+	zoom_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	parent.add_child(zoom_row)
 
 	var btn_zoom_out := Button.new()
 	btn_zoom_out.text = "−"
-	btn_zoom_out.pressed.connect(func(): _interactive_map.zoom_out(); _update_zoom_label())
+	btn_zoom_out.custom_minimum_size = Vector2(28, 26)
+	btn_zoom_out.add_theme_font_size_override("font_size", 14)
+	btn_zoom_out.tooltip_text = "Dézoomer"
+	btn_zoom_out.pressed.connect(func(): _interactive_map.zoom_out())
 	zoom_row.add_child(btn_zoom_out)
 
 	_zoom_lbl = Label.new()
 	_zoom_lbl.text = "100%"
-	_zoom_lbl.custom_minimum_size = Vector2(48, 0)
+	_zoom_lbl.custom_minimum_size = Vector2(44, 0)
 	_zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zoom_lbl.add_theme_font_size_override("font_size", 12)
+	_zoom_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 	zoom_row.add_child(_zoom_lbl)
 
 	var btn_zoom_in := Button.new()
 	btn_zoom_in.text = "+"
-	btn_zoom_in.pressed.connect(func(): _interactive_map.zoom_in(); _update_zoom_label())
+	btn_zoom_in.custom_minimum_size = Vector2(28, 26)
+	btn_zoom_in.add_theme_font_size_override("font_size", 14)
+	btn_zoom_in.tooltip_text = "Zoomer"
+	btn_zoom_in.pressed.connect(func(): _interactive_map.zoom_in())
 	zoom_row.add_child(btn_zoom_in)
 
 	var btn_zoom_reset := Button.new()
-	btn_zoom_reset.text = "Reset"
-	btn_zoom_reset.pressed.connect(func(): _interactive_map.reset_zoom(); _update_zoom_label())
+	btn_zoom_reset.text = "⟲"
+	btn_zoom_reset.custom_minimum_size = Vector2(28, 26)
+	btn_zoom_reset.add_theme_font_size_override("font_size", 14)
+	btn_zoom_reset.tooltip_text = "Réinitialiser le zoom"
+	btn_zoom_reset.pressed.connect(func(): _interactive_map.reset_zoom())
 	zoom_row.add_child(btn_zoom_reset)
 
 func refresh() -> void:
@@ -236,9 +260,9 @@ func _render_active_map(state: Dictionary) -> void:
 	if nav_ctx.get("mode") == "local":
 		_hint_lbl.text = "Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde."
 	elif is_world:
-		_hint_lbl.text = "Clique sur une ville liée 🌀 pour entrer · glisser pour déplacer · molette pour zoomer."
+		_hint_lbl.text = "Clique sur une ville liée 🌀 pour entrer · glisser pour déplacer · molette ou +/− pour zoomer."
 	else:
-		_hint_lbl.text = "Glisser pour déplacer la carte · molette pour zoomer."
+		_hint_lbl.text = "Glisser pour déplacer · molette ou +/− pour zoomer · ⟲ pour tout afficher."
 
 func _render_nav_bar(nav_ctx: Dictionary) -> void:
 	for child in _nav_bar.get_children():
@@ -292,6 +316,12 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 	_interactive_map.set_session_tool(tool.get("mode", "member"), tool)
 	_update_zoom_label()
 
+func _on_map_frame_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_map_frame.accept_event()
+
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():
 		return ""
@@ -332,7 +362,7 @@ func _on_navigation_requested(action: String, data: Dictionary) -> void:
 
 func _update_zoom_label() -> void:
 	if _interactive_map:
-		_zoom_lbl.text = "%d%%" % int(_interactive_map.zoom * 100)
+		_zoom_lbl.text = "%d%%" % int(round(_interactive_map.zoom * 100.0))
 
 func _member_emoji(member: Dictionary, quest_format: String) -> String:
 	if member.get("isBot", false):
