@@ -308,6 +308,16 @@ func go_to_game_setup(quest_format: String = "", scenario_id: String = "") -> vo
 		get_tree().set_meta("preselected_scenario_id", scenario_id)
 	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
 
+func go_to_character_editor(roster: String = "") -> void:
+	if roster == "general" or roster == "investigation":
+		get_tree().set_meta("preselected_roster", roster)
+	get_tree().change_scene_to_file("res://scenes/character_editor.tscn")
+
+func go_to_scenario_list(mode: String = "") -> void:
+	if not mode.is_empty():
+		get_tree().set_meta("preselected_scenario_mode", mode)
+	get_tree().change_scene_to_file("res://scenes/scenario_list.tscn")
+
 func save_scenario(scenario_dict: Dictionary) -> void:
 	if not scenario_dict.has("id") or scenario_dict["id"].is_empty():
 		scenario_dict["id"] = generate_id("scn")

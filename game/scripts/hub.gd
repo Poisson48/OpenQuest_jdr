@@ -21,14 +21,14 @@ func _ready() -> void:
 	%BtnHome.pressed.connect(_on_home_pressed)
 	
 	# Onglet Aventures
-	%BtnAdvNewChar.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
-	%BtnAdvAllChars.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
-	%BtnAdvScenarios.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/scenario_list.tscn"))
+	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
+	%BtnAdvAllChars.pressed.connect(func(): GameData.go_to_character_editor("general"))
+	%BtnAdvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
 	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
 
 	# Onglet Enquête
-	%BtnInvNewChar.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
-	%BtnInvScenarios.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/scenario_list.tscn"))
+	%BtnInvNewChar.pressed.connect(func(): GameData.go_to_character_editor("investigation"))
+	%BtnInvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
 	%BtnInvPlay.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
 
 	# Onglet Jouer
