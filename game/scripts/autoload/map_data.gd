@@ -15,6 +15,9 @@ const MARKERS := {
 }
 
 var maps: Array = []
+var preview_map_id: String = ""
+var editor_mode: String = "preview"
+var pending_link_target_id: String = ""
 var _tile_defs: Dictionary = {}
 
 func _ready() -> void:
@@ -118,6 +121,146 @@ func get_marker_label(marker_type: String) -> String:
 		"witness": "Témoin", "crime": "Scène de crime",
 	}
 	return labels.get(marker_type, marker_type.capitalize())
+
+func get_maps_by_category(category: String) -> Array:
+	var result: Array = []
+	for m in maps:
+		match category:
+			"world":
+				if is_world_map(m):
+					result.append(m)
+			"investigation":
+				if not is_world_map(m) and m.get("roster", "") == "investigation":
+					result.append(m)
+			"adventure":
+				if not is_world_map(m) and m.get("roster", "general") != "investigation":
+					result.append(m)
+	return result
+
+func sort_maps(list: Array, sort_mode: String) -> Array:
+	var copy: Array = list.duplicate()
+	copy.sort_custom(func(a, b):
+		match sort_mode:
+			"title_desc":
+				return str(a.get("title", "")).to_lower() > str(b.get("title", "")).to_lower()
+			"size_desc":
+				var area_a: int = int(a.get("width", 0)) * int(a.get("height", 0))
+				var area_b: int = int(b.get("width", 0)) * int(b.get("height", 0))
+				return area_a > area_b
+			"scenario":
+				var sa: String = str(a.get("scenarioId", ""))
+				var sb: String = str(b.get("scenarioId", ""))
+				if sa == sb:
+					return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower()
+				return sa < sb
+			_:
+				return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower()
+	)
+	return copy
+
+func create_blank_map(title: String, roster: String, map_kind: String) -> Dictionary:
+	var is_world := map_kind == "world"
+	var w: int = 48 if is_world else 16
+	var h: int = 32 if is_world else 12
+	var fill_tile := "grass" if is_world else "floor"
+	if roster == "investigation" and not is_world:
+		fill_tile = "floor"
+	var tiles: Array = []
+	tiles.resize(w * h)
+	tiles.fill(fill_tile)
+	var map := {
+		"id": "map-%d" % Time.get_unix_time_from_system(),
+		"title": title,
+		"description": "",
+		"roster": roster,
+		"mapKind": map_kind,
+		"scenarioId": "",
+		"width": w,
+		"height": h,
+		"tiles": tiles,
+		"markers": [],
+		"locationLinks": [],
+	}
+	maps.append(map)
+	save_maps()
+	return map
+
+func delete_map(map_id: String) -> void:
+	maps = maps.filter(func(m): return m.get("id", "") != map_id)
+	save_maps()
+
+func update_map(map_data: Dictionary) -> void:
+	var map_id: String = map_data.get("id", "")
+	if map_id.is_empty():
+		return
+	for i in range(maps.size()):
+		if maps[i].get("id") == map_id:
+			maps[i] = map_data
+			save_maps()
+			return
+
+func get_tile_palette(map_data: Dictionary) -> Dictionary:
+	var kind := "local"
+	if map_data.get("roster") == "investigation":
+		kind = "investigation"
+	elif is_world_map(map_data):
+		kind = "world"
+	if _tile_defs.has(kind):
+		return _tile_defs[kind]
+	return {}
+
+func get_editor_marker_types(map_data: Dictionary) -> Array:
+	if is_world_map(map_data):
+		return ["capital", "city", "dungeon", "quest", "camp", "ruin", "danger"]
+	if map_data.get("roster") == "investigation":
+		return ["detective", "suspect", "evidence", "witness", "crime", "poi", "danger"]
+	return ["npc", "poi", "danger", "treasure", "exit"]
+
+func get_local_maps_for_linking(roster: String) -> Array:
+	var result: Array = []
+	for m in maps:
+		if is_world_map(m):
+			continue
+		if roster == "investigation":
+			if m.get("roster", "") != "investigation":
+				continue
+		elif m.get("roster", "") == "investigation":
+			continue
+		result.append(m)
+	result.sort_custom(func(a, b): return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower())
+	return result
+
+func get_world_maps_for_roster(roster: String) -> Array:
+	var result: Array = []
+	for m in maps:
+		if not is_world_map(m):
+			continue
+		if roster == "investigation":
+			if m.get("roster", "") != "investigation":
+				continue
+		elif m.get("roster", "") == "investigation":
+			continue
+		result.append(m)
+	result.sort_custom(func(a, b): return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower())
+	return result
+
+func get_world_links_to_map(local_map_id: String) -> Array:
+	var result: Array = []
+	if local_map_id.is_empty():
+		return result
+	for m in maps:
+		if not is_world_map(m):
+			continue
+		for link in m.get("locationLinks", []):
+			if link.get("targetMapId", "") == local_map_id:
+				result.append({
+					"worldMapId": m.get("id", ""),
+					"worldTitle": m.get("title", "Carte monde"),
+					"x": link.get("x", 0),
+					"y": link.get("y", 0),
+					"label": link.get("label", ""),
+				})
+	return result
 
 func get_location_link_at(map_data: Dictionary, x: int, y: int) -> Dictionary:
 	for link in map_data.get("locationLinks", []):

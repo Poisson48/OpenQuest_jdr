@@ -145,21 +145,20 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
-custom_minimum_size = Vector2(0, 320)
-custom_maximum_size = Vector2(100000, 420)
+custom_minimum_size = Vector2(0, 450)
 script = ExtResource("3_map_panel")
 
 [node name="LogPanel" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 200)
-size_flags_stretch_ratio = 1.0
+size_flags_vertical = 0
+custom_minimum_size = Vector2(0, 320)
+size_flags_stretch_ratio = 0.0
 
 [node name="LogVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/LogPanel"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
+size_flags_vertical = 0
 theme_override_constants/separation = 0
 
 [node name="LblHistoire" type="Label" parent="MainLayout/ContentSplit/MainGameArea/LogPanel/LogVBox"]
@@ -172,10 +171,10 @@ text = "📜 Histoire"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
+size_flags_vertical = 0
 bbcode_enabled = true
 scroll_following = true
-scroll_active = true
+scroll_active = false
 autowrap_mode = 3
 
 [node name="DiceSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]

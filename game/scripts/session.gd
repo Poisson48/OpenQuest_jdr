@@ -24,55 +24,58 @@ func _configure_layout() -> void:
 	var action_section: Control = main_area.get_node("ActionSection")
 
 	_remove_legacy_middle_scroll(main_area, log_panel)
+	_ensure_session_scroll(main_area)
 
-	var play_scroll: ScrollContainer
-	if main_area.has_node("PlayScroll"):
-		play_scroll = main_area.get_node("PlayScroll") as ScrollContainer
-	else:
-		play_scroll = ScrollContainer.new()
-		play_scroll.name = "PlayScroll"
-		play_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		play_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		play_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		play_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-
-		var play_vbox := VBoxContainer.new()
-		play_vbox.name = "PlayVBox"
-		play_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		play_vbox.add_theme_constant_override("separation", 8)
-		play_scroll.add_child(play_vbox)
-		main_area.add_child(play_scroll)
-		main_area.move_child(play_scroll, 0)
-
-	var play_vbox: VBoxContainer = play_scroll.get_node("PlayVBox")
-
-	if map_panel.get_parent() != play_vbox:
-		var map_parent := map_panel.get_parent()
-		if map_parent:
-			map_parent.remove_child(map_panel)
-		play_vbox.add_child(map_panel)
-
-	if log_panel.get_parent() != play_vbox:
-		var log_parent := log_panel.get_parent()
-		if log_parent:
-			log_parent.remove_child(log_panel)
-		play_vbox.add_child(log_panel)
-
-	play_vbox.move_child(map_panel, 0)
-	play_vbox.move_child(log_panel, 1)
+	var session_scroll: ScrollContainer = main_area.get_node("SessionScroll") as ScrollContainer
+	var session_vbox: VBoxContainer = session_scroll.get_node("SessionVBox") as VBoxContainer
+	var ordered: Array = [map_panel, log_panel, dice_section, action_section]
+	for i in range(ordered.size()):
+		var node: Control = ordered[i] as Control
+		if node.get_parent() != session_vbox:
+			if node.get_parent():
+				node.get_parent().remove_child(node)
+			session_vbox.add_child(node)
+		session_vbox.move_child(node, i)
 
 	map_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	map_panel.custom_minimum_size = Vector2(0, 320)
-	map_panel.custom_maximum_size = Vector2(100000, 420)
+	map_panel.custom_minimum_size = Vector2(0, 450)
 
-	log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_panel.size_flags_stretch_ratio = 1.0
-	log_panel.custom_minimum_size = Vector2(0, 200)
+	log_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	log_panel.size_flags_stretch_ratio = 0.0
+	log_panel.custom_minimum_size = Vector2(0, 320)
 
-	dice_section.size_flags_vertical = Control.SIZE_SHRINK_END
-	action_section.size_flags_vertical = Control.SIZE_SHRINK_END
-	main_area.move_child(dice_section, main_area.get_child_count() - 2)
-	main_area.move_child(action_section, main_area.get_child_count() - 1)
+	dice_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	action_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	_configure_log_readability()
+
+func _ensure_session_scroll(main_area: VBoxContainer) -> void:
+	if main_area.has_node("PlayScroll"):
+		var play_scroll: ScrollContainer = main_area.get_node("PlayScroll")
+		var play_vbox: VBoxContainer = play_scroll.get_node("PlayVBox")
+		while play_vbox.get_child_count() > 0:
+			var child: Node = play_vbox.get_child(0)
+			play_vbox.remove_child(child)
+			main_area.add_child(child)
+		play_scroll.queue_free()
+
+	if main_area.has_node("SessionScroll"):
+		return
+
+	var session_scroll := ScrollContainer.new()
+	session_scroll.name = "SessionScroll"
+	session_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	session_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	session_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	session_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+
+	var session_vbox := VBoxContainer.new()
+	session_vbox.name = "SessionVBox"
+	session_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	session_vbox.add_theme_constant_override("separation", 8)
+	session_scroll.add_child(session_vbox)
+	main_area.add_child(session_scroll)
+	main_area.move_child(session_scroll, 0)
 
 func _remove_legacy_middle_scroll(main_area: VBoxContainer, log_panel: PanelContainer) -> void:
 	if not main_area.has_node("MiddleScroll"):
@@ -84,6 +87,48 @@ func _remove_legacy_middle_scroll(main_area: VBoxContainer, log_panel: PanelCont
 	if log_panel.get_parent() == middle:
 		middle.remove_child(log_panel)
 	scroll.queue_free()
+
+func _configure_log_readability() -> void:
+	var log_vbox := log_label.get_parent() as VBoxContainer
+	if log_vbox:
+		log_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	log_label.scroll_active = false
+	log_label.fit_content = false
+	log_label.add_theme_font_size_override("normal_font_size", 15)
+	log_label.add_theme_color_override("default_color", ThemeColors.TEXT)
+	log_label.add_theme_constant_override("line_separation", 6)
+
+	var log_panel_node: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
+	if log_panel_node:
+		var style := StyleBoxFlat.new()
+		style.bg_color = ThemeColors.BG_INPUT
+		style.border_color = ThemeColors.BORDER
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 14
+		style.content_margin_right = 14
+		style.content_margin_top = 10
+		style.content_margin_bottom = 12
+		log_panel_node.add_theme_stylebox_override("panel", style)
+
+	if log_vbox:
+		var title_lbl := log_vbox.get_node_or_null("LblHistoire") as Label
+		if title_lbl:
+			title_lbl.add_theme_font_size_override("font_size", 15)
+
+func _sync_log_layout() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var content_h := int(log_label.get_content_height())
+	var body_h := maxi(280, content_h + 28)
+	log_label.custom_minimum_size = Vector2(0, body_h)
+	var log_panel_node: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
+	if log_panel_node:
+		log_panel_node.custom_minimum_size = Vector2(0, body_h + 52)
 
 func _ready() -> void:
 	_configure_layout()
@@ -97,24 +142,7 @@ func _ready() -> void:
 	
 	%BtnGmSend.pressed.connect(_on_gm_send_pressed)
 	
-	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	log_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.scroll_active = true
-	log_label.add_theme_constant_override("line_separation", 4)
-	
-	var log_panel: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
-	if log_panel:
-		var style := StyleBoxFlat.new()
-		style.bg_color = ThemeColors.BG_INPUT
-		style.border_color = ThemeColors.BORDER
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(4)
-		style.content_margin_left = 10
-		style.content_margin_right = 10
-		style.content_margin_top = 8
-		style.content_margin_bottom = 8
-		log_panel.add_theme_stylebox_override("panel", style)
+	_configure_log_readability()
 	
 	_setup_quick_dice_buttons()
 	_setup_suggestion_buttons()
@@ -254,12 +282,18 @@ func _render_log() -> void:
 	var log_entries: Array = GameData.active_game.get("log", [])
 	for entry in log_entries:
 		_append_log_entry_bbcode(entry)
-	
-	# Fait défiler jusqu'en bas
+	call_deferred("_sync_log_layout")
+	call_deferred("_scroll_session_to_bottom")
+
+func _scroll_session_to_bottom() -> void:
 	await get_tree().process_frame
-	var v_scroll = log_label.get_v_scroll_bar()
-	if v_scroll:
-		v_scroll.value = v_scroll.max_value
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	if not main_area.has_node("SessionScroll"):
+		return
+	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
+	var bar := scroll.get_v_scroll_bar()
+	if bar:
+		bar.value = bar.max_value
 
 func _append_log_entry_bbcode(entry: Dictionary) -> void:
 	var author: String = entry.get("author", "Inconnu")
@@ -280,10 +314,12 @@ func _append_log_entry_bbcode(entry: Dictionary) -> void:
 		"dice":
 			author_color = ThemeColors.get_bbcode_color(ThemeColors.GOLD_LIGHT)
 			
-	var formatted := "[color=#%s][b]%s[/b][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n%s\n\n" % [
+	var formatted := "[color=#%s][font_size=15][b]%s[/b][/font_size][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n[font_size=15]%s[/font_size]\n\n" % [
 		author_color, author, time, text
 	]
 	log_label.append_text(formatted)
+	call_deferred("_sync_log_layout")
+	call_deferred("_scroll_session_to_bottom")
 
 func _on_send_action_pressed() -> void:
 	var action_text := input_action.text.strip_edges()

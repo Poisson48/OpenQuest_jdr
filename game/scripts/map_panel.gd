@@ -2,6 +2,10 @@ extends PanelContainer
 
 signal map_changed
 
+const TOOL_ICON_FONT_SIZE := 22
+const TOOL_ICON_BUTTON_SIZE := Vector2(48, 44)
+const TOOL_TEXT_FONT_SIZE := 14
+
 const InteractiveMapScript := preload("res://scripts/interactive_map.gd")
 
 var _active_map_id: String = ""
@@ -10,7 +14,6 @@ var _toolbar_container: HBoxContainer
 var _tabs_container: HBoxContainer
 var _nav_bar: HBoxContainer
 var _map_frame: PanelContainer
-var _map_viewport: Control
 var _interactive_map: Control
 var _title_lbl: Label
 var _hint_lbl: Label
@@ -25,7 +28,7 @@ func _build_ui() -> void:
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 6)
 	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(outer)
 
 	var header := HBoxContainer.new()
@@ -53,11 +56,12 @@ func _build_ui() -> void:
 	toolbar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	toolbar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	toolbar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toolbar_scroll.custom_minimum_size = Vector2(0, 52)
 	outer.add_child(toolbar_scroll)
 
 	_toolbar_container = HBoxContainer.new()
-	_toolbar_container.add_theme_constant_override("separation", 4)
-	_toolbar_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_toolbar_container.add_theme_constant_override("separation", 6)
+	_toolbar_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	toolbar_scroll.add_child(_toolbar_container)
 
 	_hint_lbl = Label.new()
@@ -77,26 +81,17 @@ func _build_ui() -> void:
 	map_frame.add_theme_stylebox_override("panel", map_style)
 	map_frame.custom_minimum_size = Vector2(0, 320)
 	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	map_frame.mouse_filter = Control.MOUSE_FILTER_STOP
-	map_frame.gui_input.connect(_on_map_frame_gui_input)
+	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(map_frame)
 
-	_map_viewport = Control.new()
-	_map_viewport.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_map_viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_map_viewport.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_map_viewport.clip_contents = true
-	_map_viewport.custom_minimum_size = Vector2(0, 320)
-	map_frame.add_child(_map_viewport)
-
 	_interactive_map = InteractiveMapScript.new()
-	_interactive_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_interactive_map.set_offsets_preset(Control.PRESET_FULL_RECT)
+	_interactive_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_interactive_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_interactive_map.custom_minimum_size = Vector2(280, 300)
 	_interactive_map.cell_clicked.connect(_on_cell_clicked)
 	_interactive_map.navigation_requested.connect(_on_navigation_requested)
 	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
-	_map_viewport.add_child(_interactive_map)
+	map_frame.add_child(_interactive_map)
 
 func _build_zoom_controls(parent: HBoxContainer) -> void:
 	var zoom_row := HBoxContainer.new()
@@ -172,6 +167,8 @@ func _render_tabs(map_ids: Array) -> void:
 		var kind := "Monde" if MapData.is_world_map(m) else "Scène"
 		btn.text = "%s · %s" % [kind, m.get("title", map_id)]
 		btn.toggle_mode = true
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.custom_minimum_size = Vector2(0, 34)
 		btn.button_pressed = map_id == _get_active_map_id(map_ids)
 		var captured_id: String = map_id
 		btn.pressed.connect(func():
@@ -198,7 +195,7 @@ func _render_toolbar(state: Dictionary) -> void:
 	for member in party:
 		var mid: String = member.get("id", "")
 		var em := _member_emoji(member, quest_format)
-		var btn := _make_tool_button(em)
+		var btn := _make_tool_button(em, true)
 		btn.tooltip_text = member.get("name", "")
 		btn.button_pressed = _session_tool.get("mode") == "member" and _session_tool.get("member_id") == mid
 		btn.pressed.connect(func():
@@ -210,7 +207,7 @@ func _render_toolbar(state: Dictionary) -> void:
 
 	for marker_type in MapData.get_session_marker_types(quest_format, display_map):
 		var em := MapData.get_marker_emoji(marker_type)
-		var btn := _make_tool_button(em)
+		var btn := _make_tool_button(em, true)
 		btn.tooltip_text = MapData.get_marker_label(marker_type)
 		btn.button_pressed = _session_tool.get("mode") == "marker" and _session_tool.get("marker_type") == marker_type
 		var captured_type: String = marker_type
@@ -221,7 +218,7 @@ func _render_toolbar(state: Dictionary) -> void:
 		)
 		_toolbar_container.add_child(btn)
 
-	var erase_btn := _make_tool_button("🧹 Effacer")
+	var erase_btn := _make_tool_button("🧹 Effacer", false)
 	erase_btn.button_pressed = _session_tool.get("mode") == "erase"
 	erase_btn.pressed.connect(func():
 		_session_tool = { "mode": "erase" }
@@ -230,12 +227,16 @@ func _render_toolbar(state: Dictionary) -> void:
 	)
 	_toolbar_container.add_child(erase_btn)
 
-func _make_tool_button(text: String) -> Button:
+func _make_tool_button(text: String, icon_only: bool = false) -> Button:
 	var btn := Button.new()
 	btn.text = text
 	btn.toggle_mode = true
-	btn.add_theme_font_size_override("font_size", 12)
-	btn.custom_minimum_size = Vector2(32, 28)
+	if icon_only:
+		btn.add_theme_font_size_override("font_size", TOOL_ICON_FONT_SIZE)
+		btn.custom_minimum_size = TOOL_ICON_BUTTON_SIZE
+	else:
+		btn.add_theme_font_size_override("font_size", TOOL_TEXT_FONT_SIZE)
+		btn.custom_minimum_size = Vector2(96, 44)
 	return btn
 
 func _render_active_map(state: Dictionary) -> void:
@@ -315,12 +316,15 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 	)
 	_interactive_map.set_session_tool(tool.get("mode", "member"), tool)
 	_update_zoom_label()
+	call_deferred("_sync_map_viewport_size")
 
-func _on_map_frame_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_map_frame.accept_event()
+func _sync_map_viewport_size() -> void:
+	if _interactive_map == null or _map_frame == null:
+		return
+	var frame_h := int(_map_frame.size.y)
+	var frame_w := int(_map_frame.size.x)
+	if frame_h > 32 and frame_w > 32:
+		_interactive_map.custom_minimum_size = Vector2(maxi(280, frame_w - 4), maxi(300, frame_h - 4))
 
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():

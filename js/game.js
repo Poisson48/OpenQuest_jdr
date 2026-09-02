@@ -2197,7 +2197,10 @@ const Game = {
         <div class="log-text">${this.formatLogText(entry.text)}</div>
       </div>
     `).join('');
-    log.scrollTop = log.scrollHeight;
+    const layout = document.querySelector('#game-session .game-layout');
+    if (layout) {
+      layout.scrollTop = layout.scrollHeight;
+    }
   },
 
   formatLogText(text) {

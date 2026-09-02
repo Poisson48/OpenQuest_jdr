@@ -9,6 +9,7 @@ const MIN_CELL := 6
 const MAX_CELL := 64
 const MIN_ZOOM := 0.5
 const MAX_ZOOM := 5.0
+const DRAG_THRESHOLD := 5.0
 
 var map_data: Dictionary = {}
 var tokens: Array = []
@@ -25,6 +26,8 @@ var pan_offset: Vector2 = Vector2.ZERO
 var _loaded_map_id: String = ""
 
 var _dragging: bool = false
+var _pending_click: bool = false
+var _press_cell: Vector2i = Vector2i(-1, -1)
 var _drag_start: Vector2 = Vector2.ZERO
 var _pan_start: Vector2 = Vector2.ZERO
 var _base_cell: int = 16
@@ -168,15 +171,18 @@ func _draw() -> void:
 
 			if link.has("targetMapId") and token.is_empty():
 				_draw_centered_text(rect, "🌀", cs)
+				var link_label: String = str(link.get("label", "")).strip_edges()
+				if link_label.length() > 0 and cs >= 14:
+					_draw_centered_text(rect, link_label.substr(0, mini(6, link_label.length())), cs, 0.35)
 			elif static_mk and token.is_empty():
 				_draw_centered_text(rect, MapData.get_marker_emoji(static_mk.get("type", "")), cs)
 			if not token.is_empty():
 				_draw_token(rect, token, cs)
 
-func _draw_centered_text(rect: Rect2, text: String, cs: int) -> void:
+func _draw_centered_text(rect: Rect2, text: String, cs: int, y_ratio: float = 0.7) -> void:
 	var font := ThemeDB.fallback_font
 	var fs := maxi(10, int(cs * 0.55))
-	draw_string(font, rect.position + Vector2(cs * 0.15, cs * 0.7), text, HORIZONTAL_ALIGNMENT_LEFT, cs, fs)
+	draw_string(font, rect.position + Vector2(cs * 0.15, cs * y_ratio), text, HORIZONTAL_ALIGNMENT_LEFT, cs, fs)
 
 func _draw_token(rect: Rect2, token: Dictionary, cs: int) -> void:
 	var pad := 2.0
@@ -223,24 +229,38 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				var cell: Vector2i = _pos_to_cell(mb.position)
-				if cell.x >= 0:
-					_handle_cell_click(cell.x, cell.y)
-				else:
-					_dragging = true
-					_drag_start = mb.position
-					_pan_start = pan_offset
-			else:
 				_dragging = false
+				_pending_click = true
+				_press_cell = _pos_to_cell(mb.position)
+				_drag_start = mb.position
+				_pan_start = pan_offset
+				accept_event()
+			else:
+				if _pending_click and not _dragging and _press_cell.x >= 0:
+					_handle_cell_click(_press_cell.x, _press_cell.y)
+				_dragging = false
+				_pending_click = false
+				accept_event()
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = mb.pressed
+			_pending_click = false
 			if mb.pressed:
 				_drag_start = mb.position
 				_pan_start = pan_offset
-	elif event is InputEventMouseMotion and _dragging:
-		pan_offset = _pan_start + (event.position - _drag_start)
-		_clamp_pan()
-		queue_redraw()
+				accept_event()
+			else:
+				accept_event()
+	elif event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		if _pending_click and not _dragging:
+			if _drag_start.distance_to(motion.position) >= DRAG_THRESHOLD:
+				_dragging = true
+				_pending_click = false
+		if _dragging:
+			pan_offset = _pan_start + (motion.position - _drag_start)
+			_clamp_pan()
+			queue_redraw()
+			accept_event()
 
 func _pos_to_cell(pos: Vector2) -> Vector2i:
 	var cs := get_cell_size()
