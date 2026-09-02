@@ -84,6 +84,8 @@ func _setup_options() -> void:
 	opt_gm.set_item_metadata(0, "ai")
 	opt_gm.add_item("👤 Maître du Jeu Humain", 1)
 	opt_gm.set_item_metadata(1, "human")
+	opt_gm.selected = 1
+	opt_gm.item_selected.connect(_on_gm_type_selected)
 
 func _set_quest_format_option(quest_format: String) -> void:
 	for i in range(opt_quest_format.item_count):
@@ -98,6 +100,17 @@ func _get_quest_format() -> String:
 	if opt_quest_format.selected >= 0:
 		return str(opt_quest_format.get_item_metadata(opt_quest_format.selected))
 	return _current_quest_format
+
+func _get_gm_type() -> String:
+	if opt_gm.selected >= 0:
+		return str(opt_gm.get_item_metadata(opt_gm.selected))
+	return "human"
+
+func _host_plays_character() -> bool:
+	return not _is_joiner and _get_gm_type() == "ai"
+
+func _on_gm_type_selected(_idx: int) -> void:
+	_apply_host_joiner_ui()
 
 func _populate_data(preselected_id: String = "") -> void:
 	_refresh_for_quest_format(true)
@@ -225,9 +238,37 @@ func _apply_host_joiner_ui() -> void:
 	elif _is_pooling_host:
 		%BtnStartGame.visible = true
 		%BtnStartGame.text = "🚀 Lancer l'Aventure (P2P) !"
+		opt_scenario.disabled = false
+		opt_mode.disabled = false
+		spin_party_size.editable = true
+		for child in bots_container.get_children():
+			child.disabled = false
+		for i in range(opt_gm.item_count):
+			if opt_gm.get_item_metadata(i) == "human":
+				opt_gm.selected = i
+				break
+		opt_gm.disabled = true
 	else:
 		%BtnStartGame.visible = true
 		%BtnStartGame.text = "🚀 Lancer l'Aventure !"
+		opt_scenario.disabled = false
+		opt_mode.disabled = false
+		opt_gm.disabled = false
+		spin_party_size.editable = true
+		for child in bots_container.get_children():
+			child.disabled = false
+
+	var show_main_char := _host_plays_character()
+	%LblMainChar.visible = show_main_char
+	opt_main_char.visible = show_main_char
+	if _is_pooling_host and not show_main_char:
+		%LblMainChar.text = "Les joueurs choisissent leur personnage dans le salon."
+		%LblMainChar.visible = true
+	elif not show_main_char and not _is_joiner:
+		%LblMainChar.text = "MJ humain — vous ne jouez pas de personnage."
+		%LblMainChar.visible = true
+	else:
+		%LblMainChar.text = "Votre Personnage principal :"
 
 func _on_lobby_updated(_host_id: String, _players: Array) -> void:
 	_apply_host_joiner_ui()
@@ -404,7 +445,7 @@ func _on_start_game_pressed() -> void:
 
 	var party: Array = []
 
-	if not available_chars.is_empty() and opt_main_char.selected >= 0:
+	if _host_plays_character() and not available_chars.is_empty() and opt_main_char.selected >= 0:
 		var char_id: String = opt_main_char.get_item_metadata(opt_main_char.selected)
 		if not char_id.is_empty():
 			var main_char := GameData.get_character_by_id(char_id)
@@ -416,7 +457,7 @@ func _on_start_game_pressed() -> void:
 				if MultiplayerManager.is_in_room():
 					member["clientId"] = MultiplayerManager.player_id
 				party.append(member)
-	if party.is_empty():
+	if party.is_empty() and _host_plays_character():
 		party.append(_build_character_from_option(opt_main_char))
 
 	for bot_id in selected_bot_ids:
@@ -442,8 +483,9 @@ func _on_start_game_pressed() -> void:
 
 	if _is_pooling_host or (MultiplayerManager.is_p2p_host() and get_tree().has_meta("pooling_p2p_host")):
 		get_tree().remove_meta("pooling_p2p_host")
-		party[0]["clientId"] = MultiplayerManager.player_id
-		MultiplayerManager.register_character(party[0])
+		if not party.is_empty() and _host_plays_character():
+			party[0]["clientId"] = MultiplayerManager.player_id
+			MultiplayerManager.register_character(party[0])
 		_waiting_server_start = true
 		%BtnStartGame.disabled = true
 		%BtnStartGame.text = "⏳ Lancement P2P..."
@@ -452,7 +494,8 @@ func _on_start_game_pressed() -> void:
 
 
 	if NetworkClient.is_server_connected():
-		NetworkClient.register_character(party[0])
+		if not party.is_empty() and _host_plays_character():
+			NetworkClient.register_character(party[0])
 		_waiting_server_start = true
 		%BtnStartGame.disabled = true
 		%BtnStartGame.text = "⏳ Lancement via serveur..."

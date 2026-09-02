@@ -17,6 +17,7 @@ extends Control
 @onready var pooling_players_vbox: VBoxContainer = %PoolingPlayersVBox
 @onready var opt_pooling_char: OptionButton = %OptPoolingChar
 @onready var opt_pooling_role: OptionButton = %OptPoolingRole
+@onready var btn_pooling_register_char: Button = %BtnPoolingRegisterChar
 @onready var btn_create_room: Button = %BtnCreateRoom
 @onready var btn_join_room: Button = %BtnJoinRoom
 @onready var btn_rejoin_room: Button = %BtnRejoinRoom
@@ -120,6 +121,8 @@ func _update_pooling_role_ui() -> void:
 	btn_join_room.disabled = is_mj or in_room or not connected
 	btn_rejoin_room.disabled = is_mj or in_room or MultiplayerManager.last_room_code.is_empty() or not connected
 	room_code_input.editable = not is_mj and not in_room
+	opt_pooling_char.get_parent().visible = not is_mj
+	btn_pooling_register_char.visible = not is_mj
 	if not MultiplayerManager.last_room_code.is_empty() and room_code_input.text.is_empty():
 		room_code_input.text = MultiplayerManager.last_room_code
 

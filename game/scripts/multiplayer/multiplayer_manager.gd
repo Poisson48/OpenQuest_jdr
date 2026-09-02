@@ -388,10 +388,6 @@ func _merge_party_with_room(host_party: Array) -> Array:
 	for room_player in get_room_players():
 		var pid: String = room_player.get("playerId", "")
 		if room_player.get("isGm", false):
-			for i in range(merged.size()):
-				if merged[i].get("clientId", "") == pid or (merged[i].get("isPlayer", false) and pid == player_id):
-					merged[i]["clientId"] = pid
-					break
 			continue
 		var char_data: Dictionary = room_player.get("character", {})
 		if char_data.is_empty():
@@ -414,21 +410,18 @@ func _merge_party_with_room(host_party: Array) -> Array:
 func _build_party_from_room() -> Array:
 	var party: Array = []
 	for room_player in get_room_players():
+		if room_player.get("isGm", false):
+			continue
 		var char_data: Dictionary = room_player.get("character", {})
 		if char_data.is_empty():
-			if room_player.get("isGm", false):
-				var gm_char := GameData.create_blank_character()
-				gm_char["name"] = room_player.get("playerName", "MJ")
-				char_data = gm_char
-			else:
-				continue
+			continue
 		var member: Dictionary = char_data.duplicate(true)
-		member["isPlayer"] = not room_player.get("isGm", false)
+		member["isPlayer"] = true
 		member["isHuman"] = true
 		member["isBot"] = false
 		member["clientId"] = room_player.get("playerId", "")
 		party.append(member)
-	if party.is_empty():
+	if party.is_empty() and not is_mj():
 		var fallback := GameData.create_blank_character()
 		fallback["name"] = player_name
 		fallback["isPlayer"] = true
