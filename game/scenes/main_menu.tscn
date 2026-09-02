@@ -70,9 +70,24 @@ text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque 
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="ResumePanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="SavedGamesSection" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/SavedGamesSection"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SavedGamesTitle" type="Label" parent="ScrollContainer/Margin/VBox/SavedGamesSection/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 18
+text = "Parties en cours"
+
+[node name="SavedGamesList" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/SavedGamesSection/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="NetworkPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
@@ -366,23 +381,6 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "✓ Enregistrer mon personnage"
 
-[node name="HBox" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/ResumePanel"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="ResumeLabel" type="Label" parent="ScrollContainer/Margin/VBox/ResumePanel/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "Une partie est en cours."
-
-[node name="BtnResume" type="Button" parent="ScrollContainer/Margin/VBox/ResumePanel/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "▶ Reprendre la partie"
-
 [node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 16
@@ -559,3 +557,12 @@ autowrap_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 text = "Jouer Enquête"
+
+[node name="ConfirmDeleteResume" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Effacer la partie"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
+ok_button_text = "Effacer"
+cancel_button_text = "Annuler"

@@ -57,6 +57,38 @@ const Maps = {
     crime: { label: 'Scène de crime', emoji: '🩸' },
   },
 
+  INVESTIGATION_VISIBLE_MARKERS: ['detective', 'party', 'camp'],
+  INVESTIGATION_HIDDEN_LOCAL: ['evidence', 'witness', 'suspect', 'crime', 'poi', 'danger'],
+  INVESTIGATION_HIDDEN_WORLD: ['city', 'capital', 'quest', 'dungeon', 'ruin'],
+
+  isInvestigationMapContext(map, questFormat) {
+    return questFormat === 'investigation' || map?.roster === 'investigation';
+  },
+
+  isInvestigationHiddenMarker(type, map, questFormat) {
+    if (!this.isInvestigationMapContext(map, questFormat)) return false;
+    if (this.INVESTIGATION_VISIBLE_MARKERS.includes(type)) return false;
+    if (this.isWorldMap(map)) return this.INVESTIGATION_HIDDEN_WORLD.includes(type);
+    return this.INVESTIGATION_HIDDEN_LOCAL.includes(type);
+  },
+
+  isInvestigationHiddenLink(map, questFormat) {
+    return this.isInvestigationMapContext(map, questFormat) && this.isWorldMap(map);
+  },
+
+  shouldShowSessionMarker(map, marker, questFormat, revealedSet) {
+    if (!marker) return false;
+    if (!this.isInvestigationHiddenMarker(marker.type, map, questFormat)) return true;
+    return revealedSet.has(`${marker.x},${marker.y}`);
+  },
+
+  shouldShowSessionLink(map, x, y, questFormat, revealedLinkSet) {
+    const link = this.getLocationLinkAt(map, x, y);
+    if (!link?.targetMapId) return false;
+    if (!this.isInvestigationHiddenLink(map, questFormat)) return true;
+    return revealedLinkSet.has(`${x},${y}`);
+  },
+
   WORLD_TILES: {
     ocean: { label: 'Océan', color: '#1a3a6a' },
     coast: { label: 'Côte', color: '#c4a35a' },
@@ -77,6 +109,8 @@ const Maps = {
     camp: { label: 'Camp', emoji: '⛺' },
     ruin: { label: 'Ruines', emoji: '🏛️' },
   },
+
+  MERGEABLE_MARKERS: ['city', 'capital', 'camp', 'ruin', 'dungeon'],
 
   DEFAULT_SIZE: { width: 16, height: 12 },
   DEFAULT_WORLD_SIZE: { width: 48, height: 32 },
@@ -182,6 +216,45 @@ const Maps = {
       || this.INVESTIGATION_MARKERS[type]
       || this.WORLD_MARKERS[type]
       || { label: type, emoji: '•' };
+  },
+
+  isMergeableMarker(type) {
+    return this.MERGEABLE_MARKERS.includes(type);
+  },
+
+  getMarkerClusterInfo(map) {
+    const markerAt = (x, y) => map.markers?.find((mk) => mk.x === x && mk.y === y);
+    const visited = new Set();
+    const cellInfo = {};
+
+    map.markers?.forEach((mk) => {
+      const key = `${mk.x},${mk.y}`;
+      if (visited.has(key) || !this.isMergeableMarker(mk.type)) return;
+      const stack = [[mk.x, mk.y]];
+      const cluster = [];
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        const ck = `${cx},${cy}`;
+        if (visited.has(ck)) continue;
+        const cellMarker = markerAt(cx, cy);
+        if (!cellMarker || cellMarker.type !== mk.type) continue;
+        visited.add(ck);
+        cluster.push([cx, cy]);
+        stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+      }
+      if (cluster.length < 2) return;
+      cluster.sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
+      const [anchorX, anchorY] = cluster[0];
+      cluster.forEach(([cx, cy]) => {
+        cellInfo[`${cx},${cy}`] = {
+          cluster: true,
+          anchor: cx === anchorX && cy === anchorY,
+          size: cluster.length,
+          type: mk.type,
+        };
+      });
+    });
+    return cellInfo;
   },
 
   getLocalAdventureMaps() {
@@ -640,6 +713,7 @@ const Maps = {
     const interactive = options.interactive || false;
     const editor = options.editor || false;
     const showLabels = options.showLabels !== false;
+    const clusterInfo = options.editor ? this.getMarkerClusterInfo(map) : {};
 
     let html = `<div class="map-grid${interactive ? ' map-grid-interactive' : ''}${editor ? ' map-grid-editor' : ''}"
       style="--map-cell-size:${cellSize}px;grid-template-columns:repeat(${map.width},var(--map-cell-size))">`;
@@ -650,6 +724,7 @@ const Maps = {
         const tile = map.tiles[y * map.width + x] || this.getDefaultTile(map.roster, map.mapKind);
         const marker = map.markers?.find((mk) => mk.x === x && mk.y === y);
         const link = map.locationLinks?.find((lk) => lk.x === x && lk.y === y);
+        const cluster = clusterInfo[`${x},${y}`];
         const targetTitle = link?.targetMapId ? (this.getById(link.targetMapId)?.title || link.label || 'Lieu') : '';
         const title = link
           ? `Lien → ${targetTitle} (${x},${y})`
@@ -657,7 +732,7 @@ const Maps = {
             ? `${marker.label || this.getMarkerDef(marker.type).label || marker.type} (${x},${y})`
             : `${this.getTileDef(tile).label || tile} (${x},${y})`);
 
-        html += `<button type="button" class="map-cell map-cell-${tile}${marker ? ' has-marker' : ''}${link ? ' has-location-link' : ''}"
+        html += `<button type="button" class="map-cell map-cell-${tile}${marker ? ' has-marker' : ''}${link ? ' has-location-link' : ''}${cluster ? ' map-marker-cluster' : ''}${cluster?.anchor ? ' map-marker-cluster-anchor' : ''}"
           data-x="${x}" data-y="${y}" title="${this.escape(title)}"${interactive ? '' : ' tabindex="-1"'}>`;
         if (link) {
           html += '<span class="map-location-link-icon" aria-hidden="true">🌀</span>';
@@ -665,8 +740,14 @@ const Maps = {
             html += `<span class="map-location-link-label">${this.escape(targetTitle.slice(0, 6))}</span>`;
           }
         } else if (marker) {
-          html += `<span class="map-marker">${this.getMarkerDef(marker.type).emoji || '•'}</span>`;
-          if (showLabels && cellSize >= 20 && marker.label) {
+          const emoji = this.getMarkerDef(marker.type).emoji || '•';
+          if (cluster && !cluster.anchor) {
+            html += `<span class="map-marker map-marker-cluster-part">${emoji}</span>`;
+          } else {
+            const clusterClass = cluster?.anchor ? ` map-marker-merged map-marker-merged-${Math.min(cluster.size, 9)}` : '';
+            html += `<span class="map-marker${clusterClass}">${emoji}</span>`;
+          }
+          if (showLabels && cellSize >= 20 && marker.label && !cluster) {
             html += `<span class="map-marker-label">${this.escape(marker.label.slice(0, 6))}</span>`;
           }
         }
@@ -911,14 +992,50 @@ const Maps = {
       showLabels: false,
     });
 
-    container.querySelectorAll('.map-cell').forEach((cell) => {
-      cell.addEventListener('click', () => {
-        const x = parseInt(cell.dataset.x, 10);
-        const y = parseInt(cell.dataset.y, 10);
-        this.paintCell(x, y);
+    const paintFromCell = (cell, rerender = true) => {
+      if (!cell) return;
+      const x = parseInt(cell.dataset.x, 10);
+      const y = parseInt(cell.dataset.y, 10);
+      this.paintCell(x, y);
+      if (rerender) {
         this.renderEditorGrid();
+      } else {
+        this._editorDragDirty = true;
+      }
+    };
+
+    if (!['tile', 'marker', 'erase'].includes(this.tool)) {
+      container.querySelectorAll('.map-cell').forEach((cell) => {
+        cell.addEventListener('click', () => paintFromCell(cell));
       });
-    });
+      return;
+    }
+
+    if (!this._editorDragBound) {
+      this._editorDragBound = true;
+      document.addEventListener('mouseup', () => {
+        if (this._editorDragDirty) {
+          this._editorDragDirty = false;
+          this.renderEditorGrid();
+        }
+        this._editorDragPainting = false;
+      });
+    }
+    this._editorDragPainting = false;
+    this._editorDragDirty = false;
+
+    container.onmousedown = (e) => {
+      if (e.button !== 0) return;
+      this._editorDragPainting = true;
+      paintFromCell(e.target.closest('.map-cell'), false);
+      this._editorDragDirty = true;
+      this.renderEditorGrid();
+    };
+
+    container.onmouseover = (e) => {
+      if (!this._editorDragPainting || e.buttons !== 1) return;
+      paintFromCell(e.target.closest('.map-cell'), false);
+    };
   },
 
   paintCell(x, y) {
@@ -960,14 +1077,14 @@ const Maps = {
     }
 
     if (this.tool === 'marker') {
+      const existing = this.editorData.markers.find((m) => m.x === x && m.y === y);
+      if (existing && existing.type !== this.selectedMarker) return;
       this.editorData.markers = this.editorData.markers.filter((m) => !(m.x === x && m.y === y));
-      const label = prompt('Label du marqueur (optionnel) :', this.getMarkerDef(this.selectedMarker).label || '');
-      if (label === null) return;
       this.editorData.markers.push({
         x,
         y,
         type: this.selectedMarker,
-        label: label.trim(),
+        label: this.getMarkerDef(this.selectedMarker).label || '',
       });
       return;
     }
@@ -1041,7 +1158,14 @@ const Maps = {
   },
 
   getSetupMapPool(scenarioId, questFormat) {
-    const pool = [...this.getMapsForFormat(questFormat)];
+    const isInvestigation = questFormat === 'investigation';
+    const pool = this.getMapsForFormat(questFormat).filter((m) => {
+      if (isInvestigation && this.isWorldMap(m)) return false;
+      if (questFormat === 'oneshot' && this.isWorldMap(m)) return false;
+      const linked = m.scenarioId || '';
+      if (linked && linked !== scenarioId) return false;
+      return true;
+    });
     return pool.sort((a, b) => {
       const aLinked = a.scenarioId && a.scenarioId === scenarioId ? 0 : 1;
       const bLinked = b.scenarioId && b.scenarioId === scenarioId ? 0 : 1;
@@ -1053,6 +1177,22 @@ const Maps = {
     });
   },
 
+  getDefaultSelectedMapIds(scenarioId, questFormat) {
+    const linked = this.getSetupMapPool(scenarioId, questFormat)
+      .filter((m) => m.scenarioId === scenarioId)
+      .map((m) => m.id);
+    if (linked.length) return linked;
+    if (questFormat === 'investigation' || String(scenarioId || '').startsWith('inv-')) {
+      const demo = this.getById('demo-quartier-serpent');
+      return demo?.id ? [demo.id] : [];
+    }
+    if (scenarioId === 'demo-couronne-fracturee') {
+      return ['demo-monde-couronne', 'demo-taverne'].filter((id) => this.getById(id));
+    }
+    const tavern = this.getById('demo-taverne');
+    return tavern?.id ? [tavern.id] : [];
+  },
+
   renderSetupMapPicker(selectedIds = [], scenarioId = null, questFormat = null) {
     const selected = new Set(Array.isArray(selectedIds) ? selectedIds : (selectedIds ? [selectedIds] : []));
     const pool = this.getSetupMapPool(scenarioId, questFormat);
@@ -1060,8 +1200,8 @@ const Maps = {
 
     if (pool.length === 0) {
       return `<p class="setup-maps-empty">${isInvestigation
-        ? 'Aucune carte enquête — crée-en une dans l\'onglet Cartes.'
-        : 'Aucune carte — crée-en une dans l\'onglet Cartes.'}</p>`;
+        ? 'Aucune carte enquête pour ce scénario — crée-en une dans l\'onglet Cartes.'
+        : 'Aucune carte pour ce mode et ce scénario — crée-en une dans l\'onglet Cartes.'}</p>`;
     }
 
     const worldMaps = pool.filter((m) => this.isWorldMap(m));
@@ -1269,7 +1409,7 @@ const Maps = {
     const map = this.getById(mapId);
     const isWorld = map && this.isWorldMap(map);
     const min = isWorld ? 0.5 : 0.65;
-    const max = isWorld ? 3 : 2.5;
+    const max = isWorld ? 5 : 4;
     this.sessionMapZoom[mapId] = Math.max(min, Math.min(max, zoom));
   },
 
@@ -1426,9 +1566,11 @@ const Maps = {
       ? Game.getExploredCells(worldMap.id)
       : null;
     const linkWorld = !navContext && this.isWorldMap(map) ? map : null;
+    const revealedMarkers = typeof Game !== 'undefined' ? Game.getRevealedMarkers(map.id) : [];
+    const revealedLinks = typeof Game !== 'undefined' ? Game.getRevealedLinks(map.id) : [];
 
     gridInner.innerHTML = this.renderSessionGridHtml(
-      map, tokens, party, questFormat, cellSize, exploredCells, readonly, linkWorld,
+      map, tokens, party, questFormat, cellSize, exploredCells, readonly, linkWorld, revealedMarkers, revealedLinks,
     );
 
     const meta = panel.querySelector('.session-map-stage-meta');
@@ -1551,6 +1693,8 @@ const Maps = {
     const animClass = this.sessionMapNavAnim ? ` session-map-nav-${this.sessionMapNavAnim}` : '';
     const gridMapId = map.id;
     const linkWorld = !navContext && isWorld ? map : null;
+    const revealedMarkers = typeof Game !== 'undefined' ? Game.getRevealedMarkers(map.id) : [];
+    const revealedLinks = typeof Game !== 'undefined' ? Game.getRevealedLinks(map.id) : [];
 
     return `
       <div class="session-map-stage${isWorld ? ' session-map-stage-world' : ''}${isInvestigation ? ' session-map-stage-investigation' : ''}${readonly ? ' session-map-stage-readonly' : ''}${fogActive ? ' session-map-stage-fog' : ''}${navContext ? ' session-map-stage-local-view' : ''}${animClass}">
@@ -1568,18 +1712,20 @@ const Maps = {
         ${fogActive ? '<p class="session-map-fog-hint">Clique sur une ville liée 🌀 pour entrer · clique-glisse pour déplacer · molette pour zoomer.</p>' : (navContext ? '<p class="session-map-fog-hint">Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde.</p>' : (isWorld ? '<p class="session-map-fog-hint">Clique-glisse pour déplacer la carte · molette pour zoomer.</p>' : '<p class="session-map-fog-hint">Clique-glisse pour déplacer la carte.</p>'))}
         <div class="session-map-grid session-map-grid-scrollable${fogActive ? ' session-map-grid-fog' : ''}${isWorld ? ' session-map-grid-world' : ' session-map-grid-local'}" data-map-grid-id="${gridMapId}">
           <div class="session-map-grid-inner">
-            ${this.renderSessionGridHtml(map, tokens, party, questFormat, cellSize, exploredCells, readonly, linkWorld)}
+            ${this.renderSessionGridHtml(map, tokens, party, questFormat, cellSize, exploredCells, readonly, linkWorld, revealedMarkers, revealedLinks)}
           </div>
         </div>
       </div>`;
   },
 
-  renderSessionGridHtml(map, tokens, party, questFormat, cellSize, exploredCells = null, readonly = false, worldMapForLinks = null) {
+  renderSessionGridHtml(map, tokens, party, questFormat, cellSize, exploredCells = null, readonly = false, worldMapForLinks = null, revealedMarkers = null, revealedLinks = null) {
     if (!map?.tiles?.length) return '';
 
     const useFog = this.isWorldMap(map) && Array.isArray(exploredCells) && !readonly;
     const exploredSet = useFog ? new Set(exploredCells) : null;
     const linkSource = worldMapForLinks || (this.isWorldMap(map) ? map : null);
+    const revealedMarkerSet = new Set(revealedMarkers ?? (typeof Game !== 'undefined' ? Game.getRevealedMarkers(map.id) : []));
+    const revealedLinkSet = new Set(revealedLinks ?? (typeof Game !== 'undefined' ? Game.getRevealedLinks(map.id) : []));
 
     let html = `<div class="map-grid map-grid-interactive map-grid-session${useFog ? ' map-grid-fog' : ''}"
       data-session-map-id="${map.id}"
@@ -1593,16 +1739,18 @@ const Maps = {
         const dynamicToken = tokens.find((t) => t.x === x && t.y === y);
         const isExplored = !useFog || exploredSet.has(`${x},${y}`);
         const fogClass = useFog && !isExplored ? ' map-cell-fogged' : '';
-        const isPortal = isExplored && locationLink?.targetMapId;
-        const isExit = isExplored && staticMarker?.type === 'exit';
+        const showMarker = !staticMarker || this.shouldShowSessionMarker(map, staticMarker, questFormat, revealedMarkerSet);
+        const showLink = this.shouldShowSessionLink(linkSource || map, x, y, questFormat, revealedLinkSet);
+        const isPortal = isExplored && showLink && locationLink?.targetMapId;
+        const isExit = isExplored && showMarker && staticMarker?.type === 'exit';
         const parts = [];
 
         if (isExplored) {
-          if (locationLink?.targetMapId) {
+          if (isPortal) {
             const targetTitle = this.getById(locationLink.targetMapId)?.title || locationLink.label || 'Lieu';
             parts.push(`Entrer : ${targetTitle}`);
           }
-          if (staticMarker) {
+          if (showMarker && staticMarker) {
             const sDef = this.getMarkerDef(staticMarker.type);
             parts.push(`${sDef.label} (fixe)`);
           }
@@ -1617,7 +1765,7 @@ const Maps = {
             ? `${parts.join(' · ')} (${x},${y})`
             : `${this.getTileDef(tile).label} (${x},${y})`);
 
-        html += `<button type="button" class="map-cell map-cell-${tile} map-cell-session${dynamicToken && isExplored ? ' has-token' : ''}${staticMarker && isExplored ? ' has-static-marker' : ''}${isPortal ? ' map-cell-portal' : ''}${isExit ? ' map-cell-exit' : ''}${fogClass}"
+        html += `<button type="button" class="map-cell map-cell-${tile} map-cell-session${dynamicToken && isExplored ? ' has-token' : ''}${showMarker && staticMarker && isExplored ? ' has-static-marker' : ''}${isPortal ? ' map-cell-portal' : ''}${isExit ? ' map-cell-exit' : ''}${fogClass}"
           data-x="${x}" data-y="${y}" title="${this.escape(title)}"${!isExplored ? ' disabled' : ''}>`;
 
         if (isExplored) {
@@ -1627,7 +1775,7 @@ const Maps = {
             if (targetTitle) {
               html += `<span class="map-marker-label map-marker-label-portal">${this.escape(targetTitle.slice(0, 6))}</span>`;
             }
-          } else if (staticMarker && !dynamicToken) {
+          } else if (showMarker && staticMarker && !dynamicToken) {
             html += `<span class="map-marker map-marker-static map-marker-${staticMarker.type}${isExit ? ' map-marker-exit' : ''}">${this.getMarkerDef(staticMarker.type).emoji || '•'}</span>`;
             if (staticMarker.label) {
               html += `<span class="map-marker-label map-marker-label-static">${this.escape(staticMarker.label.slice(0, 6))}</span>`;

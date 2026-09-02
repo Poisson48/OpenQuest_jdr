@@ -187,6 +187,66 @@ body {
   width: 100%;
 }
 
+.home-saved-games {
+  margin-bottom: 2rem;
+}
+
+.home-saved-games-title {
+  color: var(--gold-light);
+  font-size: 1.15rem;
+  margin-bottom: 0.75rem;
+}
+
+.home-saved-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.saved-game-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, rgba(74, 153, 136, 0.12), rgba(201, 162, 39, 0.08));
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+}
+
+.saved-game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.saved-game-info strong {
+  color: var(--gold-light);
+}
+
+.saved-game-info span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.saved-game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.play-saved-games {
+  margin-bottom: 1.5rem;
+}
+
+.play-saved-games h3 {
+  color: var(--gold-light);
+  margin-bottom: 0.65rem;
+  font-size: 1.05rem;
+}
+
 .home-resume {
   display: flex;
   align-items: center;
@@ -199,6 +259,13 @@ body {
   border: 1px solid var(--gold);
   border-radius: var(--radius);
   backdrop-filter: blur(4px);
+}
+
+.home-resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
 }
 
 .home-resume-text {
@@ -1499,18 +1566,19 @@ legend {
 .game-log-wrap {
   display: flex;
   flex-direction: column;
-  min-height: min(70vh, 560px);
-  max-height: min(75vh, 680px);
+  flex: 0 0 auto;
+  min-height: 280px;
+  max-height: none;
 }
 
 .game-main-panel .game-log-wrap {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   max-height: none;
 }
 
 .game-main-panel:not(:has(.session-maps:not(.hidden))) .game-log-wrap {
-  min-height: min(68vh, 540px);
+  min-height: 0;
 }
 
 .game-log-header {
@@ -1612,12 +1680,16 @@ legend {
 }
 
 .game-log {
-  flex: 1;
+  flex: 0 0 auto;
+  min-height: 280px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 0 0 var(--radius) var(--radius);
-  padding: 1rem;
-  overflow-y: auto;
+  padding: 1rem 1.1rem;
+  overflow: visible;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text);
 }
 
 .action-hint {
@@ -1826,6 +1898,31 @@ legend {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+#game-session {
+  display: flex;
+  flex-direction: column;
+  min-height: min(88vh, 920px);
+  max-height: min(92vh, 960px);
+}
+
+#game-session .game-header {
+  flex: 0 0 auto;
+}
+
+.game-panels-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) 1fr;
+  gap: 1rem;
+  align-items: start;
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
 }
 
 .game-main-panel {
@@ -1835,7 +1932,8 @@ legend {
   min-height: 0;
   min-width: 0;
   flex: 1;
-  height: 100%;
+  height: auto;
+  overflow: visible;
 }
 
 .game-main-panel .session-maps:not(.hidden) {
@@ -1843,22 +1941,15 @@ legend {
 }
 
 .game-main-panel .session-maps:not(.hidden) + .game-log-wrap {
-  flex: 1 1 auto;
-  min-height: min(48vh, 420px);
-}
-
-.game-panels-row {
-  display: grid;
-  grid-template-columns: minmax(240px, 280px) 1fr;
-  gap: 1rem;
-  align-items: stretch;
-  min-height: min(72vh, 640px);
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .game-bottom {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  flex: 0 0 auto;
 }
 
 .game-sidebar {
@@ -2082,8 +2173,10 @@ legend {
 }
 
 .log-text {
-  margin-top: 0.3rem;
-  line-height: 1.6;
+  margin-top: 0.35rem;
+  line-height: 1.65;
+  font-size: 0.95rem;
+  color: var(--text);
 }
 
 .log-gm .log-author { color: var(--gold); }
@@ -2985,7 +3078,7 @@ legend {
 .session-map-grid-world,
 .session-map-grid-local,
 .session-map-grid-scrollable {
-  max-height: min(42vh, 420px);
+  max-height: min(52vh, 520px);
   overflow: auto;
   max-width: 100%;
   overscroll-behavior: contain;
@@ -3282,6 +3375,35 @@ legend {
 .map-cell.has-marker {
   box-shadow: inset 0 0 0 2px rgba(255, 220, 120, 0.45);
 }
+
+.map-cell.map-marker-cluster {
+  box-shadow: inset 0 0 0 1px rgba(200, 170, 90, 0.35);
+  background-image: linear-gradient(145deg, rgba(255, 220, 120, 0.12), rgba(0, 0, 0, 0.08));
+}
+
+.map-cell.map-marker-cluster-anchor {
+  box-shadow: inset 0 0 0 2px rgba(232, 197, 71, 0.75);
+}
+
+.map-marker-cluster-part {
+  font-size: calc(var(--map-cell-size, 24px) * 0.42);
+  opacity: 0.85;
+}
+
+.map-marker-merged {
+  font-size: calc(var(--map-cell-size, 24px) * 0.95);
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.map-marker-merged-2 { font-size: calc(var(--map-cell-size, 24px) * 1.05); }
+.map-marker-merged-3 { font-size: calc(var(--map-cell-size, 24px) * 1.15); }
+.map-marker-merged-4,
+.map-marker-merged-5 { font-size: calc(var(--map-cell-size, 24px) * 1.28); }
+.map-marker-merged-6,
+.map-marker-merged-7,
+.map-marker-merged-8,
+.map-marker-merged-9 { font-size: calc(var(--map-cell-size, 24px) * 1.45); }
 
 .map-marker {
   pointer-events: none;
@@ -3776,7 +3898,7 @@ html:has(.session-map-grid.is-panning) {
 
 .session-map-grid {
   overflow: auto;
-  max-height: min(42vh, 420px);
+  max-height: min(52vh, 520px);
   max-width: 100%;
   padding: 0.55rem;
   border-radius: var(--radius-sm);

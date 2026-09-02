@@ -98,7 +98,15 @@ theme_override_constants/separation = 8
 [node name="LblRulesTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "2. Mode de Jeu & Maître du Jeu"
+text = "2. Format & Mode de Jeu"
+
+[node name="LblQuestFormat" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+layout_mode = 2
+text = "Format de quête :"
+
+[node name="OptQuestFormat" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="LblMode" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 layout_mode = 2
@@ -122,6 +130,36 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 theme_override_font_sizes/font_size = 13
 text = "○ Serveur non connecté"
+
+[node name="PanelMaps" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblMapsTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "3. Cartes associées"
+
+[node name="MapsHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 12
+text = "Coche les cartes à inclure dans la partie (monde + scènes locales)."
+
+[node name="MapsScroll" type="ScrollContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 160)
+
+[node name="MapsContainer" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox/MapsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="JoinerPanel" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
 unique_name_in_owner = true
@@ -157,6 +195,7 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "✓ Confirmer mon personnage"
 
+
 [node name="RightCol" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -172,7 +211,7 @@ theme_override_constants/separation = 8
 [node name="LblPartyTitle" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "3. Composition du Groupe"
+text = "4. Composition du Groupe"
 
 [node name="LblMainChar" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
 layout_mode = 2

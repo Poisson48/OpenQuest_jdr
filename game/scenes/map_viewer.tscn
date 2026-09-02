@@ -33,9 +33,11 @@ offset_right = -16.0
 offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 10
 
 [node name="TopBar" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
+theme_override_constants/separation = 10
 
 [node name="BtnBack" type="Button" parent="VBox/TopBar"]
 unique_name_in_owner = true
@@ -50,12 +52,7 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "Carte"
 
-[node name="Scroll" type="ScrollContainer" parent="VBox"]
+[node name="ContentHost" type="VBoxContainer" parent="VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-
-[node name="TileGrid" type="GridContainer" parent="VBox/Scroll"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/h_separation = 1
-theme_override_constants/v_separation = 1
+size_flags_horizontal = 3

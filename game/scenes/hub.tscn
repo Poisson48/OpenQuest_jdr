@@ -194,6 +194,7 @@ metadata/_tab_index = 2
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes"]
 layout_mode = 2
+size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="PanelInfo" type="PanelContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
@@ -212,73 +213,62 @@ text = "🗺️ Cartes du Monde & Lieux tactiques"
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/PanelInfo/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "L'éditeur complet reste dans le POC HTML. Aperçu Godot ci-dessous."
+autowrap_mode = 3
+text = "Crée et gère les cartes pour tes campagnes et enquêtes. L'éditeur visuel complet reste dans le POC HTML ; ici : liste, tri, aperçu et création rapide."
 
-[node name="BtnMapsViewer" type="Button" parent="MainLayout/TabContainer/Cartes/VBox"]
+[node name="MapsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SortLabel" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Trier :"
+
+[node name="MapsSort" type="OptionButton" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+
+[node name="ToolbarSpacer" type="Control" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnNewMapWorld" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "🗺️ Ouvrir l'aperçu carte (Godot)"
+text = "+ Monde"
 
-[node name="CardsGrid" type="GridContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
+[node name="BtnNewMapAdv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ Aventure"
+
+[node name="BtnNewMapInv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ Enquête"
+
+[node name="MapsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
 
-[node name="CardWorld" type="PanelContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid"]
+[node name="MapsSectionsRoot" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox/MapsScroll"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 16
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardWorld"]
-layout_mode = 2
-
-[node name="Lbl" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardWorld/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "🌍 Carte du Monde"
-
-[node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardWorld/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Régions sauvages, routes, cités et donjons à explorer avec brouillard de guerre."
-
-[node name="CardDungeon" type="PanelContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardDungeon"]
-layout_mode = 2
-
-[node name="Lbl" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardDungeon/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-text = "🗝️ Donjon & Ruines"
-
-[node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardDungeon/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Grilles tactiques d'intérieurs, salles piégées et catacombes."
-
-[node name="CardCity" type="PanelContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardCity"]
-layout_mode = 2
-
-[node name="Lbl" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardCity/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
-text = "🏢 Cité & Scènes de Crime"
-
-[node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/CardsGrid/CardCity/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Quartiers urbains, ruelles sombres et bureaux pour les enquêtes."
+[node name="ConfirmDeleteMap" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Supprimer la carte"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Supprimer cette carte ?"
+ok_button_text = "Supprimer"
+cancel_button_text = "Annuler"
 
 [node name="Jouer" type="MarginContainer" parent="MainLayout/TabContainer"]
 visible = false
@@ -305,18 +295,16 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
-text = "État de la session"
+text = "Parties en cours"
+
+[node name="SavedGamesList" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="HBox" type="HBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
-
-[node name="BtnPlayResume" type="Button" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 44)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "▶ Reprendre la session"
 
 [node name="BtnPlayNew" type="Button" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox/HBox"]
 unique_name_in_owner = true
@@ -352,16 +340,55 @@ text = "🤖 Archétypes de Compagnons Bots"
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Bots/VBox/PanelHeader/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "Ces compagnons peuvent vous accompagner en solo ou compléter votre groupe d'aventuriers."
+text = "Compagnons IA classés par mode de jeu — aventure, one-shot ou enquête."
 
-[node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]
+[node name="BotsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Bots/VBox"]
 layout_mode = 2
-size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="BotsGrid" type="GridContainer" parent="MainLayout/TabContainer/Bots/VBox/BotsScroll"]
+[node name="LblBotsFilter" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Afficher :"
+
+[node name="BotsFilter" type="OptionButton" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(220, 0)
+
+[node name="BotsCountLabel" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
-columns = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "0 compagnon(s)"
+
+[node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="BotsSectionsRoot" type="VBoxContainer" parent="MainLayout/TabContainer/Bots/VBox/BotsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="ConfirmDeleteSession" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Effacer la partie"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
+ok_button_text = "Effacer"
+cancel_button_text = "Annuler"
+
+[node name="ConfirmDeleteBot" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Supprimer le bot"
+initial_position = 2
+size = Vector2i(420, 120)
+dialog_text = "Supprimer ce compagnon bot ?"
+ok_button_text = "Supprimer"
+cancel_button_text = "Annuler"

@@ -30,7 +30,7 @@ const App = {
     Maps.init();
     Game.init();
 
-    this.updateHomeResume();
+    this.renderSavedGamesList();
     this.routeInitialView();
   },
 
@@ -45,14 +45,6 @@ const App = {
 
     document.getElementById('btn-home-enter')?.addEventListener('click', () => {
       this.showApp('adventures');
-    });
-
-    document.getElementById('btn-home-resume')?.addEventListener('click', () => {
-      this.showApp('play');
-      if (Game.state?.status === 'playing' || Game.state?.status === 'completed') {
-        Game.showSession();
-        Game.renderSession();
-      }
     });
 
     document.querySelectorAll('.home-card-btn').forEach((btn) => {
@@ -102,37 +94,39 @@ const App = {
     });
   },
 
-  updateHomeResume() {
-    const banner = document.getElementById('home-resume');
-    const label = document.getElementById('home-resume-label');
-    const detail = document.getElementById('home-resume-detail');
-    if (!banner || !Game.state) return;
+  renderSavedGamesList() {
+    const section = document.getElementById('home-saved-games');
+    const list = document.getElementById('home-saved-games-list');
+    if (!section || !list || typeof Game === 'undefined') return;
 
-    const active = Game.state.status === 'playing' || Game.state.status === 'completed';
-    banner.classList.toggle('hidden', !active);
+    const games = Game.getPlayingGames();
+    section.classList.toggle('hidden', games.length === 0);
+    list.innerHTML = '';
 
-    if (!active) return;
-
-    const scenario = Scenarios.list.find((s) => s.id === Game.state.scenarioId);
-    if (Game.state.status === 'completed') {
-      label.textContent = 'Aventure terminée';
-      detail.textContent = scenario?.title
-        ? `« ${scenario.title} » — consulte ou télécharge ton résumé.`
-        : 'Consulte ou télécharge ton résumé.';
-    } else {
-      label.textContent = 'Partie en cours';
-      detail.textContent = scenario?.title
-        ? `« ${scenario.title} » — reprends là où tu t'étais arrêté.`
-        : 'Reprends là où tu t\'étais arrêté.';
-    }
+    games.forEach((game) => {
+      list.appendChild(Game.buildSavedGameCard(game, {
+        onResume: (id) => {
+          Game.resumeGame(id);
+          this.showApp('play');
+        },
+        onDelete: (id) => {
+          if (!confirm('Effacer cette partie ? Toute la progression sera perdue.')) return;
+          Game.deleteGame(id);
+          this.renderSavedGamesList();
+          Game.renderSavedGamesInSetup();
+        },
+      }));
+    });
   },
 
   routeInitialView() {
-    const canResume = Game.state?.status === 'playing'
+    const playing = Game.getPlayingGames();
+    const canAutoResume = Game.state?.status === 'playing'
       && Array.isArray(Game.state.party)
-      && Game.state.party.length > 0;
+      && Game.state.party.length > 0
+      && playing.length <= 1;
 
-    if (canResume) {
+    if (canAutoResume) {
       this.showApp('play');
       Game.showSession();
       return;
@@ -150,7 +144,7 @@ const App = {
   showHome() {
     this.hideAllViews();
     this.homeView?.classList.remove('hidden');
-    this.updateHomeResume();
+    this.renderSavedGamesList();
     document.title = 'OpenQuest JDR — Accueil';
   },
 
@@ -186,6 +180,7 @@ const App = {
 
     if (target === 'play' && typeof Game !== 'undefined') {
       Game.renderSetup();
+      Game.renderSavedGamesInSetup();
       if (preset?.mode || preset?.gm || preset?.quest || preset?.scenario) {
         Game.applySetupPreset(preset.mode, preset.gm, preset.quest, preset.scenario);
       }

@@ -14,15 +14,101 @@ const Game = {
     Scenarios.ensureDemoScenario();
     Bots.load();
 
-    const rawState = Storage.load(Storage.KEYS.activeGame);
-    this.state = this.normalizeSavedState(rawState);
-    if (rawState && !this.state) {
-      Storage.save(Storage.KEYS.activeGame, null);
-    }
+    this.migrateLegacyActiveGame();
+    this.restoreInitialState();
 
     this.bindSetupEvents();
     this.bindSessionEvents();
     this.renderSetup();
+  },
+
+  migrateLegacyActiveGame() {
+    const legacy = Storage.load(Storage.KEYS.activeGame);
+    if (!legacy) return;
+    const normalized = this.normalizeSavedState(legacy);
+    if (!normalized) {
+      Storage.save(Storage.KEYS.activeGame, null);
+      return;
+    }
+    if (!normalized.id) normalized.id = `game-${Date.now()}`;
+    const games = this.loadSavedGames();
+    const idx = games.findIndex((g) => g.id === normalized.id);
+    if (idx >= 0) games[idx] = normalized;
+    else games.push(normalized);
+    this.persistSavedGames(games);
+    Storage.save(Storage.KEYS.activeGame, null);
+  },
+
+  loadSavedGames() {
+    return Storage.loadArray(Storage.KEYS.savedGames)
+      .filter((g) => g && typeof g === 'object')
+      .map((g) => this.normalizeSavedState(g))
+      .filter(Boolean);
+  },
+
+  persistSavedGames(games) {
+    Storage.save(Storage.KEYS.savedGames, games);
+  },
+
+  getPlayingGames() {
+    return this.loadSavedGames().filter((g) => g.status === 'playing');
+  },
+
+  getGamePartySummary(game) {
+    const party = Array.isArray(game.party) ? game.party : [];
+    if (party.length === 0) return 'Groupe vide';
+    const names = party.map((m) => m.name || '?');
+    if (names.length <= 3) return names.join(', ');
+    return `${names[0]} + ${names.length - 1} autres`;
+  },
+
+  restoreInitialState() {
+    const playing = this.getPlayingGames();
+    const lastId = Storage.load(Storage.KEYS.lastActiveGameId);
+    if (lastId && playing.some((g) => g.id === lastId)) {
+      this.resumeGame(lastId, { silent: true });
+      return;
+    }
+    if (playing.length === 1) {
+      this.resumeGame(playing[0].id, { silent: true });
+      return;
+    }
+    this.state = null;
+  },
+
+  resumeGame(gameId, options = {}) {
+    const game = this.loadSavedGames().find((g) => g.id === gameId);
+    if (!game) return false;
+    this.state = game;
+    Storage.save(Storage.KEYS.lastActiveGameId, gameId);
+    this.initAllWorldMapFog();
+    if (this.state?.questFormat === 'investigation') {
+      (this.state.mapIds || []).forEach((mapId) => {
+        const entry = this.getMapPlayEntry(mapId);
+        if (!entry.revealedMarkers?.length) this.initInvestigationClues(mapId);
+      });
+    }
+    this.ensurePartyTokensOnWorldMaps();
+    if (!options.silent) {
+      this.showSession();
+      this.renderSession();
+    }
+    return true;
+  },
+
+  deleteGame(gameId) {
+    const games = this.loadSavedGames().filter((g) => g.id !== gameId);
+    this.persistSavedGames(games);
+    const lastId = Storage.load(Storage.KEYS.lastActiveGameId);
+    if (lastId === gameId) {
+      Storage.save(Storage.KEYS.lastActiveGameId, null);
+    }
+    if (this.state?.id === gameId) {
+      this.stopSessionTimer();
+      this.state = null;
+      this.hideSession();
+      this.renderSetup();
+    }
   },
 
   normalizeSavedState(state) {
@@ -31,6 +117,7 @@ const Game = {
     if (!Array.isArray(state.log)) state.log = [];
     if (state.status !== 'playing' && state.status !== 'completed') return null;
     if (!state.scenarioId) return null;
+    if (!state.id) state.id = `game-${state.createdAt || Date.now()}`;
     if (!state.createdAt) state.createdAt = Date.now();
     if (!Array.isArray(state.mapIds)) {
       state.mapIds = state.mapId ? [state.mapId] : [];
@@ -94,13 +181,151 @@ const Game = {
   getMapPlayEntry(mapId) {
     this.ensureMapPlayState();
     if (!this.state.mapPlayState[mapId]) {
-      this.state.mapPlayState[mapId] = { tokens: [], explored: [] };
+      this.state.mapPlayState[mapId] = { tokens: [], explored: [], revealedMarkers: [], revealedLinks: [] };
     }
     const entry = this.state.mapPlayState[mapId];
     if (!Array.isArray(entry.tokens)) entry.tokens = [];
     if (!Array.isArray(entry.explored)) entry.explored = [];
     if (entry.exploreLevel == null) entry.exploreLevel = 0;
+    if (!Array.isArray(entry.revealedMarkers)) entry.revealedMarkers = [];
+    if (!Array.isArray(entry.revealedLinks)) entry.revealedLinks = [];
     return entry;
+  },
+
+  getRevealedMarkers(mapId) {
+    return this.getMapPlayEntry(mapId).revealedMarkers;
+  },
+
+  getRevealedLinks(mapId) {
+    return this.getMapPlayEntry(mapId).revealedLinks;
+  },
+
+  revealMapMarker(mapId, x, y) {
+    const key = this.cellKey(x, y);
+    const entry = this.getMapPlayEntry(mapId);
+    if (entry.revealedMarkers.includes(key)) return false;
+    entry.revealedMarkers.push(key);
+    return true;
+  },
+
+  revealMapLink(mapId, x, y) {
+    const key = this.cellKey(x, y);
+    const entry = this.getMapPlayEntry(mapId);
+    if (entry.revealedLinks.includes(key)) return false;
+    entry.revealedLinks.push(key);
+    return true;
+  },
+
+  initInvestigationCluesForGame() {
+    if (this.state?.questFormat !== 'investigation') return;
+    (this.state.mapIds || []).forEach((mapId) => this.initInvestigationClues(mapId));
+  },
+
+  initInvestigationClues(mapId) {
+    if (typeof Maps === 'undefined') return;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return;
+    const entry = this.getMapPlayEntry(mapId);
+    const revealed = [];
+    (map.markers || []).forEach((mk) => {
+      if (Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      const key = this.cellKey(mk.x, mk.y);
+      if (!revealed.includes(key)) revealed.push(key);
+    });
+    entry.revealedMarkers = revealed;
+    entry.revealedLinks = [];
+  },
+
+  investigationClueDistance(mapId, x, y) {
+    if (typeof Maps === 'undefined') return 9999;
+    const tokens = this.getMapPlayTokens(mapId).filter((t) => t.kind === 'member');
+    if (tokens.length) {
+      return Math.min(...tokens.map((t) => Math.abs(t.x - x) + Math.abs(t.y - y)));
+    }
+    const map = Maps.getById(mapId);
+    if (!map) return 9999;
+    const start = this.getWorldMapStartPoint(map);
+    return Math.abs(start.x - x) + Math.abs(start.y - y);
+  },
+
+  revealInvestigationNear(mapId, cx, cy, radius = 1) {
+    if (typeof Maps === 'undefined') return 0;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return 0;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return 0;
+    let count = 0;
+    (map.markers || []).forEach((mk) => {
+      if (!Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      if (Math.abs(mk.x - cx) + Math.abs(mk.y - cy) > radius) return;
+      if (this.revealMapMarker(mapId, mk.x, mk.y)) count += 1;
+    });
+    if (Maps.isWorldMap(map)) {
+      (map.locationLinks || []).forEach((link) => {
+        if (Math.abs(link.x - cx) + Math.abs(link.y - cy) > radius) return;
+        if (this.revealMapLink(mapId, link.x, link.y)) count += 1;
+      });
+    }
+    return count;
+  },
+
+  revealNextInvestigationClues(mapId, count = 1) {
+    if (typeof Maps === 'undefined') return 0;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return 0;
+    const questFormat = this.state?.questFormat || 'oneshot';
+    if (!Maps.isInvestigationMapContext(map, questFormat)) return 0;
+    const hidden = [];
+    (map.markers || []).forEach((mk) => {
+      if (!Maps.isInvestigationHiddenMarker(mk.type, map, questFormat)) return;
+      if (this.getRevealedMarkers(mapId).includes(this.cellKey(mk.x, mk.y))) return;
+      hidden.push({ x: mk.x, y: mk.y, dist: this.investigationClueDistance(mapId, mk.x, mk.y) });
+    });
+    if (Maps.isWorldMap(map)) {
+      (map.locationLinks || []).forEach((link) => {
+        if (this.getRevealedLinks(mapId).includes(this.cellKey(link.x, link.y))) return;
+        hidden.push({ x: link.x, y: link.y, dist: this.investigationClueDistance(mapId, link.x, link.y), link: true });
+      });
+    }
+    if (!hidden.length) return 0;
+    hidden.sort((a, b) => a.dist - b.dist);
+    let revealed = 0;
+    hidden.slice(0, count).forEach((item) => {
+      if (item.link) {
+        if (this.revealMapLink(mapId, item.x, item.y)) revealed += 1;
+      } else if (this.revealMapMarker(mapId, item.x, item.y)) {
+        revealed += 1;
+      }
+    });
+    return revealed;
+  },
+
+  maybeRevealInvestigationFromAction(actionText) {
+    if (this.state?.questFormat !== 'investigation') return;
+    const text = String(actionText || '').toLowerCase();
+    const investigative = /fouill|examin|inspect|explor|cherch|regard|interroge|parl|question|indice|enquêt|analys|deduis|recouvr/i;
+    if (!investigative.test(text)) return;
+    const mapId = this.getActivePlayMapId?.() || this.state?.mapIds?.[0];
+    if (!mapId) return;
+    const actor = this.getActiveMember?.();
+    let pos = actor ? this.getMemberTokenPosition?.(mapId, actor.id) : null;
+    if (!pos || pos.x < 0) {
+      Maps.load();
+      const map = Maps.getById(mapId);
+      pos = map ? this.getWorldMapStartPoint(map) : { x: 0, y: 0 };
+    }
+    this.revealInvestigationNear(mapId, pos.x, pos.y, 2);
+    this.revealNextInvestigationClues(mapId, 1);
+  },
+
+  revealInvestigationOnSceneAdvance() {
+    if (this.state?.questFormat !== 'investigation') return;
+    (this.state.mapIds || []).forEach((mapId) => this.revealNextInvestigationClues(mapId, 1));
   },
 
   cellKey(x, y) {
@@ -280,6 +505,8 @@ const Game = {
       const map = Maps.getById(mapId);
       if (map && Maps.isWorldMap(map)) {
         this.revealWorldAt(mapId, x, y, 2);
+      } else if (map && Maps.isInvestigationMapContext(map, this.state?.questFormat)) {
+        this.revealInvestigationNear(mapId, x, y, 1);
       }
     }
   },
@@ -296,6 +523,567 @@ const Game = {
       markerType,
       label: '',
     });
+  },
+
+  getActivePlayMapId() {
+    if (!this.state?.mapIds?.length) return '';
+    const nav = this.state.mapNavigation || {};
+    if (nav.view === 'local' && nav.localMapId) return nav.localMapId;
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      const worldId = this.state.mapIds.find((id) => {
+        const map = Maps.getById(id);
+        return map && Maps.isWorldMap(map);
+      });
+      if (worldId) return worldId;
+    }
+    return this.state.mapIds[0];
+  },
+
+  getMemberTokenPosition(mapId, memberId) {
+    const token = this.getMapPlayTokens(mapId).find(
+      (t) => t.kind === 'member' && t.memberId === memberId,
+    );
+    if (token) return { x: token.x, y: token.y };
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      const map = Maps.getById(mapId);
+      if (map) return this.getWorldMapStartPoint(map);
+    }
+    return null;
+  },
+
+  normalizeActionText(actionText) {
+    let text = actionText
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/['']/g, ' ')
+      .replace(/-/g, ' ');
+    ['jecoute', 'jevais', 'jemarche', 'jeme', 'jedirige', 'jerends', 'jsuis'].forEach((glued) => {
+      if (text.includes(glued)) text = text.replace(glued, glued.replace('j', 'j '));
+    });
+    while (text.includes('  ')) text = text.replace('  ', ' ');
+    return text.trim();
+  },
+
+  semanticPlaceKeywords() {
+    return [
+      'foret', 'bois', 'auberge', 'taverne', 'capitale', 'capital', 'ville',
+      'port', 'ruine', 'donjon', 'forteresse', 'mine', 'quete', 'campement',
+      'cave', 'tavernier', 'entree', 'sortie', 'hostellerie', 'bosquet',
+      'palais', 'cite', 'bourg', 'ruines', 'pics', 'valdris',
+    ];
+  },
+
+  hasSemanticDestinationIntent(text) {
+    if (this.semanticPlaceKeywords().some((kw) => text.includes(kw))) return true;
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      for (const mapId of this.state?.mapIds || []) {
+        const map = Maps.getById(mapId);
+        for (const mk of map?.markers || []) {
+          const label = this.normalizeActionText(mk.label || '');
+          if (label.length >= 3 && text.includes(label)) return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  hasExplicitCardinalDirection(text) {
+    const explicit = [
+      'nord-est', 'nord est', 'nord-ouest', 'nord ouest',
+      'sud-est', 'sud est', 'sud-ouest', 'sud ouest',
+      'vers le nord', 'vers le sud', 'vers l ouest', 'vers l est',
+      'au nord', 'au sud', 'a l ouest', 'a l est',
+      'direction nord', 'direction sud', 'direction ouest', 'direction est',
+      ' vers nord', ' vers sud', ' vers ouest', ' vers est',
+      'cap au nord', 'cap au sud', 'cap a l est', 'cap a l ouest',
+    ];
+    if (explicit.some((phrase) => text.includes(phrase))) return true;
+    if (text.endsWith(' nord') || text.endsWith(' sud') || text.endsWith(' ouest')) return true;
+    if (text.endsWith(' est') && !text.endsWith(' forest') && !text.endsWith(' ouest')) return true;
+    return false;
+  },
+
+  npcLocationKeywords() {
+    return {
+      torval: ['fort', 'brume', 'dungeon', 'donjon', 'pics'],
+      elwen: ['garde', 'muraille', 'fortin'],
+      oldra: ['village', 'hameau', 'sans nom'],
+      thrain: ['keldorm', 'nain', 'mine'],
+      alaric: ['cathedrale', 'temple', 'valdris', 'capitale'],
+      sylka: ['nord', 'brume'],
+      harald: ['guerre', 'bataille', 'cendre'],
+    };
+  },
+
+  findNpcMentionedInText(text) {
+    if (typeof Scenarios === 'undefined') return null;
+    Scenarios.load();
+    const scenario = Scenarios.getById(this.state?.scenarioId);
+    for (const npc of scenario?.npcs || []) {
+      const fullName = this.normalizeActionText(npc.name || '');
+      if (fullName.length >= 4 && text.includes(fullName)) return npc;
+      for (const part of fullName.split(' ')) {
+        if (part.length >= 4 && text.includes(part)) return npc;
+      }
+    }
+    return null;
+  },
+
+  ensurePartyTokensOnWorldMaps() {
+    if (!this.state) return;
+    const worldIds = this.getWorldMapIds();
+    if (!worldIds.length || typeof Maps === 'undefined') return;
+    Maps.load();
+    const mapId = worldIds[0];
+    const map = Maps.getById(mapId);
+    if (!map) return;
+    const start = this.getWorldMapStartPoint(map);
+    const human = this.state.party.find((m) => m.isHuman || m.isPlayer);
+    if (!human?.id) return;
+    const hasToken = this.getMapPlayTokens(mapId).some(
+      (t) => t.kind === 'member' && t.memberId === human.id,
+    );
+    if (!hasToken) this.placeMemberToken(mapId, start.x, start.y, human.id);
+  },
+
+  looksLikeMovementAction(text) {
+    const verbs = [
+      'vais', 'va ', ' marche', 'deplace', 'deplac', 'avance', 'avancer',
+      'cours', 'direction', 'vers le', 'vers la', 'vers un', 'vers l',
+      'me dirige', 'me rends', 'aller ', 'chemin vers', 'cap sur', 'cap au', 'cap a',
+      'ecoute', 'indications', 'conseils', 'suiv', 'dans l', 'dans la', 'dans le', 'jusqu',
+    ];
+    if (verbs.some((verb) => text.includes(verb))) return true;
+    if (text.includes('nord') || text.includes('sud') || text.includes('ouest')) return true;
+    if (text.includes("l'est") || text.includes('l est') || text.includes(' vers est')) return true;
+    const places = [
+      'foret', 'bois', 'auberge', 'taverne', 'capitale', 'capital', 'ville',
+      'port', 'ruine', 'donjon', 'forteresse', 'mine', 'quete', 'campement',
+      'cave', 'tavernier', 'entree', 'sortie',
+    ];
+    if (places.some((place) => text.includes(place))) return true;
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      for (const mapId of this.state?.mapIds || []) {
+        const map = Maps.getById(mapId);
+        for (const mk of map?.markers || []) {
+          const label = this.normalizeActionText(mk.label || '');
+          if (label.length >= 4 && text.includes(label)) return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  manhattan(a, b) {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  },
+
+  pickNearest(from, candidates) {
+    let best = null;
+    let bestDist = Infinity;
+    candidates.forEach((c) => {
+      const d = this.manhattan(from, c);
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    });
+    return best;
+  },
+
+  stepTowards(from, to) {
+    if (from.x === to.x && from.y === to.y) return from;
+    const dx = Math.sign(to.x - from.x);
+    const dy = Math.sign(to.y - from.y);
+    return { x: from.x + dx, y: from.y + dy };
+  },
+
+  getTileIdAt(map, x, y) {
+    const idx = y * map.width + x;
+    return map.tiles?.[idx] || '';
+  },
+
+  findForestCells(map) {
+    const result = [];
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        const tile = this.getTileIdAt(map, x, y);
+        if (tile.includes('forest') || tile.includes('tree') || tile === 'woods') {
+          result.push({ x, y });
+        }
+      }
+    }
+    return result;
+  },
+
+  findForestCellsNearExplored(mapId, map) {
+    const explored = new Set(this.getExploredCells(mapId));
+    if (!explored.size) return [];
+    const result = [];
+    for (let y = 0; y < map.height; y += 1) {
+      for (let x = 0; x < map.width; x += 1) {
+        const tile = this.getTileIdAt(map, x, y);
+        if (!tile.includes('forest') && !tile.includes('tree') && tile !== 'woods') continue;
+        const key = this.cellKey(x, y);
+        if (explored.has(key)) {
+          result.push({ x, y });
+          continue;
+        }
+        for (let ox = -1; ox <= 1; ox += 1) {
+          for (let oy = -1; oy <= 1; oy += 1) {
+            if (ox === 0 && oy === 0) continue;
+            if (explored.has(this.cellKey(x + ox, y + oy))) {
+              result.push({ x, y });
+              break;
+            }
+          }
+        }
+      }
+    }
+    return result;
+  },
+
+  isTileWalkable(map, x, y) {
+    const tile = this.getTileIdAt(map, x, y);
+    if (!tile) return false;
+    if (tile.includes('ocean') || tile.includes('water') || tile === 'wall' || tile.includes('mountain')) {
+      return false;
+    }
+    return true;
+  },
+
+  isCellWalkableForMove(mapId, x, y) {
+    if (!this.isCellAccessibleForMove(mapId, x, y)) return false;
+    if (typeof Maps === 'undefined') return true;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    return map ? this.isTileWalkable(map, x, y) : false;
+  },
+
+  pickBestStepTowards(mapId, from, goal) {
+    if (from.x === goal.x && from.y === goal.y) return from;
+    if (typeof Maps === 'undefined') return null;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return null;
+    const ordered = [];
+    for (let dx = -1; dx <= 1; dx += 1) {
+      for (let dy = -1; dy <= 1; dy += 1) {
+        if (dx === 0 && dy === 0) continue;
+        const n = { x: from.x + dx, y: from.y + dy };
+        if (!this.isTileWalkable(map, n.x, n.y)) continue;
+        ordered.push({ pos: n, dist: this.manhattan(n, goal) });
+      }
+    }
+    ordered.sort((a, b) => a.dist - b.dist);
+    for (const item of ordered) {
+      if (this.prepareCellForMove(mapId, item.pos.x, item.pos.y)
+        && this.isCellWalkableForMove(mapId, item.pos.x, item.pos.y)) {
+        return item.pos;
+      }
+    }
+    return null;
+  },
+
+  findAnchorPosition(map, text) {
+    const proximityPrefixes = [
+      'pres de la ', 'pres du ', 'pres de ', 'proche de la ', 'proche du ', 'proche de ',
+      'a cote de la ', 'a cote du ', 'a cote de ', 'aux alentours de la ', 'aux alentours du ',
+      'autour de la ', 'autour du ', 'autour de ',
+    ];
+    for (const prefix of proximityPrefixes) {
+      const idx = text.indexOf(prefix);
+      if (idx < 0) continue;
+      const rest = text.slice(idx + prefix.length).trim();
+      for (const mk of map.markers || []) {
+        const label = this.normalizeActionText(mk.label || '');
+        if (label.length >= 3 && (rest.startsWith(label) || rest.includes(` ${label}`))) {
+          return { x: mk.x, y: mk.y };
+        }
+      }
+      if (rest.startsWith('capitale') || rest.startsWith('capital') || rest.includes(' capitale')) {
+        const capital = map.markers?.find((m) => m.type === 'capital');
+        if (capital) return { x: capital.x, y: capital.y };
+      }
+      if (rest.startsWith('port') || rest.includes(' port')) {
+        const port = map.markers?.find((m) => this.normalizeActionText(m.label || '').includes('port'));
+        if (port) return { x: port.x, y: port.y };
+      }
+    }
+    if (text.includes('capitale') || text.includes('capital') || text.includes('palais') || text.includes('valdris')) {
+      const mk = map.markers?.find((m) => m.type === 'capital'
+        || this.normalizeActionText(m.label || '').includes('capitale'));
+      if (mk) return { x: mk.x, y: mk.y };
+    }
+    if (text.includes('port')) {
+      const mk = map.markers?.find((m) => this.normalizeActionText(m.label || '').includes('port'));
+      if (mk) return { x: mk.x, y: mk.y };
+      const link = map.locationLinks?.find((l) => this.normalizeActionText(l.label || '').includes('port'));
+      if (link) return { x: link.x, y: link.y };
+    }
+    if (text.includes('mine')) {
+      const mk = map.markers?.find((m) => this.normalizeActionText(m.label || '').includes('mine'));
+      if (mk) return { x: mk.x, y: mk.y };
+    }
+    return null;
+  },
+
+  mapTitleMatchesKeywords(mapId, keywords) {
+    if (typeof Maps === 'undefined') return false;
+    Maps.load();
+    const title = this.normalizeActionText(Maps.getById(mapId)?.title || '');
+    return keywords.some((kw) => title.includes(kw));
+  },
+
+  collectSemanticCandidates(mapId, map, text) {
+    const candidates = [];
+    const anchor = this.findAnchorPosition(map, text);
+
+    const wantsTavern = text.includes('auberge') || text.includes('taverne')
+      || text.includes('hostellerie') || text.includes('tavernier');
+    const wantsForest = text.includes('foret') || text.includes('bois') || text.includes('bosquet');
+    const wantsCapital = text.includes('capitale') || text.includes('capital') || text.includes('valdris');
+    const wantsCity = text.includes('ville') || text.includes('cite') || text.includes('bourg');
+    const wantsRuin = text.includes('ruine');
+    const wantsDungeon = text.includes('donjon') || text.includes('forteresse')
+      || text.includes('chateau') || text.includes('pics');
+    const wantsQuest = text.includes('quete') || text.includes('mission');
+    const wantsCave = text.includes('cave') || text.includes('cellier');
+    const wantsExit = text.includes('sortie') || text.includes('exterieur');
+
+    if (wantsTavern) {
+      (map.locationLinks || []).forEach((link) => {
+        if (this.mapTitleMatchesKeywords(link.targetMapId, ['taverne', 'auberge', 'hostellerie', 'port'])) {
+          candidates.push({ x: link.x, y: link.y });
+        }
+      });
+      (map.markers || []).forEach((mk) => {
+        const label = this.normalizeActionText(mk.label || '');
+        if (label.includes('tavernier') || label.includes('auberge') || label.includes('taverne')) {
+          candidates.push({ x: mk.x, y: mk.y });
+        }
+      });
+    }
+
+    if (wantsForest) {
+      const nearForest = this.findForestCellsNearExplored(mapId, map);
+      if (nearForest.length) candidates.push(...nearForest);
+      else candidates.push(...this.findForestCells(map));
+    }
+
+    if (wantsCapital && !wantsTavern) {
+      (map.markers || []).filter((m) => m.type === 'capital').forEach((mk) => {
+        candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    if (wantsCity || (text.includes('port') && !wantsTavern)) {
+      (map.markers || []).filter((m) => m.type === 'city').forEach((mk) => {
+        candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    if (wantsRuin) {
+      (map.markers || []).forEach((mk) => {
+        if (mk.type === 'ruin' || this.normalizeActionText(mk.label || '').includes('ruine')) {
+          candidates.push({ x: mk.x, y: mk.y });
+        }
+      });
+    }
+
+    if (wantsDungeon) {
+      (map.markers || []).filter((m) => m.type === 'dungeon').forEach((mk) => {
+        candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    if (wantsQuest) {
+      (map.markers || []).filter((m) => m.type === 'quest').forEach((mk) => {
+        candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    if (wantsCave) {
+      (map.markers || []).forEach((mk) => {
+        const label = this.normalizeActionText(mk.label || '');
+        if (label.includes('cave')) candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    if (wantsExit) {
+      (map.markers || []).filter((m) => m.type === 'exit').forEach((mk) => {
+        candidates.push({ x: mk.x, y: mk.y });
+      });
+    }
+
+    (map.markers || []).forEach((mk) => {
+      const label = this.normalizeActionText(mk.label || '');
+      if (label.length >= 3 && text.includes(label)) candidates.push({ x: mk.x, y: mk.y });
+    });
+
+    (map.locationLinks || []).forEach((link) => {
+      const label = this.normalizeActionText(link.label || '');
+      if (label.length >= 3 && text.includes(label)) candidates.push({ x: link.x, y: link.y });
+    });
+
+    const hasPlaceIntent = wantsTavern || wantsForest || wantsCapital || wantsCity
+      || wantsRuin || wantsDungeon || wantsQuest || wantsCave || wantsExit;
+    if (!hasPlaceIntent) {
+      const npc = this.findNpcMentionedInText(text);
+      if (npc && (text.includes('ecoute') || text.includes('indications')
+        || text.includes('conseils') || text.includes('suiv'))) {
+        const keywords = this.npcLocationKeywords();
+        for (const part of this.normalizeActionText(npc.name || '').split(' ')) {
+          if (!keywords[part]) continue;
+          keywords[part].forEach((kw) => {
+            (map.markers || []).forEach((mk) => {
+              const label = this.normalizeActionText(mk.label || '');
+              if (label.includes(kw) || mk.type === kw || (kw === 'donjon' && mk.type === 'dungeon')) {
+                candidates.push({ x: mk.x, y: mk.y });
+              }
+            });
+          });
+        }
+      }
+    }
+
+    const unique = [];
+    candidates.forEach((c) => {
+      if (!unique.some((u) => u.x === c.x && u.y === c.y)) unique.push(c);
+    });
+
+    if (anchor && unique.length > 0) {
+      if (wantsTavern) {
+        const tavernOnly = unique.filter((c) => {
+          const isLink = (map.locationLinks || []).some((l) => l.x === c.x && l.y === c.y);
+          const isTavernMarker = (map.markers || []).some((mk) => {
+            if (mk.x !== c.x || mk.y !== c.y) return false;
+            const label = this.normalizeActionText(mk.label || '');
+            return label.includes('tavernier') || label.includes('auberge') || label.includes('taverne');
+          });
+          return isLink || isTavernMarker;
+        });
+        if (tavernOnly.length) return [this.pickNearest(anchor, tavernOnly)];
+      }
+      return [this.pickNearest(anchor, unique)];
+    }
+
+    return unique;
+  },
+
+  resolveSemanticDestination(actionText, mapId, fromPos) {
+    const text = this.normalizeActionText(actionText);
+    if (!this.looksLikeMovementAction(text)) return null;
+    if (typeof Maps === 'undefined') return null;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return null;
+
+    const candidates = this.collectSemanticCandidates(mapId, map, text);
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+    return this.pickNearest(fromPos, candidates);
+  },
+
+  prepareCellForMove(mapId, x, y) {
+    if (this.isCellAccessibleForMove(mapId, x, y)) return true;
+    if (typeof Maps === 'undefined') return false;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map || !Maps.isWorldMap(map)) return false;
+    const explored = new Set(this.getExploredCells(mapId));
+    for (let ox = -1; ox <= 1; ox += 1) {
+      for (let oy = -1; oy <= 1; oy += 1) {
+        if (ox === 0 && oy === 0) continue;
+        if (explored.has(this.cellKey(x + ox, y + oy))) {
+          this.revealCell(mapId, x, y);
+          this.revealWorldAt(mapId, x, y, 1);
+          return this.isCellAccessibleForMove(mapId, x, y);
+        }
+      }
+    }
+    return false;
+  },
+
+  parseMovementDelta(actionText) {
+    const text = this.normalizeActionText(actionText);
+    if (!this.looksLikeMovementAction(text)) return null;
+    if (this.hasSemanticDestinationIntent(text) && !this.hasExplicitCardinalDirection(text)) {
+      return null;
+    }
+
+    if (text.includes('nord-est') || text.includes('nord est')) return { dx: 1, dy: -1 };
+    if (text.includes('nord-ouest') || text.includes('nord ouest')) return { dx: -1, dy: -1 };
+    if (text.includes('sud-est') || text.includes('sud est')) return { dx: 1, dy: 1 };
+    if (text.includes('sud-ouest') || text.includes('sud ouest')) return { dx: -1, dy: 1 };
+    if (text.includes('nord') || text.includes('north')) return { dx: 0, dy: -1 };
+    if (text.includes('sud') || text.includes('south')) return { dx: 0, dy: 1 };
+    if (text.includes('ouest') || text.includes('west')) return { dx: -1, dy: 0 };
+    if (
+      text.includes('l est')
+      || text.includes(' vers est')
+      || text.includes(' a l est')
+      || text.includes(' au est')
+      || text.includes(' east')
+    ) {
+      return { dx: 1, dy: 0 };
+    }
+    return null;
+  },
+
+  isCellAccessibleForMove(mapId, x, y) {
+    if (typeof Maps === 'undefined') return true;
+    Maps.load();
+    const map = Maps.getById(mapId);
+    if (!map) return false;
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
+    if (!Maps.isWorldMap(map)) return true;
+    const nav = this.state?.mapNavigation || {};
+    if (nav.view === 'local' || this.state?.status === 'completed') return true;
+    return this.getExploredCells(mapId).includes(this.cellKey(x, y));
+  },
+
+  tryAutoMoveFromAction(actionText, memberId = null) {
+    if (!this.state || this.state.status === 'completed') return false;
+    const text = this.normalizeActionText(actionText);
+    if (!this.looksLikeMovementAction(text)) return false;
+
+    const actorId = memberId
+      || this.getActiveMember()?.id
+      || this.state.party.find((m) => m.isHuman)?.id
+      || this.state.party[0]?.id;
+    if (!actorId) return false;
+
+    const mapId = this.getActivePlayMapId();
+    if (!mapId) return false;
+
+    const pos = this.getMemberTokenPosition(mapId, actorId);
+    if (!pos) return false;
+
+    let target = null;
+    const delta = this.parseMovementDelta(actionText);
+    if (delta) {
+      target = { x: pos.x + delta.dx, y: pos.y + delta.dy };
+      if (!this.prepareCellForMove(mapId, target.x, target.y)
+        || !this.isCellWalkableForMove(mapId, target.x, target.y)) {
+        target = null;
+      }
+    } else {
+      const destination = this.resolveSemanticDestination(actionText, mapId, pos);
+      if (destination) target = this.pickBestStepTowards(mapId, pos, destination);
+    }
+
+    if (!target || (target.x === pos.x && target.y === pos.y)) return false;
+
+    this.placeMemberToken(mapId, target.x, target.y, actorId);
+    this.save();
+    return true;
   },
 
   applyMapPlayAction(mapId, x, y, tool) {
@@ -392,17 +1180,24 @@ const Game = {
     });
 
     document.querySelectorAll('input[name="quest-format"]').forEach((radio) => {
-      radio.addEventListener('change', () => this.refreshSetupCharacters());
+      radio.addEventListener('change', () => {
+        this.refreshSetupCharacters();
+        if (typeof Maps !== 'undefined') {
+          Maps.load();
+          const scenarioId = document.getElementById('setup-scenario')?.value || '';
+          const questFormat = this.getSetupQuestFormat();
+          this.refreshSetupMaps(Maps.getDefaultSelectedMapIds(scenarioId, questFormat));
+        }
+      });
     });
 
     document.getElementById('setup-scenario')?.addEventListener('change', () => {
+      const questFormat = this.getSetupQuestFormat();
+      this.refreshSetupCharacters();
       if (typeof Maps !== 'undefined') {
         Maps.load();
         const scenarioId = document.getElementById('setup-scenario')?.value || '';
-        const questFormat = this.getSetupQuestFormat();
-        const linked = Maps.getSetupMapPool(scenarioId, questFormat)
-          .filter((m) => m.scenarioId === scenarioId)
-          .map((m) => m.id);
+        const linked = Maps.getDefaultSelectedMapIds(scenarioId, questFormat);
         this.refreshSetupMaps(linked.length ? linked : null);
       } else {
         this.refreshSetupMaps();
@@ -630,6 +1425,9 @@ const Game = {
     const pool = Maps.getSetupMapPool(scenarioId, questFormat);
     const validIds = new Set(pool.map((m) => m.id));
     current = current.filter((id) => validIds.has(id));
+    if (!current.length) {
+      current = Maps.getDefaultSelectedMapIds(scenarioId, questFormat).filter((id) => validIds.has(id));
+    }
 
     container.innerHTML = Maps.renderSetupMapPicker(current, scenarioId, questFormat);
   },
@@ -719,8 +1517,14 @@ const Game = {
       this.refreshSetupScenarios(scenarioId);
       const scenarioSelect = document.getElementById('setup-scenario');
       if (scenarioSelect) scenarioSelect.value = scenarioId;
-      this.refreshSetupMaps();
     }
+    if (typeof Maps !== 'undefined') {
+      Maps.load();
+      const format = questFormat || this.getSetupQuestFormat();
+      const sid = scenarioId || document.getElementById('setup-scenario')?.value || '';
+      this.refreshSetupMaps(Maps.getDefaultSelectedMapIds(sid, format));
+    }
+    this.updateSetupVisibility();
   },
 
   getQuestFormatLabel(format) {
@@ -848,6 +1652,69 @@ const Game = {
     this.refreshSetupCharacters();
     this.refreshSetupMaps();
     this.updateSetupVisibility();
+    this.renderSavedGamesInSetup();
+  },
+
+  renderSavedGamesInSetup() {
+    const section = document.getElementById('play-saved-games');
+    const list = document.getElementById('play-saved-games-list');
+    if (!section || !list) return;
+
+    const games = this.getPlayingGames();
+    section.classList.toggle('hidden', games.length === 0);
+    list.innerHTML = '';
+
+    games.forEach((game) => {
+      list.appendChild(this.buildSavedGameCard(game, {
+        onResume: (id) => {
+          this.resumeGame(id);
+          if (typeof App !== 'undefined') App.renderSavedGamesList();
+        },
+        onDelete: (id) => {
+          if (!confirm('Effacer cette partie ? Toute la progression sera perdue.')) return;
+          this.deleteGame(id);
+          this.renderSavedGamesInSetup();
+          if (typeof App !== 'undefined') App.renderSavedGamesList();
+        },
+      }));
+    });
+  },
+
+  buildSavedGameCard(game, handlers = {}) {
+    const card = document.createElement('article');
+    card.className = 'saved-game-card';
+
+    const info = document.createElement('div');
+    info.className = 'saved-game-info';
+
+    const title = document.createElement('strong');
+    title.textContent = `« ${Scenarios.list.find((s) => s.id === game.scenarioId)?.title || game.scenarioId || 'Aventure'} »`;
+    info.appendChild(title);
+
+    const meta = document.createElement('span');
+    meta.textContent = this.getGamePartySummary(game);
+    info.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'saved-game-actions';
+
+    const resumeBtn = document.createElement('button');
+    resumeBtn.type = 'button';
+    resumeBtn.className = 'btn btn-primary btn-sm';
+    resumeBtn.textContent = '▶ Reprendre';
+    resumeBtn.addEventListener('click', () => handlers.onResume?.(game.id));
+    actions.appendChild(resumeBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn btn-secondary btn-sm btn-danger';
+    deleteBtn.textContent = '🗑 Effacer la partie';
+    deleteBtn.addEventListener('click', () => handlers.onDelete?.(game.id));
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(info);
+    card.appendChild(actions);
+    return card;
   },
 
   buildMemberFromCharId(charId, playerName = null, isHuman = true) {
@@ -890,11 +1757,21 @@ const Game = {
         return;
       }
 
-      const mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+      const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
+
+      let mapIds = this.expandMapIdsWithLinkedLocals(this.getSelectedSetupMapIds());
+      const validMapPool = new Set(
+        Maps.getSetupMapPool(scenarioId, questFormat).map((m) => m.id),
+      );
+      mapIds = mapIds.filter((id) => validMapPool.has(id));
+      if (!mapIds.length) {
+        mapIds = this.expandMapIdsWithLinkedLocals(
+          Maps.getDefaultSelectedMapIds(scenarioId, questFormat),
+        );
+      }
 
       const mode = document.querySelector('input[name="game-mode"]:checked').value;
       const gmType = document.querySelector('input[name="gm-type"]:checked').value;
-      const questFormat = document.querySelector('input[name="quest-format"]:checked')?.value || 'oneshot';
       const gmName = document.getElementById('setup-gm-name').value.trim() || 'Maître du jeu';
       const partySize = this.getSetupPartySize();
 
@@ -1020,6 +1897,8 @@ const Game = {
 
       this.renderSession();
       this.initAllWorldMapFog();
+      this.initInvestigationCluesForGame();
+      this.ensurePartyTokensOnWorldMaps();
       this.renderSession();
     } catch (err) {
       console.error(err);
@@ -1044,6 +1923,15 @@ const Game = {
 
   endGame() {
     if (!confirm('Quitter la partie en cours ?')) return;
+    this.deleteGame(this.state?.id);
+    if (typeof App !== 'undefined') App.renderSavedGamesList();
+  },
+
+  deleteActiveGame() {
+    if (this.state?.id) {
+      this.deleteGame(this.state.id);
+      return;
+    }
     this.stopSessionTimer();
     this.state = null;
     Storage.save(Storage.KEYS.activeGame, null);
@@ -1058,7 +1946,14 @@ const Game = {
   },
 
   save() {
-    Storage.save(Storage.KEYS.activeGame, this.state);
+    if (!this.state) return;
+    this.state.updatedAt = Date.now();
+    const games = this.loadSavedGames();
+    const idx = games.findIndex((g) => g.id === this.state.id);
+    if (idx >= 0) games[idx] = this.state;
+    else games.push(this.state);
+    this.persistSavedGames(games);
+    Storage.save(Storage.KEYS.lastActiveGameId, this.state.id);
   },
 
   addLog(type, author, text) {
@@ -1098,12 +1993,17 @@ const Game = {
     this.addLog('player', actor.name, action);
     input.value = '';
 
+    this.tryAutoMoveFromAction(action, actor.id);
+
     if (this.state.gmType === 'ai') {
+      this.maybeRevealInvestigationFromAction(action);
       this.processAiResponse(action, actor);
     } else {
+      this.maybeRevealInvestigationFromAction(action);
       if (/explor|fouill|inspect|cherch|cartograph|voyage|carte|déplacement|deplacement/i.test(action)) {
         this.revealWorldOnExplore(4);
       }
+      this.tryAutoMoveFromAction(action, actor.id);
       this.state.waitingForGm = true;
     }
 
@@ -1119,6 +2019,18 @@ const Game = {
       this.advanceScene(false);
     } else if (response.success && response.actionType === 'explore') {
       this.revealWorldOnExplore();
+      if (this.state.questFormat === 'investigation') {
+        const mapId = this.getActivePlayMapId?.() || this.state?.mapIds?.[0];
+        if (mapId && actor?.id) {
+          const pos = this.getMemberTokenPosition(mapId, actor.id);
+          if (pos?.x >= 0) {
+            this.revealInvestigationNear(mapId, pos.x, pos.y, 2);
+          }
+          this.revealNextInvestigationClues(mapId, 1);
+        }
+      }
+    } else if (response.success && response.actionType === 'talk' && this.state.questFormat === 'investigation') {
+      this.maybeRevealInvestigationFromAction(playerAction);
     }
 
     this.renderSession();
@@ -1170,6 +2082,7 @@ const Game = {
         this.rememberAction(this.state.aiState, action);
 
         this.addLog('player', bot.name, action);
+        this.tryAutoMoveFromAction(action, bot.id);
         const response = AiGM.resolveAction(this.state, action, bot);
         this.addLog('gm', 'MJ IA', response.gmText);
         this.save();
@@ -1239,6 +2152,7 @@ const Game = {
     }
 
     this.revealWorldOnSceneAdvance();
+    this.revealInvestigationOnSceneAdvance();
     this.save();
   },
 
@@ -1359,6 +2273,15 @@ const Game = {
     return modeBlock + rules;
   },
 
+  syncScenarioMetadata(state = this.state) {
+    if (!state?.scenarioId) return;
+    Scenarios.load();
+    const scenario = Scenarios.list.find((s) => s.id === state.scenarioId);
+    if (scenario?.title) {
+      state.scenarioTitle = scenario.title;
+    }
+  },
+
   renderSession() {
     if (!this.state) return;
 
@@ -1370,8 +2293,10 @@ const Game = {
       this.state.aiState.questFormat = this.state.questFormat;
     }
 
+    this.syncScenarioMetadata();
+    Scenarios.load();
     const scenario = Scenarios.list.find((s) => s.id === this.state.scenarioId);
-    document.getElementById('game-scenario-title').textContent = scenario?.title || 'Partie';
+    document.getElementById('game-scenario-title').textContent = scenario?.title || this.state.scenarioTitle || 'Partie';
 
     const modeLabel = this.state.mode === 'solo' ? 'Solo' : 'Multijoueur local';
     const gmLabel = this.state.gmType === 'ai' ? 'MJ IA adaptatif' : `MJ : ${this.state.gmName}`;
@@ -1471,7 +2396,10 @@ const Game = {
         <div class="log-text">${this.formatLogText(entry.text)}</div>
       </div>
     `).join('');
-    log.scrollTop = log.scrollHeight;
+    const layout = document.querySelector('#game-session .game-layout');
+    if (layout) {
+      layout.scrollTop = layout.scrollHeight;
+    }
   },
 
   formatLogText(text) {

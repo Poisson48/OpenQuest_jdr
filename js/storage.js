@@ -10,6 +10,8 @@ const Storage = {
     scenarios: 'forge-rpg-scenarios',
     rollHistory: 'forge-rpg-roll-history',
     activeGame: 'forge-rpg-active-game',
+    savedGames: 'forge-rpg-saved-games',
+    lastActiveGameId: 'forge-rpg-last-active-game-id',
     maps: 'forge-rpg-maps',
     removedDemos: 'forge-rpg-removed-demos',
   },

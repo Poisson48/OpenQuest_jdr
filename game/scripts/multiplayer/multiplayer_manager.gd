@@ -204,15 +204,16 @@ func client_request_start_game(
 	mode: String,
 	gm_type: String,
 	quest_format: String,
-	party_size: int
+	party_size: int,
+	map_ids: Array = []
 ) -> void:
 	if not is_p2p_active():
 		p2p_error.emit("P2P non actif — rejoignez un salon d'abord.")
 		return
 	if is_p2p_host():
-		_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size)
+		_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size, map_ids)
 	else:
-		request_start_game.rpc_id(1, scenario_id, party, mode, gm_type, quest_format, party_size, player_id)
+		request_start_game.rpc_id(1, scenario_id, party, mode, gm_type, quest_format, party_size, map_ids, player_id)
 
 func client_submit_action(action_text: String) -> void:
 	if not is_p2p_active():
@@ -354,12 +355,13 @@ func _host_start_game(
 	mode: String,
 	gm_type: String,
 	quest_format: String,
-	_party_size: int
+	_party_size: int,
+	map_ids: Array = []
 ) -> void:
 	if not is_p2p_host():
 		return
 	var final_party := _merge_party_with_room(party)
-	GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party)
+	GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party, map_ids)
 	var state := GameData.active_game.duplicate(true)
 	sync_game_state.rpc(state)
 	game_started.emit(state.get("id", ""), state)
@@ -490,13 +492,14 @@ func request_start_game(
 	gm_type: String,
 	quest_format: String,
 	party_size: int,
+	map_ids: Array,
 	sender_player_id: String
 ) -> void:
 	if not is_p2p_host():
 		return
 	if sender_player_id != player_id and not _is_gm_peer(sender_player_id):
 		return
-	_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size)
+	_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size, map_ids)
 
 func _is_gm_peer(pid: String) -> bool:
 	for room_player in get_room_players():

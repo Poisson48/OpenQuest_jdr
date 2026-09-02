@@ -12,45 +12,183 @@ extends Control
 @onready var gm_panel: PanelContainer = %GmPanel
 @onready var gm_input: TextEdit = %GmInput
 @onready var net_status_lbl: Label = %NetStatusLabel
+@onready var map_panel: PanelContainer = %MapPanel
+@onready var btn_back_hub: Button = %BtnBackHub
+@onready var btn_advance_scene: Button = %BtnAdvanceScene
+@onready var btn_roll_custom: Button = %BtnRollCustom
+@onready var btn_gm_send: Button = %BtnGmSend
+@onready var btn_d4: Button = %BtnD4
+@onready var btn_d6: Button = %BtnD6
+@onready var btn_d8: Button = %BtnD8
+@onready var btn_d10: Button = %BtnD10
+@onready var btn_d12: Button = %BtnD12
+@onready var btn_d20: Button = %BtnD20
+@onready var btn_d100: Button = %BtnD100
+@onready var btn_sugg_explore: Button = %BtnSuggExplore
+@onready var btn_sugg_talk: Button = %BtnSuggTalk
+@onready var btn_sugg_inspect: Button = %BtnSuggInspect
+@onready var btn_sugg_combat: Button = %BtnSuggCombat
 
 var session_seconds: int = 0
 var timer_active: bool = true
 
+func _configure_layout() -> void:
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	var log_panel: PanelContainer = main_area.get_node("LogPanel") as PanelContainer
+	var dice_section: Control = main_area.get_node("DiceSection")
+	var action_section: Control = main_area.get_node("ActionSection")
+
+	_remove_legacy_middle_scroll(main_area, log_panel)
+	_ensure_session_scroll(main_area)
+
+	var session_scroll: ScrollContainer = main_area.get_node("SessionScroll") as ScrollContainer
+	var session_vbox: VBoxContainer = session_scroll.get_node("SessionVBox") as VBoxContainer
+	var ordered: Array = [map_panel, log_panel, dice_section, action_section]
+	for i in range(ordered.size()):
+		var node: Control = ordered[i] as Control
+		if node.get_parent() != session_vbox:
+			if node.get_parent():
+				node.get_parent().remove_child(node)
+			session_vbox.add_child(node)
+		session_vbox.move_child(node, i)
+
+	map_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	map_panel.custom_minimum_size = Vector2(0, 450)
+
+	log_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	log_panel.size_flags_stretch_ratio = 0.0
+	log_panel.custom_minimum_size = Vector2(0, 320)
+
+	dice_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	action_section.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	_configure_log_readability()
+
+func _ensure_session_scroll(main_area: VBoxContainer) -> void:
+	if main_area.has_node("PlayScroll"):
+		var play_scroll: ScrollContainer = main_area.get_node("PlayScroll")
+		var play_vbox: VBoxContainer = play_scroll.get_node("PlayVBox")
+		while play_vbox.get_child_count() > 0:
+			var child: Node = play_vbox.get_child(0)
+			play_vbox.remove_child(child)
+			main_area.add_child(child)
+		play_scroll.queue_free()
+
+	if main_area.has_node("SessionScroll"):
+		return
+
+	var session_scroll := ScrollContainer.new()
+	session_scroll.name = "SessionScroll"
+	session_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	session_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	session_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	session_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+
+	var session_vbox := VBoxContainer.new()
+	session_vbox.name = "SessionVBox"
+	session_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	session_vbox.add_theme_constant_override("separation", 8)
+	session_scroll.add_child(session_vbox)
+	main_area.add_child(session_scroll)
+	main_area.move_child(session_scroll, 0)
+
+func _remove_legacy_middle_scroll(main_area: VBoxContainer, log_panel: PanelContainer) -> void:
+	if not main_area.has_node("MiddleScroll"):
+		return
+	var scroll: ScrollContainer = main_area.get_node("MiddleScroll")
+	var middle: VBoxContainer = scroll.get_node("MiddleVBox")
+	if map_panel.get_parent() == middle:
+		middle.remove_child(map_panel)
+	if log_panel.get_parent() == middle:
+		middle.remove_child(log_panel)
+	scroll.queue_free()
+
+func _configure_log_readability() -> void:
+	var log_vbox := log_label.get_parent() as VBoxContainer
+	if log_vbox:
+		log_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	log_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	log_label.scroll_active = false
+	log_label.fit_content = false
+	log_label.add_theme_font_size_override("normal_font_size", 15)
+	log_label.add_theme_color_override("default_color", ThemeColors.TEXT)
+	log_label.add_theme_constant_override("line_separation", 6)
+
+	var log_panel_node: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
+	if log_panel_node:
+		var style := StyleBoxFlat.new()
+		style.bg_color = ThemeColors.BG_INPUT
+		style.border_color = ThemeColors.BORDER
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 14
+		style.content_margin_right = 14
+		style.content_margin_top = 10
+		style.content_margin_bottom = 12
+		log_panel_node.add_theme_stylebox_override("panel", style)
+
+	if log_vbox:
+		var title_lbl := log_vbox.get_node_or_null("LblHistoire") as Label
+		if title_lbl:
+			title_lbl.add_theme_font_size_override("font_size", 15)
+
+func _sync_log_layout() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var content_h := int(log_label.get_content_height())
+	var body_h := maxi(280, content_h + 28)
+	log_label.custom_minimum_size = Vector2(0, body_h)
+	var log_panel_node: PanelContainer = log_label.get_parent().get_parent() as PanelContainer
+	if log_panel_node:
+		log_panel_node.custom_minimum_size = Vector2(0, body_h + 52)
+
 func _ready() -> void:
-	%BtnBackHub.pressed.connect(_on_leave_session_pressed)
-	%BtnAdvanceScene.pressed.connect(_on_advance_scene_pressed)
+	if not GameData.has_active_game():
+		_create_fallback_game()
+	_refresh_session_ui()
+
+	_configure_layout()
+
+	btn_back_hub.pressed.connect(_on_leave_session_pressed)
+	btn_advance_scene.pressed.connect(_on_advance_scene_pressed)
 	btn_send_action.pressed.connect(_on_send_action_pressed)
 	input_action.text_submitted.connect(func(_t): _on_send_action_pressed())
-	
-	%BtnRollCustom.pressed.connect(_on_roll_custom_dice)
+
+	btn_roll_custom.pressed.connect(_on_roll_custom_dice)
 	custom_dice_input.text_submitted.connect(func(_t): _on_roll_custom_dice())
-	
-	%BtnGmSend.pressed.connect(_on_gm_send_pressed)
-	
+
+	btn_gm_send.pressed.connect(_on_gm_send_pressed)
+
+	_configure_log_readability()
 	_setup_quick_dice_buttons()
 	_setup_suggestion_buttons()
 	_connect_network_signals()
-	
-	if not GameData.has_active_game():
-		_create_fallback_game()
-		
+	_connect_game_data_signals()
+
 	_refresh_session_ui()
 	_update_net_status()
 
 func _setup_quick_dice_buttons() -> void:
-	%BtnD4.pressed.connect(func(): _roll_dice_formula("1d4"))
-	%BtnD6.pressed.connect(func(): _roll_dice_formula("1d6"))
-	%BtnD8.pressed.connect(func(): _roll_dice_formula("1d8"))
-	%BtnD10.pressed.connect(func(): _roll_dice_formula("1d10"))
-	%BtnD12.pressed.connect(func(): _roll_dice_formula("1d12"))
-	%BtnD20.pressed.connect(func(): _roll_dice_formula("1d20"))
-	%BtnD100.pressed.connect(func(): _roll_dice_formula("1d100"))
+	btn_d4.pressed.connect(func(): _roll_dice_formula("1d4"))
+	btn_d6.pressed.connect(func(): _roll_dice_formula("1d6"))
+	btn_d8.pressed.connect(func(): _roll_dice_formula("1d8"))
+	btn_d10.pressed.connect(func(): _roll_dice_formula("1d10"))
+	btn_d12.pressed.connect(func(): _roll_dice_formula("1d12"))
+	btn_d20.pressed.connect(func(): _roll_dice_formula("1d20"))
+	btn_d100.pressed.connect(func(): _roll_dice_formula("1d100"))
 
 func _setup_suggestion_buttons() -> void:
-	%BtnSuggExplore.pressed.connect(func(): _set_and_send_action("J'explore attentivement les environs à la recherche d'indices."))
-	%BtnSuggTalk.pressed.connect(func(): _set_and_send_action("J'engage la conversation avec les personnes présentes."))
-	%BtnSuggInspect.pressed.connect(func(): _set_and_send_action("J'examine minutieusement cet endroit."))
-	%BtnSuggCombat.pressed.connect(func(): _set_and_send_action("Je dégaine mon arme et me prépare au combat !"))
+	btn_sugg_explore.pressed.connect(func(): _set_and_send_action("J'explore attentivement les environs à la recherche d'indices."))
+	btn_sugg_talk.pressed.connect(func(): _set_and_send_action("J'engage la conversation avec les personnes présentes."))
+	btn_sugg_inspect.pressed.connect(func(): _set_and_send_action("J'examine minutieusement cet endroit."))
+	btn_sugg_combat.pressed.connect(func(): _set_and_send_action("Je dégaine mon arme et me prépare au combat !"))
+
+func _connect_game_data_signals() -> void:
+	if not GameData.active_game_updated.is_connected(_refresh_session_ui):
+		GameData.active_game_updated.connect(_refresh_session_ui)
 
 func _set_and_send_action(action_text: String) -> void:
 	input_action.text = action_text
@@ -98,14 +236,15 @@ func _create_fallback_game() -> void:
 	var scns: Array = GameData.get_scenarios()
 	var scn_id: String = scns[0].get("id", "demo-kharak") if not scns.is_empty() else "demo-kharak"
 	var default_party: Array = [
-		{ "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
-		{ "name": "Kael", "race": "Nain", "class": "Guerrier", "hp": 14, "ac": 16, "isPlayer": false, "isBot": true }
+		{ "id": "char-fallback-1", "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
+		{ "id": "bot-fallback-1", "name": "Kael", "race": "Nain", "class": "Guerrier", "hp": 14, "ac": 16, "isPlayer": false, "isBot": true }
 	]
 	GameData.create_new_game(scn_id, "solo", "ai", "oneshot", default_party)
 
 func _refresh_session_ui() -> void:
+	GameData.sync_active_game_scenario_metadata()
 	var state := GameData.active_game
-	scenario_title_lbl.text = "🗺️ " + state.get("scenarioTitle", "Aventure")
+	scenario_title_lbl.text = "🗺️ " + GameData.get_scenario_display_title()
 	
 	var scenario := GameData.get_scenario_by_id(state.get("scenarioId", ""))
 	var scenes: Array = scenario.get("scenes", [])
@@ -122,6 +261,8 @@ func _refresh_session_ui() -> void:
 	
 	_render_party_list()
 	_render_log()
+	if map_panel and map_panel.has_method("refresh"):
+		map_panel.refresh()
 
 func _render_party_list() -> void:
 	for child in party_container.get_children():
@@ -184,12 +325,18 @@ func _render_log() -> void:
 	var log_entries: Array = GameData.active_game.get("log", [])
 	for entry in log_entries:
 		_append_log_entry_bbcode(entry)
-	
-	# Fait défiler jusqu'en bas
+	call_deferred("_sync_log_layout")
+	call_deferred("_scroll_session_to_bottom")
+
+func _scroll_session_to_bottom() -> void:
 	await get_tree().process_frame
-	var v_scroll = log_label.get_v_scroll_bar()
-	if v_scroll:
-		v_scroll.value = v_scroll.max_value
+	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
+	if not main_area.has_node("SessionScroll"):
+		return
+	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
+	var bar := scroll.get_v_scroll_bar()
+	if bar:
+		bar.value = bar.max_value
 
 func _append_log_entry_bbcode(entry: Dictionary) -> void:
 	var author: String = entry.get("author", "Inconnu")
@@ -210,10 +357,12 @@ func _append_log_entry_bbcode(entry: Dictionary) -> void:
 		"dice":
 			author_color = ThemeColors.get_bbcode_color(ThemeColors.GOLD_LIGHT)
 			
-	var formatted := "[color=#%s][b]%s[/b][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n%s\n\n" % [
+	var formatted := "[color=#%s][font_size=15][b]%s[/b][/font_size][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n[font_size=15]%s[/font_size]\n\n" % [
 		author_color, author, time, text
 	]
 	log_label.append_text(formatted)
+	call_deferred("_sync_log_layout")
+	call_deferred("_scroll_session_to_bottom")
 
 func _on_send_action_pressed() -> void:
 	var action_text := input_action.text.strip_edges()
@@ -242,7 +391,11 @@ func _on_send_action_pressed() -> void:
 		"text": action_text,
 		"time": Time.get_time_string_from_system()
 	})
+	if GameData.try_auto_move_from_action(action_text):
+		map_panel.refresh()
 	if GameData.active_game.get("gmType", "ai") == "ai":
+		GameData.maybe_reveal_investigation_from_action(action_text)
+		map_panel.refresh()
 		_simulate_ai_response(action_text)
 
 func _simulate_ai_response(player_action: String) -> void:

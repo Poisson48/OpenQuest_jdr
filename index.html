@@ -92,13 +92,10 @@
     </header>
 
     <main class="home-main">
-      <div id="home-resume" class="home-resume hidden">
-        <div class="home-resume-text">
-          <strong id="home-resume-label">Partie en cours</strong>
-          <span id="home-resume-detail">Tu peux reprendre là où tu t'étais arrêté.</span>
-        </div>
-        <button type="button" id="btn-home-resume" class="btn btn-primary">Reprendre la partie</button>
-      </div>
+      <section id="home-saved-games" class="home-saved-games hidden">
+        <h2 class="home-saved-games-title">Parties en cours</h2>
+        <div id="home-saved-games-list" class="home-saved-games-list"></div>
+      </section>
 
       <section class="home-hero-actions">
         <button type="button" id="btn-home-play" class="btn btn-primary btn-lg home-cta">🎮 Lancer une partie</button>
@@ -1315,6 +1312,11 @@
       <div class="play-content">
       <!-- Configuration de partie -->
       <div id="game-setup">
+        <section id="play-saved-games" class="play-saved-games hidden">
+          <h3>Parties en cours</h3>
+          <div id="play-saved-games-list" class="home-saved-games-list"></div>
+        </section>
+
         <h2>Lancer une partie</h2>
 
         <details class="help-box" open>
@@ -1336,12 +1338,6 @@
           <div class="form-row">
             <label for="setup-scenario">Scénario</label>
             <select id="setup-scenario" required></select>
-          </div>
-
-          <div class="form-row">
-            <label>Cartes (optionnel)</label>
-            <div id="setup-maps-list" class="setup-maps-picker" role="group" aria-label="Sélection des cartes"></div>
-            <p class="form-hint">Coche une ou plusieurs cartes — par ex. une scène locale et une carte du monde. Les cartes liées au scénario apparaissent en premier.</p>
           </div>
 
           <div class="form-row">
@@ -1381,6 +1377,12 @@
                 <span class="option-desc">L'équipe résout une enquête fictive</span>
               </label>
             </div>
+          </div>
+
+          <div class="form-row">
+            <label>Cartes associées</label>
+            <div id="setup-maps-list" class="setup-maps-picker" role="group" aria-label="Sélection des cartes"></div>
+            <p class="form-hint">Seules les cartes du format choisi sont proposées. Les cartes liées au scénario sont présélectionnées.</p>
           </div>
 
           <div class="form-row">

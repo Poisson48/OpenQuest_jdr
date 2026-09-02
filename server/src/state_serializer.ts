@@ -16,6 +16,14 @@ export interface ClientGameState {
   status: string;
   startedAt?: number;
   createdAt?: number;
+  mapIds?: string[];
+  mapPlayState?: Record<string, unknown>;
+  mapNavigation?: {
+    view: string;
+    worldMapId: string | null;
+    localMapId: string | null;
+    worldCell: { x: number; y: number } | null;
+  };
 }
 
 function logToClient(entry: LogEntry) {
@@ -58,6 +66,14 @@ export function serializeGameState(session: GameSession): ClientGameState {
     status: state.status,
     startedAt: state.createdAt,
     createdAt: state.createdAt,
+    mapIds: state.mapIds ?? [],
+    mapPlayState: state.mapPlayState ?? {},
+    mapNavigation: state.mapNavigation ?? {
+      view: "world",
+      worldMapId: null,
+      localMapId: null,
+      worldCell: null,
+    },
   };
 }
 
