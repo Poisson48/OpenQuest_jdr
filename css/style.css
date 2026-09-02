@@ -3376,6 +3376,35 @@ legend {
   box-shadow: inset 0 0 0 2px rgba(255, 220, 120, 0.45);
 }
 
+.map-cell.map-marker-cluster {
+  box-shadow: inset 0 0 0 1px rgba(200, 170, 90, 0.35);
+  background-image: linear-gradient(145deg, rgba(255, 220, 120, 0.12), rgba(0, 0, 0, 0.08));
+}
+
+.map-cell.map-marker-cluster-anchor {
+  box-shadow: inset 0 0 0 2px rgba(232, 197, 71, 0.75);
+}
+
+.map-marker-cluster-part {
+  font-size: calc(var(--map-cell-size, 24px) * 0.42);
+  opacity: 0.85;
+}
+
+.map-marker-merged {
+  font-size: calc(var(--map-cell-size, 24px) * 0.95);
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.map-marker-merged-2 { font-size: calc(var(--map-cell-size, 24px) * 1.05); }
+.map-marker-merged-3 { font-size: calc(var(--map-cell-size, 24px) * 1.15); }
+.map-marker-merged-4,
+.map-marker-merged-5 { font-size: calc(var(--map-cell-size, 24px) * 1.28); }
+.map-marker-merged-6,
+.map-marker-merged-7,
+.map-marker-merged-8,
+.map-marker-merged-9 { font-size: calc(var(--map-cell-size, 24px) * 1.45); }
+
 .map-marker {
   pointer-events: none;
 }

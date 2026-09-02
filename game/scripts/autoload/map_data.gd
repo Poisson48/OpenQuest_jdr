@@ -216,6 +216,11 @@ func get_editor_marker_types(map_data: Dictionary) -> Array:
 		return ["detective", "suspect", "evidence", "witness", "crime", "poi", "danger"]
 	return ["npc", "poi", "danger", "treasure", "exit"]
 
+const MERGEABLE_MARKER_TYPES := ["city", "capital", "camp", "ruin", "dungeon"]
+
+func is_mergeable_marker(marker_type: String) -> bool:
+	return marker_type in MERGEABLE_MARKER_TYPES
+
 func get_local_maps_for_linking(roster: String) -> Array:
 	var result: Array = []
 	for m in maps:

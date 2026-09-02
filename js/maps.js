@@ -78,6 +78,8 @@ const Maps = {
     ruin: { label: 'Ruines', emoji: '🏛️' },
   },
 
+  MERGEABLE_MARKERS: ['city', 'capital', 'camp', 'ruin', 'dungeon'],
+
   DEFAULT_SIZE: { width: 16, height: 12 },
   DEFAULT_WORLD_SIZE: { width: 48, height: 32 },
 
@@ -182,6 +184,45 @@ const Maps = {
       || this.INVESTIGATION_MARKERS[type]
       || this.WORLD_MARKERS[type]
       || { label: type, emoji: '•' };
+  },
+
+  isMergeableMarker(type) {
+    return this.MERGEABLE_MARKERS.includes(type);
+  },
+
+  getMarkerClusterInfo(map) {
+    const markerAt = (x, y) => map.markers?.find((mk) => mk.x === x && mk.y === y);
+    const visited = new Set();
+    const cellInfo = {};
+
+    map.markers?.forEach((mk) => {
+      const key = `${mk.x},${mk.y}`;
+      if (visited.has(key) || !this.isMergeableMarker(mk.type)) return;
+      const stack = [[mk.x, mk.y]];
+      const cluster = [];
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        const ck = `${cx},${cy}`;
+        if (visited.has(ck)) continue;
+        const cellMarker = markerAt(cx, cy);
+        if (!cellMarker || cellMarker.type !== mk.type) continue;
+        visited.add(ck);
+        cluster.push([cx, cy]);
+        stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+      }
+      if (cluster.length < 2) return;
+      cluster.sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
+      const [anchorX, anchorY] = cluster[0];
+      cluster.forEach(([cx, cy]) => {
+        cellInfo[`${cx},${cy}`] = {
+          cluster: true,
+          anchor: cx === anchorX && cy === anchorY,
+          size: cluster.length,
+          type: mk.type,
+        };
+      });
+    });
+    return cellInfo;
   },
 
   getLocalAdventureMaps() {
@@ -640,6 +681,7 @@ const Maps = {
     const interactive = options.interactive || false;
     const editor = options.editor || false;
     const showLabels = options.showLabels !== false;
+    const clusterInfo = options.editor ? this.getMarkerClusterInfo(map) : {};
 
     let html = `<div class="map-grid${interactive ? ' map-grid-interactive' : ''}${editor ? ' map-grid-editor' : ''}"
       style="--map-cell-size:${cellSize}px;grid-template-columns:repeat(${map.width},var(--map-cell-size))">`;
@@ -650,6 +692,7 @@ const Maps = {
         const tile = map.tiles[y * map.width + x] || this.getDefaultTile(map.roster, map.mapKind);
         const marker = map.markers?.find((mk) => mk.x === x && mk.y === y);
         const link = map.locationLinks?.find((lk) => lk.x === x && lk.y === y);
+        const cluster = clusterInfo[`${x},${y}`];
         const targetTitle = link?.targetMapId ? (this.getById(link.targetMapId)?.title || link.label || 'Lieu') : '';
         const title = link
           ? `Lien → ${targetTitle} (${x},${y})`
@@ -657,7 +700,7 @@ const Maps = {
             ? `${marker.label || this.getMarkerDef(marker.type).label || marker.type} (${x},${y})`
             : `${this.getTileDef(tile).label || tile} (${x},${y})`);
 
-        html += `<button type="button" class="map-cell map-cell-${tile}${marker ? ' has-marker' : ''}${link ? ' has-location-link' : ''}"
+        html += `<button type="button" class="map-cell map-cell-${tile}${marker ? ' has-marker' : ''}${link ? ' has-location-link' : ''}${cluster ? ' map-marker-cluster' : ''}${cluster?.anchor ? ' map-marker-cluster-anchor' : ''}"
           data-x="${x}" data-y="${y}" title="${this.escape(title)}"${interactive ? '' : ' tabindex="-1"'}>`;
         if (link) {
           html += '<span class="map-location-link-icon" aria-hidden="true">🌀</span>';
@@ -665,8 +708,14 @@ const Maps = {
             html += `<span class="map-location-link-label">${this.escape(targetTitle.slice(0, 6))}</span>`;
           }
         } else if (marker) {
-          html += `<span class="map-marker">${this.getMarkerDef(marker.type).emoji || '•'}</span>`;
-          if (showLabels && cellSize >= 20 && marker.label) {
+          const emoji = this.getMarkerDef(marker.type).emoji || '•';
+          if (cluster && !cluster.anchor) {
+            html += `<span class="map-marker map-marker-cluster-part">${emoji}</span>`;
+          } else {
+            const clusterClass = cluster?.anchor ? ` map-marker-merged map-marker-merged-${Math.min(cluster.size, 9)}` : '';
+            html += `<span class="map-marker${clusterClass}">${emoji}</span>`;
+          }
+          if (showLabels && cellSize >= 20 && marker.label && !cluster) {
             html += `<span class="map-marker-label">${this.escape(marker.label.slice(0, 6))}</span>`;
           }
         }
@@ -911,14 +960,50 @@ const Maps = {
       showLabels: false,
     });
 
-    container.querySelectorAll('.map-cell').forEach((cell) => {
-      cell.addEventListener('click', () => {
-        const x = parseInt(cell.dataset.x, 10);
-        const y = parseInt(cell.dataset.y, 10);
-        this.paintCell(x, y);
+    const paintFromCell = (cell, rerender = true) => {
+      if (!cell) return;
+      const x = parseInt(cell.dataset.x, 10);
+      const y = parseInt(cell.dataset.y, 10);
+      this.paintCell(x, y);
+      if (rerender) {
         this.renderEditorGrid();
+      } else {
+        this._editorDragDirty = true;
+      }
+    };
+
+    if (!['tile', 'marker', 'erase'].includes(this.tool)) {
+      container.querySelectorAll('.map-cell').forEach((cell) => {
+        cell.addEventListener('click', () => paintFromCell(cell));
       });
-    });
+      return;
+    }
+
+    if (!this._editorDragBound) {
+      this._editorDragBound = true;
+      document.addEventListener('mouseup', () => {
+        if (this._editorDragDirty) {
+          this._editorDragDirty = false;
+          this.renderEditorGrid();
+        }
+        this._editorDragPainting = false;
+      });
+    }
+    this._editorDragPainting = false;
+    this._editorDragDirty = false;
+
+    container.onmousedown = (e) => {
+      if (e.button !== 0) return;
+      this._editorDragPainting = true;
+      paintFromCell(e.target.closest('.map-cell'), false);
+      this._editorDragDirty = true;
+      this.renderEditorGrid();
+    };
+
+    container.onmouseover = (e) => {
+      if (!this._editorDragPainting || e.buttons !== 1) return;
+      paintFromCell(e.target.closest('.map-cell'), false);
+    };
   },
 
   paintCell(x, y) {
@@ -960,14 +1045,14 @@ const Maps = {
     }
 
     if (this.tool === 'marker') {
+      const existing = this.editorData.markers.find((m) => m.x === x && m.y === y);
+      if (existing && existing.type !== this.selectedMarker) return;
       this.editorData.markers = this.editorData.markers.filter((m) => !(m.x === x && m.y === y));
-      const label = prompt('Label du marqueur (optionnel) :', this.getMarkerDef(this.selectedMarker).label || '');
-      if (label === null) return;
       this.editorData.markers.push({
         x,
         y,
         type: this.selectedMarker,
-        label: label.trim(),
+        label: this.getMarkerDef(this.selectedMarker).label || '',
       });
       return;
     }

@@ -88,6 +88,8 @@ func _build_ui() -> void:
 	_interactive_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_interactive_map.custom_minimum_size = Vector2(320, 380)
 	_interactive_map.cell_clicked.connect(_on_cell_clicked)
+	_interactive_map.cell_paint.connect(_on_cell_paint)
+	_interactive_map.paint_drag_finished.connect(_on_paint_drag_finished)
 	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
 	map_frame.add_child(_interactive_map)
 
@@ -501,6 +503,7 @@ func _make_palette_button(label_text: String, color_hex: String) -> Button:
 
 func _refresh_map_view(reset_view: bool = false) -> void:
 	var explored: Array = _all_explored()
+	_interactive_map.paint_drag_enabled = _edit_mode and _tool in ["tile", "marker", "erase"]
 	_interactive_map.configure(_map_data, [], [], explored, "oneshot", not _edit_mode, {})
 	call_deferred("_update_zoom_label")
 	if reset_view:
@@ -539,6 +542,8 @@ func _set_tool(tool: String) -> void:
 		_marker_palette.get_parent().visible = tool == "marker"
 	if _link_panel:
 		_link_panel.visible = tool == "link" and MapData.is_world_map(_map_data)
+	if _interactive_map:
+		_interactive_map.paint_drag_enabled = _edit_mode and tool in ["tile", "marker", "erase"]
 	_update_hint()
 
 func _select_tile(tile_id: String) -> void:
@@ -561,19 +566,42 @@ func _update_hint() -> void:
 		return
 	match _tool:
 		"tile":
-			_hint_lbl.text = "Clique sur une case pour peindre avec la tuile sélectionnée."
+			_hint_lbl.text = "Clique ou clique-glisse pour peindre plusieurs cases d'un coup. Maj+glisser pour déplacer la vue."
 		"marker":
-			_hint_lbl.text = "Clique sur une case pour placer le marqueur sélectionné (remplace l'existant)."
+			_hint_lbl.text = "Clique ou glisse pour placer le marqueur. Les types différents (ville, campement…) peuvent être côte à côte."
 		"link":
 			_hint_lbl.text = "Choisis une scène locale, puis clique sur la carte monde pour y placer son entrée (🌀)."
 		"erase":
-			_hint_lbl.text = "Clique sur une case pour effacer tuile, marqueur et lien."
+			_hint_lbl.text = "Clique ou clique-glisse pour effacer tuile, marqueur et lien."
 		_:
 			_hint_lbl.text = ""
 
+func _get_marker_at(x: int, y: int) -> Dictionary:
+	for mk in _map_data.get("markers", []):
+		if int(mk.get("x", -1)) == x and int(mk.get("y", -1)) == y:
+			return mk
+	return {}
+
 func _on_cell_clicked(x: int, y: int) -> void:
+	if not _edit_mode or _map_data.is_empty() or _tool != "link":
+		return
+	_apply_paint_at(x, y, true)
+
+func _on_cell_paint(x: int, y: int) -> void:
+	if not _edit_mode or _map_data.is_empty() or _tool == "link":
+		return
+	_apply_paint_at(x, y, false)
+
+func _on_paint_drag_finished() -> void:
 	if not _edit_mode or _map_data.is_empty():
 		return
+	MapData.update_map(_map_data)
+	_refresh_integration_ui()
+	if _interactive_map:
+		_interactive_map.map_data = _map_data
+		_interactive_map.queue_redraw()
+
+func _apply_paint_at(x: int, y: int, save_now: bool) -> void:
 	var w: int = int(_map_data.get("width", 0))
 	var idx := y * w + x
 	var tiles: Array = _map_data.get("tiles", [])
@@ -583,14 +611,17 @@ func _on_cell_clicked(x: int, y: int) -> void:
 	if _tool == "erase":
 		tiles[idx] = _default_tile()
 		_map_data["tiles"] = tiles
-		_map_data["markers"] = _map_data.get("markers", []).filter(func(m): return not (m.get("x") == x and m.get("y") == y))
+		_map_data["markers"] = _map_data.get("markers", []).filter(func(m): return not (int(m.get("x", -1)) == x and int(m.get("y", -1)) == y))
 		if _map_data.has("locationLinks"):
 			_map_data["locationLinks"] = _map_data.get("locationLinks", []).filter(func(l): return not (l.get("x") == x and l.get("y") == y))
 	elif _tool == "marker":
+		var existing := _get_marker_at(x, y)
+		if not existing.is_empty() and str(existing.get("type", "")) != _selected_marker:
+			return
 		var markers: Array = _map_data.get("markers", [])
-		markers = markers.filter(func(m): return not (m.get("x") == x and m.get("y") == y))
+		markers = markers.filter(func(m): return not (int(m.get("x", -1)) == x and int(m.get("y", -1)) == y))
 		markers.append({
-			"x": x, "y": y,
+			"x": int(x), "y": int(y),
 			"type": _selected_marker,
 			"label": MapData.get_marker_label(_selected_marker),
 		})
@@ -620,9 +651,13 @@ func _on_cell_clicked(x: int, y: int) -> void:
 		tiles[idx] = _selected_tile
 		_map_data["tiles"] = tiles
 
-	MapData.update_map(_map_data)
-	_refresh_integration_ui()
-	_refresh_map_view()
+	if save_now:
+		MapData.update_map(_map_data)
+		_refresh_integration_ui()
+		_refresh_map_view()
+	else:
+		_interactive_map.map_data = _map_data
+		_interactive_map.queue_redraw()
 
 func _save_map() -> void:
 	if _title_input:
