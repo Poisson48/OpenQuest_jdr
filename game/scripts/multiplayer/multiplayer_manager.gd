@@ -49,11 +49,19 @@ func _ready() -> void:
 func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) != OK:
+		_apply_profile_role_default()
 		return
 	pooling_url = str(cfg.get_value("multiplayer", "pooling_url", pooling_url))
 	player_name = str(cfg.get_value("multiplayer", "player_name", player_name))
 	player_role = str(cfg.get_value("multiplayer", "player_role", player_role))
 	last_room_code = str(cfg.get_value("multiplayer", "last_room_code", last_room_code))
+
+func _apply_profile_role_default() -> void:
+	var user_dir := OS.get_user_data_dir()
+	if user_dir.contains("OpenQuest_MJ"):
+		player_role = "gm"
+	elif user_dir.contains("OpenQuest_Player"):
+		player_role = "player"
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()

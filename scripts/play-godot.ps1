@@ -1,4 +1,8 @@
-# Lance le client Godot OpenQuest JDR (Windows)
+# Lance le client Godot OpenQuest JDR (Windows) — profil MJ par défaut
+param(
+    [string]$UserDataDir = (Join-Path $env:APPDATA "Godot\app_userdata\OpenQuest_MJ")
+)
+
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $GamePath = Join-Path $Root "game"
 
@@ -32,4 +36,5 @@ function Find-GodotExe {
 $godot = Find-GodotExe
 Write-Host "Godot: $godot"
 Write-Host "Projet: $GamePath"
-& $godot --path $GamePath @args
+Write-Host "Profil utilisateur: $UserDataDir"
+& $godot --path $GamePath --user-data-dir $UserDataDir @args

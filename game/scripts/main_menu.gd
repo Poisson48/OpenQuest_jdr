@@ -39,7 +39,6 @@ func _ready() -> void:
 	%BtnRejoinRoom.pressed.connect(_on_rejoin_room_pressed)
 	%BtnLeaveRoom.pressed.connect(_on_leave_room_pressed)
 	%BtnPoolingRegisterChar.pressed.connect(_on_pooling_register_char_pressed)
-	opt_pooling_role.item_selected.connect(_on_pooling_role_changed)
 
 	%BtnModeLong.pressed.connect(func(): _start_with_format("long"))
 	%BtnModeOneshot.pressed.connect(func(): _start_with_format("oneshot"))
@@ -67,6 +66,7 @@ func _ready() -> void:
 	player_name_input.text = NetworkClient.player_name
 	pooling_url_input.text = MultiplayerManager.pooling_url
 	_setup_pooling_roles()
+	opt_pooling_role.item_selected.connect(_on_pooling_role_changed)
 	_populate_lobby_characters()
 	_populate_pooling_characters()
 	_update_net_status()
@@ -77,25 +77,38 @@ func _ready() -> void:
 	_update_pooling_launch_ui()
 	_render_saved_games()
 
+func _get_pooling_role_from_ui() -> String:
+	if opt_pooling_role.item_count == 0:
+		return MultiplayerManager.player_role
+	var role: Variant = opt_pooling_role.get_item_metadata(opt_pooling_role.selected)
+	return "gm" if str(role) == "gm" else "player"
+
+func _sync_pooling_role_from_ui() -> void:
+	MultiplayerManager.set_player_role(_get_pooling_role_from_ui())
+
 func _setup_pooling_roles() -> void:
+	opt_pooling_role.block_signals(true)
 	opt_pooling_role.clear()
 	opt_pooling_role.add_item("👑 Maître du Jeu (MJ)", 0)
 	opt_pooling_role.set_item_metadata(0, "gm")
 	opt_pooling_role.add_item("⚔️ Joueur", 1)
 	opt_pooling_role.set_item_metadata(1, "player")
 	opt_pooling_role.selected = 0 if MultiplayerManager.is_mj() else 1
+	opt_pooling_role.block_signals(false)
+	_sync_pooling_role_from_ui()
 
 func _on_pooling_role_changed(_idx: int) -> void:
-	var role: String = opt_pooling_role.get_item_metadata(opt_pooling_role.selected)
-	MultiplayerManager.set_player_role(role)
+	_sync_pooling_role_from_ui()
 	_update_pooling_role_ui()
 
 func _update_pooling_role_ui() -> void:
-	var is_mj := MultiplayerManager.is_mj()
+	var is_mj := _get_pooling_role_from_ui() == "gm"
 	var in_room := MultiplayerManager.is_in_room()
-	btn_create_room.disabled = not is_mj or in_room or not MultiplayerManager.is_pooling_connected()
-	btn_join_room.disabled = is_mj or in_room or not MultiplayerManager.is_pooling_connected()
-	btn_rejoin_room.disabled = is_mj or in_room or MultiplayerManager.last_room_code.is_empty() or not MultiplayerManager.is_pooling_connected()
+	var connected := MultiplayerManager.is_pooling_connected()
+	opt_pooling_role.disabled = connected or in_room
+	btn_create_room.disabled = not is_mj or in_room or not connected
+	btn_join_room.disabled = is_mj or in_room or not connected
+	btn_rejoin_room.disabled = is_mj or in_room or MultiplayerManager.last_room_code.is_empty() or not connected
 	room_code_input.editable = not is_mj and not in_room
 	if not MultiplayerManager.last_room_code.is_empty() and room_code_input.text.is_empty():
 		room_code_input.text = MultiplayerManager.last_room_code
@@ -145,14 +158,14 @@ func _on_connect_pooling_pressed() -> void:
 	MultiplayerManager.player_name = player_name_input.text.strip_edges()
 	if MultiplayerManager.player_name.is_empty():
 		MultiplayerManager.player_name = "Joueur"
-	var role: String = opt_pooling_role.get_item_metadata(opt_pooling_role.selected)
-	MultiplayerManager.set_player_role(role)
+	_sync_pooling_role_from_ui()
 	MultiplayerManager.connect_pooling(pooling_url_input.text, MultiplayerManager.player_name)
 	pooling_status_lbl.text = "Connexion pooling en cours..."
 	pooling_status_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	_update_pooling_role_ui()
 
 func _on_create_room_pressed() -> void:
+	_sync_pooling_role_from_ui()
 	if not MultiplayerManager.is_mj():
 		pooling_status_lbl.text = "Seul le MJ peut créer une partie."
 		return
@@ -162,6 +175,7 @@ func _on_create_room_pressed() -> void:
 	MultiplayerManager.create_room("Partie de %s" % MultiplayerManager.player_name)
 
 func _on_join_room_pressed() -> void:
+	_sync_pooling_role_from_ui()
 	if MultiplayerManager.is_mj():
 		pooling_status_lbl.text = "Le MJ crée la partie — les joueurs rejoignent par code."
 		return
