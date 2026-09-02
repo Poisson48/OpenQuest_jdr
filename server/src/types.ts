@@ -4,11 +4,20 @@ import type { ClientPartyMember } from "./party_utils.js";
 import type { ClientGameState } from "./state_serializer.js";
 import type { DiceResult } from "./dice.js";
 
+export interface LobbyPlayer {
+  playerId: string;
+  playerName: string;
+  isHost: boolean;
+  character: ClientPartyMember | null;
+}
+
 // --- Client → Serveur ---
 
 export type ClientMessage =
   | { type: "ping" }
   | { type: "join"; playerName: string }
+  | { type: "get_lobby" }
+  | { type: "register_character"; character: ClientPartyMember }
   | { type: "list_scenarios" }
   | {
       type: "start_game";
@@ -32,6 +41,7 @@ export type ServerMessage =
   | { type: "welcome"; playerId: string; playerName: string }
   | { type: "pong" }
   | { type: "error"; message: string }
+  | { type: "lobby_update"; hostId: string; players: LobbyPlayer[] }
   | { type: "scenarios_list"; scenarios: Array<Record<string, unknown>> }
   | { type: "game_started"; gameId: string; state: ClientGameState }
   | { type: "game_state"; state: ClientGameState }
@@ -44,5 +54,7 @@ export interface ConnectedClient {
   id: string;
   name: string;
   gameId: string | null;
+  connectedAt: number;
+  registeredCharacter: ClientPartyMember | null;
   ws: import("ws").WebSocket;
 }

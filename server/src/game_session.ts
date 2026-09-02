@@ -185,12 +185,14 @@ export class GameSession {
    * Traite l'action d'un joueur humain : journalise l'action, la résout via le MJ IA,
    * avance la scène si l'objectif est atteint, puis fait jouer les compagnons bots.
    */
-  playerAction(actionText: string, actorId?: string): { resolution: ActionResolution; botTurns: BotTurnResult[] } {
+  playerAction(actionText: string, actorClientId?: string): { resolution: ActionResolution; botTurns: BotTurnResult[] } {
     if (this.state.status === "completed") {
       throw new Error("La partie est terminée.");
     }
-    const actor = actorId ? this.state.party.find((m) => m.id === actorId) : this.getActiveMember();
-    if (!actor) throw new Error(`Membre du groupe introuvable : ${actorId}`);
+    const actor = actorClientId
+      ? this.state.party.find((m) => m.clientId === actorClientId || m.id === actorClientId)
+      : this.getActiveMember();
+    if (!actor) throw new Error(`Membre du groupe introuvable pour le joueur ${actorClientId}`);
 
     this.rememberAction(actionText);
     this.addLog("player", actor.name, actionText);

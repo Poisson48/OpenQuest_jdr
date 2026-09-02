@@ -19,6 +19,7 @@ var _last_bot_grid_cols: int = -1
 
 func _ready() -> void:
 	%BtnHome.pressed.connect(_on_home_pressed)
+	NetworkClient.game_started.connect(_on_remote_game_started)
 	
 	# Onglet Aventures
 	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
@@ -533,3 +534,7 @@ func _on_confirm_delete_bot() -> void:
 
 func _on_home_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+func _on_remote_game_started(_game_id: String, state: Dictionary) -> void:
+	GameData.apply_server_state(state)
+	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
