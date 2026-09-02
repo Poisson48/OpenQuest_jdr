@@ -7,6 +7,8 @@ const MEMBER_COLOR_HEX := [
 	"#e8c547", "#47a8e8", "#e86a47",
 	"#47e88a", "#b847e8", "#e89247",
 ]
+const MEMBER_PLAYER_EMOJIS_GENERAL := ["⚔️", "🛡️", "🏹", "🗡️", "🪄", "🦅"]
+const MEMBER_PLAYER_EMOJIS_INVESTIGATION := ["🔍", "🕵️", "📋", "🧢", "👤", "🗝️"]
 
 const MARKERS := {
 	"party": "⚔️", "npc": "🎭", "poi": "📍", "danger": "⚠️", "treasure": "💎", "exit": "🚪",
@@ -136,6 +138,39 @@ func get_member_color(member_id: String, party: Array) -> Color:
 		if party[i].get("id") == member_id:
 			return Color.html(MEMBER_COLOR_HEX[i % MEMBER_COLOR_HEX.size()])
 	return Color.html(MEMBER_COLOR_HEX[0])
+
+func is_playable_member(member: Dictionary) -> bool:
+	if member.get("isBot", false):
+		return false
+	return member.get("isPlayer", false) or member.get("isHuman", false)
+
+func get_player_members(party: Array) -> Array:
+	var result: Array = []
+	for m in party:
+		if is_playable_member(m):
+			result.append(m)
+	return result
+
+func get_member_emoji(member_id: String, party: Array, quest_format: String = "oneshot") -> String:
+	var member: Dictionary = {}
+	for m in party:
+		if m.get("id") == member_id:
+			member = m
+			break
+	if member.is_empty():
+		return "⚔️"
+	if member.get("isBot", false):
+		return "🤖"
+	if not is_playable_member(member):
+		return "🔍" if quest_format == "investigation" else "⚔️"
+	var players := get_player_members(party)
+	var index := 0
+	for i in range(players.size()):
+		if players[i].get("id") == member_id:
+			index = i
+			break
+	var pool: Array = MEMBER_PLAYER_EMOJIS_INVESTIGATION if quest_format == "investigation" else MEMBER_PLAYER_EMOJIS_GENERAL
+	return pool[index % pool.size()]
 
 func get_linked_local_map_ids(world_map: Dictionary) -> Array:
 	var ids: Array = []

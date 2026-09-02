@@ -361,8 +361,7 @@ func _draw_token(rect: Rect2, token: Dictionary, cs: int) -> void:
 		var col := MapData.get_member_color(token.get("memberId", ""), party)
 		draw_rect(inner, col)
 		draw_rect(inner, Color(0, 0, 0, 0.3), false, 1.0)
-		var member := _find_member(token.get("memberId", ""))
-		var em := "🤖" if member.get("isBot", false) else ("🔍" if quest_format == "investigation" else "⚔️")
+		var em := MapData.get_member_emoji(token.get("memberId", ""), party, quest_format)
 		_draw_centered_text(rect, em, cs)
 	else:
 		draw_rect(inner, Color(0.25, 0.2, 0.15, 0.9))

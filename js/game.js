@@ -2339,7 +2339,7 @@ const Game = {
 
     list.innerHTML = this.state.party.map((m) => {
       const badge = typeof Maps !== 'undefined'
-        ? Maps.getMemberEmoji(m, this.state?.questFormat)
+        ? Maps.getMemberEmoji(m, this.state?.questFormat, this.state.party)
         : (m.isBot ? '🤖' : '⚔️');
       const role = m.isHuman && m.playerName ? ` (${m.playerName})` : '';
       return `
