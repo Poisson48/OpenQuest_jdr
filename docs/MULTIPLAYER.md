@@ -1,7 +1,8 @@
 # Multijoueur OpenQuest JDR — Architecture P2P + Pooling
 
 > Document de référence pour le multijoueur OpenQuest.  
-> Dernière mise à jour : septembre 2026 — branche `server/pooling-v1`.
+> Dernière mise à jour : septembre 2026 — branche `server/pooling-v1`.  
+> Voir aussi la feuille de route cartes interactives : [INTERACTIVE_MAPS_STRATEGY.md](./INTERACTIVE_MAPS_STRATEGY.md).
 
 ---
 
@@ -36,26 +37,19 @@ OpenQuest passe d'un **serveur autoritaire Node** (tout le jeu transite par le P
 | **Départ joueur** | Les autres joueurs reçoivent `player_left`, le salon continue |
 | **Reconnexion joueur** | Un joueur déconnecté peut rejoindre à nouveau via `rejoin_room` / `join_room` avec le même code |
 
-### Modes serveur
-
-| Variable | Mode | Description |
-|----------|------|-------------|
-| *(défaut)* | **Pooling** | Salons, codes, adresses P2P — pas de logique de jeu |
-| `LEGACY_MODE=1` | **Legacy** | Serveur autoritaire d'origine (LAN, lobby global, MJ IA côté serveur) |
+### Démarrage serveur
 
 ```powershell
-# Pooling (défaut)
 cd server && npm run dev
-
-# Legacy LAN autoritaire
-$env:LEGACY_MODE="1"; npm run dev
 ```
+
+Le serveur pooling écoute sur le port **8080** (matchmaking uniquement).
 
 ---
 
 ## 2. Phases de développement
 
-### Phase 0 — Fondations LAN (✅ `server/dev-collab`)
+### Phase 0 — Fondations LAN (✅ pooling)
 - WebSocket JSON sur port 8080
 - Lobby global, `register_character`, sync actions/dés
 - Connexion LAN par IP (`ws://192.168.x.x:8080`)
@@ -67,7 +61,6 @@ $env:LEGACY_MODE="1"; npm run dev
 - Reconnexion joueurs (`rejoin_room`)
 - `register_character` dans le contexte d'un salon
 - Hôte ENet Godot sur port **7777** (PC du MJ), adresse publiée via `set_p2p_host`
-- Mode legacy conservé derrière `LEGACY_MODE=1`
 
 ### Phase 2 — Signalisation WebRTC (à venir)
 - Messages `signal` (offer/answer/ICE) relayés par le serveur pooling
@@ -361,21 +354,17 @@ Conventions :
 ```
 server/
 ├── src/
-│   ├── index.ts              # Routeur LEGACY_MODE
-│   ├── lobby/
-│   │   ├── server.ts         # Serveur pooling WebSocket
-│   │   ├── handler.ts        # Gestion messages pooling
-│   │   ├── rooms.ts          # RoomManager (codes, joueurs)
-│   │   └── types.ts          # Types pooling
-│   └── legacy/
-│       └── server.ts         # Serveur autoritaire (LEGACY_MODE=1)
+│   ├── index.ts              # Point d'entrée — serveur pooling
+│   ├── pooling/
+│   │   └── server.ts         # Matchmaking WebSocket (salons, codes)
+│   └── lobby/
+│       └── rooms.ts          # RoomManager (codes, joueurs)
 │
 game/
 ├── scripts/
 │   ├── multiplayer/
 │   │   └── multiplayer_manager.gd   # Autoload ENet + pooling
-│   ├── network_client.gd            # WebSocket legacy (LEGACY_MODE)
-│   └── main_menu.gd                 # UI salons P2P
+│   └── main_menu.gd                 # UI salon P2P
 └── project.godot                    # Autoload MultiplayerManager
 ```
 
@@ -435,12 +424,6 @@ npm run dev
 - MJ : bouton **🚀 Lancer la partie** visible une fois ENet actif
 - Joueur : **En attente du MJ...** jusqu'au lancement
 
-### Mode legacy (comparaison)
-```powershell
-$env:LEGACY_MODE="1"; npm run dev
-```
-Utiliser le panneau **Connexion réseau (LAN)** du menu — comportement identique à `server/dev-collab`.
-
 ---
 
 ## 7. Limitations connues (v1)
@@ -462,4 +445,4 @@ Utiliser le panneau **Connexion réseau (LAN)** du menu — comportement identiq
 - [Godot 4 — High-level multiplayer](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html)
 - [ENetMultiplayerPeer](https://docs.godotengine.org/en/stable/classes/class_enetmultiplayerpeer.html)
 - `docs/COLLABORATION.md` — workflow Git entre développeurs
-- `docs/MCP.md` — MJ IA via MCP (mode legacy)
+- `docs/MCP.md` — MJ IA via MCP (outil serveur séparé)

@@ -89,8 +89,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="NetworkPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
-layout_mode = 2
 
 [node name="PoolingPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
@@ -125,6 +123,22 @@ text = "Rôle :"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="NameRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPlayerName" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/NameRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Pseudo :"
+
+[node name="PlayerNameInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Votre pseudo"
+text = "Joueur"
 
 [node name="PoolingUrlRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
 layout_mode = 2
@@ -253,140 +267,18 @@ theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
 theme_override_font_sizes/font_size = 15
 text = "⏳ En attente du MJ..."
 
-[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblNetworkTitle" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 16
-text = "🌐 Connexion réseau (LAN)"
-
-[node name="LblNetworkHint" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Legacy autoritaire — LEGACY_MODE=true sur le serveur · ws://IP:8080"
-autowrap_mode = 2
-
-[node name="ServerRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblServerUrl" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ServerRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Serveur :"
-
-[node name="ServerUrlInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ServerRow"]
-unique_name_in_owner = true
+[node name="HeroActionsScroll" type="ScrollContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "ws://127.0.0.1:8080"
-text = "ws://127.0.0.1:8080"
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
 
-[node name="NameRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblPlayerName" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/NameRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Pseudo :"
-
-[node name="PlayerNameInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/NameRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Joueur"
-text = "Joueur"
-
-[node name="ConnectRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnConnectServer" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ConnectRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "🔌 Se connecter au serveur"
-
-[node name="NetStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ConnectRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "○ Hors ligne"
-
-[node name="RoomRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="RoomCodeLabel" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "Aucun salon — créez ou rejoignez avec un code"
-
-[node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-layout_mode = 2
-text = "➕ Créer salon"
-
-[node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
-placeholder_text = "4821"
-max_length = 4
-
-[node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-layout_mode = 2
-text = "🔗 Rejoindre"
-
-[node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-visible = false
-layout_mode = 2
-text = "🚪 Quitter salon"
-
-[node name="LobbyPanel" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LblLobbyTitle" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 14
-text = "👥 Joueurs en ligne"
-
-[node name="LobbyPlayersVBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="CharRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblLobbyChar" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel/CharRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Personnage :"
-
-[node name="OptLobbyChar" type="OptionButton" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel/CharRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="BtnRegisterChar" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "✓ Enregistrer mon personnage"
-
-[node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HeroActionsScroll"]
 layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="BtnPlay" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+[node name="BtnPlay" type="Button" parent="ScrollContainer/Margin/VBox/HeroActionsScroll/HeroActions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
 layout_mode = 2
@@ -394,14 +286,14 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "🎮 Lancer une partie"
 
-[node name="BtnModes" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+[node name="BtnModes" type="Button" parent="ScrollContainer/Margin/VBox/HeroActionsScroll/HeroActions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(180, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "📖 Modes de jeu"
 
-[node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
+[node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActionsScroll/HeroActions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
 layout_mode = 2
@@ -441,57 +333,63 @@ text = "4. Termine — Sauvegarde automatique de l'historique de tes quêtes."
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -340.0
-offset_top = -220.0
-offset_right = 340.0
-offset_bottom = 220.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 32.0
+offset_right = -32.0
+offset_bottom = -32.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel"]
+[node name="ModesScroll" type="ScrollContainer" parent="ModesPanel"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="TopHBox" type="HBoxContainer" parent="ModesPanel/VBox"]
+[node name="TopHBox" type="HBoxContainer" parent="ModesPanel/ModesScroll/VBox"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="ModesPanel/VBox/TopHBox"]
+[node name="Title" type="Label" parent="ModesPanel/ModesScroll/VBox/TopHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 20
 text = "📖 Choisissez un mode de jeu"
 
-[node name="BtnCloseModes" type="Button" parent="ModesPanel/VBox/TopHBox"]
+[node name="BtnCloseModes" type="Button" parent="ModesPanel/ModesScroll/VBox/TopHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "✕"
 
-[node name="Grid" type="GridContainer" parent="ModesPanel/VBox"]
+[node name="Grid" type="GridContainer" parent="ModesPanel/ModesScroll/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 columns = 3
 
-[node name="CardLong" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+[node name="CardLong" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardLong"]
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
 text = "🏰 Campagne Longue"
 
-[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
@@ -499,26 +397,26 @@ theme_override_font_sizes/font_size = 13
 text = "Grande saga épique en plusieurs chapitres avec progression et exploration."
 autowrap_mode = 2
 
-[node name="BtnModeLong" type="Button" parent="ModesPanel/VBox/Grid/CardLong/VBox"]
+[node name="BtnModeLong" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardLong/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Jouer Campagne"
 
-[node name="CardOneshot" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+[node name="CardOneshot" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardOneshot"]
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.266667, 0.666667, 0.6, 1)
 text = "⚔️ One-Shot"
 
-[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
@@ -526,26 +424,26 @@ theme_override_font_sizes/font_size = 13
 text = "Aventure rythmée et autonome en 1 session (3-4h) avec objectif direct."
 autowrap_mode = 2
 
-[node name="BtnModeOneshot" type="Button" parent="ModesPanel/VBox/Grid/CardOneshot/VBox"]
+[node name="BtnModeOneshot" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardOneshot/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Jouer One-shot"
 
-[node name="CardInv" type="PanelContainer" parent="ModesPanel/VBox/Grid"]
+[node name="CardInv" type="PanelContainer" parent="ModesPanel/ModesScroll/VBox/Grid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="VBox" type="VBoxContainer" parent="ModesPanel/VBox/Grid/CardInv"]
+[node name="VBox" type="VBoxContainer" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Lbl" type="Label" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+[node name="Lbl" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
 text = "🔍 Enquête"
 
-[node name="Desc" type="Label" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+[node name="Desc" type="Label" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
@@ -553,7 +451,7 @@ theme_override_font_sizes/font_size = 13
 text = "Mystères urbains, interrogatoires, indices et déductions policières."
 autowrap_mode = 2
 
-[node name="BtnModeInvestigation" type="Button" parent="ModesPanel/VBox/Grid/CardInv/VBox"]
+[node name="BtnModeInvestigation" type="Button" parent="ModesPanel/ModesScroll/VBox/Grid/CardInv/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Jouer Enquête"

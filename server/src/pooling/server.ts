@@ -337,6 +337,5 @@ export function startPoolingServer(options: PoolingServerOptions): void {
     } else {
       console.log("Aucune IP LAN détectée — vérifiez WiFi/Ethernet ou pare-feu Windows.");
     }
-    console.log(`Legacy autoritaire : LEGACY_MODE=true npm run dev`);
   });
 }

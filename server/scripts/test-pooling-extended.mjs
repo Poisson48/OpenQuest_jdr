@@ -1,7 +1,7 @@
 /**
  * Extended E2E pooling — room + characters + P2P address relay.
  * Run: node scripts/test-pooling-extended.mjs
- * Requires: npm run dev (pooling mode, not LEGACY_MODE)
+ * Requires: npm run dev (pooling)
  */
 import WebSocket from "ws";
 
