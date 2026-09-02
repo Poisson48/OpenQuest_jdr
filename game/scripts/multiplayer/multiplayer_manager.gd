@@ -12,6 +12,10 @@ signal p2p_connected(peer_id: int)
 signal p2p_disconnected(peer_id: int)
 signal p2p_host_started(address: String)
 signal p2p_error(message: String)
+signal game_started(game_id: String, state: Dictionary)
+signal game_state_received(state: Dictionary)
+signal log_entry_received(entry: Dictionary)
+signal dice_result_received(result: Dictionary, formatted: String)
 
 const ENET_PORT := 7777
 const SETTINGS_PATH := "user://multiplayer_settings.cfg"
@@ -67,6 +71,9 @@ func set_player_role(role: String) -> void:
 func is_mj() -> bool:
 	return player_role == "gm"
 
+func is_game_master() -> bool:
+	return is_gm
+
 func connect_pooling(url: String = "", name: String = "") -> void:
 	if not url.is_empty():
 		pooling_url = url.strip_edges()
@@ -92,11 +99,20 @@ func is_pooling_connected() -> bool:
 func is_in_room() -> bool:
 	return not room_code.is_empty()
 
+func is_p2p_active() -> bool:
+	return _is_p2p_active
+
 func is_p2p_host() -> bool:
 	return is_room_host and _is_p2p_active and multiplayer.is_server()
 
 func get_room_players() -> Array:
 	return current_room.get("players", [])
+
+func get_my_party_member(state: Dictionary) -> Dictionary:
+	for member in state.get("party", []):
+		if member.get("clientId", "") == player_id:
+			return member
+	return {}
 
 func create_room(room_name: String = "") -> void:
 	if not is_mj():
@@ -180,6 +196,52 @@ func stop_p2p() -> void:
 		_enet_peer = ENetMultiplayerPeer.new()
 		_is_p2p_active = false
 
+# --- API client Phase 3 ---
+
+func client_request_start_game(
+	scenario_id: String,
+	party: Array,
+	mode: String,
+	gm_type: String,
+	quest_format: String,
+	party_size: int
+) -> void:
+	if not is_p2p_active():
+		p2p_error.emit("P2P non actif — rejoignez un salon d'abord.")
+		return
+	if is_p2p_host():
+		_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size)
+	else:
+		request_start_game.rpc_id(1, scenario_id, party, mode, gm_type, quest_format, party_size, player_id)
+
+func client_submit_action(action_text: String) -> void:
+	if not is_p2p_active():
+		return
+	if is_p2p_host():
+		_host_process_action(action_text, player_id)
+	else:
+		submit_action.rpc_id(1, action_text, player_id)
+
+func client_request_dice_roll(formula: String) -> void:
+	if not is_p2p_active():
+		return
+	if is_p2p_host():
+		_host_process_dice_roll(formula, player_id)
+	else:
+		request_dice_roll.rpc_id(1, formula, player_id)
+
+func client_advance_scene() -> void:
+	if not is_p2p_host():
+		return
+	if GameData.advance_scene():
+		broadcast_state()
+
+func broadcast_state() -> void:
+	if not is_p2p_host() or GameData.active_game.is_empty():
+		return
+	var state := GameData.active_game.duplicate(true)
+	sync_game_state.rpc(state)
+
 func _process(_delta: float) -> void:
 	_socket.poll()
 	match _socket.get_ready_state():
@@ -241,7 +303,7 @@ func _handle_message(data: Dictionary) -> void:
 				start_p2p_host()
 		"player_joined", "player_left":
 			if is_in_room():
-				pass  # room_update suivra ou déjà à jour
+				pass
 			list_rooms()
 		"error":
 			p2p_error.emit(data.get("message", "Erreur réseau"))
@@ -284,32 +346,198 @@ func _on_connection_failed() -> void:
 func _on_server_disconnected() -> void:
 	stop_p2p()
 
-# --- RPC ENet Phase 1 (stubs — sync gameplay Phase 3) ---
+# --- Logique hôte Phase 3 ---
 
-@rpc("any_peer", "call_remote", "reliable")
-func submit_action(action: String, sender_player_id: String) -> void:
+func _host_start_game(
+	scenario_id: String,
+	party: Array,
+	mode: String,
+	gm_type: String,
+	quest_format: String,
+	_party_size: int
+) -> void:
 	if not is_p2p_host():
 		return
-	# TODO Phase 3 : valider action côté hôte, puis sync_game_state
+	var final_party := _merge_party_with_room(party)
+	GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party)
+	var state := GameData.active_game.duplicate(true)
+	sync_game_state.rpc(state)
+	game_started.emit(state.get("id", ""), state)
 
-@rpc("authority", "call_remote", "reliable")
-func sync_game_state(_state: Dictionary) -> void:
-	pass
+func _merge_party_with_room(host_party: Array) -> Array:
+	if host_party.is_empty():
+		return _build_party_from_room()
+	var merged: Array = host_party.duplicate(true)
+	for room_player in get_room_players():
+		var pid: String = room_player.get("playerId", "")
+		if room_player.get("isGm", false):
+			for i in range(merged.size()):
+				if merged[i].get("clientId", "") == pid or (merged[i].get("isPlayer", false) and pid == player_id):
+					merged[i]["clientId"] = pid
+					break
+			continue
+		var char_data = room_player.get("character")
+		if not char_data is Dictionary or char_data.is_empty():
+			continue
+		var already := false
+		for m in merged:
+			if m.get("clientId", "") == pid:
+				already = true
+				break
+		if already:
+			continue
+		var member := char_data.duplicate(true)
+		member["isPlayer"] = true
+		member["isHuman"] = true
+		member["isBot"] = false
+		member["clientId"] = pid
+		merged.append(member)
+	return merged
+
+func _build_party_from_room() -> Array:
+	var party: Array = []
+	for room_player in get_room_players():
+		var char_data = room_player.get("character")
+		if not char_data is Dictionary or char_data.is_empty():
+			if room_player.get("isGm", false):
+				var gm_char := GameData.create_blank_character()
+				gm_char["name"] = room_player.get("playerName", "MJ")
+				char_data = gm_char
+			else:
+				continue
+		var member := char_data.duplicate(true)
+		member["isPlayer"] = not room_player.get("isGm", false)
+		member["isHuman"] = true
+		member["isBot"] = false
+		member["clientId"] = room_player.get("playerId", "")
+		party.append(member)
+	if party.is_empty():
+		var fallback := GameData.create_blank_character()
+		fallback["name"] = player_name
+		fallback["isPlayer"] = true
+		fallback["isHuman"] = true
+		fallback["isBot"] = false
+		fallback["clientId"] = player_id
+		party.append(fallback)
+	return party
+
+func _resolve_player_name(sender_player_id: String) -> String:
+	for room_player in get_room_players():
+		if room_player.get("playerId", "") == sender_player_id:
+			var char_data = room_player.get("character")
+			if char_data is Dictionary and not char_data.is_empty():
+				return char_data.get("name", room_player.get("playerName", "Joueur"))
+			return room_player.get("playerName", "Joueur")
+	for member in GameData.active_game.get("party", []):
+		if member.get("clientId", "") == sender_player_id:
+			return member.get("name", "Joueur")
+	return "Joueur"
+
+func _host_process_action(action_text: String, sender_player_id: String) -> void:
+	if not is_p2p_host() or GameData.active_game.is_empty():
+		return
+	var author := _resolve_player_name(sender_player_id)
+	GameData.add_log_entry(author, action_text, "player")
+	if GameData.active_game.get("gmType", "ai") == "ai":
+		_host_simulate_ai_response(action_text)
+	broadcast_state()
+
+func _host_simulate_ai_response(player_action: String) -> void:
+	var gm_replies := [
+		"Le Maître du Jeu écoute attentivement votre décision. Les ombres s'étirent et le vent murmure...",
+		"Votre initiative porte ses fruits. La situation évolue et révèle de nouveaux détails.",
+		"Vous observez l'environnement avec vigilance. Quelque chose attire votre attention...",
+		"Une tension palpable s'installe. Le destin semble attendre l'issue de vos choix."
+	]
+	var gm_text: String = str(gm_replies[randi() % gm_replies.size()]) + "\n[i]« %s »[/i]" % player_action
+	GameData.add_log_entry("MJ (IA)", gm_text, "gm")
+
+	var party: Array = GameData.active_game.get("party", [])
+	var bots_in_party: Array = []
+	for member in party:
+		if member.get("isBot", false):
+			bots_in_party.append(member)
+	if not bots_in_party.is_empty():
+		var bot: Dictionary = bots_in_party[randi() % bots_in_party.size()]
+		var bot_replies: Array[String] = [
+			"approuve votre idée et couvre vos arrières.",
+			"scrute les alentours l'arme au poing.",
+			"prend des notes et garde le silence.",
+			"prépare un sortilège en prévision du danger."
+		]
+		var b_text: String = "%s %s" % [bot.get("name", "Bot"), bot_replies[randi() % bot_replies.size()]]
+		GameData.add_log_entry(bot.get("name", "Bot"), b_text, "bot")
+
+func _host_process_dice_roll(formula: String, sender_player_id: String) -> void:
+	if not is_p2p_host() or GameData.active_game.is_empty():
+		return
+	var res := GameData.roll_dice(formula)
+	if res.has("error"):
+		return
+	var formatted := GameData.format_dice_result(res)
+	var author := _resolve_player_name(sender_player_id)
+	GameData.add_log_entry("Dé (%s)" % author, formatted, "dice")
+	broadcast_state()
+	sync_dice_result.rpc(res, formatted)
+
+# --- RPC ENet Phase 3 ---
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_start_game(
+	scenario_id: String,
+	party: Array,
+	mode: String,
+	gm_type: String,
+	quest_format: String,
+	party_size: int,
+	sender_player_id: String
+) -> void:
+	if not is_p2p_host():
+		return
+	if sender_player_id != player_id and not _is_gm_peer(sender_player_id):
+		return
+	_host_start_game(scenario_id, party, mode, gm_type, quest_format, party_size)
+
+func _is_gm_peer(pid: String) -> bool:
+	for room_player in get_room_players():
+		if room_player.get("playerId", "") == pid and room_player.get("isGm", false):
+			return true
+	return pid == player_id and is_gm
+
+@rpc("any_peer", "call_remote", "reliable")
+func submit_action(action_text: String, sender_player_id: String) -> void:
+	if not is_p2p_host():
+		return
+	_host_process_action(action_text, sender_player_id)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_dice_roll(formula: String, sender_player_id: String) -> void:
 	if not is_p2p_host():
 		return
-	# TODO Phase 3 : jet côté hôte, sync_log_entry + sync_game_state
+	_host_process_dice_roll(formula, sender_player_id)
+
+@rpc("authority", "call_local", "reliable")
+func sync_game_state(state: Dictionary) -> void:
+	var needs_launch := not GameData.has_active_game()
+	GameData.apply_server_state(state)
+	game_state_received.emit(state)
+	if needs_launch:
+		game_started.emit(state.get("id", ""), state)
 
 @rpc("authority", "call_remote", "reliable")
-func sync_log_entry(_entry: Dictionary) -> void:
-	pass
+func sync_log_entry(entry: Dictionary) -> void:
+	if GameData.active_game.is_empty():
+		return
+	GameData.active_game["log"].append(entry)
+	GameData.save_active_game()
+	log_entry_received.emit(entry)
 
-## Appelé par main_menu après création réussie (room_update reçu en tant qu'hôte).
+@rpc("authority", "call_local", "reliable")
+func sync_dice_result(result: Dictionary, formatted: String) -> void:
+	dice_result_received.emit(result, formatted)
+
 func notify_room_created(room: Dictionary) -> void:
 	_on_room_created_side_effects(room)
 
-## Appelé par main_menu après join réussi.
 func notify_room_joined(room: Dictionary) -> void:
 	_on_room_joined_side_effects(room)

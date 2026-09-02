@@ -63,6 +63,10 @@ func _connect_network_signals() -> void:
 	NetworkClient.connected.connect(func(_id, _name): _update_net_status())
 	NetworkClient.disconnected.connect(func(): _update_net_status())
 
+	MultiplayerManager.game_state_received.connect(_on_net_game_state)
+	MultiplayerManager.dice_result_received.connect(_on_net_dice_result)
+	MultiplayerManager.log_entry_received.connect(_on_p2p_log_entry)
+
 func _process(delta: float) -> void:
 	if timer_active:
 		session_seconds = int(Time.get_ticks_msec() / 1000.0)
@@ -71,7 +75,15 @@ func _process(delta: float) -> void:
 		timer_lbl.text = "⏱️ %02d:%02d" % [mins, secs]
 
 func _update_net_status() -> void:
-	if NetworkClient.is_server_connected():
+	if MultiplayerManager.is_p2p_active() and MultiplayerManager.is_in_room():
+		var my_member := MultiplayerManager.get_my_party_member(GameData.active_game)
+		var char_hint := ""
+		if not my_member.is_empty():
+			char_hint = " · %s" % my_member.get("name", "")
+		var role := "MJ" if MultiplayerManager.is_p2p_host() else "joueur"
+		net_status_lbl.text = "● P2P (%s%s)" % [role, char_hint]
+		net_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	elif NetworkClient.is_server_connected():
 		var my_member := NetworkClient.get_my_party_member(GameData.active_game)
 		var char_hint := ""
 		if not my_member.is_empty():
@@ -139,7 +151,10 @@ func _render_party_list() -> void:
 		name_row.add_child(name_lbl)
 		
 		var badge := Label.new()
-		if member.get("clientId", "") == NetworkClient.get_player_id() and NetworkClient.is_server_connected():
+		if MultiplayerManager.is_p2p_active() and member.get("clientId", "") == MultiplayerManager.player_id:
+			badge.text = "VOUS"
+			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
+		elif member.get("clientId", "") == NetworkClient.get_player_id() and NetworkClient.is_server_connected():
 			badge.text = "VOUS"
 			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
 		elif member.get("isBot", false):
@@ -205,7 +220,11 @@ func _on_send_action_pressed() -> void:
 	if action_text.is_empty():
 		return
 	input_action.text = ""
-	
+
+	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
+		MultiplayerManager.client_submit_action(action_text)
+		return
+
 	if NetworkClient.is_server_connected():
 		NetworkClient.send_action(action_text)
 		return
@@ -271,6 +290,10 @@ func _simulate_ai_response(player_action: String) -> void:
 		})
 
 func _roll_dice_formula(formula: String) -> void:
+	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
+		MultiplayerManager.client_request_dice_roll(formula)
+		return
+
 	if NetworkClient.is_server_connected():
 		NetworkClient.send_dice_roll(formula)
 		return
@@ -310,6 +333,10 @@ func _on_gm_send_pressed() -> void:
 	})
 
 func _on_advance_scene_pressed() -> void:
+	if MultiplayerManager.is_p2p_active():
+		MultiplayerManager.client_advance_scene()
+		_refresh_session_ui()
+		return
 	if NetworkClient.is_server_connected():
 		NetworkClient.advance_scene()
 		return
@@ -319,6 +346,9 @@ func _on_advance_scene_pressed() -> void:
 func _on_net_game_state(state: Dictionary) -> void:
 	GameData.apply_server_state(state)
 	_refresh_session_ui()
+
+func _on_p2p_log_entry(entry: Dictionary) -> void:
+	_append_log_entry_bbcode(entry)
 
 func _on_net_dice_result(_res: Dictionary, formatted: String) -> void:
 	if not formatted.is_empty():

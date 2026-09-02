@@ -327,36 +327,23 @@ Une fois le salon rejoint et l'adresse P2P connue, les clients Godot établissen
 6. Connexion P2P établie — multiplayer.is_server() == true côté A
 ```
 
-### 4.3 RPC Godot (Phase 3 — à implémenter)
+### 4.3 RPC Godot (Phase 3 — implémenté)
 
-Les RPC suivants seront ajoutés pour synchroniser la session de jeu :
+Les RPC synchronisent la session de jeu via l'hôte MJ (ENet P2P) :
 
-```gdscript
-# Hôte → tous les clients
-@rpc("authority", "call_local", "reliable")
-func sync_game_state(state: Dictionary) -> void:
-    GameData.apply_server_state(state)
-
-# Client → hôte
-@rpc("any_peer", "call_remote", "reliable")
-func submit_action(action_text: String) -> void:
-    pass  # hôte valide et diffuse
-
-# Hôte → tous
-@rpc("authority", "call_local", "reliable")
-func broadcast_dice_result(result: Dictionary, formatted: String) -> void:
-    pass
-
-# Client → hôte : demande lancement partie
-@rpc("any_peer", "call_remote", "reliable")
-func request_start_game(scenario_id: String, party: Array) -> void:
-    pass
-```
+| RPC | Direction | Rôle |
+|-----|-----------|------|
+| `request_start_game` | client → hôte | MJ lance la partie |
+| `sync_game_state` | hôte → tous | État complet (`GameData.apply_server_state`) |
+| `submit_action` | client → hôte | Action joueur + réponse IA hôte |
+| `request_dice_roll` | client → hôte | Jet de dés autoritaire |
+| `sync_dice_result` | hôte → tous | Affichage résultat dé |
+| `sync_log_entry` | hôte → tous | Entrée journal (optionnel) |
 
 Conventions :
-- **`authority`** : seul l'hôte (peer 1) peut appeler
-- **`any_peer`** : n'importe quel client connecté
-- **`call_local`** : exécuté aussi localement chez l'appelant
+- **`authority`** : seul l'hôte (peer 1) peut appeler les RPC de diffusion
+- **`any_peer`** : n'importe quel client connecté peut envoyer au hôte
+- **`call_local`** : exécuté aussi localement chez l'appelant (sync état / dé)
 - **`reliable`** : garantie de livraison (TCP-like)
 
 ### 4.4 Identifiants réseau
@@ -413,9 +400,11 @@ npm run dev
 1. Lancer Godot : `.\scripts\play-godot.ps1`
 2. Menu → **Salon multijoueur (P2P)**
 3. Rôle : **Maître du Jeu (MJ)**
-4. Se connecter au pooling (`ws://127.0.0.1:8080`)
+4. Se connecter au pooling (`ws://127.0.0.1:8080` ou `ws://IP_SERVEUR:8080`)
 5. Cliquer **Créer une partie (MJ)** → noter le code (ex. `4827`)
 6. L'ENet démarre automatiquement sur port 7777
+7. Enregistrer son personnage (optionnel)
+8. Cliquer **🚀 Lancer la partie** → configurer scénario → **Lancer l'Aventure (P2P) !**
 
 **Joueur 2 — autre PC ou 2e instance Godot :**
 1. Lancer Godot
@@ -424,6 +413,13 @@ npm run dev
 4. Entrer le code `4827` → **Rejoindre une partie**
 5. Enregistrer son personnage
 6. Connexion ENet automatique vers le PC du MJ
+7. Affichage **En attente du MJ...** — entrée automatique en session quand le MJ lance
+
+**En session (les deux PC) :**
+- Journal synchronisé (actions, réponses MJ IA, bots)
+- Chaque joueur envoie des actions via le champ texte
+- Dés synchronisés (résolution côté hôte MJ)
+- Badge **VOUS** sur votre personnage
 
 **Reconnexion joueur :**
 1. Joueur déconnecté → bouton **Reconnecter** (code mémorisé)
@@ -435,7 +431,9 @@ npm run dev
 - Code affiché chez le MJ : « Code à partager »
 - Si le MJ quitte → message « salon fermé » chez les joueurs
 - Départ d'un joueur → `player_left`, salon continue
-- Statut P2P : « Connecté (ENet) » après quelques secondes
+- Statut P2P : « Connecté P2P (ENet) » après quelques secondes
+- MJ : bouton **🚀 Lancer la partie** visible une fois ENet actif
+- Joueur : **En attente du MJ...** jusqu'au lancement
 
 ### Mode legacy (comparaison)
 ```powershell
@@ -450,7 +448,7 @@ Utiliser le panneau **Connexion réseau (LAN)** du menu — comportement identiq
 | Limitation | Contournement |
 |------------|---------------|
 | ENet LAN uniquement (pas Internet) | Phase 2 WebRTC |
-| Pas de sync de partie P2P encore | Phase 3 RPC |
+| MJ IA locale côté hôte (pas ai-gm.ts) | Brancher MCP / serveur IA plus tard |
 | Salons volatiles (RAM, pas de persistance) | Phase 4 déploiement |
 | Hôte = MJ — si MJ quitte, salon fermé pour tous | MJ recrée une partie |
 | Reconnexion MJ après déconnexion | Non supportée — recréer une partie |

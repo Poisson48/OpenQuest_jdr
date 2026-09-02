@@ -20,6 +20,8 @@ extends Control
 @onready var btn_create_room: Button = %BtnCreateRoom
 @onready var btn_join_room: Button = %BtnJoinRoom
 @onready var btn_rejoin_room: Button = %BtnRejoinRoom
+@onready var btn_launch_pooling: Button = %BtnLaunchPoolingGame
+@onready var lbl_waiting_mj: Label = %LblWaitingMj
 
 func _ready() -> void:
 	%BtnPlay.pressed.connect(_on_play_pressed)
@@ -54,6 +56,9 @@ func _ready() -> void:
 	MultiplayerManager.p2p_host_started.connect(_on_p2p_host_started)
 	MultiplayerManager.p2p_connected.connect(_on_p2p_connected)
 	MultiplayerManager.p2p_error.connect(_on_p2p_error)
+	MultiplayerManager.game_started.connect(_on_pooling_game_started)
+
+	btn_launch_pooling.pressed.connect(_on_launch_pooling_pressed)
 
 	modes_panel.visible = false
 	server_url_input.text = NetworkClient.server_url
@@ -67,6 +72,7 @@ func _ready() -> void:
 	_update_pooling_role_ui()
 	_refresh_lobby_players()
 	_refresh_pooling_players()
+	_update_pooling_launch_ui()
 	_check_resume_state()
 
 func _setup_pooling_roles() -> void:
@@ -191,6 +197,7 @@ func _on_pooling_room_updated(room: Dictionary) -> void:
 	_refresh_pooling_players()
 	_update_pooling_status()
 	_update_pooling_role_ui()
+	_update_pooling_launch_ui()
 	if MultiplayerManager.is_gm:
 		room_code_lbl.text = "👑 Code à partager : %s" % room.get("code", "????")
 	else:
@@ -204,6 +211,7 @@ func _on_pooling_room_left() -> void:
 	_refresh_pooling_players()
 	_update_pooling_status()
 	_update_pooling_role_ui()
+	_update_pooling_launch_ui()
 
 func _on_pooling_room_closed(closed_code: String, reason: String) -> void:
 	room_code_lbl.text = ""
@@ -211,6 +219,7 @@ func _on_pooling_room_closed(closed_code: String, reason: String) -> void:
 	_refresh_pooling_players()
 	_update_pooling_status()
 	_update_pooling_role_ui()
+	_update_pooling_launch_ui()
 	var msg := "Le MJ a quitté — salon %s fermé." % closed_code
 	if reason == "gm_disconnected":
 		msg = "Le MJ s'est déconnecté — salon %s fermé." % closed_code
@@ -226,15 +235,34 @@ func _on_pooling_lobby_updated(_rooms: Array) -> void:
 func _on_p2p_host_started(address: String) -> void:
 	p2p_status_lbl.text = "● Hôte ENet actif — %s" % address
 	p2p_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	_update_pooling_launch_ui()
 
 func _on_p2p_connected(_peer_id: int) -> void:
 	if not MultiplayerManager.is_p2p_host():
 		p2p_status_lbl.text = "● Connecté P2P (ENet)"
 		p2p_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	_update_pooling_launch_ui()
 
 func _on_p2p_error(message: String) -> void:
 	p2p_status_lbl.text = message
 	p2p_status_lbl.add_theme_color_override("font_color", ThemeColors.DANGER)
+
+func _update_pooling_launch_ui() -> void:
+	var in_room := MultiplayerManager.is_in_room()
+	var p2p_ready := MultiplayerManager.is_p2p_active()
+	var is_mj := MultiplayerManager.is_game_master() and MultiplayerManager.is_mj()
+	btn_launch_pooling.visible = in_room and p2p_ready and is_mj and MultiplayerManager.is_p2p_host()
+	lbl_waiting_mj.visible = in_room and p2p_ready and not is_mj
+
+func _on_launch_pooling_pressed() -> void:
+	if not MultiplayerManager.is_p2p_host():
+		return
+	get_tree().set_meta("pooling_p2p_host", true)
+	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
+
+func _on_pooling_game_started(_game_id: String, state: Dictionary) -> void:
+	GameData.apply_server_state(state)
+	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
 
 func _update_pooling_status() -> void:
 	if MultiplayerManager.is_pooling_connected():

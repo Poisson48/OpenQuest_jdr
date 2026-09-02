@@ -217,6 +217,27 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "✓ Enregistrer mon personnage (salon)"
 
+[node name="PoolingLaunchRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnLaunchPoolingGame" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingLaunchRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 16
+text = "🚀 Lancer la partie"
+
+[node name="LblWaitingMj" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingLaunchRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 15
+text = "⏳ En attente du MJ..."
+
 [node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
