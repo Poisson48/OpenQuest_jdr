@@ -87,14 +87,14 @@ func _sync_pooling_role_from_ui() -> void:
 	MultiplayerManager.set_player_role(_get_pooling_role_from_ui())
 
 func _setup_pooling_roles() -> void:
-	opt_pooling_role.block_signals(true)
+	opt_pooling_role.set_block_signals(true)
 	opt_pooling_role.clear()
 	opt_pooling_role.add_item("👑 Maître du Jeu (MJ)", 0)
 	opt_pooling_role.set_item_metadata(0, "gm")
 	opt_pooling_role.add_item("⚔️ Joueur", 1)
 	opt_pooling_role.set_item_metadata(1, "player")
 	opt_pooling_role.selected = 0 if MultiplayerManager.is_mj() else 1
-	opt_pooling_role.block_signals(false)
+	opt_pooling_role.set_block_signals(false)
 	_sync_pooling_role_from_ui()
 
 func _on_pooling_role_changed(_idx: int) -> void:

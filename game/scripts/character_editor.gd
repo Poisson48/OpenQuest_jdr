@@ -2,6 +2,7 @@ extends Control
 
 @onready var char_list_container: VBoxContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
+@onready var form_scroll: ScrollContainer = $MainLayout/ContentArea/FormPanel/FormScroll
 @onready var form_title: Label = %FormTitle
 @onready var roster_filter: OptionButton = %RosterFilter
 @onready var page_title: Label = $MainLayout/TopBar/Title
@@ -28,14 +29,33 @@ func _ready() -> void:
 	%BtnNewChar.pressed.connect(_on_new_character_pressed)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnCancel.pressed.connect(_on_cancel_pressed)
+	%BtnCloseForm.pressed.connect(_on_cancel_pressed)
 	roster_filter.item_selected.connect(func(_idx): refresh_list())
 	
 	GameData.characters_updated.connect(refresh_list)
 	
 	_setup_roster_options()
 	_apply_entry_context()
+	_configure_form_panel()
 	refresh_list()
 	form_panel.visible = false
+
+func _configure_form_panel() -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.121569, 0.0980392, 0.0784314, 0.98)
+	style.border_color = ThemeColors.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	form_panel.add_theme_stylebox_override("panel", style)
+	form_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	form_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	form_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	input_backstory.custom_minimum_size = Vector2(0, 100)
+	input_backstory.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _apply_entry_context() -> void:
 	if get_tree().has_meta("preselected_roster"):
@@ -186,6 +206,8 @@ func _on_new_character_pressed() -> void:
 	input_ac.value = 10
 	input_backstory.text = ""
 	form_panel.visible = true
+	await get_tree().process_frame
+	form_scroll.scroll_vertical = 0
 
 func _open_form_for_edit(c: Dictionary) -> void:
 	current_editing_id = c.get("id", "")
@@ -210,6 +232,8 @@ func _open_form_for_edit(c: Dictionary) -> void:
 	input_ac.value = c.get("ac", 10)
 	input_backstory.text = c.get("backstory", "")
 	form_panel.visible = true
+	await get_tree().process_frame
+	form_scroll.scroll_vertical = 0
 
 func _on_save_pressed() -> void:
 	var name_val := input_name.text.strip_edges()

@@ -23,7 +23,6 @@ func _ready() -> void:
 	
 	# Onglet Aventures
 	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
-	%BtnAdvAllChars.pressed.connect(func(): GameData.go_to_character_editor("general"))
 	%BtnAdvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
 	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
 
