@@ -337,7 +337,7 @@ func _render_party_list() -> void:
 func _render_log() -> void:
 	var saved_scroll := _get_session_scroll()
 	var log_entries: Array = GameData.active_game.get("log", [])
-	var last_is_dice := not log_entries.is_empty() and log_entries[-1].get("type", "") == "dice"
+	var last_is_dice: bool = not log_entries.is_empty() and str(log_entries[-1].get("type", "")) == "dice"
 
 	log_label.text = ""
 	for entry in log_entries:
