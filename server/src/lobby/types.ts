@@ -6,6 +6,7 @@ export interface RoomPlayer {
   playerId: string;
   playerName: string;
   isHost: boolean;
+  isGm: boolean;
   character: ClientPartyMember | null;
   joinedAt: number;
 }
@@ -25,6 +26,7 @@ export interface RoomState {
   code: string;
   name: string;
   hostId: string;
+  gmId: string;
   maxPlayers: number;
   p2pHost: string | null;
   players: RoomPlayer[];
@@ -37,8 +39,9 @@ export type PoolingClientMessage =
   | { type: "join"; playerName: string }
   | { type: "get_lobby" }
   | { type: "list_rooms" }
-  | { type: "create_room"; roomName?: string; maxPlayers?: number; p2pHost?: string }
+  | { type: "create_room"; role: "gm"; roomName?: string; maxPlayers?: number; p2pHost?: string }
   | { type: "join_room"; code: string }
+  | { type: "rejoin_room"; code: string }
   | { type: "leave_room" }
   | { type: "register_character"; character: ClientPartyMember }
   | { type: "set_p2p_host"; address: string }
@@ -59,7 +62,8 @@ export type PoolingServerMessage =
   | { type: "room_update"; room: RoomState }
   | { type: "host_assigned"; hostId: string; p2pHost: string | null }
   | { type: "player_joined"; playerId: string; playerName: string; roomCode: string }
-  | { type: "player_left"; playerId: string; roomCode: string }
+  | { type: "player_left"; playerId: string; playerName: string; roomCode: string; wasGm?: boolean }
+  | { type: "room_closed"; roomCode: string; reason: "gm_left" | "gm_disconnected" }
   | {
       type: "signal";
       fromPlayerId: string;

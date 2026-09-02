@@ -5,6 +5,7 @@ extends Node
 signal room_created(code: String, room: Dictionary)
 signal room_joined(code: String, room: Dictionary)
 signal room_left
+signal room_closed(room_code: String, reason: String)
 signal room_updated(room: Dictionary)
 signal lobby_rooms_updated(rooms: Array)
 signal p2p_connected(peer_id: int)
@@ -17,11 +18,14 @@ const SETTINGS_PATH := "user://multiplayer_settings.cfg"
 
 @export var pooling_url: String = "ws://127.0.0.1:8080"
 @export var player_name: String = "Joueur"
+@export var player_role: String = "player"  ## "gm" (MJ) ou "player" (joueur)
 
 var player_id: String = ""
 var room_code: String = ""
+var last_room_code: String = ""
 var current_room: Dictionary = {}
 var is_room_host: bool = false
+var is_gm: bool = false
 var p2p_host_address: String = ""
 var lobby_rooms: Array = []
 
@@ -44,12 +48,24 @@ func load_settings() -> void:
 		return
 	pooling_url = str(cfg.get_value("multiplayer", "pooling_url", pooling_url))
 	player_name = str(cfg.get_value("multiplayer", "player_name", player_name))
+	player_role = str(cfg.get_value("multiplayer", "player_role", player_role))
+	last_room_code = str(cfg.get_value("multiplayer", "last_room_code", last_room_code))
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("multiplayer", "pooling_url", pooling_url)
 	cfg.set_value("multiplayer", "player_name", player_name)
+	cfg.set_value("multiplayer", "player_role", player_role)
+	if not last_room_code.is_empty():
+		cfg.set_value("multiplayer", "last_room_code", last_room_code)
 	cfg.save(SETTINGS_PATH)
+
+func set_player_role(role: String) -> void:
+	player_role = "gm" if role == "gm" else "player"
+	save_settings()
+
+func is_mj() -> bool:
+	return player_role == "gm"
 
 func connect_pooling(url: String = "", name: String = "") -> void:
 	if not url.is_empty():
@@ -83,20 +99,40 @@ func get_room_players() -> Array:
 	return current_room.get("players", [])
 
 func create_room(room_name: String = "") -> void:
-	_send({ "type": "create_room", "roomName": room_name if not room_name.is_empty() else "Salon de %s" % player_name })
+	if not is_mj():
+		p2p_error.emit("Seul le MJ peut créer une partie.")
+		return
+	_send({
+		"type": "create_room",
+		"role": "gm",
+		"roomName": room_name if not room_name.is_empty() else "Partie de %s" % player_name,
+	})
 
 func join_room(code: String) -> void:
-	_send({ "type": "join_room", "code": code.strip_edges() })
+	var normalized := code.strip_edges()
+	last_room_code = normalized
+	save_settings()
+	_send({ "type": "join_room", "code": normalized })
+
+func rejoin_room() -> void:
+	if last_room_code.is_empty():
+		p2p_error.emit("Aucun salon mémorisé pour reconnexion.")
+		return
+	_send({ "type": "rejoin_room", "code": last_room_code })
 
 func leave_room() -> void:
 	if is_in_room():
 		_send({ "type": "leave_room" })
+	_reset_room_state()
+	room_left.emit()
+
+func _reset_room_state() -> void:
 	room_code = ""
 	current_room = {}
 	is_room_host = false
+	is_gm = false
 	p2p_host_address = ""
 	stop_p2p()
-	room_left.emit()
 
 func register_character(character: Dictionary) -> void:
 	_send({ "type": "register_character", "character": character })
@@ -182,23 +218,31 @@ func _handle_message(data: Dictionary) -> void:
 				return
 			current_room = room
 			room_code = room.get("code", "")
+			last_room_code = room_code
+			save_settings()
 			is_room_host = room.get("hostId", "") == player_id
+			is_gm = room.get("gmId", "") == player_id
 			p2p_host_address = room.get("p2pHost", "") if room.get("p2pHost") else ""
 			room_updated.emit(room)
-			if is_room_host and not _is_p2p_active:
+			if is_gm and not _is_p2p_active:
 				start_p2p_host()
-			elif not is_room_host and not p2p_host_address.is_empty() and not _is_p2p_active:
+			elif not is_gm and not p2p_host_address.is_empty() and not _is_p2p_active:
 				connect_p2p(p2p_host_address)
+		"room_closed":
+			var closed_code: String = data.get("roomCode", room_code)
+			var reason: String = data.get("reason", "gm_left")
+			_reset_room_state()
+			room_closed.emit(closed_code, reason)
 		"host_assigned":
 			is_room_host = data.get("hostId", "") == player_id
+			is_gm = is_room_host
 			p2p_host_address = data.get("p2pHost", "") if data.get("p2pHost") else p2p_host_address
-			if is_room_host and not _is_p2p_active:
+			if is_gm and not _is_p2p_active:
 				start_p2p_host()
 		"player_joined", "player_left":
 			if is_in_room():
-				_send({ "type": "get_lobby" })
-			else:
-				list_rooms()
+				pass  # room_update suivra ou déjà à jour
+			list_rooms()
 		"error":
 			p2p_error.emit(data.get("message", "Erreur réseau"))
 

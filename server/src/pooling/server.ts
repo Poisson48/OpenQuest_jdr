@@ -63,6 +63,47 @@ function sendRoomTo(client: PoolingClient): void {
   send(client.ws, { type: "room_update", room: roomManager.toState(room) });
 }
 
+function notifyRoomClosed(
+  roomCode: string,
+  reason: "gm_left" | "gm_disconnected",
+  remainingPlayerIds: string[],
+): void {
+  for (const playerId of remainingPlayerIds) {
+    const other = getClientById(playerId);
+    if (!other) continue;
+    other.roomCode = null;
+    other.registeredCharacter = null;
+    send(other.ws, { type: "room_closed", roomCode, reason });
+    send(other.ws, { type: "lobby_update", rooms: roomManager.listRooms() });
+  }
+}
+
+function handleClientLeave(client: PoolingClient, disconnectReason?: "gm_disconnected"): void {
+  const roomCode = client.roomCode;
+  const playerName = client.name;
+  const { dissolved, gmLeft, remainingPlayerIds } = roomManager.leaveRoom(client);
+  if (!roomCode) return;
+
+  if (gmLeft) {
+    notifyRoomClosed(roomCode, disconnectReason ?? "gm_left", remainingPlayerIds);
+  } else if (!dissolved) {
+    broadcastRoom(roomCode);
+    for (const other of clients.values()) {
+      if (other.id !== client.id && other.roomCode === roomCode) {
+        send(other.ws, {
+          type: "player_left",
+          playerId: client.id,
+          playerName,
+          roomCode,
+          wasGm: false,
+        });
+      }
+    }
+  }
+
+  broadcastLobby();
+}
+
 function handleMessage(client: PoolingClient, raw: string, setName: (name: string) => void): void {
   let message: PoolingClientMessage;
   try {
@@ -95,6 +136,14 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
       break;
 
     case "create_room": {
+      if (message.role !== "gm") {
+        send(client.ws, {
+          type: "error",
+          message: "Seul le MJ peut créer une partie.",
+          code: "GM_ONLY",
+        });
+        break;
+      }
       try {
         const room = roomManager.createRoom(client, {
           roomName: message.roomName,
@@ -128,7 +177,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
       break;
     }
 
-    case "join_room": {
+    case "join_room":
+    case "rejoin_room": {
       try {
         const room = roomManager.joinRoom(client, message.code);
         send(client.ws, { type: "room_update", room });
@@ -163,27 +213,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
     }
 
     case "leave_room": {
-      const { roomCode, dissolved } = roomManager.leaveRoom(client);
-      if (roomCode) {
-        if (!dissolved) {
-          broadcastRoom(roomCode);
-          const room = roomManager.getRoom(roomCode);
-          if (room) {
-            send(client.ws, {
-              type: "host_assigned",
-              hostId: room.hostId,
-              p2pHost: room.p2pHost,
-            });
-          }
-        }
-        for (const other of clients.values()) {
-          if (other.id !== client.id) {
-            send(other.ws, { type: "player_left", playerId: client.id, roomCode });
-          }
-        }
-      }
+      handleClientLeave(client);
       send(client.ws, { type: "lobby_update", rooms: roomManager.listRooms() });
-      broadcastLobby();
       break;
     }
 
@@ -287,16 +318,9 @@ export function startPoolingServer(options: PoolingServerOptions): void {
     });
 
     ws.on("close", () => {
-      const { roomCode, dissolved } = roomManager.removeClientFromRoom(client);
+      handleClientLeave(client, "gm_disconnected");
       clients.delete(id);
       console.log(`[pool -] ${playerName} (${id.slice(0, 8)})`);
-      if (roomCode && !dissolved) {
-        broadcastRoom(roomCode);
-      }
-      for (const other of clients.values()) {
-        send(other.ws, { type: "player_left", playerId: id, roomCode: roomCode ?? "" });
-      }
-      broadcastLobby();
     });
   });
 

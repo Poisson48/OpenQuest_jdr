@@ -22,8 +22,19 @@ OpenQuest passe d'un **serveur autoritaire Node** (tout le jeu transite par le P
 | Composant | Rôle |
 |-----------|------|
 | **Serveur pooling** | Matchmaking, salons à code 4 chiffres, signalisation WebRTC (phase 2), aucune logique de jeu |
-| **Hôte P2P (Godot ENet)** | Autorité locale : état de partie, sync actions/dés entre pairs |
-| **Client Godot** | Connexion pooling → rejoindre salon → connexion ENet vers l'hôte |
+| **Hôte P2P (Godot ENet)** | PC du **MJ** : autorité locale, sync actions/dés entre pairs |
+| **Client Godot** | Connexion pooling → rejoindre salon par code → connexion ENet vers le MJ |
+
+### Règles MJ (Maître du Jeu)
+
+| Règle | Détail |
+|-------|--------|
+| **Création** | Seul le MJ peut créer une partie (`create_room` avec `role: "gm"`) |
+| **Rejoindre** | Les joueurs rejoignent uniquement via le code à 4 chiffres |
+| **Hôte P2P** | Le MJ = hôte ENet par défaut (pooling + port 7777 sur son PC) |
+| **Départ MJ** | Si le MJ quitte ou se déconnecte → salon **fermé** pour tous (`room_closed`) |
+| **Départ joueur** | Les autres joueurs reçoivent `player_left`, le salon continue |
+| **Reconnexion joueur** | Un joueur déconnecté peut rejoindre à nouveau via `rejoin_room` / `join_room` avec le même code |
 
 ### Modes serveur
 
@@ -51,8 +62,11 @@ $env:LEGACY_MODE="1"; npm run dev
 
 ### Phase 1 — Pooling v1 (✅ `server/pooling-v1`)
 - Salons à code 4 chiffres (`create_room`, `join_room`, `leave_room`, `list_rooms`)
+- **MJ seul créateur** — joueurs rejoignent par code
+- Fermeture salon si MJ quitte (`room_closed`)
+- Reconnexion joueurs (`rejoin_room`)
 - `register_character` dans le contexte d'un salon
-- Hôte ENet Godot sur port **7777**, adresse publiée via `set_p2p_host`
+- Hôte ENet Godot sur port **7777** (PC du MJ), adresse publiée via `set_p2p_host`
 - Mode legacy conservé derrière `LEGACY_MODE=1`
 
 ### Phase 2 — Signalisation WebRTC (à venir)
@@ -94,11 +108,12 @@ Demande la liste des salons publics.
 ```
 
 #### `create_room`
-Crée un salon. Le créateur devient hôte.
+Crée une partie. **Réservé au MJ** (`role: "gm"` obligatoire). Le MJ devient hôte ENet.
 
 ```json
 {
   "type": "create_room",
+  "role": "gm",
   "roomName": "Aventure du vendredi",
   "maxPlayers": 4,
   "p2pHost": "192.168.0.42:7777"
@@ -107,15 +122,23 @@ Crée un salon. Le créateur devient hôte.
 
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
-| `roomName` | string | `"Salon XXXX"` | Nom affiché |
+| `role` | `"gm"` | — | **Obligatoire.** Seule valeur acceptée : `"gm"`. Sinon erreur `NOT_GM`. |
+| `roomName` | string | `"Partie XXXX"` | Nom affiché |
 | `maxPlayers` | number | 6 | 2–8 joueurs |
-| `p2pHost` | string? | null | Adresse ENet (rempli par l'hôte après `create_server`) |
+| `p2pHost` | string? | null | Adresse ENet (rempli par le MJ après `create_server`) |
 
 #### `join_room`
-Rejoint un salon par code 4 chiffres.
+Rejoint une partie par code 4 chiffres (joueurs uniquement).
 
 ```json
 { "type": "join_room", "code": "4827" }
+```
+
+#### `rejoin_room`
+Reconnexion d'un joueur après déconnexion involontaire (alias de `join_room`).
+
+```json
+{ "type": "rejoin_room", "code": "4827" }
 ```
 
 #### `leave_room`
@@ -212,14 +235,16 @@ Liste des salons disponibles.
   "room": {
     "code": "4827",
     "name": "Aventure du vendredi",
-    "hostId": "uuid-hote",
+    "hostId": "uuid-mj",
+    "gmId": "uuid-mj",
     "maxPlayers": 4,
     "p2pHost": "192.168.0.42:7777",
     "players": [
       {
-        "playerId": "uuid-hote",
+        "playerId": "uuid-mj",
         "playerName": "Aragorn",
         "isHost": true,
+        "isGm": true,
         "character": { "name": "Aragorn", "race": "Humain", "class": "Guerrier" },
         "joinedAt": 1725300000000
       }
@@ -230,7 +255,7 @@ Liste des salons disponibles.
 ```
 
 #### `host_assigned`
-Confirme à l'hôte qu'il doit démarrer ENet.
+Confirme au MJ qu'il doit démarrer ENet.
 
 ```json
 { "type": "host_assigned", "hostId": "uuid", "p2pHost": null }
@@ -240,8 +265,17 @@ Confirme à l'hôte qu'il doit démarrer ENet.
 
 ```json
 { "type": "player_joined", "playerId": "uuid", "playerName": "Legolas", "roomCode": "4827" }
-{ "type": "player_left", "playerId": "uuid", "roomCode": "4827" }
+{ "type": "player_left", "playerId": "uuid", "playerName": "Legolas", "roomCode": "4827", "wasGm": false }
 ```
+
+#### `room_closed`
+Envoyé à **tous** les membres quand le MJ quitte ou se déconnecte. Le salon est dissous.
+
+```json
+{ "type": "room_closed", "roomCode": "4827", "reason": "gm_left" }
+```
+
+`reason` : `"gm_left"` (départ volontaire) | `"gm_disconnected"` (perte connexion WebSocket)
 
 #### `signal` (Phase 2)
 
@@ -260,7 +294,7 @@ Confirme à l'hôte qu'il doit démarrer ENet.
 { "type": "error", "message": "Salon 9999 introuvable.", "code": "JOIN_FAILED" }
 ```
 
-Codes d'erreur : `CREATE_FAILED`, `JOIN_FAILED`
+Codes d'erreur : `CREATE_FAILED`, `JOIN_FAILED`, `NOT_GM`
 
 #### `pong`
 
@@ -375,24 +409,32 @@ cd D:\git\OpenQuest_jdr\server
 npm run dev
 ```
 
-**Joueur 1 (Hôte) :**
+**MJ (Maître du Jeu) :**
 1. Lancer Godot : `.\scripts\play-godot.ps1`
-2. Menu → section **Salon multijoueur (P2P)**
-3. Se connecter au pooling (`ws://127.0.0.1:8080`)
-4. Cliquer **Créer un salon** → noter le code (ex. `4827`)
-5. Enregistrer son personnage
-6. L'hôte ENet démarre automatiquement sur port 7777
+2. Menu → **Salon multijoueur (P2P)**
+3. Rôle : **Maître du Jeu (MJ)**
+4. Se connecter au pooling (`ws://127.0.0.1:8080`)
+5. Cliquer **Créer une partie (MJ)** → noter le code (ex. `4827`)
+6. L'ENet démarre automatiquement sur port 7777
 
-**Joueur 2 (Client) — autre PC ou 2e instance Godot :**
+**Joueur 2 — autre PC ou 2e instance Godot :**
 1. Lancer Godot
-2. Se connecter au pooling (`ws://IP_DU_SERVEUR:8080`)
-3. Entrer le code `4827` → **Rejoindre**
-4. Enregistrer son personnage
-5. Connexion ENet automatique vers l'hôte
+2. Rôle : **Joueur**
+3. Se connecter au pooling (`ws://IP_DU_SERVEUR:8080`)
+4. Entrer le code `4827` → **Rejoindre une partie**
+5. Enregistrer son personnage
+6. Connexion ENet automatique vers le PC du MJ
+
+**Reconnexion joueur :**
+1. Joueur déconnecté → bouton **Reconnecter** (code mémorisé)
+2. Ou ressaisir le code et **Rejoindre une partie**
 
 **Vérifications :**
-- Le code salon s'affiche chez l'hôte
-- Les deux joueurs apparaissent dans la liste du salon
+- Seul le MJ voit **Créer une partie** actif
+- Les joueurs ne peuvent que rejoindre / reconnecter
+- Code affiché chez le MJ : « Code à partager »
+- Si le MJ quitte → message « salon fermé » chez les joueurs
+- Départ d'un joueur → `player_left`, salon continue
 - Statut P2P : « Connecté (ENet) » après quelques secondes
 
 ### Mode legacy (comparaison)
@@ -410,7 +452,9 @@ Utiliser le panneau **Connexion réseau (LAN)** du menu — comportement identiq
 | ENet LAN uniquement (pas Internet) | Phase 2 WebRTC |
 | Pas de sync de partie P2P encore | Phase 3 RPC |
 | Salons volatiles (RAM, pas de persistance) | Phase 4 déploiement |
-| Hôte = autorité — si hôte quitte, salon migré mais P2P coupé | Reconnexion manuelle |
+| Hôte = MJ — si MJ quitte, salon fermé pour tous | MJ recrée une partie |
+| Reconnexion MJ après déconnexion | Non supportée — recréer une partie |
+| Reconnexion joueur | `rejoin_room` avec le même code |
 | Pare-feu Windows peut bloquer port 7777 | Autoriser Godot dans le pare-feu |
 
 ---

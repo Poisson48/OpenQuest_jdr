@@ -16,6 +16,10 @@ extends Control
 @onready var p2p_status_lbl: Label = %P2pStatusLabel
 @onready var pooling_players_vbox: VBoxContainer = %PoolingPlayersVBox
 @onready var opt_pooling_char: OptionButton = %OptPoolingChar
+@onready var opt_pooling_role: OptionButton = %OptPoolingRole
+@onready var btn_create_room: Button = %BtnCreateRoom
+@onready var btn_join_room: Button = %BtnJoinRoom
+@onready var btn_rejoin_room: Button = %BtnRejoinRoom
 
 func _ready() -> void:
 	%BtnPlay.pressed.connect(_on_play_pressed)
@@ -28,8 +32,10 @@ func _ready() -> void:
 	%BtnConnectPooling.pressed.connect(_on_connect_pooling_pressed)
 	%BtnCreateRoom.pressed.connect(_on_create_room_pressed)
 	%BtnJoinRoom.pressed.connect(_on_join_room_pressed)
+	%BtnRejoinRoom.pressed.connect(_on_rejoin_room_pressed)
 	%BtnLeaveRoom.pressed.connect(_on_leave_room_pressed)
 	%BtnPoolingRegisterChar.pressed.connect(_on_pooling_register_char_pressed)
+	opt_pooling_role.item_selected.connect(_on_pooling_role_changed)
 
 	%BtnModeLong.pressed.connect(func(): _start_with_format("long"))
 	%BtnModeOneshot.pressed.connect(func(): _start_with_format("oneshot"))
@@ -43,6 +49,7 @@ func _ready() -> void:
 
 	MultiplayerManager.room_updated.connect(_on_pooling_room_updated)
 	MultiplayerManager.room_left.connect(_on_pooling_room_left)
+	MultiplayerManager.room_closed.connect(_on_pooling_room_closed)
 	MultiplayerManager.lobby_rooms_updated.connect(_on_pooling_lobby_updated)
 	MultiplayerManager.p2p_host_started.connect(_on_p2p_host_started)
 	MultiplayerManager.p2p_connected.connect(_on_p2p_connected)
@@ -52,13 +59,38 @@ func _ready() -> void:
 	server_url_input.text = NetworkClient.server_url
 	player_name_input.text = NetworkClient.player_name
 	pooling_url_input.text = MultiplayerManager.pooling_url
+	_setup_pooling_roles()
 	_populate_lobby_characters()
 	_populate_pooling_characters()
 	_update_net_status()
 	_update_pooling_status()
+	_update_pooling_role_ui()
 	_refresh_lobby_players()
 	_refresh_pooling_players()
 	_check_resume_state()
+
+func _setup_pooling_roles() -> void:
+	opt_pooling_role.clear()
+	opt_pooling_role.add_item("👑 Maître du Jeu (MJ)", 0)
+	opt_pooling_role.set_item_metadata(0, "gm")
+	opt_pooling_role.add_item("⚔️ Joueur", 1)
+	opt_pooling_role.set_item_metadata(1, "player")
+	opt_pooling_role.selected = 0 if MultiplayerManager.is_mj() else 1
+
+func _on_pooling_role_changed(_idx: int) -> void:
+	var role: String = opt_pooling_role.get_item_metadata(opt_pooling_role.selected)
+	MultiplayerManager.set_player_role(role)
+	_update_pooling_role_ui()
+
+func _update_pooling_role_ui() -> void:
+	var is_mj := MultiplayerManager.is_mj()
+	var in_room := MultiplayerManager.is_in_room()
+	btn_create_room.disabled = not is_mj or in_room or not MultiplayerManager.is_pooling_connected()
+	btn_join_room.disabled = is_mj or in_room or not MultiplayerManager.is_pooling_connected()
+	btn_rejoin_room.disabled = is_mj or in_room or MultiplayerManager.last_room_code.is_empty() or not MultiplayerManager.is_pooling_connected()
+	room_code_input.editable = not is_mj and not in_room
+	if not MultiplayerManager.last_room_code.is_empty() and room_code_input.text.is_empty():
+		room_code_input.text = MultiplayerManager.last_room_code
 
 func _populate_lobby_characters() -> void:
 	opt_lobby_char.clear()
@@ -105,17 +137,26 @@ func _on_connect_pooling_pressed() -> void:
 	MultiplayerManager.player_name = player_name_input.text.strip_edges()
 	if MultiplayerManager.player_name.is_empty():
 		MultiplayerManager.player_name = "Joueur"
+	var role: String = opt_pooling_role.get_item_metadata(opt_pooling_role.selected)
+	MultiplayerManager.set_player_role(role)
 	MultiplayerManager.connect_pooling(pooling_url_input.text, MultiplayerManager.player_name)
 	pooling_status_lbl.text = "Connexion pooling en cours..."
 	pooling_status_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	_update_pooling_role_ui()
 
 func _on_create_room_pressed() -> void:
+	if not MultiplayerManager.is_mj():
+		pooling_status_lbl.text = "Seul le MJ peut créer une partie."
+		return
 	if not MultiplayerManager.is_pooling_connected():
 		pooling_status_lbl.text = "Connectez-vous au pooling d'abord."
 		return
-	MultiplayerManager.create_room("Salon de %s" % MultiplayerManager.player_name)
+	MultiplayerManager.create_room("Partie de %s" % MultiplayerManager.player_name)
 
 func _on_join_room_pressed() -> void:
+	if MultiplayerManager.is_mj():
+		pooling_status_lbl.text = "Le MJ crée la partie — les joueurs rejoignent par code."
+		return
 	if not MultiplayerManager.is_pooling_connected():
 		pooling_status_lbl.text = "Connectez-vous au pooling d'abord."
 		return
@@ -124,6 +165,15 @@ func _on_join_room_pressed() -> void:
 		pooling_status_lbl.text = "Code à 4 chiffres requis."
 		return
 	MultiplayerManager.join_room(code)
+
+func _on_rejoin_room_pressed() -> void:
+	if MultiplayerManager.is_mj():
+		return
+	if not MultiplayerManager.is_pooling_connected():
+		pooling_status_lbl.text = "Connectez-vous au pooling d'abord."
+		return
+	MultiplayerManager.rejoin_room()
+	pooling_status_lbl.text = "Reconnexion au salon %s..." % MultiplayerManager.last_room_code
 
 func _on_leave_room_pressed() -> void:
 	MultiplayerManager.leave_room()
@@ -140,11 +190,12 @@ func _on_pooling_register_char_pressed() -> void:
 func _on_pooling_room_updated(room: Dictionary) -> void:
 	_refresh_pooling_players()
 	_update_pooling_status()
-	if MultiplayerManager.is_room_host:
-		room_code_lbl.text = "🏠 Code salon : %s" % room.get("code", "????")
+	_update_pooling_role_ui()
+	if MultiplayerManager.is_gm:
+		room_code_lbl.text = "👑 Code à partager : %s" % room.get("code", "????")
 	else:
-		room_code_lbl.text = "🔗 Salon : %s" % room.get("code", "????")
-	if MultiplayerManager.is_in_room() and opt_pooling_char.item_count > 0:
+		room_code_lbl.text = "🔗 Partie : %s" % room.get("code", "????")
+	if MultiplayerManager.is_in_room() and opt_pooling_char.item_count > 0 and not MultiplayerManager.is_mj():
 		_on_pooling_register_char_pressed()
 
 func _on_pooling_room_left() -> void:
@@ -152,9 +203,25 @@ func _on_pooling_room_left() -> void:
 	p2p_status_lbl.text = ""
 	_refresh_pooling_players()
 	_update_pooling_status()
+	_update_pooling_role_ui()
+
+func _on_pooling_room_closed(closed_code: String, reason: String) -> void:
+	room_code_lbl.text = ""
+	p2p_status_lbl.text = ""
+	_refresh_pooling_players()
+	_update_pooling_status()
+	_update_pooling_role_ui()
+	var msg := "Le MJ a quitté — salon %s fermé." % closed_code
+	if reason == "gm_disconnected":
+		msg = "Le MJ s'est déconnecté — salon %s fermé." % closed_code
+	pooling_status_lbl.text = msg
+	pooling_status_lbl.add_theme_color_override("font_color", ThemeColors.DANGER)
+	if not MultiplayerManager.is_mj() and not closed_code.is_empty():
+		room_code_input.text = closed_code
 
 func _on_pooling_lobby_updated(_rooms: Array) -> void:
 	_update_pooling_status()
+	_update_pooling_role_ui()
 
 func _on_p2p_host_started(address: String) -> void:
 	p2p_status_lbl.text = "● Hôte ENet actif — %s" % address
@@ -171,12 +238,14 @@ func _on_p2p_error(message: String) -> void:
 
 func _update_pooling_status() -> void:
 	if MultiplayerManager.is_pooling_connected():
-		var host_hint := " (hôte)" if MultiplayerManager.is_room_host else ""
-		pooling_status_lbl.text = "● Pooling connecté (%s%s)" % [MultiplayerManager.player_name, host_hint]
+		var role_hint := " [MJ]" if MultiplayerManager.is_mj() else ""
+		var room_hint := " — salon %s" % MultiplayerManager.room_code if MultiplayerManager.is_in_room() else ""
+		pooling_status_lbl.text = "● Pooling connecté (%s%s%s)" % [MultiplayerManager.player_name, role_hint, room_hint]
 		pooling_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	else:
 		pooling_status_lbl.text = "○ Non connecté — lancez npm run dev dans server/"
 		pooling_status_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	_update_pooling_role_ui()
 
 func _refresh_pooling_players() -> void:
 	for child in pooling_players_vbox.get_children():
@@ -184,7 +253,10 @@ func _refresh_pooling_players() -> void:
 
 	if not MultiplayerManager.is_in_room():
 		var empty_lbl := Label.new()
-		empty_lbl.text = "Créez ou rejoignez un salon pour voir les joueurs."
+		if MultiplayerManager.is_mj():
+			empty_lbl.text = "Créez une partie pour obtenir le code à partager."
+		else:
+			empty_lbl.text = "Rejoignez une partie avec le code du MJ."
 		empty_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 		pooling_players_vbox.add_child(empty_lbl)
 		return
@@ -193,12 +265,16 @@ func _refresh_pooling_players() -> void:
 		var p: Dictionary = player
 		var row := HBoxContainer.new()
 		var name_lbl := Label.new()
-		var host_tag := " [Hôte]" if p.get("isHost", false) else ""
+		var tags := ""
+		if p.get("isGm", false):
+			tags += " [MJ]"
+		elif p.get("isHost", false):
+			tags += " [Hôte]"
 		var char_name := ""
 		var character = p.get("character")
 		if character is Dictionary and not character.is_empty():
 			char_name = " — %s" % character.get("name", "?")
-		name_lbl.text = "• %s%s%s" % [p.get("playerName", "?"), host_tag, char_name]
+		name_lbl.text = "• %s%s%s" % [p.get("playerName", "?"), tags, char_name]
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if p.get("playerId", "") == MultiplayerManager.player_id:
 			name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)

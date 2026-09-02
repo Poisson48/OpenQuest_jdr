@@ -94,8 +94,22 @@ text = "🎲 Salon multijoueur (P2P)"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 theme_override_font_sizes/font_size = 13
-text = "Serveur de pooling → salon à code → connexion ENet directe entre joueurs."
+text = "Le MJ crée la partie (pooling + ENet). Les joueurs rejoignent via le code à 4 chiffres."
 autowrap_mode = 2
+
+[node name="RoleRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblRole" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoleRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Rôle :"
+
+[node name="OptPoolingRole" type="OptionButton" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="PoolingUrlRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
 layout_mode = 2
@@ -136,7 +150,7 @@ theme_override_constants/separation = 8
 [node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "➕ Créer un salon"
+text = "🎲 Créer une partie (MJ)"
 
 [node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
 unique_name_in_owner = true
@@ -148,7 +162,12 @@ max_length = 4
 [node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "🔗 Rejoindre"
+text = "🔗 Rejoindre une partie"
+
+[node name="BtnRejoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↩ Reconnecter"
 
 [node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
 unique_name_in_owner = true
