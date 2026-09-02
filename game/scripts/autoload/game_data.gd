@@ -708,6 +708,8 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 		"mapNavigation": { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null },
 		"currentSceneIndex": 0,
 		"turnIndex": 0,
+		"waitingForGm": false,
+		"gmName": "MJ",
 		"log": [],
 		"status": "playing",
 		"startedAt": Time.get_unix_time_from_system()
@@ -749,16 +751,95 @@ func add_log_entry(author: String, text: String, type: String = "player") -> voi
 	active_game["log"].append(entry)
 	save_active_game()
 
+func get_playable_members() -> Array:
+	if active_game.is_empty():
+		return []
+	var party: Array = active_game.get("party", [])
+	var humans: Array = []
+	for member in party:
+		if member.get("isHuman", false):
+			humans.append(member)
+	if humans.is_empty():
+		return party.duplicate()
+	return humans
+
+func get_active_member() -> Dictionary:
+	var party: Array = active_game.get("party", [])
+	if party.is_empty():
+		return {}
+	var playable := get_playable_members()
+	var mode: String = active_game.get("mode", "solo")
+	if mode == "solo":
+		for member in playable:
+			if member.get("isHuman", false):
+				return member
+		if not playable.is_empty():
+			return playable[0]
+		return party[0]
+	var turn_idx: int = int(active_game.get("turnIndex", 0))
+	if playable.is_empty():
+		return party[turn_idx % party.size()]
+	return playable[turn_idx % playable.size()]
+
+func next_turn() -> void:
+	if active_game.is_empty():
+		return
+	var playable := get_playable_members()
+	if playable.size() <= 1:
+		return
+	var idx: int = int(active_game.get("turnIndex", 0))
+	active_game["turnIndex"] = (idx + 1) % playable.size()
+	save_active_game()
+
+func set_waiting_for_gm(waiting: bool) -> void:
+	if active_game.is_empty():
+		return
+	active_game["waitingForGm"] = waiting
+	save_active_game()
+
+func is_waiting_for_gm() -> bool:
+	if active_game.is_empty():
+		return false
+	return bool(active_game.get("waitingForGm", false))
+
+func get_scenario_npcs() -> Array:
+	if active_game.is_empty():
+		return []
+	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	return scenario.get("npcs", [])
+
+func can_member_act(client_id: String) -> bool:
+	if active_game.is_empty() or active_game.get("status") == "completed":
+		return false
+	if is_waiting_for_gm():
+		return false
+	if active_game.get("gmType", "ai") == "ai":
+		return true
+	var actor := get_active_member()
+	if actor.is_empty():
+		return true
+	var actor_client: String = str(actor.get("clientId", ""))
+	if actor_client.is_empty():
+		return client_id.is_empty()
+	return actor_client == client_id
+
+func get_gm_display_name() -> String:
+	if active_game.is_empty():
+		return "MJ"
+	return str(active_game.get("gmName", "MJ"))
+
 func advance_scene() -> bool:
 	if active_game.is_empty():
 		return false
 	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
 	var scenes: Array = scenario.get("scenes", [])
 	var cur: int = active_game.get("currentSceneIndex", 0)
+	active_game["waitingForGm"] = false
 	if cur + 1 < scenes.size():
 		active_game["currentSceneIndex"] = cur + 1
 		var scene = scenes[cur + 1]
-		add_log_entry("MJ", "[b]Nouvelle Scène : %s[/b]\n%s" % [scene.get("title", ""), scene.get("content", "")], "gm")
+		var gm_author := get_gm_display_name() if active_game.get("gmType", "ai") == "human" else "MJ"
+		add_log_entry(gm_author, "[b]Nouvelle Scène : %s[/b]\n%s" % [scene.get("title", ""), scene.get("content", "")], "gm")
 		_reveal_world_on_scene_advance()
 		_reveal_investigation_on_scene_advance()
 		save_active_game()
@@ -779,6 +860,10 @@ func apply_server_state(state: Dictionary) -> void:
 		active_game["mapPlayState"] = {}
 	if not active_game.has("mapNavigation"):
 		active_game["mapNavigation"] = { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null }
+	if not active_game.has("waitingForGm"):
+		active_game["waitingForGm"] = false
+	if not active_game.has("gmName"):
+		active_game["gmName"] = "MJ"
 	ensure_map_play_state()
 	init_all_world_map_fog()
 	if active_game.get("questFormat", "") == "investigation":

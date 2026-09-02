@@ -11,6 +11,15 @@ extends Control
 @onready var custom_dice_input: LineEdit = %CustomDiceInput
 @onready var gm_panel: PanelContainer = %GmPanel
 @onready var gm_input: TextEdit = %GmInput
+@onready var lbl_gm_wait: Label = %LblGmWait
+@onready var opt_gm_npc: OptionButton = %OptGmNpc
+@onready var gm_npc_input: TextEdit = %GmNpcInput
+@onready var btn_gm_npc_send: Button = %BtnGmNpcSend
+@onready var btn_gm_advance_scene: Button = %BtnGmAdvanceScene
+@onready var lbl_turn_indicator: Label = %LblTurnIndicator
+@onready var lbl_action_hint: Label = %LblActionHint
+@onready var dice_section: PanelContainer = $MainLayout/ContentSplit/MainGameArea/DiceSection
+@onready var action_section: PanelContainer = $MainLayout/ContentSplit/MainGameArea/ActionSection
 @onready var net_status_lbl: Label = %NetStatusLabel
 @onready var map_panel: PanelContainer = %MapPanel
 @onready var btn_back_hub: Button = %BtnBackHub
@@ -161,6 +170,8 @@ func _ready() -> void:
 	custom_dice_input.text_submitted.connect(func(_t): _on_roll_custom_dice())
 
 	btn_gm_send.pressed.connect(_on_gm_send_pressed)
+	btn_gm_npc_send.pressed.connect(_on_gm_npc_send_pressed)
+	btn_gm_advance_scene.pressed.connect(_on_advance_scene_pressed)
 
 	_configure_log_readability()
 	_setup_quick_dice_buttons()
@@ -170,6 +181,127 @@ func _ready() -> void:
 
 	_refresh_session_ui()
 	_update_net_status()
+	_apply_role_ui()
+
+func _is_human_gm_mode() -> bool:
+	return GameData.active_game.get("gmType", "ai") == "human"
+
+func _is_mj_controller() -> bool:
+	if not _is_human_gm_mode():
+		return false
+	if MultiplayerManager.is_p2p_active():
+		return MultiplayerManager.is_p2p_host() and MultiplayerManager.is_mj()
+	if NetworkClient.is_server_connected():
+		return NetworkClient.is_host()
+	return true
+
+func _local_client_id() -> String:
+	if MultiplayerManager.is_p2p_active():
+		return MultiplayerManager.player_id
+	if NetworkClient.is_server_connected():
+		return NetworkClient.get_player_id()
+	return ""
+
+func _apply_role_ui() -> void:
+	var human_gm := _is_human_gm_mode()
+	var mj := _is_mj_controller()
+	var completed := GameData.active_game.get("status") == "completed"
+
+	gm_panel.visible = human_gm and mj and not completed
+	action_section.visible = not mj or not human_gm
+	btn_advance_scene.visible = not human_gm or not mj
+
+	if human_gm and mj:
+		_populate_gm_npcs()
+		_update_gm_wait_label()
+
+	_render_turn_ui()
+	_update_player_controls()
+
+func _populate_gm_npcs() -> void:
+	opt_gm_npc.clear()
+	opt_gm_npc.add_item("— Choisir un PNJ —", 0)
+	opt_gm_npc.set_item_metadata(0, "")
+	var idx := 1
+	for npc in GameData.get_scenario_npcs():
+		var npc_name: String = npc.get("name", "PNJ")
+		var role: String = npc.get("role", "")
+		var label := npc_name if role.is_empty() else "%s (%s)" % [npc_name, role]
+		opt_gm_npc.add_item(label, idx)
+		opt_gm_npc.set_item_metadata(idx, npc_name)
+		idx += 1
+	opt_gm_npc.add_item("✏️ PNJ personnalisé...", idx)
+	opt_gm_npc.set_item_metadata(idx, "__custom__")
+
+func _update_gm_wait_label() -> void:
+	if GameData.is_waiting_for_gm():
+		lbl_gm_wait.text = "⚡ Action reçue — répondez (narration ou PNJ) pour relancer le tour."
+		lbl_gm_wait.add_theme_color_override("font_color", ThemeColors.GOLD)
+	else:
+		lbl_gm_wait.text = "En attente d'une action joueur..."
+		lbl_gm_wait.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+
+func _render_turn_ui() -> void:
+	var state := GameData.active_game
+	if state.is_empty() or state.get("status") == "completed":
+		lbl_turn_indicator.text = "🏁 Aventure terminée"
+		lbl_action_hint.text = "Consultez le journal ou quittez la session."
+		return
+
+	var actor := GameData.get_active_member()
+	var actor_name := actor.get("name", "?") if not actor.is_empty() else "?"
+	var playable := GameData.get_playable_members()
+	var mode: String = state.get("mode", "solo")
+
+	if not _is_human_gm_mode():
+		lbl_turn_indicator.text = "🎯 À vous de jouer — %s" % actor_name
+		lbl_action_hint.text = "Décrivez votre action. Les bots joueront ensuite."
+		return
+
+	if _is_mj_controller():
+		if GameData.is_waiting_for_gm():
+			lbl_turn_indicator.text = "👑 Votre tour de MJ"
+			lbl_action_hint.text = "Les joueurs attendent votre réponse dans le panneau doré."
+		elif playable.size() <= 1:
+			lbl_turn_indicator.text = "👑 Table MJ — %s" % actor_name
+			lbl_action_hint.text = "Vous pilotez l'aventure. Les joueurs agissent via leurs clients."
+		else:
+			lbl_turn_indicator.text = "👑 Table MJ — tour de %s" % actor_name
+			lbl_action_hint.text = "Le joueur actif doit agir. Vous narrerez ensuite."
+		return
+
+	if GameData.is_waiting_for_gm():
+		lbl_turn_indicator.text = "⏳ En attente du MJ"
+		lbl_action_hint.text = "Le MJ %s prépare la suite..." % GameData.get_gm_display_name()
+	elif not GameData.can_member_act(_local_client_id()):
+		lbl_turn_indicator.text = "⏳ Tour de %s" % actor_name
+		lbl_action_hint.text = "Ce n'est pas encore votre tour — patientez."
+	else:
+		if mode == "multi":
+			lbl_turn_indicator.text = "🎯 Votre tour — %s" % actor_name
+		else:
+			lbl_turn_indicator.text = "🎯 Tour de %s" % actor_name
+		lbl_action_hint.text = "Décrivez l'action de votre personnage."
+
+func _update_player_controls() -> void:
+	var completed := GameData.active_game.get("status") == "completed"
+	var can_act := not completed and _can_submit_action()
+	var mj_can_roll := _is_mj_controller() and _is_human_gm_mode() and not completed
+	input_action.editable = can_act
+	btn_send_action.disabled = not can_act
+	custom_dice_input.editable = can_act or mj_can_roll
+	btn_roll_custom.disabled = not can_act and not mj_can_roll
+	for btn in [btn_d4, btn_d6, btn_d8, btn_d10, btn_d12, btn_d20, btn_d100]:
+		btn.disabled = not can_act and not mj_can_roll
+	for btn in [btn_sugg_explore, btn_sugg_talk, btn_sugg_inspect, btn_sugg_combat]:
+		btn.disabled = not can_act
+
+func _can_submit_action() -> bool:
+	if _is_mj_controller() and _is_human_gm_mode():
+		return false
+	if MultiplayerManager.is_p2p_active() or NetworkClient.is_server_connected():
+		return GameData.can_member_act(_local_client_id())
+	return GameData.can_member_act("")
 
 func _setup_quick_dice_buttons() -> void:
 	btn_d4.pressed.connect(func(): _roll_dice_formula("1d4"))
@@ -255,26 +387,27 @@ func _refresh_session_ui() -> void:
 		scene_progress_lbl.text = "Scène %d/%d : %s" % [cur_idx + 1, scenes.size(), cur_scene.get("title", "")]
 	else:
 		scene_progress_lbl.text = "Épilogue"
-		
-	# Affiche le GM panel uniquement si mode GM humain
-	gm_panel.visible = state.get("gmType", "ai") == "human"
-	
+
 	_render_party_list()
 	_render_log()
 	if map_panel and map_panel.has_method("refresh"):
 		map_panel.refresh()
+	_apply_role_ui()
 
 func _render_party_list() -> void:
 	for child in party_container.get_children():
 		child.queue_free()
 		
 	var party: Array = GameData.active_game.get("party", [])
+	var active := GameData.get_active_member()
+	var active_id: String = active.get("id", "")
 	for member in party:
 		var panel := PanelContainer.new()
 		var style := StyleBoxFlat.new()
-		style.bg_color = ThemeColors.BG_INPUT
-		style.border_color = ThemeColors.BORDER
-		style.set_border_width_all(1)
+		var is_active_turn := _is_human_gm_mode() and not active_id.is_empty() and member.get("id", "") == active_id
+		style.bg_color = ThemeColors.BG_CARD if is_active_turn else ThemeColors.BG_INPUT
+		style.border_color = ThemeColors.GOLD if is_active_turn else ThemeColors.BORDER
+		style.set_border_width_all(2 if is_active_turn else 1)
 		style.set_corner_radius_all(4)
 		style.content_margin_left = 8
 		style.content_margin_right = 8
@@ -292,7 +425,10 @@ func _render_party_list() -> void:
 		name_row.add_child(name_lbl)
 		
 		var badge := Label.new()
-		if MultiplayerManager.is_p2p_active() and member.get("clientId", "") == MultiplayerManager.player_id:
+		if is_active_turn and _is_human_gm_mode():
+			badge.text = "TOUR"
+			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
+		elif MultiplayerManager.is_p2p_active() and member.get("clientId", "") == MultiplayerManager.player_id:
 			badge.text = "VOUS"
 			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
 		elif member.get("clientId", "") == NetworkClient.get_player_id() and NetworkClient.is_server_connected():
@@ -348,6 +484,8 @@ func _append_log_entry_bbcode(entry: Dictionary) -> void:
 	match type:
 		"gm":
 			author_color = ThemeColors.get_bbcode_color(ThemeColors.GOLD)
+		"npc":
+			author_color = ThemeColors.get_bbcode_color(ThemeColors.BOT_ACCENT)
 		"bot":
 			author_color = ThemeColors.get_bbcode_color(ThemeColors.BOT_ACCENT)
 		"player":
@@ -368,6 +506,8 @@ func _on_send_action_pressed() -> void:
 	var action_text := input_action.text.strip_edges()
 	if action_text.is_empty():
 		return
+	if not _can_submit_action():
+		return
 	input_action.text = ""
 
 	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
@@ -377,13 +517,11 @@ func _on_send_action_pressed() -> void:
 	if NetworkClient.is_server_connected():
 		NetworkClient.send_action(action_text)
 		return
-	# Mode local
-	var party: Array = GameData.active_game.get("party", [])
-	var player_name := "Joueur"
-	for p in party:
-		if p.get("isPlayer", false):
-			player_name = p.get("name", "Joueur")
-			break
+	_process_local_player_action(action_text)
+
+func _process_local_player_action(action_text: String) -> void:
+	var actor := GameData.get_active_member()
+	var player_name := actor.get("name", "Joueur") if not actor.is_empty() else "Joueur"
 	GameData.add_log_entry(player_name, action_text, "player")
 	_append_log_entry_bbcode({
 		"author": player_name,
@@ -393,10 +531,14 @@ func _on_send_action_pressed() -> void:
 	})
 	if GameData.try_auto_move_from_action(action_text):
 		map_panel.refresh()
+	GameData.maybe_reveal_investigation_from_action(action_text)
+	map_panel.refresh()
 	if GameData.active_game.get("gmType", "ai") == "ai":
-		GameData.maybe_reveal_investigation_from_action(action_text)
-		map_panel.refresh()
 		_simulate_ai_response(action_text)
+	else:
+		GameData.set_waiting_for_gm(true)
+		GameData.next_turn()
+	_apply_role_ui()
 
 func _simulate_ai_response(player_action: String) -> void:
 	# Simule la réaction du MJ IA selon les règles du jeu
@@ -476,14 +618,41 @@ func _on_gm_send_pressed() -> void:
 	if text.is_empty():
 		return
 	gm_input.text = ""
-	
-	GameData.add_log_entry("MJ", text, "gm")
+	_broadcast_gm_message(GameData.get_gm_display_name(), text, "gm")
+
+func _on_gm_npc_send_pressed() -> void:
+	var text := gm_npc_input.text.strip_edges()
+	if text.is_empty() or opt_gm_npc.selected < 0:
+		return
+	var meta: String = str(opt_gm_npc.get_item_metadata(opt_gm_npc.selected))
+	if meta.is_empty():
+		return
+	var npc_name := "PNJ"
+	if meta == "__custom__":
+		if text.contains(":"):
+			var parts := text.split(":", false, 1)
+			npc_name = parts[0].strip_edges()
+			text = parts[1].strip_edges()
+			if text.is_empty():
+				return
+	else:
+		npc_name = meta
+	gm_npc_input.text = ""
+	_broadcast_gm_message(npc_name, "« %s »" % text, "npc")
+
+func _broadcast_gm_message(author: String, text: String, log_type: String) -> void:
+	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
+		MultiplayerManager.client_gm_broadcast(author, text, log_type)
+		return
+	GameData.add_log_entry(author, text, log_type)
+	GameData.set_waiting_for_gm(false)
 	_append_log_entry_bbcode({
-		"author": "MJ",
-		"type": "gm",
+		"author": author,
+		"type": log_type,
 		"text": text,
 		"time": Time.get_time_string_from_system()
 	})
+	_apply_role_ui()
 
 func _on_advance_scene_pressed() -> void:
 	if MultiplayerManager.is_p2p_active():
@@ -502,6 +671,7 @@ func _on_net_game_state(state: Dictionary) -> void:
 
 func _on_p2p_log_entry(entry: Dictionary) -> void:
 	_append_log_entry_bbcode(entry)
+	_apply_role_ui()
 
 func _on_net_dice_result(_res: Dictionary, formatted: String) -> void:
 	if not formatted.is_empty():

@@ -132,7 +132,48 @@ placeholder_text = "Écrire une narration pour les joueurs..."
 [node name="BtnGmSend" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Diffuser la Narration"
+text = "📢 Diffuser la Narration"
+
+[node name="LblGmWait" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 12
+text = "En attente d'une action joueur..."
+autowrap_mode = 3
+
+[node name="LblGmNpc" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "🎭 Parler en tant que PNJ"
+
+[node name="OptGmNpc" type="OptionButton" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="GmNpcInput" type="TextEdit" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 55)
+layout_mode = 2
+placeholder_text = "Réplique du PNJ..."
+
+[node name="BtnGmNpcSend" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🗣️ Faire parler le PNJ"
+
+[node name="BtnGmAdvanceScene" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "⏭️ Scène Suivante"
+
+[node name="LblGmHint" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_override_font_sizes/font_size = 11
+text = "Carte, dés privés, narration et PNJ : pleins pouvoirs MJ."
+autowrap_mode = 3
 
 [node name="MainGameArea" type="VBoxContainer" parent="MainLayout/ContentSplit"]
 layout_mode = 2
@@ -254,6 +295,21 @@ size_flags_vertical = 0
 [node name="ActionVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection"]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="LblTurnIndicator" type="Label" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 14
+text = "🎯 Tour en cours..."
+
+[node name="LblActionHint" type="Label" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_override_font_sizes/font_size = 12
+text = "Décrivez l'action de votre personnage."
+autowrap_mode = 3
 
 [node name="SuggestionsHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
 layout_mode = 2

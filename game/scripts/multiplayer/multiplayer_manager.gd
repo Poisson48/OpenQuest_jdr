@@ -252,6 +252,21 @@ func client_advance_scene() -> void:
 	if GameData.advance_scene():
 		broadcast_state()
 
+func client_gm_broadcast(author: String, text: String, log_type: String = "gm") -> void:
+	if not is_p2p_active():
+		return
+	if is_p2p_host():
+		_host_gm_broadcast(author, text, log_type)
+	else:
+		gm_broadcast.rpc_id(1, author, text, log_type, player_id)
+
+func _host_gm_broadcast(author: String, text: String, log_type: String) -> void:
+	if not is_p2p_host() or GameData.active_game.is_empty():
+		return
+	GameData.add_log_entry(author, text, log_type)
+	GameData.set_waiting_for_gm(false)
+	broadcast_state()
+
 func broadcast_state() -> void:
 	if not is_p2p_host() or GameData.active_game.is_empty():
 		return
@@ -377,6 +392,10 @@ func _host_start_game(
 		return
 	var final_party := _merge_party_with_room(party)
 	GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party, map_ids)
+	if gm_type == "human":
+		GameData.active_game["gmName"] = player_name if not player_name.is_empty() else "MJ"
+		GameData.active_game["waitingForGm"] = false
+		GameData.save_active_game()
 	var state := GameData.active_game.duplicate(true)
 	sync_game_state.rpc(state)
 	game_started.emit(state.get("id", ""), state)
@@ -446,10 +465,19 @@ func _resolve_player_name(sender_player_id: String) -> String:
 func _host_process_action(action_text: String, sender_player_id: String) -> void:
 	if not is_p2p_host() or GameData.active_game.is_empty():
 		return
+	if GameData.active_game.get("gmType", "ai") == "human":
+		if not GameData.can_member_act(sender_player_id):
+			return
 	var author := _resolve_player_name(sender_player_id)
 	GameData.add_log_entry(author, action_text, "player")
+	if GameData.try_auto_move_from_action(action_text):
+		pass
+	GameData.maybe_reveal_investigation_from_action(action_text)
 	if GameData.active_game.get("gmType", "ai") == "ai":
 		_host_simulate_ai_response(action_text)
+	else:
+		GameData.set_waiting_for_gm(true)
+		GameData.next_turn()
 	broadcast_state()
 
 func _host_simulate_ai_response(player_action: String) -> void:
@@ -526,6 +554,14 @@ func request_dice_roll(formula: String, sender_player_id: String) -> void:
 	if not is_p2p_host():
 		return
 	_host_process_dice_roll(formula, sender_player_id)
+
+@rpc("any_peer", "call_remote", "reliable")
+func gm_broadcast(author: String, text: String, log_type: String, sender_player_id: String) -> void:
+	if not is_p2p_host():
+		return
+	if not _is_gm_peer(sender_player_id):
+		return
+	_host_gm_broadcast(author, text, log_type)
 
 @rpc("authority", "call_local", "reliable")
 func sync_game_state(state: Dictionary) -> void:
