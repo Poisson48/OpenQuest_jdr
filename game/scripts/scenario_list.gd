@@ -41,12 +41,10 @@ func _setup_mode_filter() -> void:
 	mode_filter.clear()
 	mode_filter.add_item("Tous les modes", 0)
 	mode_filter.set_item_metadata(0, "all")
-	mode_filter.add_item("🔍 Enquête", 1)
-	mode_filter.set_item_metadata(1, "investigation")
-	mode_filter.add_item("🏰 Campagne longue", 2)
-	mode_filter.set_item_metadata(2, "long")
-	mode_filter.add_item("⚔️ One-shot", 3)
-	mode_filter.set_item_metadata(3, "oneshot")
+	mode_filter.add_item("⚔️ Aventure", 1)
+	mode_filter.set_item_metadata(1, "adventure")
+	mode_filter.add_item("🔍 Enquête", 2)
+	mode_filter.set_item_metadata(2, "investigation")
 
 func _apply_entry_context() -> void:
 	if get_tree().has_meta("preselected_scenario_mode"):
@@ -55,20 +53,13 @@ func _apply_entry_context() -> void:
 	match _locked_mode:
 		"investigation":
 			page_title.text = "📜 Affaires d'Enquête"
-			mode_filter.selected = 1
-			mode_filter.disabled = true
-		"long":
-			page_title.text = "🏰 Campagnes Longues"
 			mode_filter.selected = 2
 			mode_filter.disabled = true
-		"oneshot":
-			page_title.text = "⚔️ One-shots"
-			mode_filter.selected = 3
-			mode_filter.disabled = true
-		"adventure":
+		"long", "oneshot", "adventure":
 			page_title.text = "📜 Scénarios d'Aventure"
-			mode_filter.selected = 0
+			mode_filter.selected = 1
 			mode_filter.disabled = true
+			_locked_mode = "adventure"
 
 func _current_mode_filter() -> String:
 	if not _locked_mode.is_empty():
@@ -106,22 +97,15 @@ func refresh_list() -> void:
 
 	var mode := _current_mode_filter()
 	var total := 0
-	if mode == "all" or mode == "adventure":
-		var inv: Array = []
-		if mode == "all":
-			inv = _sorted_scenarios(_scenarios_for_mode("investigation"))
-		var long := _sorted_scenarios(_scenarios_for_mode("long"))
-		var one := _sorted_scenarios(_scenarios_for_mode("oneshot"))
-		total = inv.size() + long.size() + one.size()
+	if mode == "all":
+		total += _add_roster_duration_sections("adventure")
+		total += _add_roster_duration_sections("investigation")
 		if total == 0:
 			_add_empty_state()
-		else:
-			if not inv.is_empty():
-				_add_scenario_section("🔍 Enquête", inv)
-			if not long.is_empty():
-				_add_scenario_section("🏰 Campagnes longues", long)
-			if not one.is_empty():
-				_add_scenario_section("⚔️ One-shots", one)
+	elif mode == "adventure" or mode == "investigation":
+		total = _add_roster_duration_sections(mode)
+		if total == 0:
+			_add_empty_state()
 	else:
 		var list := _sorted_scenarios(_scenarios_for_mode(mode))
 		total = list.size()
@@ -133,6 +117,33 @@ func refresh_list() -> void:
 
 	scenarios_count_lbl.text = "%d scénario%s" % [total, "s" if total != 1 else ""]
 	_last_scenario_grid_cols = _scenario_grid_columns()
+
+func _add_roster_duration_sections(roster_mode: String) -> int:
+	var scenarios := _scenarios_for_mode(roster_mode)
+	var split := _split_by_duration(scenarios)
+	var short_list := _sorted_scenarios(split["short"])
+	var long_list := _sorted_scenarios(split["long"])
+	var count := short_list.size() + long_list.size()
+	if count == 0:
+		return 0
+
+	var short_title := "⚔️ Aventures courtes" if roster_mode == "adventure" else "🔍 Enquêtes courtes"
+	var long_title := "🏰 Aventures longues" if roster_mode == "adventure" else "🔍 Enquêtes longues"
+	if not short_list.is_empty():
+		_add_scenario_section(short_title, short_list)
+	if not long_list.is_empty():
+		_add_scenario_section(long_title, long_list)
+	return count
+
+func _split_by_duration(scenarios: Array) -> Dictionary:
+	var short: Array = []
+	var long: Array = []
+	for scn in scenarios:
+		if scn.get("questFormat", "oneshot") == "long":
+			long.append(scn)
+		else:
+			short.append(scn)
+	return {"short": short, "long": long}
 
 func _on_list_scroll_resized() -> void:
 	if scenario_sections_root.get_child_count() == 0:
@@ -184,10 +195,6 @@ func _add_empty_state() -> void:
 			lbl.text = "Aucune affaire d'enquête pour le moment."
 		"adventure":
 			lbl.text = "Aucun scénario d'aventure (one-shot ou campagne) pour le moment."
-		"long":
-			lbl.text = "Aucune campagne longue pour le moment."
-		"oneshot":
-			lbl.text = "Aucun one-shot pour le moment."
 		_:
 			lbl.text = "Aucun scénario ne correspond à ce mode."
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -243,7 +250,10 @@ func _create_scenario_card(scn: Dictionary) -> PanelContainer:
 	var mode := GameData.get_scenario_mode_label(scn)
 	match mode:
 		"investigation":
-			badge.text = "🔍 Enquête"
+			if scn.get("questFormat", "oneshot") == "long":
+				badge.text = "🔍 Enquête longue"
+			else:
+				badge.text = "🔍 Enquête courte"
 			badge.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
 		"long":
 			badge.text = "🏰 Campagne"
@@ -384,9 +394,7 @@ func _on_new_scenario_pressed() -> void:
 		"investigation":
 			roster = "investigation"
 			fmt = "investigation"
-		"long":
-			fmt = "long"
-		"oneshot":
+		"adventure", "long", "oneshot":
 			fmt = "oneshot"
 	GameData.go_to_scenario_editor("", roster, fmt)
 

@@ -2,7 +2,6 @@ extends Control
 
 @onready var saved_games_section: PanelContainer = %SavedGamesSection
 @onready var saved_games_list: VBoxContainer = %SavedGamesList
-@onready var modes_panel: PanelContainer = %ModesPanel
 @onready var player_name_input: LineEdit = %PlayerNameInput
 
 @onready var pooling_url_input: LineEdit = %PoolingUrlInput
@@ -24,20 +23,14 @@ var _pending_delete_id: String = ""
 
 func _ready() -> void:
 	%BtnPlay.pressed.connect(_on_play_pressed)
-	%BtnModes.pressed.connect(_on_modes_pressed)
 	%BtnDiscover.pressed.connect(_on_discover_pressed)
 	%ConfirmDeleteResume.confirmed.connect(_on_confirm_delete_resume)
-	%BtnCloseModes.pressed.connect(func(): modes_panel.visible = false)
 	%BtnConnectPooling.pressed.connect(_on_connect_pooling_pressed)
 	%BtnCreateRoom.pressed.connect(_on_create_room_pressed)
 	%BtnJoinRoom.pressed.connect(_on_join_room_pressed)
 	%BtnRejoinRoom.pressed.connect(_on_rejoin_room_pressed)
 	%BtnLeaveRoom.pressed.connect(_on_leave_room_pressed)
 	%BtnPoolingRegisterChar.pressed.connect(_on_pooling_register_char_pressed)
-
-	%BtnModeLong.pressed.connect(func(): _start_with_format("long"))
-	%BtnModeOneshot.pressed.connect(func(): _start_with_format("oneshot"))
-	%BtnModeInvestigation.pressed.connect(func(): _start_with_format("investigation"))
 
 	MultiplayerManager.room_updated.connect(_on_pooling_room_updated)
 	MultiplayerManager.room_left.connect(_on_pooling_room_left)
@@ -50,7 +43,6 @@ func _ready() -> void:
 
 	btn_launch_pooling.pressed.connect(_on_launch_pooling_pressed)
 
-	modes_panel.visible = false
 	player_name_input.text = MultiplayerManager.player_name
 	pooling_url_input.text = MultiplayerManager.pooling_url
 	_setup_pooling_roles()
@@ -394,15 +386,5 @@ func _on_confirm_delete_resume() -> void:
 func _on_play_pressed() -> void:
 	GameData.go_to_game_setup()
 
-func _on_modes_pressed() -> void:
-	modes_panel.visible = true
-
 func _on_discover_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")
-
-func _start_with_format(quest_format: String) -> void:
-	var scns := GameData.get_scenarios_for_quest_format(quest_format)
-	var scenario_id: String = ""
-	if not scns.is_empty():
-		scenario_id = str(scns[0].get("id", ""))
-	GameData.go_to_game_setup(quest_format, scenario_id)

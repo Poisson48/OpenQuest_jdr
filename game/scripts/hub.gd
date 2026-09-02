@@ -18,14 +18,13 @@ var _pending_delete_bot_id: String = ""
 var _last_bot_grid_cols: int = -1
 
 func _ready() -> void:
-	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
 	%BtnHome.pressed.connect(_on_home_pressed)
 	MultiplayerManager.game_started.connect(_on_remote_game_started)
 	
 	# Onglet Aventures
 	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
 	%BtnAdvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
-	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
+	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("adventure"))
 
 	# Onglet Enquête
 	%BtnInvNewChar.pressed.connect(func(): GameData.go_to_character_editor("investigation"))
@@ -48,6 +47,7 @@ func _ready() -> void:
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
 
 func _setup_bots_filter() -> void:
 	bots_filter.clear()

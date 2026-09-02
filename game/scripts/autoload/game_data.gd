@@ -117,6 +117,8 @@ func is_scenario_valid_for_format(scenario: Dictionary, quest_format: String) ->
 		return scenario.get("roster", "general") == "investigation"
 	if scenario.get("roster", "general") == "investigation":
 		return false
+	if quest_format == "adventure":
+		return true
 	var qf: String = scenario.get("questFormat", "oneshot")
 	if quest_format == "long":
 		return qf == "long"
