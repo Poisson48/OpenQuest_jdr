@@ -19,8 +19,10 @@ var _locked_mode: String = ""
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
+	%BtnNewScenario.pressed.connect(_on_new_scenario_pressed)
 	%BtnCloseDetail.pressed.connect(func(): detail_panel.visible = false)
 	%BtnPlayDetail.pressed.connect(_on_play_selected_scenario)
+	%BtnEditDetail.pressed.connect(_on_edit_selected_scenario)
 	%BtnDeleteDetail.pressed.connect(_on_delete_selected_scenario)
 	%ConfirmDeleteScenario.confirmed.connect(_on_confirm_delete_scenario)
 
@@ -272,6 +274,12 @@ func _create_scenario_card(scn: Dictionary) -> PanelContainer:
 	var actions := VBoxContainer.new()
 	actions.add_theme_constant_override("separation", 4)
 
+	var btn_edit := Button.new()
+	btn_edit.text = "✏️ Modifier"
+	btn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_edit.pressed.connect(func(): GameData.go_to_scenario_editor(scn.get("id", "")))
+	actions.add_child(btn_edit)
+
 	var btn_view := Button.new()
 	btn_view.text = "Voir détails"
 	btn_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -330,6 +338,10 @@ func _show_scenario_details(scn: Dictionary) -> void:
 	detail_scroll.scroll_vertical = 0
 	_update_detail_text_widths()
 
+func _on_edit_selected_scenario() -> void:
+	if not selected_scenario_id.is_empty():
+		GameData.go_to_scenario_editor(selected_scenario_id)
+
 func _on_play_selected_scenario() -> void:
 	if not selected_scenario_id.is_empty():
 		_launch_game_with_scenario(selected_scenario_id)
@@ -363,6 +375,20 @@ func _update_detail_text_widths() -> void:
 	for rtl in [detail_synopsis, detail_scenes, detail_npcs]:
 		rtl.custom_minimum_size = Vector2(wrap_width, 0)
 		rtl.reset_size()
+
+func _on_new_scenario_pressed() -> void:
+	var mode := _current_mode_filter()
+	var roster := "general"
+	var fmt := "oneshot"
+	match mode:
+		"investigation":
+			roster = "investigation"
+			fmt = "investigation"
+		"long":
+			fmt = "long"
+		"oneshot":
+			fmt = "oneshot"
+	GameData.go_to_scenario_editor("", roster, fmt)
 
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")

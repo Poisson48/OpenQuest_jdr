@@ -165,7 +165,7 @@ git push --force-with-lease   # seulement après un rebase
 1. **Ne jamais committer** le dossier `.godot/` (déjà dans `.gitignore`)
 2. **Scènes `.tscn`** : Git merge mal les fichiers binaires/texte Godot → communiquer qui édite quelle scène
 3. **UID Godot** : si Godot régénère des `uid://`, c’est normal au premier import ; committer ensemble la première fois
-4. **Tester à 2 en local** : une machine lance `npm run dev`, l’autre ouvre Godot avec l’IP du serveur dans `network_client.gd`
+4. **Tester à 2 en local** : une machine lance `npm run dev`, le MJ crée un salon dans Godot, l'autre rejoint avec le code via le panneau **Salon multijoueur (P2P)**
 5. **Instances multiples** : Debug → Run Multiple Instances dans Godot pour simuler 2 joueurs sur un PC
 
 ---
@@ -225,7 +225,7 @@ Pour éviter les conflits sans outil lourd :
       │                              │
       ▼                              ▼
   server/                         game/
-  types.ts ◄──── protocole ────► network_client.gd
+  pooling/ ◄──── matchmaking ────► multiplayer_manager.gd
       │                              │
       └──────────► main ◄────────────┘
                    ▲

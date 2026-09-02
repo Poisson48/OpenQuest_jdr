@@ -54,6 +54,8 @@ text = "⚙️ Configuration de la Partie"
 [node name="ScrollBody" type="ScrollContainer" parent="MainLayout"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 2
 
 [node name="Columns" type="HBoxContainer" parent="MainLayout/ScrollBody"]
 layout_mode = 2
@@ -214,6 +216,7 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "4. Composition du Groupe"
 
 [node name="LblMainChar" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Votre Personnage principal :"
 

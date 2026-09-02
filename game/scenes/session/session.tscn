@@ -39,16 +39,22 @@ theme_override_constants/separation = 8
 [node name="HeaderBar" type="PanelContainer" parent="MainLayout"]
 layout_mode = 2
 
-[node name="HBox" type="HBoxContainer" parent="MainLayout/HeaderBar"]
+[node name="HeaderScroll" type="ScrollContainer" parent="MainLayout/HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="HBox" type="HBoxContainer" parent="MainLayout/HeaderBar/HeaderScroll"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="BtnBackHub" type="Button" parent="MainLayout/HeaderBar/HBox"]
+[node name="BtnBackHub" type="Button" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "← Quitter la session"
 
-[node name="ScenarioTitle" type="Label" parent="MainLayout/HeaderBar/HBox"]
+[node name="ScenarioTitle" type="Label" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -56,23 +62,23 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "🗺️ Partie en cours"
 
-[node name="SceneProgress" type="Label" parent="MainLayout/HeaderBar/HBox"]
+[node name="SceneProgress" type="Label" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
 text = "Scène 1/6 : L'oasis"
 
-[node name="TimerLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
+[node name="TimerLabel" type="Label" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "⏱️ 00:00"
 
-[node name="NetStatusLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
+[node name="NetStatusLabel" type="Label" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "○ Mode Local"
 
-[node name="BtnAdvanceScene" type="Button" parent="MainLayout/HeaderBar/HBox"]
+[node name="BtnAdvanceScene" type="Button" parent="MainLayout/HeaderBar/HeaderScroll/HBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Scène Suivante ⏭️"
@@ -93,6 +99,8 @@ size_flags_vertical = 3
 
 [node name="PartyScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/Sidebar/PartyPanel"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="PartyVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll"]
 layout_mode = 2
@@ -132,11 +140,83 @@ placeholder_text = "Écrire une narration pour les joueurs..."
 [node name="BtnGmSend" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Diffuser la Narration"
+text = "📢 Diffuser la Narration"
+
+[node name="LblGmWait" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 12
+text = "En attente d'une action joueur..."
+autowrap_mode = 3
+
+[node name="LblGmNpc" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "🎭 Parler en tant que PNJ"
+
+[node name="OptGmNpc" type="OptionButton" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="GmNpcInput" type="TextEdit" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 55)
+layout_mode = 2
+placeholder_text = "Réplique du PNJ..."
+
+[node name="BtnGmNpcSend" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🗣️ Faire parler le PNJ"
+
+[node name="LblGmSceneNav" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "🧭 Navigation narrative (MJ)"
+
+[node name="OptGmScene" type="OptionButton" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnGmGoToScene" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "📍 Aller à la scène choisie"
+
+[node name="LblGmTransitions" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 12
+text = "Branches depuis ici :"
+
+[node name="GmTransitionsVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnGmAdvanceScene" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "⏭️ Suite (chemin par défaut)"
+
+[node name="BtnGmCompleteScenario" type="Button" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🏁 Clore l'aventure"
+
+[node name="LblGmHint" type="Label" parent="MainLayout/ContentSplit/Sidebar/GmPanel/GmVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_override_font_sizes/font_size = 11
+text = "Le MJ choisit librement la scène, les branches ou la fin. Les joueurs suivent votre narration."
+autowrap_mode = 3
 
 [node name="MainGameArea" type="VBoxContainer" parent="MainLayout/ContentSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 size_flags_stretch_ratio = 2.4
 theme_override_constants/separation = 8
 
@@ -144,21 +224,20 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
-custom_minimum_size = Vector2(0, 450)
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.2
 script = ExtResource("3_map_panel")
 
 [node name="LogPanel" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
-custom_minimum_size = Vector2(0, 320)
-size_flags_stretch_ratio = 0.0
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
 
 [node name="LogVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/LogPanel"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
+size_flags_vertical = 3
 theme_override_constants/separation = 0
 
 [node name="LblHistoire" type="Label" parent="MainLayout/ContentSplit/MainGameArea/LogPanel/LogVBox"]
@@ -167,15 +246,22 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 14
 text = "📜 Histoire"
 
-[node name="GameLog" type="RichTextLabel" parent="MainLayout/ContentSplit/MainGameArea/LogPanel/LogVBox"]
+[node name="LogScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/MainGameArea/LogPanel/LogVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="GameLog" type="RichTextLabel" parent="MainLayout/ContentSplit/MainGameArea/LogPanel/LogVBox/LogScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 0
 bbcode_enabled = true
 scroll_following = true
 scroll_active = false
 autowrap_mode = 3
+fit_content = true
 
 [node name="DiceSection" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
@@ -255,29 +341,50 @@ size_flags_vertical = 0
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="SuggestionsHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+[node name="LblTurnIndicator" type="Label" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 14
+text = "🎯 Tour en cours..."
+
+[node name="LblActionHint" type="Label" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_override_font_sizes/font_size = 12
+text = "Décrivez l'action de votre personnage."
+autowrap_mode = 3
+
+[node name="SuggestionsScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="SuggestionsHBox" type="HBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BtnSuggExplore" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+[node name="BtnSuggExplore" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "🧭 Explorer"
 
-[node name="BtnSuggTalk" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+[node name="BtnSuggTalk" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "💬 Discuter"
 
-[node name="BtnSuggInspect" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+[node name="BtnSuggInspect" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "🔍 Examiner"
 
-[node name="BtnSuggCombat" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsHBox"]
+[node name="BtnSuggCombat" type="Button" parent="MainLayout/ContentSplit/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12

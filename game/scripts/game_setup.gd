@@ -55,11 +55,6 @@ func _ready() -> void:
 
 	opt_scenario.item_selected.connect(_on_scenario_selected)
 	spin_party_size.value_changed.connect(_on_party_size_changed)
-	NetworkClient.connected.connect(func(_id, _name): _update_net_panel())
-	NetworkClient.disconnected.connect(_update_net_panel)
-	NetworkClient.game_started.connect(_on_game_started_from_server)
-	NetworkClient.lobby_updated.connect(_on_lobby_updated)
-	NetworkClient.error_received.connect(_on_server_error)
 
 	MultiplayerManager.game_started.connect(_on_pooling_game_started)
 	MultiplayerManager.p2p_error.connect(_on_pooling_error)
@@ -186,7 +181,7 @@ func _refresh_char_options() -> void:
 	for i in range(available_chars.size()):
 		var c: Dictionary = available_chars[i]
 		var prefix := "🔍 " if _current_quest_format == "investigation" else ""
-		var label := "%s%s (%s %s)" % [prefix, c.get("name"), c.get("race"), c.get("class")]
+		var label := "%s%s" % [prefix, GameData.format_character_summary(c)]
 		opt_main_char.add_item(label, i)
 		opt_main_char.set_item_metadata(i, c.get("id"))
 		opt_joiner_char.add_item(label, i)
@@ -221,7 +216,7 @@ func _apply_host_joiner_ui() -> void:
 		and not MultiplayerManager.is_game_master()
 		and MultiplayerManager.is_p2p_active()
 	)
-	_is_joiner = (NetworkClient.is_server_connected() and not NetworkClient.is_host()) or _is_pooling_joiner
+	_is_joiner = _is_pooling_joiner
 	joiner_panel.visible = _is_joiner
 	if _is_joiner:
 		%BtnStartGame.visible = false
@@ -372,13 +367,7 @@ func _refresh_bots_checkboxes() -> void:
 	for b in available_bots:
 		var check := CheckBox.new()
 		var prefix := "🔍🤖 " if _current_quest_format == "investigation" else "🤖 "
-		check.text = "%s%s (%s %s) - %s" % [
-			prefix,
-			b.get("name", "Bot"),
-			b.get("race", ""),
-			b.get("class", ""),
-			b.get("personality", "")
-		]
+		check.text = "%s%s" % [prefix, GameData.format_character_summary(b)]
 		var bot_id: String = b.get("id", "")
 		check.button_pressed = selected_bot_ids.has(bot_id)
 		check.toggled.connect(func(toggled: bool):
@@ -397,8 +386,6 @@ func _build_character_from_option(opt: OptionButton) -> Dictionary:
 		var blank := GameData.create_blank_character()
 		if MultiplayerManager.is_in_room():
 			blank["name"] = MultiplayerManager.player_name
-		elif NetworkClient.is_server_connected():
-			blank["name"] = NetworkClient.player_name
 		else:
 			blank["name"] = "Aventurier"
 		blank["isPlayer"] = true
@@ -420,10 +407,10 @@ func _build_character_from_option(opt: OptionButton) -> Dictionary:
 	return member
 
 func _on_joiner_register_pressed() -> void:
-	if not NetworkClient.is_server_connected():
+	if not _is_pooling_joiner:
 		return
-	NetworkClient.register_character(_build_character_from_option(opt_joiner_char))
-	%LblJoinerHint.text = "✓ Personnage enregistré — en attente du lancement par l'hôte."
+	MultiplayerManager.register_character(_build_character_from_option(opt_joiner_char))
+	%LblJoinerHint.text = "✓ Personnage enregistré — en attente du lancement par le MJ."
 
 func _on_start_game_pressed() -> void:
 	if _is_joiner:
@@ -492,20 +479,6 @@ func _on_start_game_pressed() -> void:
 		MultiplayerManager.client_request_start_game(scn_id, party, mode_val, gm_val, quest_format, party_size, map_ids)
 		return
 
-
-	if NetworkClient.is_server_connected():
-		if not party.is_empty() and _host_plays_character():
-			NetworkClient.register_character(party[0])
-		_waiting_server_start = true
-		%BtnStartGame.disabled = true
-		%BtnStartGame.text = "⏳ Lancement via serveur..."
-		if not NetworkClient.game_started.is_connected(_on_game_started_from_server):
-			NetworkClient.game_started.connect(_on_game_started_from_server, CONNECT_ONE_SHOT)
-		if not NetworkClient.error_received.is_connected(_on_server_error):
-			NetworkClient.error_received.connect(_on_server_error, CONNECT_ONE_SHOT)
-		NetworkClient.start_game(scn_id, party, mode_val, gm_val, quest_format, party_size, map_ids)
-		return
-
 	_start_local_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
 
 func _start_local_game(scn_id: String, mode_val: String, gm_val: String, quest_format: String, party: Array, map_ids: Array = []) -> void:
@@ -519,20 +492,9 @@ func _update_net_panel() -> void:
 		var role := "MJ (hôte P2P)" if MultiplayerManager.is_p2p_host() else "joueur P2P"
 		%NetStatusLabel.text = "● Pooling P2P — salon %s (%s)" % [MultiplayerManager.room_code, role]
 		%NetStatusLabel.add_theme_color_override("font_color", ThemeColors.SUCCESS)
-	elif NetworkClient.is_server_connected():
-		var role := "hôte" if NetworkClient.is_host() else "invité"
-		%NetStatusLabel.text = "● Serveur (%s) : %s" % [role, NetworkClient.server_url]
-		%NetStatusLabel.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	else:
-		%NetStatusLabel.text = "○ Serveur non connecté — configurez l'URL depuis le menu principal"
+		%NetStatusLabel.text = "○ Multijoueur — connectez-vous via le salon P2P du menu principal"
 		%NetStatusLabel.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-
-func _on_game_started_from_server(_game_id: String, state: Dictionary) -> void:
-	_waiting_server_start = false
-	%BtnStartGame.disabled = false
-	%BtnStartGame.text = "🚀 Lancer l'Aventure !"
-	GameData.apply_server_state(state)
-	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
 
 func _on_pooling_game_started(_game_id: String, state: Dictionary) -> void:
 	_waiting_server_start = false
@@ -547,13 +509,6 @@ func _on_pooling_error(message: String) -> void:
 		%BtnStartGame.disabled = false
 		%BtnStartGame.text = "🚀 Lancer l'Aventure (P2P) !"
 	net_status_lbl_fallback(message)
-
-func _on_server_error(msg: String) -> void:
-	if _waiting_server_start:
-		_waiting_server_start = false
-		%BtnStartGame.disabled = false
-		%BtnStartGame.text = "🚀 Lancer l'Aventure !"
-	net_status_lbl_fallback(msg)
 
 func net_status_lbl_fallback(msg: String) -> void:
 	if has_node("%NetStatusLabel"):

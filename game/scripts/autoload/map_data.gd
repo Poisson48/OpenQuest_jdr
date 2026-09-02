@@ -3,6 +3,16 @@ extends Node
 signal maps_updated
 
 const MAPS_PATH := "user://maps.json"
+const MAP_ASSETS_DIR := "user://map_assets/"
+const SCHEMA_VERSION := 2
+const RENDER_MODE_SIMPLE := "simple"
+const RENDER_MODE_COMPLEX := "complex"
+const DEFAULT_GRID_CONFIG := {
+	"size": 70,
+	"opacity": 0.22,
+	"color": "#ffffff",
+	"enabled": true,
+}
 const MEMBER_COLOR_HEX := [
 	"#e8c547", "#47a8e8", "#e86a47",
 	"#47e88a", "#b847e8", "#e89247",
@@ -39,6 +49,8 @@ func load_maps() -> void:
 	else:
 		maps = _load_default_maps()
 		save_maps()
+	for i in range(maps.size()):
+		maps[i] = ensure_map_schema(maps[i])
 	maps_updated.emit()
 
 func save_maps() -> void:
@@ -252,6 +264,117 @@ func sort_maps(list: Array, sort_mode: String) -> Array:
 	)
 	return copy
 
+func get_render_mode(map_data: Dictionary) -> String:
+	var mode := str(map_data.get("renderMode", RENDER_MODE_SIMPLE))
+	return RENDER_MODE_COMPLEX if mode == RENDER_MODE_COMPLEX else RENDER_MODE_SIMPLE
+
+func is_complex_map(map_data: Dictionary) -> bool:
+	return get_render_mode(map_data) == RENDER_MODE_COMPLEX
+
+func get_grid_config(map_data: Dictionary) -> Dictionary:
+	var cfg: Dictionary = DEFAULT_GRID_CONFIG.duplicate(true)
+	if map_data.get("grid") is Dictionary:
+		cfg.merge(map_data["grid"], true)
+	return cfg
+
+func ensure_map_schema(map_data: Dictionary) -> Dictionary:
+	if not map_data.has("schemaVersion"):
+		map_data["schemaVersion"] = 1
+	if not map_data.has("renderMode"):
+		map_data["renderMode"] = RENDER_MODE_SIMPLE
+	if not map_data.has("grid"):
+		map_data["grid"] = DEFAULT_GRID_CONFIG.duplicate(true)
+	if not map_data.has("fogEnabled"):
+		map_data["fogEnabled"] = not is_world_map(map_data)
+	return map_data
+
+func create_complex_map(title: String, roster: String, map_kind: String = "local", grid_cells_w: int = 20, grid_cells_h: int = 14) -> Dictionary:
+	var tiles: Array = []
+	tiles.resize(grid_cells_w * grid_cells_h)
+	tiles.fill("floor")
+	var map := ensure_map_schema({
+		"id": "map-%d" % Time.get_unix_time_from_system(),
+		"title": title,
+		"description": "",
+		"roster": roster,
+		"mapKind": map_kind,
+		"renderMode": RENDER_MODE_COMPLEX,
+		"scenarioId": "",
+		"width": grid_cells_w,
+		"height": grid_cells_h,
+		"tiles": tiles,
+		"markers": [],
+		"locationLinks": [],
+		"backgroundImage": "",
+		"fogEnabled": true,
+		"schemaVersion": SCHEMA_VERSION,
+	})
+	maps.append(map)
+	save_maps()
+	return map
+
+func import_background_image(map_id: String, source_path: String) -> String:
+	if map_id.is_empty() or source_path.is_empty():
+		return ""
+	if not FileAccess.file_exists(source_path):
+		push_warning("Image introuvable : %s" % source_path)
+		return ""
+	DirAccess.make_dir_recursive_absolute(MAP_ASSETS_DIR)
+	var ext := source_path.get_extension().to_lower()
+	if ext.is_empty():
+		ext = "png"
+	var dest := "%s%s.%s" % [MAP_ASSETS_DIR, map_id, ext]
+	var src := FileAccess.open(source_path, FileAccess.READ)
+	if not src:
+		return ""
+	var dst := FileAccess.open(dest, FileAccess.WRITE)
+	if not dst:
+		return ""
+	dst.store_buffer(src.get_buffer(src.get_length()))
+	for i in range(maps.size()):
+		if maps[i].get("id") == map_id:
+			maps[i]["backgroundImage"] = dest
+			maps[i]["renderMode"] = RENDER_MODE_COMPLEX
+			maps[i]["schemaVersion"] = SCHEMA_VERSION
+			save_maps()
+			return dest
+	return dest
+
+func load_background_texture(map_data: Dictionary) -> Texture2D:
+	var path: String = str(map_data.get("backgroundImage", "")).strip_edges()
+	if path.is_empty():
+		return null
+	if not FileAccess.file_exists(path) and path.begins_with("res://"):
+		if not ResourceLoader.exists(path):
+			return null
+	var img := Image.new()
+	var err := img.load(path)
+	if err != OK:
+		return null
+	return ImageTexture.create_from_image(img)
+
+func generate_tile_texture(map_data: Dictionary, grid_cfg: Dictionary = {}) -> Texture2D:
+	var cfg := grid_cfg if not grid_cfg.is_empty() else get_grid_config(map_data)
+	var gs := int(cfg.get("size", 70))
+	var w: int = maxi(1, int(map_data.get("width", 16)))
+	var h: int = maxi(1, int(map_data.get("height", 12)))
+	var img := Image.create(w * gs, h * gs, false, Image.FORMAT_RGBA8)
+	for y in range(h):
+		for x in range(w):
+			var idx := y * w + x
+			var tile_id: String = "floor"
+			var tiles: Array = map_data.get("tiles", [])
+			if idx < tiles.size():
+				tile_id = str(tiles[idx])
+			var col := get_tile_color(map_data, tile_id)
+			for py in range(gs):
+				for px in range(gs):
+					img.set_pixel(x * gs + px, y * gs + py, col)
+	return ImageTexture.create_from_image(img)
+
+func get_effect_preset_list() -> Array:
+	return ["fire", "smoke", "magic", "rain"]
+
 func create_blank_map(title: String, roster: String, map_kind: String) -> Dictionary:
 	var is_world := map_kind == "world"
 	var w: int = 48 if is_world else 16
@@ -262,19 +385,20 @@ func create_blank_map(title: String, roster: String, map_kind: String) -> Dictio
 	var tiles: Array = []
 	tiles.resize(w * h)
 	tiles.fill(fill_tile)
-	var map := {
+	var map := ensure_map_schema({
 		"id": "map-%d" % Time.get_unix_time_from_system(),
 		"title": title,
 		"description": "",
 		"roster": roster,
 		"mapKind": map_kind,
+		"renderMode": RENDER_MODE_SIMPLE,
 		"scenarioId": "",
 		"width": w,
 		"height": h,
 		"tiles": tiles,
 		"markers": [],
 		"locationLinks": [],
-	}
+	})
 	maps.append(map)
 	save_maps()
 	return map

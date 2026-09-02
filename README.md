@@ -113,7 +113,7 @@ npm run dev
 2. Lancer `scenes/main.tscn`
 3. Flèches clavier pour se déplacer
 
-Pour le réseau local, adapter `server_url` dans `game/scripts/network_client.gd`.
+Pour le multijoueur LAN, utiliser le panneau **Salon multijoueur (P2P)** du menu principal (`ws://IP:8080`).
 
 ---
 
@@ -150,6 +150,7 @@ git push origin poc/ma-fonctionnalite
 |---------|---------|
 | [docs/COLLABORATION.md](docs/COLLABORATION.md) | Git, branches, conflits, routine à deux |
 | [docs/STACK.md](docs/STACK.md) | Architecture technique |
+| [docs/INTERACTIVE_MAPS_STRATEGY.md](docs/INTERACTIVE_MAPS_STRATEGY.md) | Analyse concurrentielle VTT et feuille de route cartes |
 | [docs/IA_POUR_ASLANUSKO.md](docs/IA_POUR_ASLANUSKO.md) | Guide IA pour le POC HTML |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Résumé contribution |
 

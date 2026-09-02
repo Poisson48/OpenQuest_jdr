@@ -8,55 +8,181 @@
   "scenes": [
     {
       "title": "Le sanctuaire profané",
-      "content": "Le prêtre Orin est assis devant l'autel, vivant mais incapable de parler. Des symboles arcanaïques sont gravés sur ses avant-bras — encre ou brûlure ? L'offrande du matin a été renversée. Une porte du sanctuaire menant aux cryptes est entrouverte."
+      "content": "Le prêtre Orin est assis devant l'autel, vivant mais incapable de parler. Des symboles arcanaïques sont gravés sur ses avant-bras — encre ou brûlure ? L'offrande du matin a été renversée. Une porte du sanctuaire menant aux cryptes est entrouverte.",
+      "id": "le-sanctuaire-profané",
+      "tags": [
+        "debut",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "les-prêtresses-et-le-schisme",
+          "label": "Continuer vers : Les prêtresses et le schisme",
+          "default": true
+        },
+        {
+          "to": "les-cryptes-sous-le-temple",
+          "label": "Branche MJ : Les cryptes sous le temple",
+          "gmOnly": true
+        },
+        {
+          "to": "le-marché-des-reliques",
+          "label": "Branche MJ : Le marché des reliques",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-au-clair-de-lune",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Les prêtresses et le schisme",
-      "content": "Sœur Maelis dirige la faction orthodoxe ; le frère Kael prêche une réforme. Chacun accuse l'autre de profanation. Un registre des visiteurs liste un sénateur, une marchande et un inconnu masqué hier soir."
+      "content": "Sœur Maelis dirige la faction orthodoxe ; le frère Kael prêche une réforme. Chacun accuse l'autre de profanation. Un registre des visiteurs liste un sénateur, une marchande et un inconnu masqué hier soir.",
+      "id": "les-prêtresses-et-le-schisme",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "les-cryptes-sous-le-temple",
+          "label": "Continuer vers : Les cryptes sous le temple",
+          "default": true
+        },
+        {
+          "to": "le-sanctuaire-profané",
+          "label": "Revenir à : Le sanctuaire profané",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-au-clair-de-lune",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Les cryptes sous le temple",
-      "content": "Couloirs humides, fresques effacées. Un cercle de sel brisé au sol. Des bougies récentes. Un grimoire interdit manque à la niche scellée. Des traces de pas légères remontent vers une trappe de service."
+      "content": "Couloirs humides, fresques effacées. Un cercle de sel brisé au sol. Des bougies récentes. Un grimoire interdit manque à la niche scellée. Des traces de pas légères remontent vers une trappe de service.",
+      "id": "les-cryptes-sous-le-temple",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "le-marché-des-reliques",
+          "label": "Continuer vers : Le marché des reliques",
+          "default": true
+        },
+        {
+          "to": "les-prêtresses-et-le-schisme",
+          "label": "Revenir à : Les prêtresses et le schisme",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-au-clair-de-lune",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le marché des reliques",
-      "content": "La marchande Yara vend des amulettes « bénies ». Elle a vu Orin argumenter avec un client la veille. Une fausse relique porte le même symbole que sur le bras du prêtre — vendue par un colporteur au domino bleu."
+      "content": "La marchande Yara vend des amulettes « bénies ». Elle a vu Orin argumenter avec un client la veille. Une fausse relique porte le même symbole que sur le bras du prêtre — vendue par un colporteur au domino bleu.",
+      "id": "le-marché-des-reliques",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "le-sénateur-vorn",
+          "label": "Continuer vers : Le sénateur Vorn",
+          "default": true
+        },
+        {
+          "to": "les-cryptes-sous-le-temple",
+          "label": "Revenir à : Les cryptes sous le temple",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-au-clair-de-lune",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le sénateur Vorn",
-      "content": "Le politicien nie être venu au temple — pourtant il est inscrit au registre. Son chasseur admet l'avoir accompagné « pour des conseils privés ». Vorn profitait des prophéties d'Orin pour manipuler les élections."
+      "content": "Le politicien nie être venu au temple — pourtant il est inscrit au registre. Son chasseur admet l'avoir accompagné « pour des conseils privés ». Vorn profitait des prophéties d'Orin pour manipuler les élections.",
+      "id": "le-sénateur-vorn",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "révélation-au-clair-de-lune",
+          "label": "Continuer vers : Révélation au clair de lune",
+          "default": true
+        },
+        {
+          "to": "le-marché-des-reliques",
+          "label": "Revenir à : Le marché des reliques",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Révélation au clair de lune",
-      "content": "Rituel interrompu, culte clandestin ou vengeance personnelle ? Les symboles mènent à un artisan tatoueur ou à un sort de silence. Orin peut peut-être encore communiquer par écrit — s'il ose."
+      "content": "Rituel interrompu, culte clandestin ou vengeance personnelle ? Les symboles mènent à un artisan tatoueur ou à un sort de silence. Orin peut peut-être encore communiquer par écrit — s'il ose.",
+      "id": "révélation-au-clair-de-lune",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-sénateur-vorn",
+          "label": "Revenir à : Le sénateur Vorn",
+          "gmOnly": true
+        },
+        {
+          "to": "les-cryptes-sous-le-temple",
+          "label": "Branche MJ : Les cryptes sous le temple",
+          "gmOnly": true
+        },
+        {
+          "to": "le-marché-des-reliques",
+          "label": "Branche MJ : Le marché des reliques",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Prêtre Orin",
       "role": "Victime / témoin muet",
-      "description": "Oracle respecté, terrifié. Il peut écrire des mots simples si on lui fait confiance."
+      "description": "Oracle respecté, terrifié. Il peut écrire des mots simples si on lui fait confiance.",
+      "id": "prêtre-orin"
     },
     {
       "name": "Sœur Maelis",
       "role": "Suspecte",
-      "description": "Conservatrice rigide. Elle voulait exiler Orin pour ses prophéties trop libres."
+      "description": "Conservatrice rigide. Elle voulait exiler Orin pour ses prophéties trop libres.",
+      "id": "sœur-maelis"
     },
     {
       "name": "Frère Kael",
       "role": "Suspect",
-      "description": "Réformateur charismatique. Des fidèles jurent l'avoir vu dans les cryptes après la cloche du soir."
+      "description": "Réformateur charismatique. Des fidèles jurent l'avoir vu dans les cryptes après la cloche du soir.",
+      "id": "frère-kael"
     },
     {
       "name": "Yara la marchande",
       "role": "Témoin",
-      "description": "Pragmatique, informée. Elle traque le colporteur au domino bleu pour d'autres raisons."
+      "description": "Pragmatique, informée. Elle traque le colporteur au domino bleu pour d'autres raisons.",
+      "id": "yara-la-marchande"
     },
     {
       "name": "Sénateur Vorn",
       "role": "Suspect",
-      "description": "Politicien lisse, menteur habile. Les prophéties d'Orin menaçaient sa campagne."
+      "description": "Politicien lisse, menteur habile. Les prophéties d'Orin menaçaient sa campagne.",
+      "id": "sénateur-vorn"
     }
   ],
-  "questFormat": "oneshot"
+  "questFormat": "oneshot",
+  "startSceneId": "le-sanctuaire-profané"
 }

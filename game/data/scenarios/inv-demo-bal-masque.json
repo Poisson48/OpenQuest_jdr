@@ -8,55 +8,180 @@
   "scenes": [
     {
       "title": "La découverte du corps",
-      "content": "Le baron Lavière gît près du bureau, une coupe renversée à la main. L'odeur d'amandes amères flotte dans la bibliothèque. Le majordome Henri a verrouillé les portes sur ordre de la comtesse. Six masques sont posés sur le piano — chacun correspond à un invité encore présent."
+      "content": "Le baron Lavière gît près du bureau, une coupe renversée à la main. L'odeur d'amandes amères flotte dans la bibliothèque. Le majordome Henri a verrouillé les portes sur ordre de la comtesse. Six masques sont posés sur le piano — chacun correspond à un invité encore présent.",
+      "id": "la-découverte-du-corps",
+      "tags": [
+        "debut"
+      ],
+      "transitions": [
+        {
+          "to": "interrogatoires-au-salon",
+          "label": "Continuer vers : Interrogatoires au salon",
+          "default": true
+        },
+        {
+          "to": "la-bibliothèque-fouille",
+          "label": "Emprunter un autre chemin : La bibliothèque — fouille",
+          "gmOnly": true
+        },
+        {
+          "to": "les-cuisines-et-le-poison",
+          "label": "Emprunter un autre chemin : Les cuisines et le poison",
+          "gmOnly": true
+        },
+        {
+          "to": "confrontation-finale",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Interrogatoires au salon",
-      "content": "Les invités sont rassemblés sous la tapisserie des Valenwood. La comtesse Eliane pleure ; le docteur Morvan examine les symptômes ; le capitaine Rourke clame son innocence. Une plume d'écriture appartenant au baron porte une note partielle : « Ce soir je révèle… »"
+      "content": "Les invités sont rassemblés sous la tapisserie des Valenwood. La comtesse Eliane pleure ; le docteur Morvan examine les symptômes ; le capitaine Rourke clame son innocence. Une plume d'écriture appartenant au baron porte une note partielle : « Ce soir je révèle… »",
+      "id": "interrogatoires-au-salon",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "la-bibliothèque-fouille",
+          "label": "Continuer vers : La bibliothèque — fouille",
+          "default": true
+        },
+        {
+          "to": "la-découverte-du-corps",
+          "label": "Revenir à : La découverte du corps",
+          "gmOnly": true
+        },
+        {
+          "to": "confrontation-finale",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La bibliothèque — fouille",
-      "content": "Derrière une étagère basculante, un coffre contient des lettres compromettantes. Une fenêtre entrouverte laisse une empreinte de boue sur le rebord — impossible sans échelle. Un journal intime du baron mentionne un chantage et un rendez-vous à minuit."
+      "content": "Derrière une étagère basculante, un coffre contient des lettres compromettantes. Une fenêtre entrouverte laisse une empreinte de boue sur le rebord — impossible sans échelle. Un journal intime du baron mentionne un chantage et un rendez-vous à minuit.",
+      "id": "la-bibliothèque-fouille",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "les-cuisines-et-le-poison",
+          "label": "Continuer vers : Les cuisines et le poison",
+          "default": true
+        },
+        {
+          "to": "interrogatoires-au-salon",
+          "label": "Revenir à : Interrogatoires au salon",
+          "gmOnly": true
+        },
+        {
+          "to": "confrontation-finale",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Les cuisines et le poison",
-      "content": "La cuisinière Marthe jure n'avoir servi que du vin de la cave. Une fiole vide se cache dans le garde-manger, étiquetée en latin. Le docteur identifie de l'aconit — rare, réservé à son cabinet. Qui y a eu accès cette semaine ?"
+      "content": "La cuisinière Marthe jure n'avoir servi que du vin de la cave. Une fiole vide se cache dans le garde-manger, étiquetée en latin. Le docteur identifie de l'aconit — rare, réservé à son cabinet. Qui y a eu accès cette semaine ?",
+      "id": "les-cuisines-et-le-poison",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "le-jardin-gelé",
+          "label": "Continuer vers : Le jardin gelé",
+          "default": true
+        },
+        {
+          "to": "la-bibliothèque-fouille",
+          "label": "Revenir à : La bibliothèque — fouille",
+          "gmOnly": true
+        },
+        {
+          "to": "confrontation-finale",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le jardin gelé",
-      "content": "Des traces mènent jusqu'à la serre abandonnée. Un masque brisé gît dans la neige — pas celui du baron. Une échelle portative manque au hangar. Un témoin affirme avoir vu une silhouette en domino noir traverser le couloir est."
+      "content": "Des traces mènent jusqu'à la serre abandonnée. Un masque brisé gît dans la neige — pas celui du baron. Une échelle portative manque au hangar. Un témoin affirme avoir vu une silhouette en domino noir traverser le couloir est.",
+      "id": "le-jardin-gelé",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "confrontation-finale",
+          "label": "Continuer vers : Confrontation finale",
+          "default": true
+        },
+        {
+          "to": "les-cuisines-et-le-poison",
+          "label": "Revenir à : Les cuisines et le poison",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Confrontation finale",
-      "content": "Les indices convergent : alibi contradictoires, mobile financier, jalousie, secret de famille. Il est temps de réunir les suspects, présenter les preuves et désigner le coupable — ou révéler une vérité plus sombre que prévu."
+      "content": "Les indices convergent : alibi contradictoires, mobile financier, jalousie, secret de famille. Il est temps de réunir les suspects, présenter les preuves et désigner le coupable — ou révéler une vérité plus sombre que prévu.",
+      "id": "confrontation-finale",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-jardin-gelé",
+          "label": "Revenir à : Le jardin gelé",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-fouille",
+          "label": "Branche MJ : La bibliothèque — fouille",
+          "gmOnly": true
+        },
+        {
+          "to": "les-cuisines-et-le-poison",
+          "label": "Branche MJ : Les cuisines et le poison",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Comtesse Eliane de Lavière",
       "role": "Suspecte / veuve",
-      "description": "Élégante, froide sous le choc. Elle hérite du manoir. Son alibi : elle dansait au salon — mais personne ne l'a vue pendant dix minutes."
+      "description": "Élégante, froide sous le choc. Elle hérite du manoir. Son alibi : elle dansait au salon — mais personne ne l'a vue pendant dix minutes.",
+      "id": "comtesse-eliane-de-lavière"
     },
     {
       "name": "Docteur Morvan",
       "role": "Suspect / expert",
-      "description": "Médecin de campagne, connaît les poisons. Il a quitté le bal « pour prendre l'air ». Il détenait de l'aconit dans son cabinet."
+      "description": "Médecin de campagne, connaît les poisons. Il a quitté le bal « pour prendre l'air ». Il détenait de l'aconit dans son cabinet.",
+      "id": "docteur-morvan"
     },
     {
       "name": "Capitaine Rourke",
       "role": "Suspect / créancier",
-      "description": "Officier en retraite, endetté envers le baron. Il menace souvent de « régler ses comptes ». Porte un masque de renard."
+      "description": "Officier en retraite, endetté envers le baron. Il menace souvent de « régler ses comptes ». Porte un masque de renard.",
+      "id": "capitaine-rourke"
     },
     {
       "name": "Henri le majordome",
       "role": "Témoin clé",
-      "description": "Serviteur loyal de vingt ans. Il a servi le vin et verrouillé les portes. Il sait qui est monté à la bibliothèque — mais hésite à parler."
+      "description": "Serviteur loyal de vingt ans. Il a servi le vin et verrouillé les portes. Il sait qui est monté à la bibliothèque — mais hésite à parler.",
+      "id": "henri-le-majordome"
     },
     {
       "name": "Marthe la cuisinière",
       "role": "Témoin",
-      "description": "Nerveuse, protège son neveu apprenti. Elle a vu quelqu'un entrer dans la cave aux vins avant le bal."
+      "description": "Nerveuse, protège son neveu apprenti. Elle a vu quelqu'un entrer dans la cave aux vins avant le bal.",
+      "id": "marthe-la-cuisinière"
     }
   ],
-  "questFormat": "oneshot"
+  "questFormat": "oneshot",
+  "startSceneId": "la-découverte-du-corps"
 }

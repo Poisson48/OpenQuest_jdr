@@ -1,45 +1,156 @@
 {
   "id": "demo-crypte",
   "questFormat": "oneshot",
+  "startSceneId": "cimetiere-brumeval",
   "title": "La Crypte Oubliée",
   "synopsis": "Une crypte ancienne a été découverte sous le village de Brumeval. Des disparitions mystérieuses poussent les aventuriers à descendre dans les ténèbres.",
   "setting": "Village de Brumeval, sous une pluie fine. Torches, pierre humide, odeur de moisi.",
   "scenes": [
     {
+      "id": "cimetiere-brumeval",
       "title": "Le cimetière de Brumeval",
-      "content": "Sous la pluie, Eldric le fossoyeur montre une dalle descellée près d'un mausolée effondré. Des traces de griffes marquent la terre. Des murmures montent du trou — ou est-ce le vent ?"
+      "tags": [
+        "surface"
+      ],
+      "content": "Sous la pluie, Eldric le fossoyeur montre une dalle descellée près d'un mausolée effondré. Des traces de griffes marquent la terre. Des murmures montent du trou — ou est-ce le vent ?",
+      "transitions": [
+        {
+          "to": "entree-crypte",
+          "label": "Descendre dans la crypte",
+          "default": true
+        }
+      ]
     },
     {
+      "id": "entree-crypte",
       "title": "L'entrée de la crypte",
-      "content": "Un escalier de pierre descend dans l'obscurité. Des runes effacées ornent les murs. Au fond, une porte de fer entrouverte laisse échapper un courant d'air froid. Des ossements humains gisent sur les marches."
+      "tags": [
+        "crypte"
+      ],
+      "content": "Un escalier de pierre descend dans l'obscurité. Des runes effacées ornent les murs. Au fond, une porte de fer entrouverte laisse échapper un courant d'air froid. Des ossements humains gisent sur les marches.",
+      "transitions": [
+        {
+          "to": "couloir-veilleurs",
+          "label": "Franchir la porte de fer",
+          "default": true
+        },
+        {
+          "to": "cimetiere-brumeval",
+          "label": "Remonter au cimetière",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "couloir-veilleurs",
       "title": "Le couloir des veilleurs",
-      "content": "Des niches abritent des statues de chevaliers pétrifiés. L'une d'elles a bougé depuis la dernière visite — impossible. Des mécanismes de flèches sont visibles dans le plafond. Un journal d'explorateur mort gît au sol."
+      "tags": [
+        "crypte"
+      ],
+      "content": "Des niches abritent des statues de chevaliers pétrifiés. L'une d'elles a bougé depuis la dernière visite — impossible. Des mécanismes de flèches sont visibles dans le plafond. Un journal d'explorateur mort gît au sol.",
+      "transitions": [
+        {
+          "to": "salle-offrandes",
+          "label": "Atteindre la salle circulaire",
+          "default": true
+        },
+        {
+          "to": "entree-crypte",
+          "label": "Revenir à l'entrée",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "salle-offrandes",
       "title": "La salle des offrandes",
-      "content": "Une salle circulaire avec un autel fissuré. Des offrandes pourries sont éparpillées. Trois passages mènent vers l'ouest, le nord et le bas. L'eau suinte des murs et forme des flaques d'un noir huileux."
+      "tags": [
+        "carrefour"
+      ],
+      "content": "Une salle circulaire avec un autel fissuré. Des offrandes pourries sont éparpillées. Trois passages mènent vers l'ouest, le nord et le bas. L'eau suinte des murs et forme des flaques d'un noir huileux.",
+      "transitions": [
+        {
+          "to": "fosse-mortsvivants",
+          "label": "Descendre dans la fosse (nord)",
+          "default": true
+        },
+        {
+          "to": "sanctuaire-interdit",
+          "label": "Passage secret vers le sanctuaire",
+          "gmOnly": true
+        },
+        {
+          "to": "couloir-veilleurs",
+          "label": "Revenir au couloir",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "fosse-mortsvivants",
       "title": "La fosse aux morts-vivants",
-      "content": "Le passage du bas mène à une fosse où des cadavres se tordent péniblement. Une cloche rouillée peut les apaiser — ou les provoquer. Au fond, une échelle de corde mène plus bas."
+      "tags": [
+        "combat"
+      ],
+      "content": "Le passage du bas mène à une fosse où des cadavres se tordent péniblement. Une cloche rouillée peut les apaiser — ou les provoquer. Au fond, une échelle de corde mène plus bas.",
+      "transitions": [
+        {
+          "to": "sanctuaire-interdit",
+          "label": "Grimper vers le sanctuaire",
+          "default": true
+        },
+        {
+          "to": "salle-offrandes",
+          "label": "Remonter à la salle des offrandes",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "sanctuaire-interdit",
       "title": "Le sanctuaire interdit",
-      "content": "Une lueur verdâtre pulse au centre de la pièce. Le Gardien des Ombres veille devant un autel noir. Les disparus du village sont là, vivants mais transfigurés. Le secret de Brumeval se révèle enfin."
+      "tags": [
+        "fin"
+      ],
+      "content": "Une lueur verdâtre pulse au centre de la pièce. Le Gardien des Ombres veille devant un autel noir. Les disparus du village sont là, vivants mais transfigurés. Le secret de Brumeval se révèle enfin.",
+      "transitions": [
+        {
+          "to": "fosse-mortsvivants",
+          "label": "Revenir à : La fosse aux morts-vivants",
+          "gmOnly": true
+        },
+        {
+          "to": "couloir-veilleurs",
+          "label": "Branche MJ : Le couloir des veilleurs",
+          "gmOnly": true
+        },
+        {
+          "to": "salle-offrandes",
+          "label": "Branche MJ : La salle des offrandes",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
+      "id": "eldric",
       "name": "Eldric le fossoyeur",
       "role": "Informateur",
-      "description": "Un vieil homme nerveux qui a vu des lumières sous le cimetière. Il offre une clé rouillée."
+      "description": "Un vieil homme nerveux qui a vu des lumières sous le cimetière. Il offre une clé rouillée.",
+      "scenes": [
+        "cimetiere-brumeval",
+        "entree-crypte"
+      ]
     },
     {
+      "id": "gardien-ombres",
       "name": "Le Gardien des Ombres",
       "role": "Antagoniste",
-      "description": "Une entité liée à la crypte. Il teste la bravoure ou la ruse des intrus."
+      "description": "Une entité liée à la crypte. Il teste la bravoure ou la ruse des intrus.",
+      "scenes": [
+        "sanctuaire-interdit"
+      ]
     }
   ]
 }

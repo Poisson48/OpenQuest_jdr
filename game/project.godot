@@ -17,16 +17,16 @@ config/icon="res://icon.svg"
 ThemeColors="*res://scripts/autoload/theme_colors.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MapData="*res://scripts/autoload/map_data.gd"
-NetworkClient="*res://scripts/network_client.gd"
 MultiplayerManager="*res://scripts/multiplayer/multiplayer_manager.gd"
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=800
-window/size/min_width=1024
-window/size/min_height=680
+window/size/min_width=800
+window/size/min_height=600
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [gui]
 
