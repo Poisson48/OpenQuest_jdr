@@ -1,5 +1,7 @@
 extends Control
 
+const MapModeScript := preload("res://scripts/maps/map_mode.gd")
+
 @onready var tab_container: TabContainer = %TabContainer
 @onready var bots_sections_root: VBoxContainer = %BotsSectionsRoot
 @onready var bots_scroll: ScrollContainer = %BotsScroll
@@ -11,6 +13,20 @@ extends Control
 @onready var saved_games_list: VBoxContainer = %SavedGamesList
 @onready var maps_sections_root: VBoxContainer = %MapsSectionsRoot
 @onready var maps_sort: OptionButton = %MapsSort
+@onready var btn_home: Button = %BtnHome
+@onready var btn_adv_new_char: Button = %BtnAdvNewChar
+@onready var btn_adv_scenarios: Button = %BtnAdvScenarios
+@onready var btn_adv_play: Button = %BtnAdvPlay
+@onready var btn_inv_new_char: Button = %BtnInvNewChar
+@onready var btn_inv_scenarios: Button = %BtnInvScenarios
+@onready var btn_inv_play: Button = %BtnInvPlay
+@onready var btn_play_new: Button = %BtnPlayNew
+@onready var btn_new_map_world: Button = %BtnNewMapWorld
+@onready var btn_new_map_adv: Button = %BtnNewMapAdv
+@onready var btn_new_map_inv: Button = %BtnNewMapInv
+@onready var confirm_delete_session: ConfirmationDialog = %ConfirmDeleteSession
+@onready var confirm_delete_map: ConfirmationDialog = %ConfirmDeleteMap
+@onready var confirm_delete_bot: ConfirmationDialog = %ConfirmDeleteBot
 
 var _pending_delete_id: String = ""
 var _pending_delete_map_id: String = ""
@@ -18,30 +34,28 @@ var _pending_delete_bot_id: String = ""
 var _last_bot_grid_cols: int = -1
 
 func _ready() -> void:
-	_wrap_tab_scroll(["Aventures", "Enquête", "Jouer"])
-	%BtnHome.pressed.connect(_on_home_pressed)
+	# @onready résout les % avant ce corps ; ne pas reparente les onglets avant les connexions.
+	btn_home.pressed.connect(_on_home_pressed)
 	MultiplayerManager.game_started.connect(_on_remote_game_started)
-	
-	# Onglet Aventures
-	%BtnAdvNewChar.pressed.connect(func(): GameData.go_to_character_editor("general"))
-	%BtnAdvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
-	%BtnAdvPlay.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
 
-	# Onglet Enquête
-	%BtnInvNewChar.pressed.connect(func(): GameData.go_to_character_editor("investigation"))
-	%BtnInvScenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
-	%BtnInvPlay.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
+	btn_adv_new_char.pressed.connect(func(): GameData.go_to_character_editor("general"))
+	btn_adv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("adventure"))
+	btn_adv_play.pressed.connect(func(): GameData.go_to_game_setup("oneshot"))
 
-	# Onglet Jouer
-	%BtnPlayNew.pressed.connect(func(): GameData.go_to_game_setup())
-	%ConfirmDeleteSession.confirmed.connect(_on_confirm_delete_session)
-	
-	# Onglet Cartes
-	%BtnNewMapWorld.pressed.connect(func(): _create_map("general", "world"))
-	%BtnNewMapAdv.pressed.connect(func(): _create_map("general", "local"))
-	%BtnNewMapInv.pressed.connect(func(): _create_map("investigation", "local"))
-	%ConfirmDeleteMap.confirmed.connect(_on_confirm_delete_map)
-	%ConfirmDeleteBot.confirmed.connect(_on_confirm_delete_bot)
+	btn_inv_new_char.pressed.connect(func(): GameData.go_to_character_editor("investigation"))
+	btn_inv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
+	btn_inv_play.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
+
+	btn_play_new.pressed.connect(func(): GameData.go_to_game_setup())
+	confirm_delete_session.confirmed.connect(_on_confirm_delete_session)
+
+	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
+	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
+	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
+	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
+	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
+
+	_ensure_tab_scroll(["Aventures", "Enquête", "Jouer"])
 	MapData.maps_updated.connect(_render_maps_tab)
 	GameData.bots_updated.connect(_render_bots)
 	_setup_maps_sort()
@@ -217,6 +231,12 @@ func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 
 	var map_id: String = map_data.get("id", "")
 
+	var mode_lbl := Label.new()
+	mode_lbl.text = MapModeScript.badge(MapData.get_render_mode(map_data))
+	mode_lbl.add_theme_font_size_override("font_size", 11)
+	mode_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT if MapData.is_complex_map(map_data) else ThemeColors.TEXT_MUTED)
+	vbox.add_child(mode_lbl)
+
 	var meta := Label.new()
 	var link_count: int = map_data.get("locationLinks", []).size()
 	if category == "world" and link_count > 0:
@@ -274,8 +294,8 @@ func _create_map(roster: String, map_kind: String) -> void:
 
 func _ask_delete_map(map_id: String, title: String) -> void:
 	_pending_delete_map_id = map_id
-	%ConfirmDeleteMap.dialog_text = "Supprimer la carte « %s » ?" % title
-	%ConfirmDeleteMap.popup_centered()
+	confirm_delete_map.dialog_text = "Supprimer la carte « %s » ?" % title
+	confirm_delete_map.popup_centered()
 
 func _on_confirm_delete_map() -> void:
 	if _pending_delete_map_id.is_empty():
@@ -353,8 +373,8 @@ func _resume_game(game_id: String) -> void:
 
 func _ask_delete_game(game_id: String, title: String) -> void:
 	_pending_delete_id = game_id
-	%ConfirmDeleteSession.dialog_text = "Effacer la partie « %s » ? Toute la progression sera perdue." % title
-	%ConfirmDeleteSession.popup_centered()
+	confirm_delete_session.dialog_text = "Effacer la partie « %s » ? Toute la progression sera perdue." % title
+	confirm_delete_session.popup_centered()
 
 func _on_confirm_delete_session() -> void:
 	if _pending_delete_id.is_empty():
@@ -522,8 +542,8 @@ func _build_bot_card(b: Dictionary) -> PanelContainer:
 
 func _ask_delete_bot(bot_id: String, name: String) -> void:
 	_pending_delete_bot_id = bot_id
-	%ConfirmDeleteBot.dialog_text = "Supprimer le compagnon bot « %s » ?" % name
-	%ConfirmDeleteBot.popup_centered()
+	confirm_delete_bot.dialog_text = "Supprimer le compagnon bot « %s » ?" % name
+	confirm_delete_bot.popup_centered()
 
 func _on_confirm_delete_bot() -> void:
 	if _pending_delete_bot_id.is_empty():
@@ -532,16 +552,20 @@ func _on_confirm_delete_bot() -> void:
 	_pending_delete_bot_id = ""
 	_render_bots()
 
-func _wrap_tab_scroll(tab_names: Array) -> void:
+func _ensure_tab_scroll(tab_names: Array) -> void:
 	for tab_name in tab_names:
 		var tab := tab_container.get_node_or_null(tab_name) as MarginContainer
 		if tab == null or tab.get_child_count() == 0:
 			continue
 		var content := tab.get_child(0)
 		if content is ScrollContainer:
+			var existing := content as ScrollContainer
+			existing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			existing.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			continue
 		tab.remove_child(content)
 		var scroll := ScrollContainer.new()
+		scroll.name = "TabScroll"
 		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

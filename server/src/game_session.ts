@@ -1,7 +1,6 @@
 /**
  * game_session.ts — Gestion d'une partie côté serveur : état, actions, jets de dés,
- * et persistance JSON. Port du cœur de js/game.js (startGame / processAiResponse /
- * runBotTurns / advanceScene) adapté à un contexte serveur sans DOM ni localStorage.
+ * et persistance JSON.
  */
 
 import { promises as fs } from "node:fs";

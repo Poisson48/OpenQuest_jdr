@@ -27,7 +27,7 @@ Guide complet : **[docs/COLLABORATION.md](docs/COLLABORATION.md)**
 | `game/` | Client Godot 4 |
 | `server/` | Serveur Node.js WebSocket |
 | `docs/` | Documentation et règles |
-| `poc/` | Référence POC HTML (à venir) |
+| `data/` | Données JSON partagées |
 
 ## Avant une PR
 

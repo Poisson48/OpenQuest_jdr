@@ -1,7 +1,6 @@
 /**
  * game_types.ts — Types partagés du moteur de jeu OpenQuest JDR.
- * Port TypeScript des structures de données utilisées par js/game.js,
- * js/ai-gm.js, js/bots.js et js/npc-ai.js.
+ * Contrat de données aligné sur les JSON `data/` et le client Godot.
  */
 
 export type QuestFormat = "oneshot" | "long" | "investigation";
@@ -32,7 +31,7 @@ export interface Character {
   roster?: Roster;
 }
 
-/** Archétype de compagnon bot (js/bots.js DEFAULT_ARCHETYPES / INVESTIGATION_ARCHETYPES). */
+/** Archétype de compagnon bot (data/bots/). */
 export interface BotArchetype {
   id: string;
   name: string;
@@ -92,7 +91,7 @@ export interface Scene {
   content: string;
 }
 
-/** Scénario complet (js/scenarios.js). */
+/** Scénario complet (data/scenarios/). */
 export interface Scenario {
   id: string;
   title: string;
@@ -122,7 +121,7 @@ export interface MapMarker {
   label?: string;
 }
 
-/** Lien entre une case de carte du monde et une carte locale (js/maps.js). */
+/** Lien entre une case de carte du monde et une carte locale. */
 export interface MapLocationLink {
   x: number;
   y: number;
@@ -130,7 +129,7 @@ export interface MapLocationLink {
   label?: string;
 }
 
-/** Carte de jeu (grille de tuiles) — port simplifié de js/maps.js. */
+/** Carte de jeu (grille de tuiles). */
 export interface MapData {
   id?: string;
   title?: string;
@@ -198,7 +197,7 @@ export interface TeamDynamics {
   recentConflicts: TeamConflict[];
 }
 
-/** Mémoire narrative persistante du MJ IA (js/ai-gm.js ensureWorld). */
+/** Mémoire narrative persistante du MJ IA. */
 export interface WorldState {
   initialized: boolean;
   facts: WorldFact[];
@@ -214,7 +213,7 @@ export interface WorldState {
 
 export type PlayerStyle = Record<"aggressive" | "diplomatic" | "cautious" | "curious" | "creative", number>;
 
-/** État du MJ IA pour une partie (js/ai-gm.js createInitialState). */
+/** État du MJ IA pour une partie. */
 export interface AiState {
   playerStyle: PlayerStyle;
   tension: number;
@@ -241,7 +240,7 @@ export type GameMode = "solo" | "multi";
 export type GmType = "ai" | "human";
 export type GameStatus = "playing" | "completed";
 
-/** État complet d'une partie (js/game.js this.state, autour de la ligne 983). */
+/** État complet d'une partie. */
 export interface GameState {
   id: string;
   scenarioId: string;

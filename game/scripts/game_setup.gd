@@ -1,5 +1,7 @@
 extends Control
 
+const MapModeScript := preload("res://scripts/maps/map_mode.gd")
+
 @onready var opt_quest_format: OptionButton = %OptQuestFormat
 @onready var opt_scenario: OptionButton = %OptScenario
 @onready var opt_mode: OptionButton = %OptMode
@@ -12,6 +14,10 @@ extends Control
 @onready var opt_joiner_char: OptionButton = %OptJoinerChar
 @onready var maps_container: VBoxContainer = %MapsContainer
 @onready var maps_hint_lbl: Label = %MapsHint
+@onready var scroll_body: ScrollContainer = $MainLayout/ScrollBody
+@onready var columns: HBoxContainer = $MainLayout/ScrollBody/Columns
+@onready var left_col: VBoxContainer = $MainLayout/ScrollBody/Columns/LeftCol
+@onready var right_col: VBoxContainer = $MainLayout/ScrollBody/Columns/RightCol
 
 var available_scenarios: Array = []
 var available_chars: Array = []
@@ -58,6 +64,9 @@ func _ready() -> void:
 
 	MultiplayerManager.game_started.connect(_on_pooling_game_started)
 	MultiplayerManager.p2p_error.connect(_on_pooling_error)
+
+	get_tree().root.size_changed.connect(_apply_responsive_layout)
+	_apply_responsive_layout()
 
 func _setup_options() -> void:
 	opt_quest_format.clear()
@@ -338,11 +347,13 @@ func _add_map_group(title: String, map_list: Array, scenario_id: String) -> void
 		var check := CheckBox.new()
 		var tag := "🌍" if MapData.is_world_map(m) else ("🔍" if m.get("roster") == "investigation" else "⚔️")
 		var linked := " · liée au scénario" if m.get("scenarioId", "") == scenario_id else ""
-		check.text = "%s %s (%d×%d%s)" % [
+		var mode_tag := MapModeScript.badge(MapData.get_render_mode(m))
+		check.text = "%s %s (%d×%d) · %s%s" % [
 			tag,
 			m.get("title", map_id),
 			int(m.get("width", 0)),
 			int(m.get("height", 0)),
+			mode_tag,
 			linked,
 		]
 		check.button_pressed = selected_map_ids.has(map_id)
@@ -514,6 +525,36 @@ func net_status_lbl_fallback(msg: String) -> void:
 	if has_node("%NetStatusLabel"):
 		%NetStatusLabel.text = msg
 		%NetStatusLabel.add_theme_color_override("font_color", ThemeColors.DANGER)
+
+func _apply_responsive_layout() -> void:
+	if columns == null or left_col == null or right_col == null:
+		return
+	var narrow := UiLayout.is_narrow_viewport()
+	var stack := scroll_body.get_node_or_null("StackVBox") as VBoxContainer
+	if narrow:
+		if stack == null:
+			stack = VBoxContainer.new()
+			stack.name = "StackVBox"
+			stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			stack.add_theme_constant_override("separation", UiLayout.SPACING_SECTION)
+			scroll_body.add_child(stack)
+		if left_col.get_parent() == columns:
+			columns.remove_child(left_col)
+			stack.add_child(left_col)
+		if right_col.get_parent() == columns:
+			columns.remove_child(right_col)
+			stack.add_child(right_col)
+		columns.visible = false
+	else:
+		if stack:
+			if left_col.get_parent() == stack:
+				stack.remove_child(left_col)
+				columns.add_child(left_col)
+			if right_col.get_parent() == stack:
+				stack.remove_child(right_col)
+				columns.add_child(right_col)
+			stack.queue_free()
+		columns.visible = true
 
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/hub.tscn")

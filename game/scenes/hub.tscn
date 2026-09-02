@@ -65,50 +65,57 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 metadata/_tab_index = 0
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Aventures"]
+[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Aventures"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Aventures/TabScroll"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Aventures/VBox"]
+[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox"]
 layout_mode = 2
 
-[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Aventures/VBox/HeroCard"]
+[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/HeroCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Aventures/VBox/HeroCard/HeroVBox"]
+[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "⚔️ Aventures & Campagnes Fantastiques"
 
-[node name="AdvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Aventures/VBox/HeroCard/HeroVBox"]
+[node name="AdvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/HeroCard/HeroVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 text = "Chargement..."
 
-[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Aventures/VBox"]
+[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox"]
 layout_mode = 2
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 2
 
-[node name="BtnAdvNewChar" type="Button" parent="MainLayout/TabContainer/Aventures/VBox/ActionGrid"]
+[node name="BtnAdvNewChar" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Héros d'Aventure"
 
-[node name="BtnAdvScenarios" type="Button" parent="MainLayout/TabContainer/Aventures/VBox/ActionGrid"]
+[node name="BtnAdvScenarios" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "📜 Bibliothèque de Scénarios"
 
-[node name="BtnAdvPlay" type="Button" parent="MainLayout/TabContainer/Aventures/VBox/ActionGrid"]
+[node name="BtnAdvPlay" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
@@ -125,50 +132,57 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 metadata/_tab_index = 1
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête"]
+[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Enquête"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/TabScroll"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Enquête/VBox"]
+[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
 layout_mode = 2
 
-[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/VBox/HeroCard"]
+[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquête/VBox/HeroCard/HeroVBox"]
+[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
 theme_override_font_sizes/font_size = 18
 text = "🔍 Mode Enquête & Polar"
 
-[node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquête/VBox/HeroCard/HeroVBox"]
+[node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard/HeroVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 text = "Chargement..."
 
-[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Enquête/VBox"]
+[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
 layout_mode = 2
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 2
 
-[node name="BtnInvNewChar" type="Button" parent="MainLayout/TabContainer/Enquête/VBox/ActionGrid"]
+[node name="BtnInvNewChar" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Détective / Enquêteur"
 
-[node name="BtnInvScenarios" type="Button" parent="MainLayout/TabContainer/Enquête/VBox/ActionGrid"]
+[node name="BtnInvScenarios" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "📁 Dossiers d'Enquêtes & Mystères"
 
-[node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquête/VBox/ActionGrid"]
+[node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
@@ -207,7 +221,7 @@ text = "🗺️ Cartes du Monde & Lieux tactiques"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 autowrap_mode = 3
-text = "Crée et gère les cartes pour tes campagnes et enquêtes. L'éditeur visuel complet reste dans le POC HTML ; ici : liste, tri, aperçu et création rapide."
+text = "Crée et gère les cartes pour tes campagnes et enquêtes. Choisis le mode ▦ Simple ou ⚙️ Complexe (VTT) dans l'éditeur via « Modifier »."
 
 [node name="MapsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
 layout_mode = 2
@@ -272,34 +286,41 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 metadata/_tab_index = 3
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer"]
+[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Jouer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="SessionStatusCard" type="PanelContainer" parent="MainLayout/TabContainer/Jouer/VBox"]
+[node name="SessionStatusCard" type="PanelContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox"]
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard"]
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PlayStatusLabel" type="Label" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
+[node name="PlayStatusLabel" type="Label" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "Parties en cours"
 
-[node name="SavedGamesList" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
+[node name="SavedGamesList" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="HBox" type="HBoxContainer" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox"]
+[node name="HBox" type="HBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="BtnPlayNew" type="Button" parent="MainLayout/TabContainer/Jouer/VBox/SessionStatusCard/VBox/HBox"]
+[node name="BtnPlayNew" type="Button" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox/HBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 44)
 layout_mode = 2

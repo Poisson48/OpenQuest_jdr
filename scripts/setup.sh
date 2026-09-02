@@ -37,9 +37,6 @@ else
   echo "  flatpak install flathub org.godotengine.Godot"
 fi
 
-# Dossier POC (référence future)
-mkdir -p poc
-
 # Git hooks (optionnel, désactivé par défaut)
 # git config core.hooksPath .githooks 2>/dev/null || true
 

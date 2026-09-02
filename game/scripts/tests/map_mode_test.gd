@@ -45,6 +45,11 @@ func _run() -> void:
 	_assert("override_simple", gd.get_effective_render_mode(map_id) == MapModeScript.SIMPLE)
 	gd.set_map_render_mode_override(map_id, MapModeScript.COMPLEX)
 
+	md.set_render_mode(map_id, MapModeScript.SIMPLE)
+	_assert("persist_simple", md.get_render_mode(md.get_by_id(map_id)) == MapModeScript.SIMPLE)
+	md.set_render_mode(map_id, MapModeScript.COMPLEX)
+	_assert("persist_complex", md.get_render_mode(md.get_by_id(map_id)) == MapModeScript.COMPLEX)
+
 	gd.apply_complex_map_click(map_id, 3.0, 4.0, {"mode": "member", "memberId": "hero-1"})
 	_assert("token", gd.get_map_play_tokens(map_id).size() == 1)
 

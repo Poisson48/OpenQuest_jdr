@@ -162,8 +162,7 @@ func set_session_tool(tool: Dictionary) -> void:
 func set_snap_to_grid(on: bool) -> void:
 	snap_to_grid = on
 	for node in _token_nodes.values():
-		if node is MapTokenNode:
-			node.snap_to_grid = on
+		node.snap_to_grid = on
 
 func _load_background() -> void:
 	var tex := MapData.load_background_texture(map_data)
@@ -176,7 +175,7 @@ func _load_background() -> void:
 		var gs := int(_grid_config.get("size", 70))
 		_map_pixel_size = Vector2(map_data.get("width", 16) * gs, map_data.get("height", 12) * gs)
 
-	var atmo := map_data.get("atmosphere", {})
+	var atmo: Dictionary = map_data.get("atmosphere", {}) if map_data.get("atmosphere") is Dictionary else {}
 	if atmo is Dictionary and atmo.get("enabled", false):
 		var tint := Color.html(str(atmo.get("tint", "#1a1410")))
 		tint.a = float(atmo.get("opacity", 0.25))
@@ -214,7 +213,7 @@ func _rebuild_layers() -> void:
 	_clear_children(_tokens_layer, _token_nodes)
 	_token_nodes.clear()
 	for tok in _tokens:
-		var node: MapTokenNode = MapTokenNodeScript.new()
+		var node = MapTokenNodeScript.new()
 		node.setup(tok, gs, _party, readonly)
 		node.snap_to_grid = snap_to_grid
 		node.set_selected(str(tok.get("id", "")) == _selected_token_id)
@@ -226,7 +225,7 @@ func _rebuild_layers() -> void:
 	_clear_children(_effects_layer, _effect_nodes)
 	_effect_nodes.clear()
 	for eff in _effects:
-		var enode: MapEffectInstance = MapEffectInstanceScript.new()
+		var enode = MapEffectInstanceScript.new()
 		enode.setup(eff, gs)
 		_effects_layer.add_child(enode)
 		_effect_nodes[str(eff.get("id", ""))] = enode
@@ -234,7 +233,7 @@ func _rebuild_layers() -> void:
 	_clear_children(_zones_layer, _zone_nodes)
 	_zone_nodes.clear()
 	for zone in _zones:
-		var znode: MapZoneNode = MapZoneNodeScript.new()
+		var znode = MapZoneNodeScript.new()
 		znode.setup(zone, gs)
 		_zones_layer.add_child(znode)
 		_zone_nodes[str(zone.get("id", ""))] = znode
@@ -290,7 +289,7 @@ func _on_token_drag_finished(token_id: String, gx: float, gy: float) -> void:
 func _on_token_selected(token_id: String) -> void:
 	_selected_token_id = token_id
 	for tid in _token_nodes:
-		var node: MapTokenNode = _token_nodes[tid]
+		var node = _token_nodes[tid]
 		node.set_selected(tid == token_id)
 	token_selected.emit(token_id)
 
@@ -368,7 +367,7 @@ func _fog_brush_cells(cx: int, cy: int, radius: int) -> Array:
 
 func trigger_effect(effect_id: String) -> void:
 	if _effect_nodes.has(effect_id):
-		var node: MapEffectInstance = _effect_nodes[effect_id]
+		var node = _effect_nodes[effect_id]
 		node.trigger()
 	effect_trigger_requested.emit(effect_id)
 

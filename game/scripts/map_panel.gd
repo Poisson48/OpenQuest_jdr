@@ -6,7 +6,14 @@ const TOOL_ICON_FONT_SIZE := 22
 const TOOL_ICON_BUTTON_SIZE := Vector2(48, 44)
 const TOOL_TEXT_FONT_SIZE := 14
 
+const InteractiveMapScript := preload("res://scripts/interactive_map.gd")
 const SimpleMapRendererScript := preload("res://scripts/maps/simple_map_renderer.gd")
+const _MapGridLayerScript := preload("res://scripts/maps/map_layers/map_grid_layer.gd")
+const _MapFogLayerScript := preload("res://scripts/maps/map_layers/map_fog_layer.gd")
+const _MapTokenNodeScript := preload("res://scripts/maps/map_layers/map_token_node.gd")
+const _MapEffectInstanceScript := preload("res://scripts/maps/map_layers/map_effect_instance.gd")
+const _MapZoneNodeScript := preload("res://scripts/maps/map_layers/map_zone_node.gd")
+const _MapAuraNodeScript := preload("res://scripts/maps/map_layers/map_aura_node.gd")
 const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine.gd")
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
@@ -21,8 +28,12 @@ var _map_frame: PanelContainer
 var _simple_map: Control
 var _complex_engine: Control
 var _title_lbl: Label
+var _mode_row: HBoxContainer
+var _mode_label: Label
 var _mode_badge: Label
-var _mode_select: OptionButton
+var _btn_mode_simple: Button
+var _btn_mode_complex: Button
+var _mode_group: ButtonGroup
 var _hint_lbl: Label
 var _zoom_lbl: Label
 var _snap_btn: Button
@@ -50,27 +61,16 @@ func _build_ui() -> void:
 	_title_lbl.text = "🗺️ Carte interactive"
 	_title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 	_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title_lbl.clip_text = true
 	header.add_child(_title_lbl)
-
-	_mode_badge = Label.new()
-	_mode_badge.add_theme_font_size_override("font_size", 12)
-	_mode_badge.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	header.add_child(_mode_badge)
-
-	_mode_select = OptionButton.new()
-	_mode_select.add_item("▦ Simple", 0)
-	_mode_select.set_item_metadata(0, MapModeScript.SIMPLE)
-	_mode_select.add_item("⚙️ Complexe", 1)
-	_mode_select.set_item_metadata(1, MapModeScript.COMPLEX)
-	_mode_select.custom_minimum_size = Vector2(130, 30)
-	_mode_select.item_selected.connect(_on_mode_selected)
-	header.add_child(_mode_select)
 
 	_tabs_container = HBoxContainer.new()
 	_tabs_container.add_theme_constant_override("separation", 4)
 	header.add_child(_tabs_container)
 
 	_build_zoom_controls(header)
+
+	_build_mode_row(outer)
 
 	_nav_bar = HBoxContainer.new()
 	_nav_bar.add_theme_constant_override("separation", 8)
@@ -142,6 +142,47 @@ func _build_ui() -> void:
 	_complex_engine.zoom_changed.connect(func(_z): _update_zoom_label())
 	map_frame.add_child(_complex_engine)
 
+func _build_mode_row(parent: VBoxContainer) -> void:
+	_mode_row = HBoxContainer.new()
+	_mode_row.add_theme_constant_override("separation", 6)
+	parent.add_child(_mode_row)
+	parent.move_child(_mode_row, 1)
+
+	_mode_label = Label.new()
+	_mode_label.text = "Mode carte :"
+	_mode_label.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	_mode_row.add_child(_mode_label)
+
+	_mode_group = ButtonGroup.new()
+	_btn_mode_simple = Button.new()
+	_btn_mode_simple.text = "▦ Simple"
+	_btn_mode_simple.toggle_mode = true
+	_btn_mode_simple.button_group = _mode_group
+	_btn_mode_simple.tooltip_text = "Carte tuilée classique (exploration, lieux)"
+	_btn_mode_simple.pressed.connect(func(): _on_session_mode_pressed(MapModeScript.SIMPLE))
+	_mode_row.add_child(_btn_mode_simple)
+
+	_btn_mode_complex = Button.new()
+	_btn_mode_complex.text = "⚙️ Complexe"
+	_btn_mode_complex.toggle_mode = true
+	_btn_mode_complex.button_group = _mode_group
+	_btn_mode_complex.tooltip_text = "Battlemap VTT (tokens, brouillard, effets)"
+	_btn_mode_complex.pressed.connect(func(): _on_session_mode_pressed(MapModeScript.COMPLEX))
+	_mode_row.add_child(_btn_mode_complex)
+
+	_mode_badge = Label.new()
+	_mode_badge.add_theme_font_size_override("font_size", 12)
+	_mode_badge.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	_mode_row.add_child(_mode_badge)
+
+	var override_hint := Label.new()
+	override_hint.name = "OverrideHint"
+	override_hint.text = "(ajustement MJ pour cette partie)"
+	override_hint.add_theme_font_size_override("font_size", 11)
+	override_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	override_hint.visible = false
+	_mode_row.add_child(override_hint)
+
 func _build_zoom_controls(parent: HBoxContainer) -> void:
 	var zoom_row := HBoxContainer.new()
 	zoom_row.add_theme_constant_override("separation", 4)
@@ -199,16 +240,38 @@ func refresh() -> void:
 	map_changed.emit()
 
 func _sync_mode_selector() -> void:
-	_mode_badge.text = MapModeScript.badge(_current_mode)
-	_mode_badge.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT if _current_mode == MapModeScript.COMPLEX else ThemeColors.TEXT_MUTED)
-	for i in range(_mode_select.item_count):
-		if _mode_select.get_item_metadata(i) == _current_mode:
-			_mode_select.select(i)
-			break
-	_mode_select.disabled = _readonly
+	if _mode_row == null:
+		return
+	var state := GameData.active_game
+	var map_ids: Array = state.get("mapIds", [])
+	var active_id := _get_active_map_id(map_ids)
+	var is_gm := not active_id.is_empty() and GameData.is_gm_view_for_map(active_id)
+	var base_mode := MapData.get_render_mode(MapData.get_by_id(active_id))
+	var overrides: Dictionary = state.get("mapModeOverrides", {})
+	var has_override := overrides.has(active_id)
 
-func _on_mode_selected(index: int) -> void:
-	var mode: String = _mode_select.get_item_metadata(index)
+	_mode_row.visible = not active_id.is_empty()
+	_mode_label.visible = is_gm
+	_btn_mode_simple.visible = is_gm
+	_btn_mode_complex.visible = is_gm
+	_mode_badge.visible = not is_gm and not active_id.is_empty()
+
+	if is_gm:
+		_btn_mode_simple.set_pressed_no_signal(_current_mode == MapModeScript.SIMPLE)
+		_btn_mode_complex.set_pressed_no_signal(_current_mode == MapModeScript.COMPLEX)
+		_btn_mode_simple.disabled = _readonly
+		_btn_mode_complex.disabled = _readonly
+	else:
+		_mode_badge.text = "Mode : %s" % MapModeScript.badge(_current_mode)
+		_mode_badge.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT if _current_mode == MapModeScript.COMPLEX else ThemeColors.TEXT_MUTED)
+
+	var hint := _mode_row.get_node_or_null("OverrideHint") as Label
+	if hint:
+		hint.visible = is_gm and has_override and overrides[active_id] != base_mode
+
+func _on_session_mode_pressed(mode: String) -> void:
+	if mode == _current_mode:
+		return
 	var state := GameData.active_game
 	var active_id := _get_active_map_id(state.get("mapIds", []))
 	if active_id.is_empty():
@@ -308,7 +371,7 @@ func _render_complex_toolbar(state: Dictionary) -> void:
 
 	for member in party:
 		var mid: String = member.get("id", "")
-		var btn := _make_tool_button(_member_emoji(member, quest_format), true)
+		var btn := _make_tool_button(MapData.get_member_emoji(mid, party, quest_format), true)
 		btn.button_pressed = _session_tool.get("mode") == "member" and _session_tool.get("member_id") == mid
 		btn.pressed.connect(func():
 			_session_tool = { "mode": "member", "member_id": mid }
@@ -408,7 +471,7 @@ func _render_active_map(state: Dictionary) -> void:
 	elif nav_ctx.get("mode") == "local":
 		_hint_lbl.text = "Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde."
 	elif MapData.is_world_map(display_map) and nav_ctx.is_empty():
-		_hint_lbl.text = "Mode simple — lieux 🌀 · glisser · molette zoom. Passe en Complexe pour battlemap VTT."
+		_hint_lbl.text = "Mode simple — lieux 🌀 · glisser · molette zoom. Le mode par défaut se règle dans Hub → Cartes → Modifier."
 	else:
 		_hint_lbl.text = "Glisser pour déplacer · molette ou +/− pour zoomer · ⟲ pour tout afficher."
 

@@ -30,7 +30,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-Sans clé API → moteur **100 % rule-based** (`ai-gm.ts`, port du POC HTML).
+Sans clé API → moteur **100 % rule-based** (`ai-gm.ts`).
 
 ## Config Cursor
 

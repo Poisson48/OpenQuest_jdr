@@ -1,6 +1,8 @@
 extends Node2D
 class_name MapEffectInstance
 
+const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
+
 ## Instance runtime d'un effet MJ (particules + aura optionnelle).
 
 var effect_data: Dictionary = {}
@@ -17,10 +19,10 @@ func setup(data: Dictionary, grid_size: int) -> void:
 	for child in get_children():
 		child.queue_free()
 
-	_particles = MapEffectPresets.create_particles(preset_id)
+	_particles = MapEffectPresetsScript.create_particles(preset_id)
 	add_child(_particles)
 
-	_aura = MapEffectPresets.create_aura(preset_id)
+	_aura = MapEffectPresetsScript.create_aura(preset_id)
 	if _aura.has_method("set_radius"):
 		_aura.set_radius(float(data.get("radius", 1.0)) * grid_size * 0.45)
 	add_child(_aura)

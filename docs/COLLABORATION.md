@@ -67,7 +67,7 @@ Sur GitHub : **Compare & pull request** → l’autre relit (même vite) → **M
 |---------|------|---------|
 | `game/` | Client Godot (scènes, scripts, assets) | `game/fiche-personnage` |
 | `server/` | Serveur Node (logique, API WS) | `server/lancer-des` |
-| `docs/` | Documentation, règles JDR | `docs/import-poc-html` |
+| `docs/` | Documentation, règles JDR | `docs/regles-combat` |
 | `fix/` | Correction de bug | `fix/reconnexion-websocket` |
 
 ### Messages de commit
@@ -77,7 +77,7 @@ Format court : `zone: description`
 ```
 game: ajoute sprite joueur
 server: valide les messages join
-docs: importe les règles du POC HTML
+docs: documente les règles de combat
 fix: corrige déconnexion brutale
 ```
 
@@ -90,7 +90,7 @@ Pas obligatoire, mais ça limite les conflits :
 | Personne | Zone naturelle | Compétences utiles |
 |----------|----------------|-------------------|
 | **Poisson** | `server/`, architecture réseau, déploiement | Node, TypeScript, Git |
-| **AslanUsko** | `index.html`, `css/`, `js/`, UI, règles JDR | HTML/CSS/JS, design (POC) |
+| **AslanUsko** | `game/` (UI, scénarios), règles JDR, design | Godot, GDScript, design |
 | **Les deux** | `docs/`, protocole réseau (`server/src/types.ts`) | À discuter ensemble |
 
 ### Fichiers sensibles aux conflits
@@ -197,18 +197,7 @@ Sur GitHub → **Settings** → **Branches** → **Add branch rule** :
 
 ---
 
-## 9. Importer le POC HTML
-
-Quand le POC arrive :
-
-1. Branche dédiée : `docs/import-poc-html` ou `game/port-poc-ui`
-2. Déposer les fichiers dans `poc/` (référence, pas le jeu final)
-3. Lister dans la PR ce qu’on réutilise (règles, UI, données JSON)
-4. Porter progressivement vers `game/` et `server/`, pas tout d’un coup
-
----
-
-## 10. Communication rapide
+## 9. Communication rapide
 
 Pour éviter les conflits sans outil lourd :
 

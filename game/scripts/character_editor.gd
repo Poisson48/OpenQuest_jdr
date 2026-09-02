@@ -3,6 +3,7 @@ extends Control
 @onready var char_list_container: VBoxContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
 @onready var tier_picker_panel: PanelContainer = %TierPickerPanel
+@onready var tier_overlay: ColorRect = %TierOverlay
 @onready var form_scroll: ScrollContainer = $MainLayout/ContentArea/FormPanel/FormScroll
 @onready var form_title: Label = %FormTitle
 @onready var roster_filter: OptionButton = %RosterFilter
@@ -103,7 +104,7 @@ func _ready() -> void:
 	_configure_panels()
 	refresh_list()
 	form_panel.visible = false
-	tier_picker_panel.visible = false
+	_set_tier_picker_visible(false)
 
 func _configure_panels() -> void:
 	var style := StyleBoxFlat.new()
@@ -120,6 +121,7 @@ func _configure_panels() -> void:
 	var tier_style := style.duplicate()
 	tier_style.bg_color = Color(0.101961, 0.0784314, 0.0627451, 0.98)
 	tier_picker_panel.add_theme_stylebox_override("panel", tier_style)
+	UiLayout.center_modal(tier_picker_panel, Vector2(480, 260))
 
 	form_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	form_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -332,15 +334,23 @@ func _create_character_card(c: Dictionary) -> PanelContainer:
 	panel.add_child(vbox)
 	return panel
 
+func _set_tier_picker_visible(show_picker: bool) -> void:
+	tier_overlay.visible = show_picker
+	tier_picker_panel.visible = show_picker
+	if show_picker:
+		tier_picker_panel.move_to_front()
+		tier_overlay.move_to_front()
+		tier_picker_panel.move_to_front()
+
 func _on_new_character_pressed() -> void:
 	current_editing_id = ""
 	current_is_bot = _get_active_entity_filter() == "bot"
 	_pending_new_tier = ""
-	tier_picker_panel.visible = true
+	_set_tier_picker_visible(true)
 	form_panel.visible = false
 
 func _begin_new_with_tier(tier: String) -> void:
-	tier_picker_panel.visible = false
+	_set_tier_picker_visible(false)
 	current_editing_id = ""
 	current_is_bot = _get_active_entity_filter() == "bot"
 	_populate_form_from_blank(tier)
@@ -349,7 +359,7 @@ func _begin_new_with_tier(tier: String) -> void:
 	form_scroll.scroll_vertical = 0
 
 func _on_tier_picker_cancel() -> void:
-	tier_picker_panel.visible = false
+	_set_tier_picker_visible(false)
 
 func _populate_form_from_blank(tier: String) -> void:
 	var roster := _get_active_roster_filter()
@@ -365,7 +375,7 @@ func _open_form_for_edit(c: Dictionary, is_bot: bool) -> void:
 	var data: Dictionary = GameData.normalize_character(c)
 	_load_form_from_dict(data, is_bot, false)
 	form_panel.visible = true
-	tier_picker_panel.visible = false
+	_set_tier_picker_visible(false)
 	await get_tree().process_frame
 	form_scroll.scroll_vertical = 0
 
@@ -571,7 +581,7 @@ func _on_save_pressed() -> void:
 
 func _on_cancel_pressed() -> void:
 	form_panel.visible = false
-	tier_picker_panel.visible = false
+	_set_tier_picker_visible(false)
 
 func _delete_entry(id: String, is_bot: bool) -> void:
 	if id.is_empty():

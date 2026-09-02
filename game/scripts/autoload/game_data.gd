@@ -1220,7 +1220,7 @@ func apply_server_state(state: Dictionary) -> void:
 	save_active_game()
 
 # ==============================================================================
-# CARTES INTERACTIVES (port POC js/game.js + js/maps.js)
+# CARTES INTERACTIVES
 # ==============================================================================
 
 func ensure_map_play_state() -> void:
@@ -2384,7 +2384,7 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 	return { "displayMap": active_map, "navContext": {} }
 
 # ==============================================================================
-# MOTEUR DE DÉS (CONFORME AU POC JS)
+# MOTEUR DE DÉS
 # ==============================================================================
 
 func roll_dice(formula: String) -> Dictionary:

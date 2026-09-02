@@ -1,6 +1,7 @@
 extends Control
 
 const InteractiveMapScript := preload("res://scripts/interactive_map.gd")
+const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 
 @onready var top_bar: HBoxContainer = $VBox/TopBar
 @onready var title_lbl: Label = %MapTitle
@@ -28,6 +29,11 @@ var _link_label_input: LineEdit
 var _integration_panel: VBoxContainer
 var _integration_status: Label
 var _world_map_select: OptionButton
+var _mode_row: HBoxContainer
+var _btn_mode_simple: Button
+var _btn_mode_complex: Button
+var _mode_group: ButtonGroup
+var _mode_hint_lbl: Label
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/hub.tscn"))
@@ -48,10 +54,12 @@ func _build_ui() -> void:
 
 	if _edit_mode:
 		_build_edit_top_actions()
+		_build_mode_row()
 		_build_tool_row()
 		_build_palettes()
 	else:
 		_build_preview_actions()
+		_build_mode_row()
 
 	_hint_lbl = Label.new()
 	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -130,11 +138,75 @@ func _build_preview_actions() -> void:
 	)
 	top_bar.add_child(btn_edit)
 
+func _build_mode_row() -> void:
+	_mode_row = HBoxContainer.new()
+	_mode_row.add_theme_constant_override("separation", 8)
+	_editor_panel.add_child(_mode_row)
+	_editor_panel.move_child(_mode_row, 0 if _edit_mode else 0)
+
+	var lbl := Label.new()
+	lbl.text = "Mode carte :"
+	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	_mode_row.add_child(lbl)
+
+	_mode_group = ButtonGroup.new()
+	_btn_mode_simple = Button.new()
+	_btn_mode_simple.text = "▦ Simple"
+	_btn_mode_simple.toggle_mode = true
+	_btn_mode_simple.button_group = _mode_group
+	_btn_mode_simple.tooltip_text = "Tuiles pixel — exploration, lieux, marqueurs"
+	_btn_mode_simple.pressed.connect(func(): _set_render_mode(MapModeScript.SIMPLE))
+	_mode_row.add_child(_btn_mode_simple)
+
+	_btn_mode_complex = Button.new()
+	_btn_mode_complex.text = "⚙️ Complexe"
+	_btn_mode_complex.toggle_mode = true
+	_btn_mode_complex.button_group = _mode_group
+	_btn_mode_complex.tooltip_text = "Battlemap VTT — tokens, brouillard, effets, zones"
+	_btn_mode_complex.pressed.connect(func(): _set_render_mode(MapModeScript.COMPLEX))
+	_mode_row.add_child(_btn_mode_complex)
+
+	_mode_hint_lbl = Label.new()
+	_mode_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mode_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mode_hint_lbl.add_theme_font_size_override("font_size", 12)
+	_mode_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	_mode_row.add_child(_mode_hint_lbl)
+
+func _sync_render_mode_ui() -> void:
+	if _btn_mode_simple == null or _map_data.is_empty():
+		return
+	var mode := MapData.get_render_mode(_map_data)
+	_btn_mode_simple.set_pressed_no_signal(mode == MapModeScript.SIMPLE)
+	_btn_mode_complex.set_pressed_no_signal(mode == MapModeScript.COMPLEX)
+	var editable := _edit_mode
+	_btn_mode_simple.disabled = not editable
+	_btn_mode_complex.disabled = not editable
+	if editable:
+		if mode == MapModeScript.COMPLEX:
+			_mode_hint_lbl.text = "VTT : grille, tokens déplaçables, brouillard de guerre, effets et zones."
+		else:
+			_mode_hint_lbl.text = "Exploration classique — peignez tuiles et marqueurs sur la grille."
+	else:
+		_mode_hint_lbl.text = "Cliquez sur « Modifier » pour changer le mode de cette carte."
+
+func _set_render_mode(mode: String) -> void:
+	if _map_data.is_empty() or not _edit_mode:
+		return
+	var current := MapData.get_render_mode(_map_data)
+	if mode == current:
+		return
+	_map_data["renderMode"] = mode
+	_map_data = MapData.ensure_map_schema(_map_data)
+	MapData.update_map(_map_data)
+	_sync_render_mode_ui()
+	_update_hint()
+
 func _build_tool_row() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	_editor_panel.add_child(row)
-	_editor_panel.move_child(row, 0)
+	_editor_panel.move_child(row, 1 if _mode_row else 0)
 
 	for spec in [
 		["tile", "🖌 Tuile"],
@@ -154,7 +226,7 @@ func _build_palettes() -> void:
 	_palettes_root = VBoxContainer.new()
 	_palettes_root.add_theme_constant_override("separation", 6)
 	_editor_panel.add_child(_palettes_root)
-	_editor_panel.move_child(_palettes_root, 1)
+	_editor_panel.move_child(_palettes_root, 2 if _mode_row else 1)
 
 	var tile_scroll := ScrollContainer.new()
 	tile_scroll.name = "TileScroll"
@@ -319,6 +391,7 @@ func _load_map() -> void:
 	_selected_marker = _default_marker()
 	_refresh_link_ui()
 	_refresh_integration_ui()
+	_sync_render_mode_ui()
 	var open_link_tool := not MapData.pending_link_target_id.is_empty() and MapData.is_world_map(_map_data)
 	_apply_pending_link_target()
 	_set_tool("link" if open_link_tool else "tile")
@@ -562,7 +635,9 @@ func _update_hint() -> void:
 	if not _hint_lbl:
 		return
 	if not _edit_mode:
-		_hint_lbl.text = "Molette ou boutons ± pour zoomer · clic-glisser pour déplacer la vue."
+		var mode := MapData.get_render_mode(_map_data) if not _map_data.is_empty() else MapModeScript.SIMPLE
+		var mode_note := " · %s" % MapModeScript.badge(mode)
+		_hint_lbl.text = "Molette ou boutons ± pour zoomer · clic-glisser pour déplacer la vue.%s" % mode_note
 		return
 	match _tool:
 		"tile":

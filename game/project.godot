@@ -15,6 +15,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 ThemeColors="*res://scripts/autoload/theme_colors.gd"
+UiLayout="*res://scripts/autoload/ui_layout.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MapData="*res://scripts/autoload/map_data.gd"
 MultiplayerManager="*res://scripts/multiplayer/multiplayer_manager.gd"

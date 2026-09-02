@@ -268,6 +268,17 @@ func get_render_mode(map_data: Dictionary) -> String:
 	var mode := str(map_data.get("renderMode", RENDER_MODE_SIMPLE))
 	return RENDER_MODE_COMPLEX if mode == RENDER_MODE_COMPLEX else RENDER_MODE_SIMPLE
 
+func set_render_mode(map_id: String, mode: String) -> void:
+	if map_id.is_empty():
+		return
+	var normalized := RENDER_MODE_COMPLEX if mode == RENDER_MODE_COMPLEX else RENDER_MODE_SIMPLE
+	for i in range(maps.size()):
+		if maps[i].get("id") == map_id:
+			maps[i] = ensure_map_schema(maps[i])
+			maps[i]["renderMode"] = normalized
+			save_maps()
+			return
+
 func is_complex_map(map_data: Dictionary) -> bool:
 	return get_render_mode(map_data) == RENDER_MODE_COMPLEX
 

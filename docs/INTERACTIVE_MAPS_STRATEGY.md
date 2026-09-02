@@ -7,7 +7,7 @@
 
 ## 1. Résumé exécutif
 
-OpenQuest dispose aujourd’hui d’un **socle fonctionnel mais limité** : cartes en **grille de tuiles colorées**, éditeur intégré, tokens emoji/couleur, brouillard de guerre cellulaire sur les cartes du monde, navigation **monde → scène locale**, et mode **enquête** avec révélation progressive d’indices. Ce socle est aligné avec le POC HTML (`js/maps.js`) et porté en Godot 4 via `InteractiveMap`, `MapPanel`, `MapViewer` et `MapData`.
+OpenQuest dispose aujourd’hui d’un **socle fonctionnel mais limité** : cartes en **grille de tuiles colorées**, éditeur intégré, tokens emoji/couleur, brouillard de guerre cellulaire sur les cartes du monde, navigation **monde → scène locale**, et mode **enquête** avec révélation progressive d’indices. Ce socle est porté en Godot 4 via `InteractiveMap`, `MapPanel`, `MapViewer` et `MapData`.
 
 **Constat :** ce niveau correspond à un **prototype de carte tactique abstraite**, pas à un VTT de bataille. Les concurrents majeurs (Foundry, Roll20, Owlbear, D&D Beyond Maps) reposent sur des **battlemaps raster** (PNG/WebP), des tokens visuels, et — pour les leaders — éclairage dynamique, murs, LOS et calques. Dungeondraft et Arkenforge couvrent la **création d’assets** ; OpenQuest ne couvre ni l’import ni le rendu image.
 
@@ -93,7 +93,6 @@ OpenQuest dispose aujourd’hui d’un **socle fonctionnel mais limité** : cart
 | `game/scripts/autoload/map_data.gd` | Persistance `user://maps.json`, palettes, CRUD, scénarios |
 | `game/scripts/autoload/game_data.gd` | État de partie : `mapPlayState`, fog, tokens, navigation, enquête |
 | `game/scenes/map_viewer.tscn` | Scène éditeur (shell UI) |
-| `js/maps.js` | POC HTML de référence (~1 870 lignes), parité fonctionnelle largement atteinte en Godot |
 
 **Stack :** Godot 4.4+ (cible évolution 4.7), rendu CPU via `Control._draw()`, données JSON (`tiles.json`, maps demo).
 
@@ -128,9 +127,6 @@ OpenQuest dispose aujourd’hui d’un **socle fonctionnel mais limité** : cart
 #### Données de partie (`mapPlayState`)
 - Par carte : `tokens`, `explored`, `exploreLevel`, `revealedMarkers`, `revealedLinks`.
 - Déplacement sémantique par mots-clés (« forêt », « taverne »…) dans `game_data.gd`.
-
-#### POC HTML (`js/maps.js`)
-- Même modèle de données et comportements ; sert de **référence** et de filet de sécurité jouable sans Godot.
 
 ### 3.3 Ce qui manque (vs marché VTT)
 
@@ -420,7 +416,7 @@ Hôte MJ émet ; clients appliquent ; les clients joueurs envoient **demandes** 
 
 ## 10. Conclusion
 
-OpenQuest possède un **avance stratégique rare** — cartes monde, navigation lieux, mode enquête, intégration scénario/MJ IA — que aucun VTT generaliste n’offre nativement. En revanche, sur le **cœur battlemap** (image, tokens visuels, sync, fog MJ), il reste au stade POC.
+OpenQuest possède un **avance stratégique rare** — cartes monde, navigation lieux, mode enquête, intégration scénario/MJ IA — que aucun VTT generaliste n’offre nativement. En revanche, sur le **cœur battlemap** (image, tokens visuels, sync, fog MJ), il reste au stade prototype.
 
 La voie pour devenir une **vraie alternative** n’est pas de copier Foundry, mais de viser **Owlbear + campagne + enquête + P2P OpenQuest**, puis d’ajouter la tactique (LOS/UVTT) là où les groupes en ont besoin.
 
@@ -438,7 +434,7 @@ La voie pour devenir une **vraie alternative** n’est pas de copier Foundry, ma
 - [Dungeondraft — Universal VTT](https://dungeondraft-encyclopaedia.gitbook.io/guide/final-steps/exporting-your-map/universal-vtt)
 - [TaleSpire](https://talespire.com/)
 - [D&D Beyond Maps — Fog of War](https://dndbeyond-support.wizards.com/hc/en-us/articles/46385202659732-Fog-of-War)
-- OpenQuest : `game/scripts/interactive_map.gd`, `map_panel.gd`, `map_viewer.gd`, `autoload/map_data.gd`, `js/maps.js`
+- OpenQuest : `game/scripts/interactive_map.gd`, `map_panel.gd`, `map_viewer.gd`, `autoload/map_data.gd`
 - OpenQuest : `docs/MULTIPLAYER.md` (architecture P2P + pooling)
 
 ---
