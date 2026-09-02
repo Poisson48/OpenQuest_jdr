@@ -66,6 +66,7 @@ func _ready() -> void:
 	player_name_input.text = NetworkClient.player_name
 	pooling_url_input.text = MultiplayerManager.pooling_url
 	_setup_pooling_roles()
+	_configure_pooling_dropdown(opt_pooling_role)
 	opt_pooling_role.item_selected.connect(_on_pooling_role_changed)
 	_populate_lobby_characters()
 	_populate_pooling_characters()
@@ -86,6 +87,13 @@ func _get_pooling_role_from_ui() -> String:
 func _sync_pooling_role_from_ui() -> void:
 	MultiplayerManager.set_player_role(_get_pooling_role_from_ui())
 
+func _configure_pooling_dropdown(dropdown: OptionButton) -> void:
+	# PopupWindow évite le clipping du menu dans ScrollContainer (surtout avec parties sauvegardées).
+	dropdown.get_popup().popup_window = true
+
+func _role_index_for_saved_role() -> int:
+	return 0 if MultiplayerManager.player_role == "gm" else 1
+
 func _setup_pooling_roles() -> void:
 	opt_pooling_role.block_signals(true)
 	opt_pooling_role.clear()
@@ -93,7 +101,7 @@ func _setup_pooling_roles() -> void:
 	opt_pooling_role.set_item_metadata(0, "gm")
 	opt_pooling_role.add_item("⚔️ Joueur", 1)
 	opt_pooling_role.set_item_metadata(1, "player")
-	opt_pooling_role.selected = 0 if MultiplayerManager.is_mj() else 1
+	opt_pooling_role.selected = _role_index_for_saved_role()
 	opt_pooling_role.block_signals(false)
 	_sync_pooling_role_from_ui()
 
@@ -105,7 +113,9 @@ func _update_pooling_role_ui() -> void:
 	var is_mj := _get_pooling_role_from_ui() == "gm"
 	var in_room := MultiplayerManager.is_in_room()
 	var connected := MultiplayerManager.is_pooling_connected()
-	opt_pooling_role.disabled = connected or in_room
+	# Verrouiller seulement une fois dans un salon — le MJ se connecte souvent au pooling
+	# local avant de choisir / changer de rôle (workflow hôte + rechargement éditeur).
+	opt_pooling_role.disabled = in_room
 	btn_create_room.disabled = not is_mj or in_room or not connected
 	btn_join_room.disabled = is_mj or in_room or not connected
 	btn_rejoin_room.disabled = is_mj or in_room or MultiplayerManager.last_room_code.is_empty() or not connected

@@ -55,6 +55,7 @@ func load_settings() -> void:
 	player_name = str(cfg.get_value("multiplayer", "player_name", player_name))
 	player_role = str(cfg.get_value("multiplayer", "player_role", player_role))
 	last_room_code = str(cfg.get_value("multiplayer", "last_room_code", last_room_code))
+	_normalize_player_role()
 
 func _apply_profile_role_default() -> void:
 	var user_dir := OS.get_user_data_dir()
@@ -62,6 +63,12 @@ func _apply_profile_role_default() -> void:
 		player_role = "gm"
 	elif user_dir.contains("OpenQuest_Player"):
 		player_role = "player"
+
+func _normalize_player_role() -> void:
+	if player_role == "gm" or player_role == "player":
+		return
+	_apply_profile_role_default()
+	save_settings()
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
