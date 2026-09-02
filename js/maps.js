@@ -21,6 +21,10 @@ const Maps = {
   ZOOM_WHEEL_SENSITIVITY: 0.0018,
 
   MEMBER_COLORS: ['#e8c547', '#47a8e8', '#e86a47', '#47e88a', '#b847e8', '#e89247'],
+  MEMBER_PLAYER_EMOJIS: {
+    general: ['⚔️', '🛡️', '🏹', '🗡️', '🪄', '🦅'],
+    investigation: ['🔍', '🕵️', '📋', '🧢', '👤', '🗝️'],
+  },
 
   TILES: {
     grass: { label: 'Herbe', color: '#3a6b45' },
@@ -1252,16 +1256,33 @@ const Maps = {
     return this.MEMBER_COLORS[(index >= 0 ? index : 0) % this.MEMBER_COLORS.length];
   },
 
-  getMemberEmoji(member, questFormat = 'oneshot') {
+  isPlayableMember(member) {
+    if (!member || member.isBot) return false;
+    return member.isPlayer || member.isHuman;
+  },
+
+  getPlayerMembers(party) {
+    return (party || []).filter((m) => this.isPlayableMember(m));
+  },
+
+  getMemberEmoji(member, questFormat = 'oneshot', party = []) {
     if (member?.isBot) return '🤖';
-    return questFormat === 'investigation' ? '🔍' : '⚔️';
+    if (!this.isPlayableMember(member)) {
+      return questFormat === 'investigation' ? '🔍' : '⚔️';
+    }
+    const players = this.getPlayerMembers(party);
+    const index = players.findIndex((m) => m.id === member.id);
+    const pool = questFormat === 'investigation'
+      ? this.MEMBER_PLAYER_EMOJIS.investigation
+      : this.MEMBER_PLAYER_EMOJIS.general;
+    return pool[(index >= 0 ? index : 0) % pool.length];
   },
 
   getTokenDisplay(token, party, questFormat) {
     if (token.kind === 'member') {
       const member = party.find((m) => m.id === token.memberId);
       return {
-        emoji: this.getMemberEmoji(member, questFormat),
+        emoji: this.getMemberEmoji(member, questFormat, party),
         label: token.label || member?.name || 'Héros',
         color: this.getMemberColor(token.memberId, party),
       };
@@ -1628,7 +1649,7 @@ const Maps = {
     const memberButtons = party.map((m) => {
       const active = this.isSessionToolActive({ mode: 'member', memberId: m.id }) ? ' active' : '';
       const color = this.getMemberColor(m.id, party);
-      const badge = this.getMemberEmoji(m, questFormat);
+      const badge = this.getMemberEmoji(m, questFormat, party);
       return `<button type="button" class="session-map-tool-btn session-map-tool-member${active}" data-session-tool="member" data-member-id="${m.id}" style="--member-color:${color}" title="${this.escape(m.name)}">${badge} <span class="session-map-tool-btn-label">${this.escape(m.name)}</span></button>`;
     }).join('');
 

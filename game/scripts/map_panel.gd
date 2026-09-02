@@ -261,7 +261,8 @@ func _render_toolbar(state: Dictionary) -> void:
 
 	for member in party:
 		var mid: String = member.get("id", "")
-		var btn := _make_tool_button(_member_emoji(member, quest_format), true)
+		var em := MapData.get_member_emoji(mid, party, quest_format)
+		var btn := _make_tool_button(em, true)
 		btn.tooltip_text = member.get("name", "")
 		btn.button_pressed = _session_tool.get("mode") == "member" and _session_tool.get("member_id") == mid
 		btn.pressed.connect(func():
@@ -595,8 +596,3 @@ func _update_zoom_label() -> void:
 	var renderer := _active_renderer()
 	if renderer and "zoom" in renderer:
 		_zoom_lbl.text = "%d%%" % int(round(renderer.zoom * 100.0))
-
-func _member_emoji(member: Dictionary, quest_format: String) -> String:
-	if member.get("isBot", false):
-		return "🤖"
-	return "🔍" if quest_format == "investigation" else "⚔️"
