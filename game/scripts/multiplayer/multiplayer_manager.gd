@@ -393,8 +393,8 @@ func _merge_party_with_room(host_party: Array) -> Array:
 					merged[i]["clientId"] = pid
 					break
 			continue
-		var char_data = room_player.get("character")
-		if not char_data is Dictionary or char_data.is_empty():
+		var char_data: Dictionary = room_player.get("character", {})
+		if char_data.is_empty():
 			continue
 		var already := false
 		for m in merged:
@@ -403,7 +403,7 @@ func _merge_party_with_room(host_party: Array) -> Array:
 				break
 		if already:
 			continue
-		var member := char_data.duplicate(true)
+		var member: Dictionary = char_data.duplicate(true)
 		member["isPlayer"] = true
 		member["isHuman"] = true
 		member["isBot"] = false
@@ -414,15 +414,15 @@ func _merge_party_with_room(host_party: Array) -> Array:
 func _build_party_from_room() -> Array:
 	var party: Array = []
 	for room_player in get_room_players():
-		var char_data = room_player.get("character")
-		if not char_data is Dictionary or char_data.is_empty():
+		var char_data: Dictionary = room_player.get("character", {})
+		if char_data.is_empty():
 			if room_player.get("isGm", false):
 				var gm_char := GameData.create_blank_character()
 				gm_char["name"] = room_player.get("playerName", "MJ")
 				char_data = gm_char
 			else:
 				continue
-		var member := char_data.duplicate(true)
+		var member: Dictionary = char_data.duplicate(true)
 		member["isPlayer"] = not room_player.get("isGm", false)
 		member["isHuman"] = true
 		member["isBot"] = false

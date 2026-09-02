@@ -60,216 +60,249 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "+ Nouveau Personnage"
 
-[node name="ContentSplit" type="HSplitContainer" parent="MainLayout"]
+[node name="ContentArea" type="Control" parent="MainLayout"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
-split_offset = 400
 
-[node name="ListScroll" type="ScrollContainer" parent="MainLayout/ContentSplit"]
-layout_mode = 2
-size_flags_horizontal = 3
+[node name="ListScroll" type="ScrollContainer" parent="MainLayout/ContentArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
 
-[node name="CharacterList" type="VBoxContainer" parent="MainLayout/ContentSplit/ListScroll"]
+[node name="CharacterList" type="VBoxContainer" parent="MainLayout/ContentArea/ListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="FormPanel" type="PanelContainer" parent="MainLayout/ContentSplit"]
+[node name="FormPanel" type="PanelContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="FormScroll" type="ScrollContainer" parent="MainLayout/ContentSplit/FormPanel"]
-layout_mode = 2
+[node name="FormScroll" type="ScrollContainer" parent="MainLayout/ContentArea/FormPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
 
-[node name="FormVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/FormPanel/FormScroll"]
+[node name="FormVBox" type="VBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="FormTitle" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="FormHeader" type="HBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FormTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 18
 text = "Éditer le Personnage"
+autowrap_mode = 3
 
-[node name="GridIdentity" type="GridContainer" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="BtnCloseForm" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
+unique_name_in_owner = true
 layout_mode = 2
+text = "✕ Fermer"
+
+[node name="GridIdentity" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
 columns = 2
 
-[node name="LblName" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="LblName" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 layout_mode = 2
 text = "Nom :"
 
-[node name="InputName" type="LineEdit" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="InputName" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "ex: Aria Sombrelame"
 
-[node name="LblRace" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="LblRace" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 layout_mode = 2
 text = "Race / Peuple :"
 
-[node name="InputRace" type="LineEdit" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="InputRace" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "ex: Elfe, Humain..."
 
-[node name="LblClass" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="LblClass" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 layout_mode = 2
 text = "Classe / Métier :"
 
-[node name="InputClass" type="LineEdit" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="InputClass" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "ex: Guerrier, Rôdeuse..."
 
-[node name="LblRoster" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="LblRoster" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 layout_mode = 2
 text = "Univers / Roster :"
 
-[node name="InputRoster" type="OptionButton" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridIdentity"]
+[node name="InputRoster" type="OptionButton" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HSeparator1" type="HSeparator" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="HSeparator1" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 
-[node name="LblStatsTitle" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="LblStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
 text = "Caractéristiques (1-30) :"
 
-[node name="GridStats" type="GridContainer" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 columns = 4
 
-[node name="LblStr" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblStr" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Force (FOR) :"
 
-[node name="InputStr" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputStr" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="LblDex" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblDex" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Dextérité (DEX) :"
 
-[node name="InputDex" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputDex" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="LblCon" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblCon" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Constitution (CON) :"
 
-[node name="InputCon" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputCon" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="LblInt" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblInt" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Intelligence (INT) :"
 
-[node name="InputInt" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputInt" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="LblWis" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblWis" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Sagesse (SAG) :"
 
-[node name="InputWis" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputWis" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="LblCha" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="LblCha" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 layout_mode = 2
 text = "Charisme (CHA) :"
 
-[node name="InputCha" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridStats"]
+[node name="InputCha" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 30.0
 value = 10.0
 
-[node name="HSeparator2" type="HSeparator" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="HSeparator2" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 
-[node name="GridCombat" type="GridContainer" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="GridCombat" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 columns = 4
 
-[node name="LblHp" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridCombat"]
+[node name="LblHp" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 layout_mode = 2
 text = "Points de Vie (PV) :"
 
-[node name="InputHp" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridCombat"]
+[node name="InputHp" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 999.0
 value = 10.0
 
-[node name="LblAc" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridCombat"]
+[node name="LblAc" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 layout_mode = 2
 text = "Classe d'Armure (CA) :"
 
-[node name="InputAc" type="SpinBox" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/GridCombat"]
+[node name="InputAc" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 50.0
 value = 10.0
 
-[node name="HSeparator3" type="HSeparator" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="HSeparator3" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 
-[node name="LblBackstory" type="Label" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="LblBackstory" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 text = "Historique & Origine :"
 
-[node name="InputBackstory" type="TextEdit" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="InputBackstory" type="TextEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 placeholder_text = "Courte description, motivation, passé du personnage..."
 
-[node name="BtnRow" type="HBoxContainer" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox"]
+[node name="BtnRow" type="HBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="BtnSave" type="Button" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/BtnRow"]
+[node name="BtnSave" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/BtnRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "💾 Enregistrer"
 
-[node name="BtnCancel" type="Button" parent="MainLayout/ContentSplit/FormPanel/FormScroll/FormVBox/BtnRow"]
+[node name="BtnCancel" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/BtnRow"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Annuler"

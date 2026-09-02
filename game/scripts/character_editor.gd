@@ -2,8 +2,10 @@ extends Control
 
 @onready var char_list_container: VBoxContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
+@onready var form_scroll: ScrollContainer = $MainLayout/ContentArea/FormPanel/FormScroll
 @onready var form_title: Label = %FormTitle
 @onready var roster_filter: OptionButton = %RosterFilter
+@onready var page_title: Label = $MainLayout/TopBar/Title
 
 @onready var input_name: LineEdit = %InputName
 @onready var input_race: LineEdit = %InputRace
@@ -20,19 +22,65 @@ extends Control
 @onready var input_backstory: TextEdit = %InputBackstory
 
 var current_editing_id: String = ""
+var _locked_roster: String = ""
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
 	%BtnNewChar.pressed.connect(_on_new_character_pressed)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnCancel.pressed.connect(_on_cancel_pressed)
+	%BtnCloseForm.pressed.connect(_on_cancel_pressed)
 	roster_filter.item_selected.connect(func(_idx): refresh_list())
 	
 	GameData.characters_updated.connect(refresh_list)
 	
 	_setup_roster_options()
+	_apply_entry_context()
+	_configure_form_panel()
 	refresh_list()
 	form_panel.visible = false
+
+func _configure_form_panel() -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.121569, 0.0980392, 0.0784314, 0.98)
+	style.border_color = ThemeColors.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(10)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	form_panel.add_theme_stylebox_override("panel", style)
+	form_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	form_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	form_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	input_backstory.custom_minimum_size = Vector2(0, 100)
+	input_backstory.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+func _apply_entry_context() -> void:
+	if get_tree().has_meta("preselected_roster"):
+		_locked_roster = str(get_tree().get_meta("preselected_roster"))
+		get_tree().remove_meta("preselected_roster")
+	if _locked_roster == "investigation":
+		page_title.text = "🔍 Enquêteurs"
+		roster_filter.selected = 2
+		roster_filter.disabled = true
+	elif _locked_roster == "general":
+		page_title.text = "👥 Héros d'Aventure"
+		roster_filter.selected = 1
+		roster_filter.disabled = true
+
+func _get_active_roster_filter() -> String:
+	if _locked_roster == "investigation":
+		return "investigation"
+	if _locked_roster == "general":
+		return "general"
+	var filter_idx := roster_filter.selected
+	if filter_idx == 1:
+		return "general"
+	if filter_idx == 2:
+		return "investigation"
+	return ""
 
 func _setup_roster_options() -> void:
 	roster_filter.clear()
@@ -50,17 +98,17 @@ func refresh_list() -> void:
 	for child in char_list_container.get_children():
 		child.queue_free()
 	
-	var filter_idx := roster_filter.selected
-	var filter_roster := ""
-	if filter_idx == 1:
-		filter_roster = "general"
-	elif filter_idx == 2:
-		filter_roster = "investigation"
+	var filter_roster := _get_active_roster_filter()
 		
 	var chars := GameData.get_characters(filter_roster)
 	if chars.is_empty():
 		var empty_lbl := Label.new()
-		empty_lbl.text = "Aucun personnage enregistré pour le moment.\nCliquez sur « + Nouveau personnage » pour en créer un !"
+		if filter_roster == "investigation":
+			empty_lbl.text = "Aucun enquêteur enregistré.\nCliquez sur « + Nouveau personnage » pour en créer un !"
+		elif filter_roster == "general":
+			empty_lbl.text = "Aucun héros d'aventure enregistré.\nCliquez sur « + Nouveau personnage » pour en créer un !"
+		else:
+			empty_lbl.text = "Aucun personnage enregistré pour le moment.\nCliquez sur « + Nouveau personnage » pour en créer un !"
 		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 		char_list_container.add_child(empty_lbl)
@@ -135,11 +183,19 @@ func _create_character_card(c: Dictionary) -> PanelContainer:
 
 func _on_new_character_pressed() -> void:
 	current_editing_id = ""
-	form_title.text = "Nouveau Personnage"
+	form_title.text = "Nouvel Enquêteur" if _locked_roster == "investigation" else "Nouveau Personnage"
 	input_name.text = ""
 	input_race.text = ""
 	input_class.text = ""
-	input_roster.selected = 0
+	if _locked_roster == "investigation":
+		input_roster.selected = 1
+		input_roster.disabled = true
+	elif _locked_roster == "general":
+		input_roster.selected = 0
+		input_roster.disabled = true
+	else:
+		input_roster.selected = 0
+		input_roster.disabled = false
 	input_str.value = 10
 	input_dex.value = 10
 	input_con.value = 10
@@ -150,6 +206,8 @@ func _on_new_character_pressed() -> void:
 	input_ac.value = 10
 	input_backstory.text = ""
 	form_panel.visible = true
+	await get_tree().process_frame
+	form_scroll.scroll_vertical = 0
 
 func _open_form_for_edit(c: Dictionary) -> void:
 	current_editing_id = c.get("id", "")
@@ -160,6 +218,7 @@ func _open_form_for_edit(c: Dictionary) -> void:
 	
 	var r: String = c.get("roster", "general")
 	input_roster.selected = 1 if r == "investigation" else 0
+	input_roster.disabled = not _locked_roster.is_empty()
 	
 	var stats: Dictionary = c.get("stats", {})
 	input_str.value = stats.get("str", 10)
@@ -173,6 +232,8 @@ func _open_form_for_edit(c: Dictionary) -> void:
 	input_ac.value = c.get("ac", 10)
 	input_backstory.text = c.get("backstory", "")
 	form_panel.visible = true
+	await get_tree().process_frame
+	form_scroll.scroll_vertical = 0
 
 func _on_save_pressed() -> void:
 	var name_val := input_name.text.strip_edges()
@@ -180,6 +241,10 @@ func _on_save_pressed() -> void:
 		name_val = "Héros sans nom"
 	
 	var r_meta := "investigation" if input_roster.selected == 1 else "general"
+	if _locked_roster == "investigation":
+		r_meta = "investigation"
+	elif _locked_roster == "general":
+		r_meta = "general"
 	
 	var char_data := {
 		"id": current_editing_id if not current_editing_id.is_empty() else GameData.generate_id("char"),

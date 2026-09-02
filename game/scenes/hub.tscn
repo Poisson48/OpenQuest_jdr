@@ -101,13 +101,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Héros d'Aventure"
 
-[node name="BtnAdvAllChars" type="Button" parent="MainLayout/TabContainer/Aventures/VBox/ActionGrid"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "👥 Gérer les Fiches de Personnages"
-
 [node name="BtnAdvScenarios" type="Button" parent="MainLayout/TabContainer/Aventures/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)

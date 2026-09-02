@@ -4,6 +4,7 @@ extends Control
 @onready var list_scroll: ScrollContainer = %ListScroll
 @onready var mode_filter: OptionButton = %ModeFilter
 @onready var scenarios_count_lbl: Label = %ScenariosCountLabel
+@onready var page_title: Label = $MainLayout/TopBar/Title
 @onready var detail_panel: PanelContainer = %DetailPanel
 @onready var detail_scroll: ScrollContainer = $MainLayout/ContentArea/DetailPanel/DetailScroll
 @onready var detail_title: Label = %DetailTitle
@@ -14,6 +15,7 @@ extends Control
 var selected_scenario_id: String = ""
 var _pending_delete_scenario_id: String = ""
 var _last_scenario_grid_cols: int = -1
+var _locked_mode: String = ""
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
@@ -23,6 +25,7 @@ func _ready() -> void:
 	%ConfirmDeleteScenario.confirmed.connect(_on_confirm_delete_scenario)
 
 	_setup_mode_filter()
+	_apply_entry_context()
 	mode_filter.item_selected.connect(func(_idx): refresh_list())
 	if not list_scroll.resized.is_connected(_on_list_scroll_resized):
 		list_scroll.resized.connect(_on_list_scroll_resized)
@@ -43,7 +46,31 @@ func _setup_mode_filter() -> void:
 	mode_filter.add_item("⚔️ One-shot", 3)
 	mode_filter.set_item_metadata(3, "oneshot")
 
+func _apply_entry_context() -> void:
+	if get_tree().has_meta("preselected_scenario_mode"):
+		_locked_mode = str(get_tree().get_meta("preselected_scenario_mode"))
+		get_tree().remove_meta("preselected_scenario_mode")
+	match _locked_mode:
+		"investigation":
+			page_title.text = "📜 Affaires d'Enquête"
+			mode_filter.selected = 1
+			mode_filter.disabled = true
+		"long":
+			page_title.text = "🏰 Campagnes Longues"
+			mode_filter.selected = 2
+			mode_filter.disabled = true
+		"oneshot":
+			page_title.text = "⚔️ One-shots"
+			mode_filter.selected = 3
+			mode_filter.disabled = true
+		"adventure":
+			page_title.text = "📜 Scénarios d'Aventure"
+			mode_filter.selected = 0
+			mode_filter.disabled = true
+
 func _current_mode_filter() -> String:
+	if not _locked_mode.is_empty():
+		return _locked_mode
 	var idx := mode_filter.selected
 	if idx >= 0 and idx < mode_filter.item_count:
 		return str(mode_filter.get_item_metadata(idx))
@@ -77,8 +104,10 @@ func refresh_list() -> void:
 
 	var mode := _current_mode_filter()
 	var total := 0
-	if mode == "all":
-		var inv := _sorted_scenarios(_scenarios_for_mode("investigation"))
+	if mode == "all" or mode == "adventure":
+		var inv: Array = []
+		if mode == "all":
+			inv = _sorted_scenarios(_scenarios_for_mode("investigation"))
 		var long := _sorted_scenarios(_scenarios_for_mode("long"))
 		var one := _sorted_scenarios(_scenarios_for_mode("oneshot"))
 		total = inv.size() + long.size() + one.size()
@@ -111,12 +140,16 @@ func _on_list_scroll_resized() -> void:
 		refresh_list()
 
 func _scenarios_for_mode(mode: String) -> Array:
-	var pool := GameData.get_scenarios()
-	var result: Array = []
-	for scn in pool:
-		if GameData.get_scenario_mode_label(scn) == mode:
-			result.append(scn)
-	return result
+	match mode:
+		"investigation", "long", "oneshot":
+			return GameData.get_scenarios_for_quest_format(mode)
+		"adventure":
+			var result: Array = []
+			result.append_array(GameData.get_scenarios_for_quest_format("long"))
+			result.append_array(GameData.get_scenarios_for_quest_format("oneshot"))
+			return result
+		_:
+			return GameData.get_scenarios()
 
 func _sorted_scenarios(list: Array) -> Array:
 	var copy: Array = list.duplicate()
@@ -144,7 +177,17 @@ func _scenario_grid_columns() -> int:
 
 func _add_empty_state() -> void:
 	var lbl := Label.new()
-	lbl.text = "Aucun scénario ne correspond à ce mode."
+	match _locked_mode:
+		"investigation":
+			lbl.text = "Aucune affaire d'enquête pour le moment."
+		"adventure":
+			lbl.text = "Aucun scénario d'aventure (one-shot ou campagne) pour le moment."
+		"long":
+			lbl.text = "Aucune campagne longue pour le moment."
+		"oneshot":
+			lbl.text = "Aucun one-shot pour le moment."
+		_:
+			lbl.text = "Aucun scénario ne correspond à ce mode."
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	scenario_sections_root.add_child(lbl)
