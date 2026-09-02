@@ -287,31 +287,26 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="RoomCodeLabel" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 text = "Aucun salon — créez ou rejoignez avec un code"
 
 [node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-unique_name_in_owner = true
 layout_mode = 2
 text = "➕ Créer salon"
 
 [node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(80, 0)
 placeholder_text = "4821"
 max_length = 4
 
 [node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-unique_name_in_owner = true
 layout_mode = 2
 text = "🔗 Rejoindre"
 
 [node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
-unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "🚪 Quitter salon"
