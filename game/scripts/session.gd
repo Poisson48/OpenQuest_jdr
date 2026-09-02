@@ -57,7 +57,6 @@ func _set_and_send_action(action_text: String) -> void:
 	_on_send_action_pressed()
 
 func _connect_network_signals() -> void:
-	NetworkClient.log_entry_received.connect(_on_net_log_entry)
 	NetworkClient.dice_result_received.connect(_on_net_dice_result)
 	NetworkClient.gm_narration_received.connect(_on_net_gm_narration)
 	NetworkClient.game_state_received.connect(_on_net_game_state)
@@ -73,7 +72,11 @@ func _process(delta: float) -> void:
 
 func _update_net_status() -> void:
 	if NetworkClient.is_server_connected():
-		net_status_lbl.text = "● En ligne (MJ IA serveur)"
+		var my_member := NetworkClient.get_my_party_member(GameData.active_game)
+		var char_hint := ""
+		if not my_member.is_empty():
+			char_hint = " · %s" % my_member.get("name", "")
+		net_status_lbl.text = "● En ligne%s" % char_hint
 		net_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	else:
 		net_status_lbl.text = "○ Mode Local"
@@ -136,7 +139,10 @@ func _render_party_list() -> void:
 		name_row.add_child(name_lbl)
 		
 		var badge := Label.new()
-		if member.get("isBot", false):
+		if member.get("clientId", "") == NetworkClient.get_player_id() and NetworkClient.is_server_connected():
+			badge.text = "VOUS"
+			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
+		elif member.get("isBot", false):
 			badge.text = "BOT"
 			badge.add_theme_color_override("font_color", ThemeColors.BOT_ACCENT)
 		else:
@@ -265,6 +271,10 @@ func _simulate_ai_response(player_action: String) -> void:
 		})
 
 func _roll_dice_formula(formula: String) -> void:
+	if NetworkClient.is_server_connected():
+		NetworkClient.send_dice_roll(formula)
+		return
+	
 	var res := GameData.roll_dice(formula)
 	if res.has("error"):
 		dice_result_lbl.text = str(res["error"])
@@ -279,9 +289,6 @@ func _roll_dice_formula(formula: String) -> void:
 		"text": formatted,
 		"time": Time.get_time_string_from_system()
 	})
-	
-	if NetworkClient.is_server_connected():
-		NetworkClient.send_dice_roll(formula)
 
 func _on_roll_custom_dice() -> void:
 	var f := custom_dice_input.text.strip_edges()
@@ -313,14 +320,11 @@ func _on_net_game_state(state: Dictionary) -> void:
 	GameData.apply_server_state(state)
 	_refresh_session_ui()
 
-func _on_net_log_entry(entry: Dictionary) -> void:
-	if entry.is_empty():
-		return
-	_append_log_entry_bbcode(entry)
-
-func _on_net_dice_result(res: Dictionary) -> void:
-	var formatted := GameData.format_dice_result(res)
-	dice_result_lbl.text = formatted
+func _on_net_dice_result(_res: Dictionary, formatted: String) -> void:
+	if not formatted.is_empty():
+		dice_result_lbl.text = formatted
+	else:
+		dice_result_lbl.text = GameData.format_dice_result(_res)
 
 func _on_net_gm_narration(text: String) -> void:
 	_append_log_entry_bbcode({

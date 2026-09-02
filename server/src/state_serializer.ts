@@ -48,6 +48,7 @@ export function serializeGameState(session: GameSession): ClientGameState {
       isBot: m.isBot,
       isHuman: m.isHuman,
       isPlayer: m.isHuman,
+      clientId: m.clientId ?? null,
       personality: m.personality,
       traits: m.traits,
     })),

@@ -9,6 +9,7 @@ extends Control
 
 func _ready() -> void:
 	%BtnHome.pressed.connect(_on_home_pressed)
+	NetworkClient.game_started.connect(_on_remote_game_started)
 	
 	# Onglet Aventures
 	%BtnAdvNewChar.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/character_editor.tscn"))
@@ -114,3 +115,7 @@ func _render_bots() -> void:
 
 func _on_home_pressed() -> void:
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+func _on_remote_game_started(_game_id: String, state: Dictionary) -> void:
+	GameData.apply_server_state(state)
+	get_tree().change_scene_to_file("res://scenes/session/session.tscn")

@@ -116,6 +116,47 @@ text = "Rôle du Maître du Jeu :"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="NetStatusLabel" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "○ Serveur non connecté"
+
+[node name="JoinerPanel" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblJoinerTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "⏳ En attente de l'hôte"
+
+[node name="LblJoinerHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+autowrap_mode = 2
+text = "Choisissez votre personnage ci-dessous. L'hôte lancera la partie quand tout le monde est prêt."
+
+[node name="LblJoinerChar" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
+layout_mode = 2
+text = "Votre personnage :"
+
+[node name="OptJoinerChar" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BtnJoinerRegister" type="Button" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✓ Confirmer mon personnage"
+
 [node name="RightCol" type="VBoxContainer" parent="MainLayout/ScrollBody/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3

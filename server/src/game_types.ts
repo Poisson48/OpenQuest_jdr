@@ -63,6 +63,8 @@ export interface PartyMember {
   isBot: boolean;
   isHuman: boolean;
   playerName: string | null;
+  /** WebSocket client id — lie un joueur humain à sa connexion réseau. */
+  clientId?: string | null;
   personality?: string | null;
   preferredActions?: ActionType[];
   traits?: string[];

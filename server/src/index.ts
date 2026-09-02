@@ -4,10 +4,11 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { GameSession } from "./game_session.js";
 import { Dice, isDiceError } from "./dice.js";
-import { clientPartyToMembers } from "./party_utils.js";
+import { buildMultiplayerParty, clientPartyToMembers } from "./party_utils.js";
 import { loadAllScenarios, loadScenario } from "./scenario_loader.js";
 import { serializeGameState, scenarioToClient } from "./state_serializer.js";
-import type { ClientMessage, ConnectedClient, ServerMessage } from "./types.js";
+import type { ClientMessage, ConnectedClient, LobbyPlayer, ServerMessage } from "./types.js";
+import { getLanAddresses } from "./lan_utils.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -21,10 +22,50 @@ function send(ws: WebSocket, message: ServerMessage): void {
   }
 }
 
-function broadcastToGame(gameId: string, message: ServerMessage, excludeId?: string): void {
+function getLobbyClients(): ConnectedClient[] {
+  return [...clients.values()]
+    .filter((c) => !c.gameId)
+    .sort((a, b) => a.connectedAt - b.connectedAt);
+}
+
+function getLobbyHostId(): string {
+  return getLobbyClients()[0]?.id ?? "";
+}
+
+function buildLobbyPlayers(): LobbyPlayer[] {
+  const hostId = getLobbyHostId();
+  return getLobbyClients().map((client) => ({
+    playerId: client.id,
+    playerName: client.name,
+    isHost: client.id === hostId,
+    character: client.registeredCharacter,
+  }));
+}
+
+function broadcastLobby(excludeId?: string): void {
+  const message: ServerMessage = {
+    type: "lobby_update",
+    hostId: getLobbyHostId(),
+    players: buildLobbyPlayers(),
+  };
+  for (const client of clients.values()) {
+    if (client.id === excludeId || client.gameId) continue;
+    send(client.ws, message);
+  }
+}
+
+function sendLobbyTo(client: ConnectedClient): void {
+  send(client.ws, {
+    type: "lobby_update",
+    hostId: getLobbyHostId(),
+    players: buildLobbyPlayers(),
+  });
+}
+
+function broadcastToGameAll(gameId: string, message: ServerMessage): void {
   const payload = JSON.stringify(message);
   for (const client of clients.values()) {
-    if (client.gameId === gameId && client.id !== excludeId && client.ws.readyState === WebSocket.OPEN) {
+    if (client.gameId === gameId && client.ws.readyState === WebSocket.OPEN) {
       client.ws.send(payload);
     }
   }
@@ -48,7 +89,22 @@ async function handleMessage(
       if ("playerName" in message && message.playerName?.trim()) {
         setName(message.playerName.trim());
         send(client.ws, { type: "welcome", playerId: client.id, playerName: client.name });
+        broadcastLobby();
+        for (const other of clients.values()) {
+          if (other.id !== client.id && !other.gameId) {
+            send(other.ws, { type: "player_joined", playerId: client.id, playerName: client.name });
+          }
+        }
       }
+      break;
+
+    case "get_lobby":
+      sendLobbyTo(client);
+      break;
+
+    case "register_character":
+      client.registeredCharacter = message.character;
+      broadcastLobby();
       break;
 
     case "ping":
@@ -62,26 +118,41 @@ async function handleMessage(
     }
 
     case "start_game": {
+      const hostId = getLobbyHostId();
+      if (client.id !== hostId) {
+        send(client.ws, { type: "error", message: "Seul l'hôte peut lancer la partie." });
+        return;
+      }
+
       const scenario = await loadScenario(message.scenarioId);
       if (!scenario) {
         send(client.ws, { type: "error", message: `Scénario introuvable : ${message.scenarioId}` });
         return;
       }
       try {
-        const party = clientPartyToMembers(message.party);
+        const mode = message.mode ?? "solo";
+        const lobbyClients = getLobbyClients();
+        const otherClients = lobbyClients.filter((c) => c.id !== client.id);
+        const party =
+          mode === "multi"
+            ? buildMultiplayerParty(client, message.party, otherClients)
+            : clientPartyToMembers(message.party, { hostClientId: client.id });
+
         const session = await GameSession.startGame({
           scenario,
           party,
           partySizeTarget: message.partySizeTarget,
           fillWithBots: message.fillWithBots ?? true,
-          mode: message.mode ?? "solo",
+          mode,
           gmType: message.gmType ?? "ai",
           questFormat: (message.questFormat as "oneshot" | "long" | "investigation") || scenario.questFormat,
         });
         sessions.set(session.state.id, session);
-        client.gameId = session.state.id;
         const state = serializeGameState(session);
-        send(client.ws, { type: "game_started", gameId: session.state.id, state });
+        for (const lobbyClient of lobbyClients) {
+          lobbyClient.gameId = session.state.id;
+          send(lobbyClient.ws, { type: "game_started", gameId: session.state.id, state });
+        }
       } catch (err) {
         send(client.ws, { type: "error", message: err instanceof Error ? err.message : "Erreur démarrage partie" });
       }
@@ -105,19 +176,10 @@ async function handleMessage(
         return;
       }
       try {
-        const logBefore = session.state.log.length;
-        session.playerAction(message.action, message.playerId || client.id);
+        session.playerAction(message.action, client.id);
         await session.save();
         const state = serializeGameState(session);
-        send(client.ws, { type: "game_state", state });
-        const newEntries = session.state.log.slice(logBefore);
-        for (const entry of newEntries) {
-          const payload: ServerMessage = {
-            type: "log_entry",
-            entry: { author: entry.author, type: entry.type, text: entry.text, time: entry.timestamp },
-          };
-          broadcastToGame(message.gameId, payload);
-        }
+        broadcastToGameAll(message.gameId, { type: "game_state", state });
       } catch (err) {
         send(client.ws, { type: "error", message: err instanceof Error ? err.message : "Erreur action" });
       }
@@ -134,12 +196,10 @@ async function handleMessage(
         }
         const result = session.diceRoll(formula, client.name);
         await session.save();
-        send(client.ws, {
-          type: "dice_result",
-          result,
-          formatted: isDiceError(result) ? result.error : Dice.formatResult(result),
-        });
-        send(client.ws, { type: "game_state", state: serializeGameState(session) });
+        const formatted = isDiceError(result) ? result.error : Dice.formatResult(result);
+        const state = serializeGameState(session);
+        broadcastToGameAll(message.gameId, { type: "dice_result", result, formatted });
+        broadcastToGameAll(message.gameId, { type: "game_state", state });
       } else {
         const result = Dice.roll(formula);
         send(client.ws, {
@@ -159,8 +219,8 @@ async function handleMessage(
       }
       session.advanceScene();
       await session.save();
-      send(client.ws, { type: "game_state", state: serializeGameState(session) });
-      broadcastToGame(message.gameId, { type: "game_state", state: serializeGameState(session) });
+      const state = serializeGameState(session);
+      broadcastToGameAll(message.gameId, { type: "game_state", state });
       break;
     }
 
@@ -182,7 +242,14 @@ wss.on("connection", (ws, req) => {
   let playerName = url.searchParams.get("name")?.trim() || "Joueur";
   const id = randomUUID();
 
-  const client: ConnectedClient = { id, name: playerName, gameId: null, ws };
+  const client: ConnectedClient = {
+    id,
+    name: playerName,
+    gameId: null,
+    connectedAt: Date.now(),
+    registeredCharacter: null,
+    ws,
+  };
   clients.set(id, client);
 
   const setName = (name: string) => {
@@ -193,6 +260,7 @@ wss.on("connection", (ws, req) => {
   console.log(`[+] ${playerName} (${id.slice(0, 8)})`);
 
   send(ws, { type: "welcome", playerId: id, playerName });
+  sendLobbyTo(client);
 
   ws.on("message", (data) => {
     void handleMessage(client, data.toString(), setName);
@@ -201,10 +269,26 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => {
     clients.delete(id);
     console.log(`[-] ${playerName} (${id.slice(0, 8)})`);
+    for (const other of clients.values()) {
+      if (!other.gameId) {
+        send(other.ws, { type: "player_left", playerId: id });
+      }
+    }
+    broadcastLobby();
   });
 });
 
 httpServer.listen(PORT, HOST, () => {
   console.log(`OpenQuest serveur sur ws://${HOST}:${PORT}`);
+  console.log(`Joueur hôte (Godot) : ws://127.0.0.1:${PORT}`);
+  const lanIps = getLanAddresses();
+  if (lanIps.length > 0) {
+    console.log("Joueurs LAN (autre PC / même WiFi) :");
+    for (const ip of lanIps) {
+      console.log(`  ws://${ip}:${PORT}`);
+    }
+  } else {
+    console.log("Aucune IP LAN détectée — vérifiez WiFi/Ethernet ou pare-feu Windows.");
+  }
   console.log(`MCP GM : npm run mcp`);
 });

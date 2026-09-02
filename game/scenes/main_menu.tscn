@@ -74,6 +74,108 @@ autowrap_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="NetworkPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblNetworkTitle" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 16
+text = "🌐 Connexion réseau (LAN)"
+
+[node name="LblNetworkHint" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "Hôte : ws://127.0.0.1:8080 · Autre joueur : ws://IP_DU_HOTE:8080"
+autowrap_mode = 2
+
+[node name="ServerRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblServerUrl" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ServerRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Serveur :"
+
+[node name="ServerUrlInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ServerRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ws://127.0.0.1:8080"
+text = "ws://127.0.0.1:8080"
+
+[node name="NameRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPlayerName" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/NameRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Pseudo :"
+
+[node name="PlayerNameInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Joueur"
+text = "Joueur"
+
+[node name="ConnectRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnConnectServer" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔌 Se connecter au serveur"
+
+[node name="NetStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/ConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "○ Hors ligne"
+
+[node name="LobbyPanel" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblLobbyTitle" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
+text = "👥 Joueurs en ligne"
+
+[node name="LobbyPlayersVBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CharRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblLobbyChar" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel/CharRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Personnage :"
+
+[node name="OptLobbyChar" type="OptionButton" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel/CharRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnRegisterChar" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/LobbyPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✓ Enregistrer mon personnage"
+
 [node name="HBox" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/ResumePanel"]
 layout_mode = 2
 theme_override_constants/separation = 12
