@@ -8,55 +8,170 @@
   "scenes": [
     {
       "title": "Le laboratoire scellé",
-      "content": "Aldric est affalé sur son bureau, lèvres bleuies. La porte était verrouillée de l'intérieur, la clef dans la serrure. Une fiole de cyanure brisée sur le sol. Les fenêtres sont scellées depuis des années — sauf une trappe d'aération au plafond."
+      "content": "Aldric est affalé sur son bureau, lèvres bleuies. La porte était verrouillée de l'intérieur, la clef dans la serrure. Une fiole de cyanure brisée sur le sol. Les fenêtres sont scellées depuis des années — sauf une trappe d'aération au plafond.",
+      "id": "le-laboratoire-scellé",
+      "tags": [
+        "debut"
+      ],
+      "transitions": [
+        {
+          "to": "les-apprentis",
+          "label": "Continuer vers : Les apprentis",
+          "default": true
+        },
+        {
+          "to": "reconstitution-du-crime",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Les apprentis",
-      "content": "Lysa, Bram et Petronille sont interrogés séparément. Lysa veut reprendre le laboratoire ; Bram a volé des formules ; Petronille était amoureuse d'Aldric. Chacun a un motif, chacun a un alibi partiel pour la nuit du décès."
+      "content": "Lysa, Bram et Petronille sont interrogés séparément. Lysa veut reprendre le laboratoire ; Bram a volé des formules ; Petronille était amoureuse d'Aldric. Chacun a un motif, chacun a un alibi partiel pour la nuit du décès.",
+      "id": "les-apprentis",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "le-grimoire-des-formules",
+          "label": "Continuer vers : Le grimoire des formules",
+          "default": true
+        },
+        {
+          "to": "le-laboratoire-scellé",
+          "label": "Revenir à : Le laboratoire scellé",
+          "gmOnly": true
+        },
+        {
+          "to": "reconstitution-du-crime",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le grimoire des formules",
-      "content": "Une page arrachée concernait un « élixir de silence » — poison retardé. Des taches chimiques sur le rebord de la fenêtre intérieure. Un parchemin signé par le rival Zephon menace Aldric de ruine publique."
+      "content": "Une page arrachée concernait un « élixir de silence » — poison retardé. Des taches chimiques sur le rebord de la fenêtre intérieure. Un parchemin signé par le rival Zephon menace Aldric de ruine publique.",
+      "id": "le-grimoire-des-formules",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "la-trappe-d-aération",
+          "label": "Continuer vers : La trappe d'aération",
+          "default": true
+        },
+        {
+          "to": "les-apprentis",
+          "label": "Revenir à : Les apprentis",
+          "gmOnly": true
+        },
+        {
+          "to": "reconstitution-du-crime",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La trappe d'aération",
-      "content": "La gaine mène au toit puis à la cheminée voisine — appartement de Zephon. Des traces de suie fraîche. Un mécanisme de corde permettrait de descendre un objet sans entrer. Un bout de gants brûlé gît sur le toit."
+      "content": "La gaine mène au toit puis à la cheminée voisine — appartement de Zephon. Des traces de suie fraîche. Un mécanisme de corde permettrait de descendre un objet sans entrer. Un bout de gants brûlé gît sur le toit.",
+      "id": "la-trappe-d-aération",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "l-apothicaire-du-quartier",
+          "label": "Continuer vers : L'apothicaire du quartier",
+          "default": true
+        },
+        {
+          "to": "le-grimoire-des-formules",
+          "label": "Revenir à : Le grimoire des formules",
+          "gmOnly": true
+        },
+        {
+          "to": "reconstitution-du-crime",
+          "label": "Emprunter un autre chemin : Reconstitution du crime",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "L'apothicaire du quartier",
-      "content": "Le marchand de produits rares confirme une vente de cyanure — signature illisible. Un témoin a vu un apprenti en cape noire la veille. Les registres de la guilde des mages mentionnent une dette d'Aldric envers Zephon."
+      "content": "Le marchand de produits rares confirme une vente de cyanure — signature illisible. Un témoin a vu un apprenti en cape noire la veille. Les registres de la guilde des mages mentionnent une dette d'Aldric envers Zephon.",
+      "id": "l-apothicaire-du-quartier",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "reconstitution-du-crime",
+          "label": "Continuer vers : Reconstitution du crime",
+          "default": true
+        },
+        {
+          "to": "la-trappe-d-aération",
+          "label": "Revenir à : La trappe d'aération",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Reconstitution du crime",
-      "content": "Locked room : suicide simulé, empoisonnement différé, ou complice dans la tour voisine ? Les preuves physiques et les témoignages permettent de reconstruire la méthode — et de nommer le coupable."
+      "content": "Locked room : suicide simulé, empoisonnement différé, ou complice dans la tour voisine ? Les preuves physiques et les témoignages permettent de reconstruire la méthode — et de nommer le coupable.",
+      "id": "reconstitution-du-crime",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "l-apothicaire-du-quartier",
+          "label": "Revenir à : L'apothicaire du quartier",
+          "gmOnly": true
+        },
+        {
+          "to": "le-grimoire-des-formules",
+          "label": "Branche MJ : Le grimoire des formules",
+          "gmOnly": true
+        },
+        {
+          "to": "la-trappe-d-aération",
+          "label": "Branche MJ : La trappe d'aération",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Lysa l'apprentie",
       "role": "Suspecte",
-      "description": "Ambitieuse, froide. Elle hériterait du laboratoire si Aldric n'avait pas changé son testament la veille."
+      "description": "Ambitieuse, froide. Elle hériterait du laboratoire si Aldric n'avait pas changé son testament la veille.",
+      "id": "lysa-l-apprentie"
     },
     {
       "name": "Bram l'apprenti",
       "role": "Suspect",
-      "description": "Maladroit, endetté. Il a copié des formules pour un acheteur inconnu."
+      "description": "Maladroit, endetté. Il a copié des formules pour un acheteur inconnu.",
+      "id": "bram-l-apprenti"
     },
     {
       "name": "Petronille",
       "role": "Suspecte / témoin",
-      "description": "Sensible, jalouse de Lysa. Elle affirme avoir entendu des pas sur le toit à minuit."
+      "description": "Sensible, jalouse de Lysa. Elle affirme avoir entendu des pas sur le toit à minuit.",
+      "id": "petronille"
     },
     {
       "name": "Zephon le rival",
       "role": "Suspect principal",
-      "description": "Alchimiste vaniteux, voisin de tour. Son alibi est faible ; il avait accès au toit commun."
+      "description": "Alchimiste vaniteux, voisin de tour. Son alibi est faible ; il avait accès au toit commun.",
+      "id": "zephon-le-rival"
     },
     {
       "name": "Maître Corbin",
       "role": "Autorité / témoin",
-      "description": "Représentant de la guilde. Il possède une copie du testament et connaît les rivalités."
+      "description": "Représentant de la guilde. Il possède une copie du testament et connaît les rivalités.",
+      "id": "maître-corbin"
     }
   ],
-  "questFormat": "oneshot"
+  "questFormat": "oneshot",
+  "startSceneId": "le-laboratoire-scellé"
 }

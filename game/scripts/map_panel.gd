@@ -22,6 +22,7 @@ var _readonly: bool = false
 
 func _ready() -> void:
 	_build_ui()
+	resized.connect(func(): call_deferred("_sync_map_viewport_size"))
 	refresh()
 
 func _build_ui() -> void:
@@ -79,7 +80,6 @@ func _build_ui() -> void:
 	map_style.set_border_width_all(1)
 	map_style.set_corner_radius_all(4)
 	map_frame.add_theme_stylebox_override("panel", map_style)
-	map_frame.custom_minimum_size = Vector2(0, 320)
 	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(map_frame)
@@ -87,7 +87,6 @@ func _build_ui() -> void:
 	_interactive_map = InteractiveMapScript.new()
 	_interactive_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_interactive_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_interactive_map.custom_minimum_size = Vector2(280, 300)
 	_interactive_map.cell_clicked.connect(_on_cell_clicked)
 	_interactive_map.navigation_requested.connect(_on_navigation_requested)
 	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
@@ -331,7 +330,7 @@ func _sync_map_viewport_size() -> void:
 	var frame_h := int(_map_frame.size.y)
 	var frame_w := int(_map_frame.size.x)
 	if frame_h > 32 and frame_w > 32:
-		_interactive_map.custom_minimum_size = Vector2(maxi(280, frame_w - 4), maxi(300, frame_h - 4))
+		_interactive_map.custom_minimum_size = Vector2(maxi(64, frame_w - 4), maxi(64, frame_h - 4))
 
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():

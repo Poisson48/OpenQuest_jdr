@@ -9,122 +9,828 @@
   "scenes": [
     {
       "title": "Acte I — Cadavre sur le quai 7",
-      "content": "À l'aube, un pêcheur trouve le corps du notaire Fontaine, marque de serpent gravée dans le dos. Le commissaire Varenne veut classer l'affaire « bandits du port ». La presse s'enflamme. Le groupe est mandaté par le préfet ou contacté en secret par la journaliste Nora Pike — première liste de témoins et accès limité à la scène de crime."
+      "content": "À l'aube, un pêcheur trouve le corps du notaire Fontaine, marque de serpent gravée dans le dos. Le commissaire Varenne veut classer l'affaire « bandits du port ». La presse s'enflamme. Le groupe est mandaté par le préfet ou contacté en secret par la journaliste Nora Pike — première liste de témoins et accès limité à la scène de crime.",
+      "id": "cadavre-sur-le-quai-7",
+      "tags": [
+        "acte-i",
+        "debut",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "autopsie-et-première-trace",
+          "label": "Continuer vers : Autopsie et première trace",
+          "default": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "le-bal-masqué-de-la-fondation",
+          "label": "Branche MJ : Le bal masqué de la Fondation",
+          "gmOnly": true
+        },
+        {
+          "to": "archives-du-port",
+          "label": "Branche MJ : Archives du port",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — Autopsie et première trace",
-      "content": "Le légiste Dr. Selim révèle : victime droguée avant la mise en scène rituelle, poison rare d'origine orientale. Dans la poche du notaire, un billet pour le bal de la Fondation Hale. Une écaille de métal noir, pas biologique, est retrouvée sous l'ongle de la victime — artefact ou bijou de culte ?"
+      "content": "Le légiste Dr. Selim révèle : victime droguée avant la mise en scène rituelle, poison rare d'origine orientale. Dans la poche du notaire, un billet pour le bal de la Fondation Hale. Une écaille de métal noir, pas biologique, est retrouvée sous l'ongle de la victime — artefact ou bijou de culte ?",
+      "id": "autopsie-et-première-trace",
+      "tags": [
+        "acte-i",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-bal-masqué-de-la-fondation",
+          "label": "Continuer vers : Le bal masqué de la Fondation",
+          "default": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Revenir à : Cadavre sur le quai 7",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "archives-du-port",
+          "label": "Branche MJ : Archives du port",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — Le bal masqué de la Fondation",
-      "content": "Soirée charitable des élites : tous les suspects se croisent en masques. Le banquier Hale, la veuve Fontaine, le professeur Orin, le capitaine des docks Mercier. Une serveuse glisse un pli : « Ne faites pas confiance à Varenne. » Un domino noir quitte la salle par la terrasse — poursuite possible ou perte de piste."
+      "content": "Soirée charitable des élites : tous les suspects se croisent en masques. Le banquier Hale, la veuve Fontaine, le professeur Orin, le capitaine des docks Mercier. Une serveuse glisse un pli : « Ne faites pas confiance à Varenne. » Un domino noir quitte la salle par la terrasse — poursuite possible ou perte de piste.",
+      "id": "le-bal-masqué-de-la-fondation",
+      "tags": [
+        "acte-i",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "archives-du-port",
+          "label": "Continuer vers : Archives du port",
+          "default": true
+        },
+        {
+          "to": "autopsie-et-première-trace",
+          "label": "Revenir à : Autopsie et première trace",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Branche MJ : Cadavre sur le quai 7",
+          "gmOnly": true
+        },
+        {
+          "to": "bibliothèque-des-marées",
+          "label": "Branche MJ : Bibliothèque des marées",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — Archives du port",
-      "content": "Registres des navires : trois cargaisons « textiles » sans manifeste complet, capitaine Mercier signataire. Correspondance chiffrée dans un coffre administratif. Un clerk est retrouvé battu — il murmure « le Serpent paie en or et en silence » avant de perdre connaissance."
+      "content": "Registres des navires : trois cargaisons « textiles » sans manifeste complet, capitaine Mercier signataire. Correspondance chiffrée dans un coffre administratif. Un clerk est retrouvé battu — il murmure « le Serpent paie en or et en silence » avant de perdre connaissance.",
+      "id": "archives-du-port",
+      "tags": [
+        "acte-i"
+      ],
+      "transitions": [
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Continuer vers : Deuxième victime : le professeur",
+          "default": true
+        },
+        {
+          "to": "le-bal-masqué-de-la-fondation",
+          "label": "Revenir à : Le bal masqué de la Fondation",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Deuxième victime : le professeur",
-      "content": "Orin est retrouvé dans son bureau universitaire, même marque. Ses notes portent sur les cultes maritimes oubliés. Un étudiant discret, Lio, admet qu'Orin recevait des menaces depuis qu'il enquêtait sur la Fondation Hale. Vol de carnets — piste vers la bibliothèque interdite."
+      "content": "Orin est retrouvé dans son bureau universitaire, même marque. Ses notes portent sur les cultes maritimes oubliés. Un étudiant discret, Lio, admet qu'Orin recevait des menaces depuis qu'il enquêtait sur la Fondation Hale. Vol de carnets — piste vers la bibliothèque interdite.",
+      "id": "deuxième-victime-le-professeur",
+      "tags": [
+        "acte-ii"
+      ],
+      "transitions": [
+        {
+          "to": "bibliothèque-des-marées",
+          "label": "Continuer vers : Bibliothèque des marées",
+          "default": true
+        },
+        {
+          "to": "archives-du-port",
+          "label": "Revenir à : Archives du port",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Bibliothèque des marées",
-      "content": "Manuscrits sur le « Serpent des profondeurs », secte liée aux marées et aux sacrifices de notables corrompus. Symboles identiques à la marque des victimes. Une page arrachée mentionne un « nid » sous le phare. Garde archiviste corrompu — pot-de-vin ou intimidation à découvrir."
+      "content": "Manuscrits sur le « Serpent des profondeurs », secte liée aux marées et aux sacrifices de notables corrompus. Symboles identiques à la marque des victimes. Une page arrachée mentionne un « nid » sous le phare. Garde archiviste corrompu — pot-de-vin ou intimidation à découvrir.",
+      "id": "bibliothèque-des-marées",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "interrogatoire-du-commissaire-varenne",
+          "label": "Continuer vers : Interrogatoire du commissaire Varenne",
+          "default": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Revenir à : Deuxième victime : le professeur",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "le-bal-masqué-de-la-fondation",
+          "label": "Branche MJ : Le bal masqué de la Fondation",
+          "gmOnly": true
+        },
+        {
+          "to": "archives-du-port",
+          "label": "Branche MJ : Archives du port",
+          "gmOnly": true
+        },
+        {
+          "to": "les-docks-la-nuit",
+          "label": "Branche MJ : Les docks la nuit",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Interrogatoire du commissaire Varenne",
-      "content": "Varenne bloque l'accès aux dossiers. Témoignages de flics honnêtes : plaintes classées sans suite, témoins menacés. Surveillance du commissariat : rendez-vous nocturne avec un homme encapuchonné. Mandat ou infiltration pour obtenir preuves de complicité."
+      "content": "Varenne bloque l'accès aux dossiers. Témoignages de flics honnêtes : plaintes classées sans suite, témoins menacés. Surveillance du commissariat : rendez-vous nocturne avec un homme encapuchonné. Mandat ou infiltration pour obtenir preuves de complicité.",
+      "id": "interrogatoire-du-commissaire-varenne",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "les-docks-la-nuit",
+          "label": "Continuer vers : Les docks la nuit",
+          "default": true
+        },
+        {
+          "to": "bibliothèque-des-marées",
+          "label": "Revenir à : Bibliothèque des marées",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "archives-du-port",
+          "label": "Branche MJ : Archives du port",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Branche MJ : Deuxième victime : le professeur",
+          "gmOnly": true
+        },
+        {
+          "to": "le-témoignage-du-prêtre",
+          "label": "Branche MJ : Le témoignage du prêtre",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Les docks la nuit",
-      "content": "Filature de Mercier : entrepôt 14, chants étouffés, cadavres d'animaux disposés en cercle. Combat ou infiltration. Documents liant la Fondation Hale à des « cotisations occultes ». Mercier s'échappe ou est capturé — il parle d'un « Messager » plus haut placé."
+      "content": "Filature de Mercier : entrepôt 14, chants étouffés, cadavres d'animaux disposés en cercle. Combat ou infiltration. Documents liant la Fondation Hale à des « cotisations occultes ». Mercier s'échappe ou est capturé — il parle d'un « Messager » plus haut placé.",
+      "id": "les-docks-la-nuit",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Continuer vers : La veuve et l'héritage",
+          "default": true
+        },
+        {
+          "to": "interrogatoire-du-commissaire-varenne",
+          "label": "Revenir à : Interrogatoire du commissaire Varenne",
+          "gmOnly": true
+        },
+        {
+          "to": "cadavre-sur-le-quai-7",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Branche MJ : Deuxième victime : le professeur",
+          "gmOnly": true
+        },
+        {
+          "to": "bibliothèque-des-marées",
+          "label": "Branche MJ : Bibliothèque des marées",
+          "gmOnly": true
+        },
+        {
+          "to": "le-témoignage-du-prêtre",
+          "label": "Branche MJ : Le témoignage du prêtre",
+          "gmOnly": true
+        },
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Branche MJ : Nora Pike en danger",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — La veuve et l'héritage",
-      "content": "Madame Fontaine hérite d'une fortune si l'enquête s'arrête. Contradictions dans son alibi. Testament du notaire léguant des terres au phare — terrains inexploitables selon la ville, mais registre cadastral secret dit autre chose. Jalousie, argent, ou complicité forcée ?"
+      "content": "Madame Fontaine hérite d'une fortune si l'enquête s'arrête. Contradictions dans son alibi. Testament du notaire léguant des terres au phare — terrains inexploitables selon la ville, mais registre cadastral secret dit autre chose. Jalousie, argent, ou complicité forcée ?",
+      "id": "la-veuve-et-l-héritage",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-témoignage-du-prêtre",
+          "label": "Continuer vers : Le témoignage du prêtre",
+          "default": true
+        },
+        {
+          "to": "les-docks-la-nuit",
+          "label": "Revenir à : Les docks la nuit",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "bibliothèque-des-marées",
+          "label": "Branche MJ : Bibliothèque des marées",
+          "gmOnly": true
+        },
+        {
+          "to": "interrogatoire-du-commissaire-varenne",
+          "label": "Branche MJ : Interrogatoire du commissaire Varenne",
+          "gmOnly": true
+        },
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Branche MJ : Nora Pike en danger",
+          "gmOnly": true
+        },
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Branche MJ : Fausse piste : le syndicat des dockers",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Le témoignage du prêtre",
-      "content": "Père Aldric confesse avoir béni des « pèlerins nocturnes » sans comprendre. Il mène le groupe à une chapelle oubliée dans les égouts — fresques du serpent, autel récent. Quelqu'un a laissé une lanterne encore chaude. Embuscade de cultistes ou fuite organisée."
+      "content": "Père Aldric confesse avoir béni des « pèlerins nocturnes » sans comprendre. Il mène le groupe à une chapelle oubliée dans les égouts — fresques du serpent, autel récent. Quelqu'un a laissé une lanterne encore chaude. Embuscade de cultistes ou fuite organisée.",
+      "id": "le-témoignage-du-prêtre",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Continuer vers : Nora Pike en danger",
+          "default": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Revenir à : La veuve et l'héritage",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "interrogatoire-du-commissaire-varenne",
+          "label": "Branche MJ : Interrogatoire du commissaire Varenne",
+          "gmOnly": true
+        },
+        {
+          "to": "les-docks-la-nuit",
+          "label": "Branche MJ : Les docks la nuit",
+          "gmOnly": true
+        },
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Branche MJ : Fausse piste : le syndicat des dockers",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Nora Pike en danger",
-      "content": "La journaliste publie un article partiel — son appartement est saccagé. Elle possède une liste de noms raturés retrouvée chez Orin. Protection, planque, ou appât pour attraper le Messager. Choix moral : exposer la vérité tout de suite ou creuser encore."
+      "content": "La journaliste publie un article partiel — son appartement est saccagé. Elle possède une liste de noms raturés retrouvée chez Orin. Protection, planque, ou appât pour attraper le Messager. Choix moral : exposer la vérité tout de suite ou creuser encore.",
+      "id": "nora-pike-en-danger",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Continuer vers : Fausse piste : le syndicat des dockers",
+          "default": true
+        },
+        {
+          "to": "le-témoignage-du-prêtre",
+          "label": "Revenir à : Le témoignage du prêtre",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "les-docks-la-nuit",
+          "label": "Branche MJ : Les docks la nuit",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Branche MJ : La veuve et l'héritage",
+          "gmOnly": true
+        },
+        {
+          "to": "le-phare-abandonné",
+          "label": "Branche MJ : Le phare abandonné",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Fausse piste : le syndicat des dockers",
-      "content": "Syndicat accusé publiquement par Hale de terrorisme. En creusant, alibi solide mais haine légitime contre Fontaine qui les ruina. Le vrai coupable pourrait utiliser la colère populaire. Grève imminente — fenêtre pour une nouvelle victime pendant le chaos."
+      "content": "Syndicat accusé publiquement par Hale de terrorisme. En creusant, alibi solide mais haine légitime contre Fontaine qui les ruina. Le vrai coupable pourrait utiliser la colère populaire. Grève imminente — fenêtre pour une nouvelle victime pendant le chaos.",
+      "id": "fausse-piste-le-syndicat-des-dockers",
+      "tags": [
+        "acte-iii"
+      ],
+      "transitions": [
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Continuer vers : Descente dans les égouts",
+          "default": true
+        },
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Revenir à : Nora Pike en danger",
+          "gmOnly": true
+        },
+        {
+          "to": "deuxième-victime-le-professeur",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Descente dans les égouts",
-      "content": "Réseau sous la ville : passages vers le phare, ossements anciens, chambre d'initiation. Journaux du culte listant les « offrandes » sur vingt ans — noms de victimes futures dont un membre du conseil municipal. Course contre la montre."
+      "content": "Réseau sous la ville : passages vers le phare, ossements anciens, chambre d'initiation. Journaux du culte listant les « offrandes » sur vingt ans — noms de victimes futures dont un membre du conseil municipal. Course contre la montre.",
+      "id": "descente-dans-les-égouts",
+      "tags": [
+        "acte-iv",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-phare-abandonné",
+          "label": "Continuer vers : Le phare abandonné",
+          "default": true
+        },
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Revenir à : Fausse piste : le syndicat des dockers",
+          "gmOnly": true
+        },
+        {
+          "to": "sanctuaire-sous-la-cathédrale",
+          "label": "Sauter à l'acte suivant (V)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "le-témoignage-du-prêtre",
+          "label": "Branche MJ : Le témoignage du prêtre",
+          "gmOnly": true
+        },
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Branche MJ : Nora Pike en danger",
+          "gmOnly": true
+        },
+        {
+          "to": "le-conseil-municipal",
+          "label": "Branche MJ : Le conseil municipal",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Le phare abandonné",
-      "content": "Île rocheuse à marée basse. Le phare abrite le nid du culte : salle circulaire, carte de Marée-Haute avec des croix sur des maisons nobles. Le Messager se révèle — identité selon indices (Hale, Varenne, ou figure surprise). Confrontation partielle, fuite vers le sanctuaire final."
+      "content": "Île rocheuse à marée basse. Le phare abrite le nid du culte : salle circulaire, carte de Marée-Haute avec des croix sur des maisons nobles. Le Messager se révèle — identité selon indices (Hale, Varenne, ou figure surprise). Confrontation partielle, fuite vers le sanctuaire final.",
+      "id": "le-phare-abandonné",
+      "tags": [
+        "acte-iv",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-conseil-municipal",
+          "label": "Continuer vers : Le conseil municipal",
+          "default": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Revenir à : Descente dans les égouts",
+          "gmOnly": true
+        },
+        {
+          "to": "sanctuaire-sous-la-cathédrale",
+          "label": "Sauter à l'acte suivant (V)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "nora-pike-en-danger",
+          "label": "Branche MJ : Nora Pike en danger",
+          "gmOnly": true
+        },
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Branche MJ : Fausse piste : le syndicat des dockers",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-du-serpent",
+          "label": "Branche MJ : Révélation du Serpent",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Le conseil municipal",
-      "content": "Session d'urgence : le groupe présente preuves ou échoue à convaincre. Hale accuse le groupe de diffamation. Alliés politiques à mobiliser (préfet, Nora, flics loyaux). Arrestation ratée si le culte a des hommes dans la garde — émeute ou siège de l'hôtel de ville."
+      "content": "Session d'urgence : le groupe présente preuves ou échoue à convaincre. Hale accuse le groupe de diffamation. Alliés politiques à mobiliser (préfet, Nora, flics loyaux). Arrestation ratée si le culte a des hommes dans la garde — émeute ou siège de l'hôtel de ville.",
+      "id": "le-conseil-municipal",
+      "tags": [
+        "acte-iv",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "sanctuaire-sous-la-cathédrale",
+          "label": "Continuer vers : Sanctuaire sous la cathédrale",
+          "default": true
+        },
+        {
+          "to": "le-phare-abandonné",
+          "label": "Revenir à : Le phare abandonné",
+          "gmOnly": true
+        },
+        {
+          "to": "la-veuve-et-l-héritage",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "fausse-piste-le-syndicat-des-dockers",
+          "label": "Branche MJ : Fausse piste : le syndicat des dockers",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Branche MJ : Descente dans les égouts",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-du-serpent",
+          "label": "Branche MJ : Révélation du Serpent",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Branche MJ : Verdict de Marée-Haute",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte V — Sanctuaire sous la cathédrale",
-      "content": "Dernière piste : crypte sous la cathédrale, jamais cartographiée. Cérémonie en cours — victime vivante sur l'autel. Le Serpent Noir n'est pas qu'un symbole : relique ou entité invoquée. Infiltration silencieuse ou assaut — conséquences sur la réputation du groupe."
+      "content": "Dernière piste : crypte sous la cathédrale, jamais cartographiée. Cérémonie en cours — victime vivante sur l'autel. Le Serpent Noir n'est pas qu'un symbole : relique ou entité invoquée. Infiltration silencieuse ou assaut — conséquences sur la réputation du groupe.",
+      "id": "sanctuaire-sous-la-cathédrale",
+      "tags": [
+        "acte-v",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "révélation-du-serpent",
+          "label": "Continuer vers : Révélation du Serpent",
+          "default": true
+        },
+        {
+          "to": "le-conseil-municipal",
+          "label": "Revenir à : Le conseil municipal",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Revenir au début de l'acte IV",
+          "gmOnly": true
+        },
+        {
+          "to": "le-phare-abandonné",
+          "label": "Branche MJ : Le phare abandonné",
+          "gmOnly": true
+        },
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Branche MJ : Verdict de Marée-Haute",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte V — Révélation du Serpent",
-      "content": "Vérité finale : le culte protège un trafic d'artefacts marins et élimine quiconque approche du secret des Hale. Mobile : pouvoir, immortalité rituelle, ou peur d'une malédiction familiale. Le Messager avoue, se bat, ou se sacrifie. Plusieurs coupables possibles selon les preuves accumulées."
+      "content": "Vérité finale : le culte protège un trafic d'artefacts marins et élimine quiconque approche du secret des Hale. Mobile : pouvoir, immortalité rituelle, ou peur d'une malédiction familiale. Le Messager avoue, se bat, ou se sacrifie. Plusieurs coupables possibles selon les preuves accumulées.",
+      "id": "révélation-du-serpent",
+      "tags": [
+        "acte-v",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "verdict-de-marée-haute",
+          "label": "Continuer vers : Verdict de Marée-Haute",
+          "default": true
+        },
+        {
+          "to": "sanctuaire-sous-la-cathédrale",
+          "label": "Revenir à : Sanctuaire sous la cathédrale",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Revenir au début de l'acte IV",
+          "gmOnly": true
+        },
+        {
+          "to": "le-phare-abandonné",
+          "label": "Branche MJ : Le phare abandonné",
+          "gmOnly": true
+        },
+        {
+          "to": "le-conseil-municipal",
+          "label": "Branche MJ : Le conseil municipal",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte V — Verdict de Marée-Haute",
-      "content": "Épilogue : procès public, réforme de la police, chute de la Fondation, ou cover-up partiel si le groupe a échoué. Nora rédige la chronique ; Dr. Selim enterre les derniers secrets. Affaire classée ou cicatrice ouverte — le MJ IA peut prolonger en enquêtes annexes (survivants du culte, artefacts restants)."
+      "content": "Épilogue : procès public, réforme de la police, chute de la Fondation, ou cover-up partiel si le groupe a échoué. Nora rédige la chronique ; Dr. Selim enterre les derniers secrets. Affaire classée ou cicatrice ouverte — le MJ IA peut prolonger en enquêtes annexes (survivants du culte, artefacts restants).",
+      "id": "verdict-de-marée-haute",
+      "tags": [
+        "acte-v",
+        "fin",
+        "carrefour",
+        "epilogue"
+      ],
+      "transitions": [
+        {
+          "to": "révélation-du-serpent",
+          "label": "Revenir à : Révélation du Serpent",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-les-égouts",
+          "label": "Revenir au début de l'acte IV",
+          "gmOnly": true
+        },
+        {
+          "to": "le-conseil-municipal",
+          "label": "Branche MJ : Le conseil municipal",
+          "gmOnly": true
+        },
+        {
+          "to": "sanctuaire-sous-la-cathédrale",
+          "label": "Branche MJ : Sanctuaire sous la cathédrale",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Commissaire Varenne",
       "role": "Suspect / obstacle",
-      "description": "Chef de police corrompu ou lâche, classe les meurtres. Protège quelqu'un — ou tremble devant le culte."
+      "description": "Chef de police corrompu ou lâche, classe les meurtres. Protège quelqu'un — ou tremble devant le culte.",
+      "id": "commissaire-varenne"
     },
     {
       "name": "Nora Pike",
       "role": "Alliée / journaliste",
-      "description": "Enquête depuis des mois, possède des sources. Risque sa vie pour la vérité — mobile personnel à découvrir."
+      "description": "Enquête depuis des mois, possède des sources. Risque sa vie pour la vérité — mobile personnel à découvrir.",
+      "id": "nora-pike"
     },
     {
       "name": "Dr. Selim",
       "role": "Expert légiste",
-      "description": "Méticuleux, connaît les poisons rares. Cache peut-être un lien avec les victimes ou les Hale."
+      "description": "Méticuleux, connaît les poisons rares. Cache peut-être un lien avec les victimes ou les Hale.",
+      "id": "dr-selim"
     },
     {
       "name": "Banquier Hale",
       "role": "Suspect principal",
-      "description": "Philanthrope en surface, patron de la Fondation. Chaque victime menaçait ses intérêts ou connaissait un secret."
+      "description": "Philanthrope en surface, patron de la Fondation. Chaque victime menaçait ses intérêts ou connaissait un secret.",
+      "id": "banquier-hale"
     },
     {
       "name": "Capitaine Mercier",
       "role": "Suspect / trafic",
-      "description": "Contrôle les docks, signe des manifestes falsifiés. Peut être un pion ou un initié du culte."
+      "description": "Contrôle les docks, signe des manifestes falsifiés. Peut être un pion ou un initié du culte.",
+      "id": "capitaine-mercier"
     },
     {
       "name": "Madame Fontaine",
       "role": "Suspecte / veuve",
-      "description": "Héritière, calme trop parfaite. Aimait-elle son mari ? Savait-elle pour ses dettes envers le culte ?"
+      "description": "Héritière, calme trop parfaite. Aimait-elle son mari ? Savait-elle pour ses dettes envers le culte ?",
+      "id": "madame-fontaine"
     },
     {
       "name": "Père Aldric",
       "role": "Témoin / guide",
-      "description": "Prêtre troublé, a béni les cultistes sans le vouloir. Accès aux cryptes et à la conscience des pauvres."
+      "description": "Prêtre troublé, a béni les cultistes sans le vouloir. Accès aux cryptes et à la conscience des pauvres.",
+      "id": "père-aldric"
     },
     {
       "name": "Lio l'étudiant",
       "role": "Témoin clé",
-      "description": "Assistant d'Orin, terrorisé. A vu qui entrait la nuit du meurtre du professeur — s'il ose parler."
+      "description": "Assistant d'Orin, terrorisé. A vu qui entrait la nuit du meurtre du professeur — s'il ose parler.",
+      "id": "lio-l-étudiant"
     },
     {
       "name": "Le Messager",
       "role": "Antagoniste",
-      "description": "Exécutant du culte, identité masquée jusqu'à l'acte IV. Obéit au « Serpent » — ou est la tête du serpent."
+      "description": "Exécutant du culte, identité masquée jusqu'à l'acte IV. Obéit au « Serpent » — ou est la tête du serpent.",
+      "id": "le-messager"
     }
-  ]
+  ],
+  "startSceneId": "cadavre-sur-le-quai-7"
 }

@@ -8,55 +8,205 @@
   "scenes": [
     {
       "title": "Arrêt forcé en pleine neige",
-      "content": "Le convoi est bloqué entre deux gares. Le contrôleur Voss annonce qu'un passager de la première classe est mort. La police la plus proche n'arrivera qu'à l'aube. Les sept passagers de la voiture-restaurant sont invités à rester dans le salon — personne ne descend."
+      "content": "Le convoi est bloqué entre deux gares. Le contrôleur Voss annonce qu'un passager de la première classe est mort. La police la plus proche n'arrivera qu'à l'aube. Les sept passagers de la voiture-restaurant sont invités à rester dans le salon — personne ne descend.",
+      "id": "arrêt-forcé-en-pleine-neige",
+      "tags": [
+        "debut",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-compartiment-7",
+          "label": "Continuer vers : Le compartiment 7",
+          "default": true
+        },
+        {
+          "to": "interrogatoire-au-salon",
+          "label": "Branche MJ : Interrogatoire au salon",
+          "gmOnly": true
+        },
+        {
+          "to": "la-voiture-bagages",
+          "label": "Branche MJ : La voiture-bagages",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-avant-l-aube",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le compartiment 7",
-      "content": "Hoffmann gît sur son lit, une plaie nette. La porte était verrouillée de l'intérieur, la fenêtre entrouverte sur le vide. Une mallette contient des dossiers compromettants sur chaque passager du train. Une carte à jouer — le valet de pique — est posée sur le corps."
+      "content": "Hoffmann gît sur son lit, une plaie nette. La porte était verrouillée de l'intérieur, la fenêtre entrouverte sur le vide. Une mallette contient des dossiers compromettants sur chaque passager du train. Une carte à jouer — le valet de pique — est posée sur le corps.",
+      "id": "le-compartiment-7",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "interrogatoire-au-salon",
+          "label": "Continuer vers : Interrogatoire au salon",
+          "default": true
+        },
+        {
+          "to": "arrêt-forcé-en-pleine-neige",
+          "label": "Revenir à : Arrêt forcé en pleine neige",
+          "gmOnly": true
+        },
+        {
+          "to": "la-voiture-bagages",
+          "label": "Branche MJ : La voiture-bagages",
+          "gmOnly": true
+        },
+        {
+          "to": "la-cabine-du-conducteur",
+          "label": "Branche MJ : La cabine du conducteur",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-avant-l-aube",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Interrogatoire au salon",
-      "content": "La comtesse, l'inventeur, la veuve, le prêtre, la journaliste et le marchand d'art se contredisient sur les horaires. Voss le contrôleur possède une clef passe-partout. Chacun a quitté le salon « une minute » pendant le dîner."
+      "content": "La comtesse, l'inventeur, la veuve, le prêtre, la journaliste et le marchand d'art se contredisient sur les horaires. Voss le contrôleur possède une clef passe-partout. Chacun a quitté le salon « une minute » pendant le dîner.",
+      "id": "interrogatoire-au-salon",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "la-voiture-bagages",
+          "label": "Continuer vers : La voiture-bagages",
+          "default": true
+        },
+        {
+          "to": "le-compartiment-7",
+          "label": "Revenir à : Le compartiment 7",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-avant-l-aube",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La voiture-bagages",
-      "content": "Une valise ouverte contient un manteau taché et un couteau de chasse propre. Des empreintes sur la trappe du toit mènent à la voiture suivante. Un billet falsifié porte un nom différent de celui d'un passager présent."
+      "content": "Une valise ouverte contient un manteau taché et un couteau de chasse propre. Des empreintes sur la trappe du toit mènent à la voiture suivante. Un billet falsifié porte un nom différent de celui d'un passager présent.",
+      "id": "la-voiture-bagages",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-cabine-du-conducteur",
+          "label": "Continuer vers : La cabine du conducteur",
+          "default": true
+        },
+        {
+          "to": "interrogatoire-au-salon",
+          "label": "Revenir à : Interrogatoire au salon",
+          "gmOnly": true
+        },
+        {
+          "to": "arrêt-forcé-en-pleine-neige",
+          "label": "Branche MJ : Arrêt forcé en pleine neige",
+          "gmOnly": true
+        },
+        {
+          "to": "le-compartiment-7",
+          "label": "Branche MJ : Le compartiment 7",
+          "gmOnly": true
+        },
+        {
+          "to": "révélation-avant-l-aube",
+          "label": "Branche MJ : Révélation avant l'aube",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La cabine du conducteur",
-      "content": "Le mécanicien admet avoir ralenti volontairement avant l'arrêt — on lui a payé. Un télégramme non envoyé mentionne une rançon. Le journal de bord du train comporte une page arrachée."
+      "content": "Le mécanicien admet avoir ralenti volontairement avant l'arrêt — on lui a payé. Un télégramme non envoyé mentionne une rançon. Le journal de bord du train comporte une page arrachée.",
+      "id": "la-cabine-du-conducteur",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "révélation-avant-l-aube",
+          "label": "Continuer vers : Révélation avant l'aube",
+          "default": true
+        },
+        {
+          "to": "la-voiture-bagages",
+          "label": "Revenir à : La voiture-bagages",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Révélation avant l'aube",
-      "content": "La tempête faiblit. Il faut accuser ou laisser filer le coupable au prochain départ. Les alibis, la mallette de Hoffmann et la carte à jouer convergent vers une vérité que personne n'avouera facilement."
+      "content": "La tempête faiblit. Il faut accuser ou laisser filer le coupable au prochain départ. Les alibis, la mallette de Hoffmann et la carte à jouer convergent vers une vérité que personne n'avouera facilement.",
+      "id": "révélation-avant-l-aube",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-cabine-du-conducteur",
+          "label": "Revenir à : La cabine du conducteur",
+          "gmOnly": true
+        },
+        {
+          "to": "interrogatoire-au-salon",
+          "label": "Branche MJ : Interrogatoire au salon",
+          "gmOnly": true
+        },
+        {
+          "to": "la-voiture-bagages",
+          "label": "Branche MJ : La voiture-bagages",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Contrôleur Voss",
       "role": "Suspect / témoin",
-      "description": "Sévère, connaît chaque compartiment. Il possède des passe et cache une dette envers Hoffmann."
+      "description": "Sévère, connaît chaque compartiment. Il possède des passe et cache une dette envers Hoffmann.",
+      "id": "contrôleur-voss"
     },
     {
       "name": "Comtesse Adèle",
       "role": "Suspecte",
-      "description": "Voyage en secret. Hoffmann menaçait de révéler une fausse identité qui lui permet d'hériter."
+      "description": "Voyage en secret. Hoffmann menaçait de révéler une fausse identité qui lui permet d'hériter.",
+      "id": "comtesse-adèle"
     },
     {
       "name": "Inventeur Karl Bren",
       "role": "Suspect",
-      "description": "Nerveux, brevet volé par Hoffmann. Il a quitté le salon pendant le dessert."
+      "description": "Nerveux, brevet volé par Hoffmann. Il a quitté le salon pendant le dessert.",
+      "id": "inventeur-karl-bren"
     },
     {
       "name": "Père Anselme",
       "role": "Témoin / suspect",
-      "description": "Prêtre discret. Il a entendu une dispute dans le couloir — mais refuse de dire entre qui."
+      "description": "Prêtre discret. Il a entendu une dispute dans le couloir — mais refuse de dire entre qui.",
+      "id": "père-anselme"
     },
     {
       "name": "Journaliste Nora Pike",
       "role": "Suspecte / alliée",
-      "description": "Enquête sur Hoffmann depuis des mois. Elle possède des copies des dossiers de la mallette."
+      "description": "Enquête sur Hoffmann depuis des mois. Elle possède des copies des dossiers de la mallette.",
+      "id": "journaliste-nora-pike"
     }
   ],
-  "questFormat": "oneshot"
+  "questFormat": "oneshot",
+  "startSceneId": "arrêt-forcé-en-pleine-neige"
 }

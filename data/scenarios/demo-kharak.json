@@ -1,45 +1,178 @@
 {
   "id": "demo-kharak",
   "questFormat": "long",
+  "startSceneId": "oasis-selim",
   "title": "Les Sables de Kharak",
   "synopsis": "Une caravane a disparu dans le désert de Kharak. Les aventuriers doivent traverser dunes, tempêtes et ruines oubliées pour retrouver les marchands — et ce qu'ils transportaient.",
   "setting": "Désert brûlant, ruines antiques à demi enfouies dans le sable, ciel orange au coucher du soleil.",
   "scenes": [
     {
+      "id": "oasis-selim",
       "title": "L'oasis de Selim",
-      "content": "La dernière étape avant le désert profond. Des nomades parlent d'une « cité engloutie » et de mirages vivants. Une carte partielle est vendue au marché. Le vent porte une odeur de soufre."
+      "tags": [
+        "acte-1",
+        "surface"
+      ],
+      "content": "La dernière étape avant le désert profond. Des nomades parlent d'une « cité engloutie » et de mirages vivants. Une carte partielle est vendue au marché. Le vent porte une odeur de soufre.",
+      "transitions": [
+        {
+          "to": "tempete-sable",
+          "label": "Partir vers le désert profond",
+          "default": true
+        },
+        {
+          "to": "ruines-zhar-rim",
+          "label": "Suivre la piste secrète des nomades",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "tempete-sable",
       "title": "La tempête de sable",
-      "content": "Visibilité nulle. Le groupe doit se lier avec des cordes pour ne pas se perdre. Des voix les appellent par leur nom — mirages du Seigneur des Sables. Un repaire de bandits offre un abri douteux."
+      "tags": [
+        "acte-1",
+        "désert"
+      ],
+      "content": "Visibilité nulle. Le groupe doit se lier avec des cordes pour ne pas se perdre. Des voix les appellent par leur nom — mirages du Seigneur des Sables. Un repaire de bandits offre un abri douteux.",
+      "transitions": [
+        {
+          "to": "ruines-zhar-rim",
+          "label": "Tenir bon jusqu'aux ruines",
+          "default": true
+        },
+        {
+          "to": "tresor-caravane",
+          "label": "Se réfugier chez les bandits (raccourci risqué)",
+          "gmOnly": true
+        },
+        {
+          "to": "oasis-selim",
+          "label": "Revenir à l'oasis",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "ruines-zhar-rim",
       "title": "Les ruines de Zhar-Rim",
-      "content": "Des colonnes de pierre émergent des sables. Des inscriptions préviennent les intrus. Au centre, un puits mène vers des catacombes fraîches. Des scarabées de pierre s'animent au passage du groupe."
+      "tags": [
+        "acte-2",
+        "ruines"
+      ],
+      "content": "Des colonnes de pierre émergent des sables. Des inscriptions préviennent les intrus. Au centre, un puits mène vers des catacombes fraîches. Des scarabées de pierre s'animent au passage du groupe.",
+      "transitions": [
+        {
+          "to": "catacombes-fraiches",
+          "label": "Descendre dans le puits",
+          "default": true
+        },
+        {
+          "to": "tresor-caravane",
+          "label": "Contourner par l'est (MJ)",
+          "gmOnly": true
+        },
+        {
+          "to": "tempete-sable",
+          "label": "Revenir en arrière",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "catacombes-fraiches",
       "title": "Les catacombes fraîches",
-      "content": "Contraste saisissant : fraîcheur et silence sous le désert brûlant. Fresques racontent la chute de Zhar-Rim. Des urnes contiennent des cendres et des gemmes. Un passage s'effondre derrière le groupe."
+      "tags": [
+        "acte-2",
+        "souterrain"
+      ],
+      "content": "Contraste saisissant : fraîcheur et silence sous le désert brûlant. Fresques racontent la chute de Zhar-Rim. Des urnes contiennent des cendres et des gemmes. Un passage s'effondre derrière le groupe.",
+      "transitions": [
+        {
+          "to": "tresor-caravane",
+          "label": "Sortir vers la caravane assiégée",
+          "default": true
+        },
+        {
+          "to": "tribunal-seigneur",
+          "label": "Passage rituel direct vers le tribunal",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "tresor-caravane",
       "title": "Le trésor de la caravane",
-      "content": "Les marchands sont retrouvés, assiégés par des scarabées géants. Yasmina la caravanière protège un coffre scellé. Leur cargaison contient un artefact qui attire les créatures du désert."
+      "tags": [
+        "acte-3",
+        "confrontation"
+      ],
+      "content": "Les marchands sont retrouvés, assiégés par des scarabées géants. Yasmina la caravanière protège un coffre scellé. Leur cargaison contient un artefact qui attire les créatures du désert.",
+      "transitions": [
+        {
+          "to": "tribunal-seigneur",
+          "label": "Affronter le Seigneur des Sables",
+          "default": true
+        },
+        {
+          "to": "ruines-zhar-rim",
+          "label": "Repli vers les ruines",
+          "gmOnly": true
+        },
+        {
+          "to": "oasis-selim",
+          "label": "Fuite vers l'oasis (fin alternative)",
+          "gmOnly": true
+        }
+      ]
     },
     {
+      "id": "tribunal-seigneur",
       "title": "Le tribunal du Seigneur des Sables",
-      "content": "L'esprit ancien émerge des dunes en tempête. Il exige un tribut, une épreuve de sagesse ou un combat. Le sort de la caravane et de l'artefact se joue ici, sous un ciel de feu."
+      "tags": [
+        "acte-3",
+        "fin"
+      ],
+      "content": "L'esprit ancien émerge des dunes en tempête. Il exige un tribut, une épreuve de sagesse ou un combat. Le sort de la caravane et de l'artefact se joue ici, sous un ciel de feu.",
+      "transitions": [
+        {
+          "to": "tresor-caravane",
+          "label": "Revenir à : Le trésor de la caravane",
+          "gmOnly": true
+        },
+        {
+          "to": "ruines-zhar-rim",
+          "label": "Branche MJ : Les ruines de Zhar-Rim",
+          "gmOnly": true
+        },
+        {
+          "to": "catacombes-fraiches",
+          "label": "Branche MJ : Les catacombes fraîches",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
+      "id": "yasmina",
       "name": "Yasmina la caravanière",
       "role": "Survivante",
-      "description": "Marchande épuisée qui cache la véritable nature de la cargaison."
+      "description": "Marchande épuisée qui cache la véritable nature de la cargaison.",
+      "scenes": [
+        "tresor-caravane",
+        "tribunal-seigneur"
+      ]
     },
     {
+      "id": "seigneur-sables",
       "name": "Le Seigneur des Sables",
       "role": "Antagoniste",
-      "description": "Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse."
+      "description": "Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse.",
+      "scenes": [
+        "tempete-sable",
+        "tribunal-seigneur"
+      ]
     }
   ]
 }
