@@ -1,0 +1,423 @@
+# Multijoueur OpenQuest JDR — Architecture P2P + Pooling
+
+> Document de référence pour le multijoueur OpenQuest.  
+> Dernière mise à jour : septembre 2026 — branche `server/pooling-v1`.
+
+---
+
+## 1. Vue d'ensemble
+
+OpenQuest passe d'un **serveur autoritaire Node** (tout le jeu transite par le PC hôte) à un modèle **P2P + serveur de pooling** :
+
+```
+┌─────────────┐     WebSocket      ┌──────────────────┐     WebSocket      ┌─────────────┐
+│  Joueur 1   │◄──────────────────►│ Serveur pooling  │◄──────────────────►│  Joueur 2   │
+│  (Hôte P2P) │   matchmaking only │  (Node, :8080)   │   matchmaking only │  (Client)   │
+└──────┬──────┘                    └──────────────────┘                    └──────┬──────┘
+       │                                                                            │
+       └──────────────────── ENet P2P (port 7777) ──────────────────────────────────┘
+                              État de jeu, actions, dés
+```
+
+| Composant | Rôle |
+|-----------|------|
+| **Serveur pooling** | Matchmaking, salons à code 4 chiffres, signalisation WebRTC (phase 2), aucune logique de jeu |
+| **Hôte P2P (Godot ENet)** | Autorité locale : état de partie, sync actions/dés entre pairs |
+| **Client Godot** | Connexion pooling → rejoindre salon → connexion ENet vers l'hôte |
+
+### Modes serveur
+
+| Variable | Mode | Description |
+|----------|------|-------------|
+| *(défaut)* | **Pooling** | Salons, codes, adresses P2P — pas de logique de jeu |
+| `LEGACY_MODE=1` | **Legacy** | Serveur autoritaire d'origine (LAN, lobby global, MJ IA côté serveur) |
+
+```powershell
+# Pooling (défaut)
+cd server && npm run dev
+
+# Legacy LAN autoritaire
+$env:LEGACY_MODE="1"; npm run dev
+```
+
+---
+
+## 2. Phases de développement
+
+### Phase 0 — Fondations LAN (✅ `server/dev-collab`)
+- WebSocket JSON sur port 8080
+- Lobby global, `register_character`, sync actions/dés
+- Connexion LAN par IP (`ws://192.168.x.x:8080`)
+
+### Phase 1 — Pooling v1 (✅ `server/pooling-v1`)
+- Salons à code 4 chiffres (`create_room`, `join_room`, `leave_room`, `list_rooms`)
+- `register_character` dans le contexte d'un salon
+- Hôte ENet Godot sur port **7777**, adresse publiée via `set_p2p_host`
+- Mode legacy conservé derrière `LEGACY_MODE=1`
+
+### Phase 2 — Signalisation WebRTC (à venir)
+- Messages `signal` (offer/answer/ICE) relayés par le serveur pooling
+- NAT traversal pour joueurs sur Internet sans port forwarding
+- Remplacement progressif d'ENet LAN par WebRTC DataChannel
+
+### Phase 3 — Autorité P2P complète (à venir)
+- État de partie synchronisé entre pairs (CRDT ou hôte autoritaire Godot)
+- MJ IA locale ou hybride (un joueur = GM, les autres = PJ)
+- Bots gérés par l'hôte
+
+### Phase 4 — Production (à venir)
+- Serveur pooling déployé (VPS léger, ~512 Mo RAM)
+- Authentification optionnelle, modération des salons
+- Reconnexion après déconnexion
+
+---
+
+## 3. Protocole pooling (WebSocket JSON)
+
+Tous les messages sont du JSON UTF-8 sur `ws://host:8080`.  
+Connexion initiale : `ws://127.0.0.1:8080?name=Pseudo` (optionnel).
+
+### 3.1 Client → Serveur
+
+#### `register_player`
+Enregistre ou met à jour le pseudo du joueur.
+
+```json
+{ "type": "register_player", "playerName": "Aragorn" }
+```
+
+#### `get_lobby` / `list_rooms`
+Demande la liste des salons publics.
+
+```json
+{ "type": "list_rooms" }
+```
+
+#### `create_room`
+Crée un salon. Le créateur devient hôte.
+
+```json
+{
+  "type": "create_room",
+  "roomName": "Aventure du vendredi",
+  "maxPlayers": 4,
+  "p2pHost": "192.168.0.42:7777"
+}
+```
+
+| Champ | Type | Défaut | Description |
+|-------|------|--------|-------------|
+| `roomName` | string | `"Salon XXXX"` | Nom affiché |
+| `maxPlayers` | number | 6 | 2–8 joueurs |
+| `p2pHost` | string? | null | Adresse ENet (rempli par l'hôte après `create_server`) |
+
+#### `join_room`
+Rejoint un salon par code 4 chiffres.
+
+```json
+{ "type": "join_room", "code": "4827" }
+```
+
+#### `leave_room`
+Quitte le salon actuel.
+
+```json
+{ "type": "leave_room" }
+```
+
+#### `register_character`
+Enregistre le personnage du joueur **dans le salon courant**.
+
+```json
+{
+  "type": "register_character",
+  "character": {
+    "name": "Aragorn",
+    "race": "Humain",
+    "class": "Guerrier",
+    "stats": { "str": 16, "dex": 12, "con": 14, "int": 10, "wis": 13, "cha": 11 },
+    "hp": 12,
+    "ac": 16,
+    "isPlayer": true,
+    "isHuman": true,
+    "isBot": false
+  }
+}
+```
+
+#### `set_p2p_host`
+L'hôte publie son adresse ENet pour que les clients se connectent.
+
+```json
+{ "type": "set_p2p_host", "address": "192.168.0.42:7777" }
+```
+
+#### `signal` (Phase 2 — WebRTC)
+Relais de signalisation entre deux joueurs du même salon.
+
+```json
+{
+  "type": "signal",
+  "targetPlayerId": "uuid-du-destinataire",
+  "signalType": "offer",
+  "payload": { "sdp": "..." }
+}
+```
+
+`signalType` : `"offer"` | `"answer"` | `"ice"`
+
+#### `ping`
+
+```json
+{ "type": "ping" }
+```
+
+---
+
+### 3.2 Serveur → Client
+
+#### `welcome`
+
+```json
+{ "type": "welcome", "playerId": "uuid", "playerName": "Aragorn" }
+```
+
+#### `lobby_update`
+Liste des salons disponibles.
+
+```json
+{
+  "type": "lobby_update",
+  "rooms": [
+    {
+      "code": "4827",
+      "name": "Aventure du vendredi",
+      "hostId": "uuid-hote",
+      "hostName": "Aragorn",
+      "playerCount": 2,
+      "maxPlayers": 4,
+      "p2pHost": "192.168.0.42:7777",
+      "createdAt": 1725300000000
+    }
+  ]
+}
+```
+
+#### `room_update`
+État complet du salon (envoyé à tous les membres à chaque changement).
+
+```json
+{
+  "type": "room_update",
+  "room": {
+    "code": "4827",
+    "name": "Aventure du vendredi",
+    "hostId": "uuid-hote",
+    "maxPlayers": 4,
+    "p2pHost": "192.168.0.42:7777",
+    "players": [
+      {
+        "playerId": "uuid-hote",
+        "playerName": "Aragorn",
+        "isHost": true,
+        "character": { "name": "Aragorn", "race": "Humain", "class": "Guerrier" },
+        "joinedAt": 1725300000000
+      }
+    ],
+    "createdAt": 1725300000000
+  }
+}
+```
+
+#### `host_assigned`
+Confirme à l'hôte qu'il doit démarrer ENet.
+
+```json
+{ "type": "host_assigned", "hostId": "uuid", "p2pHost": null }
+```
+
+#### `player_joined` / `player_left`
+
+```json
+{ "type": "player_joined", "playerId": "uuid", "playerName": "Legolas", "roomCode": "4827" }
+{ "type": "player_left", "playerId": "uuid", "roomCode": "4827" }
+```
+
+#### `signal` (Phase 2)
+
+```json
+{
+  "type": "signal",
+  "fromPlayerId": "uuid-expediteur",
+  "signalType": "answer",
+  "payload": { "sdp": "..." }
+}
+```
+
+#### `error`
+
+```json
+{ "type": "error", "message": "Salon 9999 introuvable.", "code": "JOIN_FAILED" }
+```
+
+Codes d'erreur : `CREATE_FAILED`, `JOIN_FAILED`
+
+#### `pong`
+
+```json
+{ "type": "pong" }
+```
+
+---
+
+## 4. Protocole ENet P2P (Godot 4)
+
+Une fois le salon rejoint et l'adresse P2P connue, les clients Godot établissent une connexion **ENet** directe.
+
+### 4.1 Configuration
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Port ENet | **7777** |
+| Max peers | 8 |
+| Bibliothèque | `ENetMultiplayerPeer` (Godot 4 natif) |
+
+### 4.2 Flux de connexion
+
+```
+1. Joueur A crée salon (pooling) → reçoit code 4827
+2. Joueur A : ENetMultiplayerPeer.create_server(7777)
+3. Joueur A : set_p2p_host("192.168.0.42:7777") via pooling
+4. Joueur B rejoint salon 4827 → reçoit p2pHost dans room_update
+5. Joueur B : ENetMultiplayerPeer.create_client("192.168.0.42", 7777)
+6. Connexion P2P établie — multiplayer.is_server() == true côté A
+```
+
+### 4.3 RPC Godot (Phase 3 — à implémenter)
+
+Les RPC suivants seront ajoutés pour synchroniser la session de jeu :
+
+```gdscript
+# Hôte → tous les clients
+@rpc("authority", "call_local", "reliable")
+func sync_game_state(state: Dictionary) -> void:
+    GameData.apply_server_state(state)
+
+# Client → hôte
+@rpc("any_peer", "call_remote", "reliable")
+func submit_action(action_text: String) -> void:
+    pass  # hôte valide et diffuse
+
+# Hôte → tous
+@rpc("authority", "call_local", "reliable")
+func broadcast_dice_result(result: Dictionary, formatted: String) -> void:
+    pass
+
+# Client → hôte : demande lancement partie
+@rpc("any_peer", "call_remote", "reliable")
+func request_start_game(scenario_id: String, party: Array) -> void:
+    pass
+```
+
+Conventions :
+- **`authority`** : seul l'hôte (peer 1) peut appeler
+- **`any_peer`** : n'importe quel client connecté
+- **`call_local`** : exécuté aussi localement chez l'appelant
+- **`reliable`** : garantie de livraison (TCP-like)
+
+### 4.4 Identifiants réseau
+
+| Concept | Valeur |
+|---------|--------|
+| `multiplayer.get_unique_id()` | 1 = serveur/hôte, 2+ = clients |
+| `player_id` (pooling) | UUID serveur pooling — identité persistante hors P2P |
+| `room_code` | Code 4 chiffres — identifiant de salon |
+
+---
+
+## 5. Architecture fichiers
+
+```
+server/
+├── src/
+│   ├── index.ts              # Routeur LEGACY_MODE
+│   ├── lobby/
+│   │   ├── server.ts         # Serveur pooling WebSocket
+│   │   ├── handler.ts        # Gestion messages pooling
+│   │   ├── rooms.ts          # RoomManager (codes, joueurs)
+│   │   └── types.ts          # Types pooling
+│   └── legacy/
+│       └── server.ts         # Serveur autoritaire (LEGACY_MODE=1)
+│
+game/
+├── scripts/
+│   ├── multiplayer/
+│   │   └── multiplayer_manager.gd   # Autoload ENet + pooling
+│   ├── network_client.gd            # WebSocket legacy (LEGACY_MODE)
+│   └── main_menu.gd                 # UI salons P2P
+└── project.godot                    # Autoload MultiplayerManager
+```
+
+---
+
+## 6. Tester à 2 joueurs
+
+### Prérequis
+- Node.js 20+
+- Godot 4.4+ (testé avec 4.7.2)
+- Même réseau LAN (WiFi/Ethernet)
+
+### Étapes
+
+**Terminal 1 — Serveur pooling :**
+```powershell
+cd D:\git\OpenQuest_jdr\server
+npm run dev
+```
+
+**Joueur 1 (Hôte) :**
+1. Lancer Godot : `.\scripts\play-godot.ps1`
+2. Menu → section **Salon multijoueur (P2P)**
+3. Se connecter au pooling (`ws://127.0.0.1:8080`)
+4. Cliquer **Créer un salon** → noter le code (ex. `4827`)
+5. Enregistrer son personnage
+6. L'hôte ENet démarre automatiquement sur port 7777
+
+**Joueur 2 (Client) — autre PC ou 2e instance Godot :**
+1. Lancer Godot
+2. Se connecter au pooling (`ws://IP_DU_SERVEUR:8080`)
+3. Entrer le code `4827` → **Rejoindre**
+4. Enregistrer son personnage
+5. Connexion ENet automatique vers l'hôte
+
+**Vérifications :**
+- Le code salon s'affiche chez l'hôte
+- Les deux joueurs apparaissent dans la liste du salon
+- Statut P2P : « Connecté (ENet) » après quelques secondes
+
+### Mode legacy (comparaison)
+```powershell
+$env:LEGACY_MODE="1"; npm run dev
+```
+Utiliser le panneau **Connexion réseau (LAN)** du menu — comportement identique à `server/dev-collab`.
+
+---
+
+## 7. Limitations connues (v1)
+
+| Limitation | Contournement |
+|------------|---------------|
+| ENet LAN uniquement (pas Internet) | Phase 2 WebRTC |
+| Pas de sync de partie P2P encore | Phase 3 RPC |
+| Salons volatiles (RAM, pas de persistance) | Phase 4 déploiement |
+| Hôte = autorité — si hôte quitte, salon migré mais P2P coupé | Reconnexion manuelle |
+| Pare-feu Windows peut bloquer port 7777 | Autoriser Godot dans le pare-feu |
+
+---
+
+## 8. Références
+
+- [Godot 4 — High-level multiplayer](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html)
+- [ENetMultiplayerPeer](https://docs.godotengine.org/en/stable/classes/class_enetmultiplayerpeer.html)
+- `docs/COLLABORATION.md` — workflow Git entre développeurs
+- `docs/MCP.md` — MJ IA via MCP (mode legacy)

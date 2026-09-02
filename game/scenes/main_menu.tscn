@@ -77,6 +77,127 @@ layout_mode = 2
 [node name="NetworkPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 
+[node name="PoolingPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingTitle" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 16
+text = "🎲 Salon multijoueur (P2P)"
+
+[node name="LblPoolingHint" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 13
+text = "Serveur de pooling → salon à code → connexion ENet directe entre joueurs."
+autowrap_mode = 2
+
+[node name="PoolingUrlRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingUrl" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingUrlRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Pooling :"
+
+[node name="PoolingUrlInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingUrlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ws://127.0.0.1:8080"
+text = "ws://127.0.0.1:8080"
+
+[node name="PoolingConnectRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnConnectPooling" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔌 Connexion pooling"
+
+[node name="PoolingStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "○ Non connecté"
+
+[node name="RoomActionsRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "➕ Créer un salon"
+
+[node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
+placeholder_text = "4827"
+max_length = 4
+
+[node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔗 Rejoindre"
+
+[node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✕ Quitter"
+
+[node name="RoomCodeLabel" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 18
+text = ""
+
+[node name="P2pStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = ""
+
+[node name="LblPoolingPlayers" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
+text = "👥 Joueurs du salon"
+
+[node name="PoolingPlayersVBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PoolingCharRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingChar" type="Label" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingCharRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Personnage :"
+
+[node name="OptPoolingChar" type="OptionButton" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox/PoolingCharRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnPoolingRegisterChar" type="Button" parent="ScrollContainer/Margin/VBox/PoolingPanel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✓ Enregistrer mon personnage (salon)"
+
 [node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -91,7 +212,7 @@ text = "🌐 Connexion réseau (LAN)"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 theme_override_font_sizes/font_size = 13
-text = "Hôte : ws://127.0.0.1:8080 · Autre joueur : ws://IP_DU_HOTE:8080"
+text = "Legacy autoritaire — LEGACY_MODE=true sur le serveur · ws://IP:8080"
 autowrap_mode = 2
 
 [node name="ServerRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
@@ -141,6 +262,40 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 text = "○ Hors ligne"
+
+[node name="RoomRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RoomCodeLabel" type="Label" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Aucun salon — créez ou rejoignez avec un code"
+
+[node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "➕ Créer salon"
+
+[node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
+placeholder_text = "4821"
+max_length = 4
+
+[node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔗 Rejoindre"
+
+[node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox/RoomRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "🚪 Quitter salon"
 
 [node name="LobbyPanel" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/NetworkPanel/VBox"]
 layout_mode = 2
