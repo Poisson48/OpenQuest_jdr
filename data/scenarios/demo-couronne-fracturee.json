@@ -7,122 +7,821 @@
   "scenes": [
     {
       "title": "Acte I — La nouvelle de Valdris",
-      "content": "Les cloches sonnent le deuil. Le roi Aldric III est mort dans son lit, couronne encore vissée sur le crâne. À Valdris, la Garde royale verrouille les portes du palais ; les ducs convoquent leurs bannerets. Une servante murmure que la marque noire sur le poignet du roi n'était pas là la veille. Le groupe arrive comme émissaires, mercenaires ou héros convoqués — le conseil doit se tenir dans trois jours."
+      "content": "Les cloches sonnent le deuil. Le roi Aldric III est mort dans son lit, couronne encore vissée sur le crâne. À Valdris, la Garde royale verrouille les portes du palais ; les ducs convoquent leurs bannerets. Une servante murmure que la marque noire sur le poignet du roi n'était pas là la veille. Le groupe arrive comme émissaires, mercenaires ou héros convoqués — le conseil doit se tenir dans trois jours.",
+      "id": "la-nouvelle-de-valdris",
+      "tags": [
+        "acte-i",
+        "debut",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-conseil-des-cinq-ducs",
+          "label": "Continuer vers : Le conseil des cinq ducs",
+          "default": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-route-des-réfugiés",
+          "label": "Branche MJ : La route des réfugiés",
+          "gmOnly": true
+        },
+        {
+          "to": "première-nuit-aux-murailles",
+          "label": "Branche MJ : Première nuit aux murailles",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — Le conseil des cinq ducs",
-      "content": "Hall du trône surchargé de bannières rivales. Duc Harald (guerre), duchesse Mira (commerce), duc Corvin (foi), duc Lyonel (intrigues), duchess Sylka (marché du nord) — chacun réclame la couronne. Un messager épuisé annonce des pillards aux frontières et des lumières vertes au-dessus du fort de Brume-noire. Le régent provisoire demande aux aventuriers d'enquêter avant que le royaume ne se déchire."
+      "content": "Hall du trône surchargé de bannières rivales. Duc Harald (guerre), duchesse Mira (commerce), duc Corvin (foi), duc Lyonel (intrigues), duchess Sylka (marché du nord) — chacun réclame la couronne. Un messager épuisé annonce des pillards aux frontières et des lumières vertes au-dessus du fort de Brume-noire. Le régent provisoire demande aux aventuriers d'enquêter avant que le royaume ne se déchire.",
+      "id": "le-conseil-des-cinq-ducs",
+      "tags": [
+        "acte-i"
+      ],
+      "transitions": [
+        {
+          "to": "la-route-des-réfugiés",
+          "label": "Continuer vers : La route des réfugiés",
+          "default": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir à : La nouvelle de Valdris",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — La route des réfugiés",
-      "content": "Sur la grand-route sud, des colonnes de paysans fuient vers Valdris. Ils parlent de « soldats sans visage » la nuit et de récoltes brûlées. Un convoi de la duchesse Mira est attaqué ; survivants implorent protection. Choix difficile : escorter les réfugiés (perte de temps) ou foncer vers le nord. Indices : une bannière arrachée porte le sigil du duc Lyonel — ou un faux."
+      "content": "Sur la grand-route sud, des colonnes de paysans fuient vers Valdris. Ils parlent de « soldats sans visage » la nuit et de récoltes brûlées. Un convoi de la duchesse Mira est attaqué ; survivants implorent protection. Choix difficile : escorter les réfugiés (perte de temps) ou foncer vers le nord. Indices : une bannière arrachée porte le sigil du duc Lyonel — ou un faux.",
+      "id": "la-route-des-réfugiés",
+      "tags": [
+        "acte-i",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "première-nuit-aux-murailles",
+          "label": "Continuer vers : Première nuit aux murailles",
+          "default": true
+        },
+        {
+          "to": "le-conseil-des-cinq-ducs",
+          "label": "Revenir à : Le conseil des cinq ducs",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Sauter à l'acte suivant (II)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Branche MJ : La nouvelle de Valdris",
+          "gmOnly": true
+        },
+        {
+          "to": "les-runes-fissurées",
+          "label": "Branche MJ : Les runes fissurées",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte I — Première nuit aux murailles",
-      "content": "Le fortin de Garde-Haute abrite le groupe pour la nuit. Le capitaine Elwen montre des flèches noircies trouvées sur les cadavres. À minuit, une attaque de créatures en lambeaux teste les remparts. Au matin, un éclaireur rapporte que les runes du pont de Brume-noire brillent faiblement — signe que le Sceau du Nord s'affaiblit."
+      "content": "Le fortin de Garde-Haute abrite le groupe pour la nuit. Le capitaine Elwen montre des flèches noircies trouvées sur les cadavres. À minuit, une attaque de créatures en lambeaux teste les remparts. Au matin, un éclaireur rapporte que les runes du pont de Brume-noire brillent faiblement — signe que le Sceau du Nord s'affaiblit.",
+      "id": "première-nuit-aux-murailles",
+      "tags": [
+        "acte-i"
+      ],
+      "transitions": [
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Continuer vers : Le fort de Brume-noire",
+          "default": true
+        },
+        {
+          "to": "la-route-des-réfugiés",
+          "label": "Revenir à : La route des réfugiés",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Le fort de Brume-noire",
-      "content": "Forteresse en ruine sur un éperon rocheux. La garnison est réduite de moitié ; le commandant Torval affirme avoir vu le Roi Corbeau dans ses rêves — entité légendaire scellée sous la montagne. Sous la chapelle, une porte de fer gravée de chaînes fissurées pulse. Il faudra plusieurs explorations pour comprendre l'étendue du danger."
+      "content": "Forteresse en ruine sur un éperon rocheux. La garnison est réduite de moitié ; le commandant Torval affirme avoir vu le Roi Corbeau dans ses rêves — entité légendaire scellée sous la montagne. Sous la chapelle, une porte de fer gravée de chaînes fissurées pulse. Il faudra plusieurs explorations pour comprendre l'étendue du danger.",
+      "id": "le-fort-de-brume-noire",
+      "tags": [
+        "acte-ii"
+      ],
+      "transitions": [
+        {
+          "to": "les-runes-fissurées",
+          "label": "Continuer vers : Les runes fissurées",
+          "default": true
+        },
+        {
+          "to": "première-nuit-aux-murailles",
+          "label": "Revenir à : Première nuit aux murailles",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Les runes fissurées",
-      "content": "Crypte sous le fort : runes naines et elfiques entremêlées, datant de l'Alliance des Trois Couronnes. Un grimoire poussiéreux explique que le sceau demande un « serment renouvelé » du titulaire légitime d'Aldermar — ou se brisera en sept lunes. Quelqu'un a gratté trois runes récemment. Piste vers la bibliothèque royale de Valdris."
+      "content": "Crypte sous le fort : runes naines et elfiques entremêlées, datant de l'Alliance des Trois Couronnes. Un grimoire poussiéreux explique que le sceau demande un « serment renouvelé » du titulaire légitime d'Aldermar — ou se brisera en sept lunes. Quelqu'un a gratté trois runes récemment. Piste vers la bibliothèque royale de Valdris.",
+      "id": "les-runes-fissurées",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-village-des-sans-nom",
+          "label": "Continuer vers : Le village des Sans-Nom",
+          "default": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Revenir à : Le fort de Brume-noire",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "la-route-des-réfugiés",
+          "label": "Branche MJ : La route des réfugiés",
+          "gmOnly": true
+        },
+        {
+          "to": "première-nuit-aux-murailles",
+          "label": "Branche MJ : Première nuit aux murailles",
+          "gmOnly": true
+        },
+        {
+          "to": "l-ambassade-naine-de-keldorm",
+          "label": "Branche MJ : L'ambassade naine de Keldorm",
+          "gmOnly": true
+        },
+        {
+          "to": "trahison-aux-ponts-de-sel",
+          "label": "Branche MJ : Trahison aux ponts de Sel",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Le village des Sans-Nom",
-      "content": "Hameau oublié dans la vallée, habitants terrifiés, enfants qui dessinent le même corbeau à trois yeux. La chamane Oldra connaît la légende : le premier roi scella son frère jumeau corrompu par une entité du Gouffre. Elle peut guider le groupe vers Keldorm, cité naine où reposent les archives du serment."
+      "content": "Hameau oublié dans la vallée, habitants terrifiés, enfants qui dessinent le même corbeau à trois yeux. La chamane Oldra connaît la légende : le premier roi scella son frère jumeau corrompu par une entité du Gouffre. Elle peut guider le groupe vers Keldorm, cité naine où reposent les archives du serment.",
+      "id": "le-village-des-sans-nom",
+      "tags": [
+        "acte-ii"
+      ],
+      "transitions": [
+        {
+          "to": "l-ambassade-naine-de-keldorm",
+          "label": "Continuer vers : L'ambassade naine de Keldorm",
+          "default": true
+        },
+        {
+          "to": "les-runes-fissurées",
+          "label": "Revenir à : Les runes fissurées",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — L'ambassade naine de Keldorm",
-      "content": "Tunnels lumineux, forge éternelle, négociations tendues. L'archiviste Thrain montre le Traité de Cendres : seul un roi couronné à Valdris avec les trois reliques peut renouveler le sceau. Problème : les reliques (épée, anneau, calice) ont été dispersées après la guerre civile d'il y a cent ans. Thrain soupçonne le duc Corvin d'en cacher une."
+      "content": "Tunnels lumineux, forge éternelle, négociations tendues. L'archiviste Thrain montre le Traité de Cendres : seul un roi couronné à Valdris avec les trois reliques peut renouveler le sceau. Problème : les reliques (épée, anneau, calice) ont été dispersées après la guerre civile d'il y a cent ans. Thrain soupçonne le duc Corvin d'en cacher une.",
+      "id": "l-ambassade-naine-de-keldorm",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "trahison-aux-ponts-de-sel",
+          "label": "Continuer vers : Trahison aux ponts de Sel",
+          "default": true
+        },
+        {
+          "to": "le-village-des-sans-nom",
+          "label": "Revenir à : Le village des Sans-Nom",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Sauter à l'acte suivant (III)",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Branche MJ : Le fort de Brume-noire",
+          "gmOnly": true
+        },
+        {
+          "to": "les-runes-fissurées",
+          "label": "Branche MJ : Les runes fissurées",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Branche MJ : La bibliothèque des rois maudits",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte II — Trahison aux ponts de Sel",
-      "content": "Retour vers le sud : le pont stratégique de Sel est occupé par les hommes du duc Lyonel, qui exige la capture du groupe « pour le bon ordre du royaume ». Combat, négociation ou détour dangereux par les marécages. Un prisonnier révèle que Lyonel négocie en secret avec des cultistes du Gouffre — il croit pouvoir contrôler le Roi Corbeau."
+      "content": "Retour vers le sud : le pont stratégique de Sel est occupé par les hommes du duc Lyonel, qui exige la capture du groupe « pour le bon ordre du royaume ». Combat, négociation ou détour dangereux par les marécages. Un prisonnier révèle que Lyonel négocie en secret avec des cultistes du Gouffre — il croit pouvoir contrôler le Roi Corbeau.",
+      "id": "trahison-aux-ponts-de-sel",
+      "tags": [
+        "acte-ii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Continuer vers : Siège de la citadelle d'Or",
+          "default": true
+        },
+        {
+          "to": "l-ambassade-naine-de-keldorm",
+          "label": "Revenir à : L'ambassade naine de Keldorm",
+          "gmOnly": true
+        },
+        {
+          "to": "la-nouvelle-de-valdris",
+          "label": "Revenir au début de l'acte I",
+          "gmOnly": true
+        },
+        {
+          "to": "les-runes-fissurées",
+          "label": "Branche MJ : Les runes fissurées",
+          "gmOnly": true
+        },
+        {
+          "to": "le-village-des-sans-nom",
+          "label": "Branche MJ : Le village des Sans-Nom",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Branche MJ : La bibliothèque des rois maudits",
+          "gmOnly": true
+        },
+        {
+          "to": "le-pacte-oublié",
+          "label": "Branche MJ : Le pacte oublié",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Siège de la citadelle d'Or",
-      "content": "Valdris bascule en guerre ouverte : Harald assiège la citadelle d'Or où Mira a barricadé les entrepôts royaux. Le groupe doit traverser les lignes, négocier un cessez-le-feu ou voler les provisions. Dans les caves, première relique : l'Anneau du Serment, gardé par un golem de cire mélée."
+      "content": "Valdris bascule en guerre ouverte : Harald assiège la citadelle d'Or où Mira a barricadé les entrepôts royaux. Le groupe doit traverser les lignes, négocier un cessez-le-feu ou voler les provisions. Dans les caves, première relique : l'Anneau du Serment, gardé par un golem de cire mélée.",
+      "id": "siège-de-la-citadelle-d-or",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Continuer vers : La bibliothèque des rois maudits",
+          "default": true
+        },
+        {
+          "to": "trahison-aux-ponts-de-sel",
+          "label": "Revenir à : Trahison aux ponts de Sel",
+          "gmOnly": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "le-village-des-sans-nom",
+          "label": "Branche MJ : Le village des Sans-Nom",
+          "gmOnly": true
+        },
+        {
+          "to": "l-ambassade-naine-de-keldorm",
+          "label": "Branche MJ : L'ambassade naine de Keldorm",
+          "gmOnly": true
+        },
+        {
+          "to": "le-pacte-oublié",
+          "label": "Branche MJ : Le pacte oublié",
+          "gmOnly": true
+        },
+        {
+          "to": "marche-des-ombres",
+          "label": "Branche MJ : Marche des ombres",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — La bibliothèque des rois maudits",
-      "content": "Retour au palais — section interdite. Manuscrits racontent la chute du jumeau corrompu, Corvus. Sylka y est déjà, cherchant la vérité pour le nord. Ensemble ou en rivalité, vous découvrez que le roi mort a été empoisonné par le culte — la marque noire est une malédiction qui accélère la rupture du sceau. Deuxième relique : le Calice des Larmes, dissimulé dans un tombeau familial."
+      "content": "Retour au palais — section interdite. Manuscrits racontent la chute du jumeau corrompu, Corvus. Sylka y est déjà, cherchant la vérité pour le nord. Ensemble ou en rivalité, vous découvrez que le roi mort a été empoisonné par le culte — la marque noire est une malédiction qui accélère la rupture du sceau. Deuxième relique : le Calice des Larmes, dissimulé dans un tombeau familial.",
+      "id": "la-bibliothèque-des-rois-maudits",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-pacte-oublié",
+          "label": "Continuer vers : Le pacte oublié",
+          "default": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Revenir à : Siège de la citadelle d'Or",
+          "gmOnly": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "l-ambassade-naine-de-keldorm",
+          "label": "Branche MJ : L'ambassade naine de Keldorm",
+          "gmOnly": true
+        },
+        {
+          "to": "trahison-aux-ponts-de-sel",
+          "label": "Branche MJ : Trahison aux ponts de Sel",
+          "gmOnly": true
+        },
+        {
+          "to": "marche-des-ombres",
+          "label": "Branche MJ : Marche des ombres",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Le pacte oublié",
-      "content": "Corvin convoque le groupe en cathedrale : il possède l'Épée de l'Aube, troisième relique, mais refuse de la remettre sans garanties pour l'Église. Révélation : le grand prêtre cache un cultiste parmi ses novices. Purifier la cathédrale ou forcer la main au duc — conséquences durables sur la confiance du peuple."
+      "content": "Corvin convoque le groupe en cathedrale : il possède l'Épée de l'Aube, troisième relique, mais refuse de la remettre sans garanties pour l'Église. Révélation : le grand prêtre cache un cultiste parmi ses novices. Purifier la cathédrale ou forcer la main au duc — conséquences durables sur la confiance du peuple.",
+      "id": "le-pacte-oublié",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "marche-des-ombres",
+          "label": "Continuer vers : Marche des ombres",
+          "default": true
+        },
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Revenir à : La bibliothèque des rois maudits",
+          "gmOnly": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Sauter à l'acte suivant (IV)",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "trahison-aux-ponts-de-sel",
+          "label": "Branche MJ : Trahison aux ponts de Sel",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Branche MJ : Siège de la citadelle d'Or",
+          "gmOnly": true
+        },
+        {
+          "to": "le-trône-vide",
+          "label": "Branche MJ : Le trône vide",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte III — Marche des ombres",
-      "content": "Le Gouffre exhale des brumes ; des villages entiers somnolent d'un sommeil sans fin. Le groupe mène une expédition nocturne pour sauver Oldra et récupérer un artefact de liaison. Première confrontation avec un avatar mineur du Roi Corbeau — il parle avec la voix du roi défunt. « Mon frère m'a trahi une fois. Renouvelez le serment… ou rejoignez-moi. »"
+      "content": "Le Gouffre exhale des brumes ; des villages entiers somnolent d'un sommeil sans fin. Le groupe mène une expédition nocturne pour sauver Oldra et récupérer un artefact de liaison. Première confrontation avec un avatar mineur du Roi Corbeau — il parle avec la voix du roi défunt. « Mon frère m'a trahi une fois. Renouvelez le serment… ou rejoignez-moi. »",
+      "id": "marche-des-ombres",
+      "tags": [
+        "acte-iii",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Continuer vers : Bataille des champs de cendre",
+          "default": true
+        },
+        {
+          "to": "le-pacte-oublié",
+          "label": "Revenir à : Le pacte oublié",
+          "gmOnly": true
+        },
+        {
+          "to": "le-fort-de-brume-noire",
+          "label": "Revenir au début de l'acte II",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Branche MJ : Siège de la citadelle d'Or",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Branche MJ : La bibliothèque des rois maudits",
+          "gmOnly": true
+        },
+        {
+          "to": "le-trône-vide",
+          "label": "Branche MJ : Le trône vide",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-le-gouffre-scellé",
+          "label": "Branche MJ : Descente dans le Gouffre Scellé",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Bataille des champs de cendre",
-      "content": "Armées des ducs s'affrontent près de Brume-noire pendant que le ciel se déchire. Lyonel lance ses cultistes dans la mêlée. Objectif : tenir le pont jusqu'à ce que le rituel de renouvellement soit possible, empêcher Lyonel d'atteindre le fort, rallier au moins deux ducs à la cause du sceau. Session épique — plusieurs vagues, choix tactiques, pertes possibles."
+      "content": "Armées des ducs s'affrontent près de Brume-noire pendant que le ciel se déchire. Lyonel lance ses cultistes dans la mêlée. Objectif : tenir le pont jusqu'à ce que le rituel de renouvellement soit possible, empêcher Lyonel d'atteindre le fort, rallier au moins deux ducs à la cause du sceau. Session épique — plusieurs vagues, choix tactiques, pertes possibles.",
+      "id": "bataille-des-champs-de-cendre",
+      "tags": [
+        "acte-iv",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-trône-vide",
+          "label": "Continuer vers : Le trône vide",
+          "default": true
+        },
+        {
+          "to": "marche-des-ombres",
+          "label": "Revenir à : Marche des ombres",
+          "gmOnly": true
+        },
+        {
+          "to": "le-cœur-du-sceau",
+          "label": "Sauter à l'acte suivant (V)",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-des-rois-maudits",
+          "label": "Branche MJ : La bibliothèque des rois maudits",
+          "gmOnly": true
+        },
+        {
+          "to": "le-pacte-oublié",
+          "label": "Branche MJ : Le pacte oublié",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-le-gouffre-scellé",
+          "label": "Branche MJ : Descente dans le Gouffre Scellé",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Le trône vide",
-      "content": "Valdris en chaos. Le régent est mort ; le trône est vacant. Le groupe doit convoquer un parlement d'urgence : qui sera roi ou reine ? Un candidat doit accepter le fardeau du serment. Intrigue finale : Sylka propose un royaume partagé ; Harald veut la couronne par le sang ; Mira offre de financer la reconstruction. Les choix ici façonnent la fin."
+      "content": "Valdris en chaos. Le régent est mort ; le trône est vacant. Le groupe doit convoquer un parlement d'urgence : qui sera roi ou reine ? Un candidat doit accepter le fardeau du serment. Intrigue finale : Sylka propose un royaume partagé ; Harald veut la couronne par le sang ; Mira offre de financer la reconstruction. Les choix ici façonnent la fin.",
+      "id": "le-trône-vide",
+      "tags": [
+        "acte-iv",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "descente-dans-le-gouffre-scellé",
+          "label": "Continuer vers : Descente dans le Gouffre Scellé",
+          "default": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Revenir à : Bataille des champs de cendre",
+          "gmOnly": true
+        },
+        {
+          "to": "le-cœur-du-sceau",
+          "label": "Sauter à l'acte suivant (V)",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "le-pacte-oublié",
+          "label": "Branche MJ : Le pacte oublié",
+          "gmOnly": true
+        },
+        {
+          "to": "marche-des-ombres",
+          "label": "Branche MJ : Marche des ombres",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Branche MJ : Couronnement ou cendres",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte IV — Descente dans le Gouffre Scellé",
-      "content": "Le sceau cède malgré tout — fissure centrale sous Brume-noire. Descente en plusieurs niveaux : vestiges de l'ancien empire, pièges, échos du passé (visions du jumeau et du premier roi). Lyonel attend au seuil, fusionné partiellement avec l'ombre. Boss intermédiaire avant le cœur du gouffre."
+      "content": "Le sceau cède malgré tout — fissure centrale sous Brume-noire. Descente en plusieurs niveaux : vestiges de l'ancien empire, pièges, échos du passé (visions du jumeau et du premier roi). Lyonel attend au seuil, fusionné partiellement avec l'ombre. Boss intermédiaire avant le cœur du gouffre.",
+      "id": "descente-dans-le-gouffre-scellé",
+      "tags": [
+        "acte-iv"
+      ],
+      "transitions": [
+        {
+          "to": "le-cœur-du-sceau",
+          "label": "Continuer vers : Le cœur du sceau",
+          "default": true
+        },
+        {
+          "to": "le-trône-vide",
+          "label": "Revenir à : Le trône vide",
+          "gmOnly": true
+        },
+        {
+          "to": "siège-de-la-citadelle-d-or",
+          "label": "Revenir au début de l'acte III",
+          "gmOnly": true
+        },
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte V — Le cœur du sceau",
-      "content": "Chambre primordiale : le Roi Corbeau enchaîné, colossal, lucide et fou. Combat final ou négociation selon les reliques et le serment. Trois issues majeures : renouveler le sceau (sacrifice du souverain), détruire Corvus au prix d'une cicatrice sur le royaume, ou sceller à nouveau en exilant le nouveau roi dans la pierre. Conséquences narrées pour les générations futures."
+      "content": "Chambre primordiale : le Roi Corbeau enchaîné, colossal, lucide et fou. Combat final ou négociation selon les reliques et le serment. Trois issues majeures : renouveler le sceau (sacrifice du souverain), détruire Corvus au prix d'une cicatrice sur le royaume, ou sceller à nouveau en exilant le nouveau roi dans la pierre. Conséquences narrées pour les générations futures.",
+      "id": "le-cœur-du-sceau",
+      "tags": [
+        "acte-v",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "couronnement-ou-cendres",
+          "label": "Continuer vers : Couronnement ou cendres",
+          "default": true
+        },
+        {
+          "to": "descente-dans-le-gouffre-scellé",
+          "label": "Revenir à : Descente dans le Gouffre Scellé",
+          "gmOnly": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Revenir au début de l'acte IV",
+          "gmOnly": true
+        },
+        {
+          "to": "le-trône-vide",
+          "label": "Branche MJ : Le trône vide",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Acte V — Couronnement ou cendres",
-      "content": "Épilogue ouvert : couronnement à Valdris, funérailles nationales, reconstruction du nord, ou royaume fragmenté si l'échec est total. Le MJ IA prolonge les quêtes annexes (déserteurs, cultes résiduels, reconstruction de Keldorm). Campagne conçue pour se terminer ici ou continuer en épilogue libre sur plusieurs sessions supplémentaires."
+      "content": "Épilogue ouvert : couronnement à Valdris, funérailles nationales, reconstruction du nord, ou royaume fragmenté si l'échec est total. Le MJ IA prolonge les quêtes annexes (déserteurs, cultes résiduels, reconstruction de Keldorm). Campagne conçue pour se terminer ici ou continuer en épilogue libre sur plusieurs sessions supplémentaires.",
+      "id": "couronnement-ou-cendres",
+      "tags": [
+        "acte-v",
+        "fin",
+        "carrefour",
+        "epilogue"
+      ],
+      "transitions": [
+        {
+          "to": "le-cœur-du-sceau",
+          "label": "Revenir à : Le cœur du sceau",
+          "gmOnly": true
+        },
+        {
+          "to": "bataille-des-champs-de-cendre",
+          "label": "Revenir au début de l'acte IV",
+          "gmOnly": true
+        },
+        {
+          "to": "le-trône-vide",
+          "label": "Branche MJ : Le trône vide",
+          "gmOnly": true
+        },
+        {
+          "to": "descente-dans-le-gouffre-scellé",
+          "label": "Branche MJ : Descente dans le Gouffre Scellé",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Commandant Torval",
       "role": "Garde du nord",
-      "description": "Vétéran du fort de Brume-noire, hanté par des visions. Loyal au royaume, pas à un duc en particulier."
+      "description": "Vétéran du fort de Brume-noire, hanté par des visions. Loyal au royaume, pas à un duc en particulier.",
+      "id": "commandant-torval"
     },
     {
       "name": "Duc Lyonel de Sel",
       "role": "Antagoniste politique",
-      "description": "Maître des intrigues, pactise avec le culte du Gouffre. Croit dompter le Roi Corbeau pour s'emparer du trône."
+      "description": "Maître des intrigues, pactise avec le culte du Gouffre. Croit dompter le Roi Corbeau pour s'emparer du trône.",
+      "id": "duc-lyonel-de-sel"
     },
     {
       "name": "Duchesse Sylka du Nord",
       "role": "Alliée potentielle",
-      "description": "Pragmatique, protège son peuple contre les brumes. Veut un royaume où le nord ne soit plus oublié."
+      "description": "Pragmatique, protège son peuple contre les brumes. Veut un royaume où le nord ne soit plus oublié.",
+      "id": "duchesse-sylka-du-nord"
     },
     {
       "name": "Duc Harald le Martel",
       "role": "Factions / guerre",
-      "description": "Général brutal, veut la couronne par conquest. Respecte la force ; peut être rallié si on le bat ou lui sauve la face."
+      "description": "Général brutal, veut la couronne par conquest. Respecte la force ; peut être rallié si on le bat ou lui sauve la face.",
+      "id": "duc-harald-le-martel"
     },
     {
       "name": "Archiviste Thrain de Keldorm",
       "role": "Informateur",
-      "description": "Nain érudit, garde les secrets du Traité de Cendres. Exige des preuves avant de révéler chaque parcelle du rituel."
+      "description": "Nain érudit, garde les secrets du Traité de Cendres. Exige des preuves avant de révéler chaque parcelle du rituel.",
+      "id": "archiviste-thrain-de-keldorm"
     },
     {
       "name": "Oldra la chamane",
       "role": "Guide spirituelle",
-      "description": "Ancienne du village des Sans-Nom, connaît la vraie histoire des jumeaux rois. Peut être possédée si le groupe tarde."
+      "description": "Ancienne du village des Sans-Nom, connaît la vraie histoire des jumeaux rois. Peut être possédée si le groupe tarde.",
+      "id": "oldra-la-chamane"
     },
     {
       "name": "Grand prêtre Alaric",
       "role": "Autorité religieuse",
-      "description": "Chef de la foi d'Aldermar, possède des indices sur le Calice. Son ordre cache un traître cultiste."
+      "description": "Chef de la foi d'Aldermar, possède des indices sur le Calice. Son ordre cache un traître cultiste.",
+      "id": "grand-prêtre-alaric"
     },
     {
       "name": "Le Roi Corbeau (Corvus)",
       "role": "Antagoniste final",
-      "description": "Jumeau scellé du premier roi, fusionné avec une entité du Gouffre. Offre pouvoir, vérité ou destruction selon les choix du groupe."
+      "description": "Jumeau scellé du premier roi, fusionné avec une entité du Gouffre. Offre pouvoir, vérité ou destruction selon les choix du groupe.",
+      "id": "le-roi-corbeau-corvus"
     },
     {
       "name": "Capitaine Elwen",
       "role": "Alliée militaire",
-      "description": "Officier de Garde-Haute, compétente et directe. Peut commander des renforts si le groupe gagne sa confiance."
+      "description": "Officier de Garde-Haute, compétente et directe. Peut commander des renforts si le groupe gagne sa confiance.",
+      "id": "capitaine-elwen"
     }
-  ]
+  ],
+  "startSceneId": "la-nouvelle-de-valdris"
 }

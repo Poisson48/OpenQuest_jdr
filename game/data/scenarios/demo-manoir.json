@@ -7,39 +7,192 @@
   "scenes": [
     {
       "title": "L'approche du manoir",
-      "content": "Allée de chênes tordus, portail rouillé, fenêtres éteintes. Une lettre du comte invite les aventuriers à « enquêter sur des troubles nocturnes ». Martha la servante les accueille, pâle et terrorisée."
+      "content": "Allée de chênes tordus, portail rouillé, fenêtres éteintes. Une lettre du comte invite les aventuriers à « enquêter sur des troubles nocturnes ». Martha la servante les accueille, pâle et terrorisée.",
+      "id": "l-approche-du-manoir",
+      "tags": [
+        "debut"
+      ],
+      "transitions": [
+        {
+          "to": "le-hall-d-entrée",
+          "label": "Continuer vers : Le hall d'entrée",
+          "default": true
+        },
+        {
+          "to": "le-jardin-des-ombres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le hall d'entrée",
-      "content": "Un grand hall poussiéreux, un portrait du comte fixe les visiteurs. Une tapisserie dissimule peut-être un passage. Des pas résonnent à l'étage. Un chandelier tombe soudain — accident ou piège ?"
+      "content": "Un grand hall poussiéreux, un portrait du comte fixe les visiteurs. Une tapisserie dissimule peut-être un passage. Des pas résonnent à l'étage. Un chandelier tombe soudain — accident ou piège ?",
+      "id": "le-hall-d-entrée",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-salle-à-manger",
+          "label": "Continuer vers : La salle à manger",
+          "default": true
+        },
+        {
+          "to": "l-approche-du-manoir",
+          "label": "Revenir à : L'approche du manoir",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-maudite",
+          "label": "Branche MJ : La bibliothèque maudite",
+          "gmOnly": true
+        },
+        {
+          "to": "la-chambre-secrète-du-comte",
+          "label": "Branche MJ : La chambre secrète du comte",
+          "gmOnly": true
+        },
+        {
+          "to": "le-jardin-des-ombres",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La salle à manger",
-      "content": "Vaisselle encore dressée, nourriture moisie. Six couverts, mais une chaise renversée. Des griffures sur la table forment un mot : « SORTEZ ». Une porte mène aux cuisines, une autre à l'étage."
+      "content": "Vaisselle encore dressée, nourriture moisie. Six couverts, mais une chaise renversée. Des griffures sur la table forment un mot : « SORTEZ ». Une porte mène aux cuisines, une autre à l'étage.",
+      "id": "la-salle-à-manger",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "la-bibliothèque-maudite",
+          "label": "Continuer vers : La bibliothèque maudite",
+          "default": true
+        },
+        {
+          "to": "le-hall-d-entrée",
+          "label": "Revenir à : Le hall d'entrée",
+          "gmOnly": true
+        },
+        {
+          "to": "la-chambre-secrète-du-comte",
+          "label": "Emprunter un autre chemin : La chambre secrète du comte",
+          "gmOnly": true
+        },
+        {
+          "to": "le-jardin-des-ombres",
+          "label": "Emprunter un autre chemin : Le jardin des ombres",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La bibliothèque maudite",
-      "content": "Des livres jonchent le sol. Un grimoire ouvert pulse d'une lumière violette. Une fenêtre brisée laisse entrer le vent et la pluie. Derrière une étagère basculante se cache le passage secret."
+      "content": "Des livres jonchent le sol. Un grimoire ouvert pulse d'une lumière violette. Une fenêtre brisée laisse entrer le vent et la pluie. Derrière une étagère basculante se cache le passage secret.",
+      "id": "la-bibliothèque-maudite",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-chambre-secrète-du-comte",
+          "label": "Continuer vers : La chambre secrète du comte",
+          "default": true
+        },
+        {
+          "to": "la-salle-à-manger",
+          "label": "Revenir à : La salle à manger",
+          "gmOnly": true
+        },
+        {
+          "to": "l-approche-du-manoir",
+          "label": "Branche MJ : L'approche du manoir",
+          "gmOnly": true
+        },
+        {
+          "to": "le-hall-d-entrée",
+          "label": "Branche MJ : Le hall d'entrée",
+          "gmOnly": true
+        },
+        {
+          "to": "le-jardin-des-ombres",
+          "label": "Branche MJ : Le jardin des ombres",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La chambre secrète du comte",
-      "content": "Une chambre circulaire avec un cercle de sel brisé au sol. Le comte Aldric est enchaîné — ou possédé. Une entité murmure à travers lui. La fenêtre donne sur un jardin où des ombres dansent."
+      "content": "Une chambre circulaire avec un cercle de sel brisé au sol. Le comte Aldric est enchaîné — ou possédé. Une entité murmure à travers lui. La fenêtre donne sur un jardin où des ombres dansent.",
+      "id": "la-chambre-secrète-du-comte",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "le-jardin-des-ombres",
+          "label": "Continuer vers : Le jardin des ombres",
+          "default": true
+        },
+        {
+          "to": "la-bibliothèque-maudite",
+          "label": "Revenir à : La bibliothèque maudite",
+          "gmOnly": true
+        },
+        {
+          "to": "le-hall-d-entrée",
+          "label": "Branche MJ : Le hall d'entrée",
+          "gmOnly": true
+        },
+        {
+          "to": "la-salle-à-manger",
+          "label": "Branche MJ : La salle à manger",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le jardin des ombres",
-      "content": "Nuit noire, rosée glacée. Les ombres prennent forme humaine — d'anciens Valenwood piégés ici. Le comte peut être sauvé ou sacrifié. Le manoir tremble tandis que l'aube approche."
+      "content": "Nuit noire, rosée glacée. Les ombres prennent forme humaine — d'anciens Valenwood piégés ici. Le comte peut être sauvé ou sacrifié. Le manoir tremble tandis que l'aube approche.",
+      "id": "le-jardin-des-ombres",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-chambre-secrète-du-comte",
+          "label": "Revenir à : La chambre secrète du comte",
+          "gmOnly": true
+        },
+        {
+          "to": "la-salle-à-manger",
+          "label": "Branche MJ : La salle à manger",
+          "gmOnly": true
+        },
+        {
+          "to": "la-bibliothèque-maudite",
+          "label": "Branche MJ : La bibliothèque maudite",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Martha la servante",
       "role": "Témoin",
-      "description": "Elle tremble et murmure que « les murs écoutent ». Elle connaît un passage derrière la tapisserie."
+      "description": "Elle tremble et murmure que « les murs écoutent ». Elle connaît un passage derrière la tapisserie.",
+      "id": "martha-la-servante"
     },
     {
       "name": "Comte Aldric Valenwood",
       "role": "Victime / allié ambigu",
-      "description": "Noble érudit, peut-être possédé. Il alterne entre lucidité et rage surnaturelle."
+      "description": "Noble érudit, peut-être possédé. Il alterne entre lucidité et rage surnaturelle.",
+      "id": "comte-aldric-valenwood"
     }
-  ]
+  ],
+  "startSceneId": "l-approche-du-manoir"
 }

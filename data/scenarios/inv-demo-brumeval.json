@@ -8,55 +8,199 @@
   "scenes": [
     {
       "title": "La boulangerie",
-      "content": "La mère Simone pleure devant un lit intact. La fenêtre est entrouverte, une écharpe arrachée au clou. Sur la table, un mot cryptique : trois chiffres grattés à la hâte. Le père accuse le garde du poste de négligence."
+      "content": "La mère Simone pleure devant un lit intact. La fenêtre est entrouverte, une écharpe arrachée au clou. Sur la table, un mot cryptique : trois chiffres grattés à la hâte. Le père accuse le garde du poste de négligence.",
+      "id": "la-boulangerie",
+      "tags": [
+        "debut"
+      ],
+      "transitions": [
+        {
+          "to": "la-place-du-village",
+          "label": "Continuer vers : La place du village",
+          "default": true
+        },
+        {
+          "to": "la-vérité-dans-la-brume",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La place du village",
-      "content": "Les commerçants se disputent. Le tavernier Gérard prétend avoir vu Léna partir vers la forêt à l'aube avec un manteau gris. La vieille Thérèse parle d'une lumière près du cimetière. Un jouet en bois gît près du puits — est-ce le sien ?"
+      "content": "Les commerçants se disputent. Le tavernier Gérard prétend avoir vu Léna partir vers la forêt à l'aube avec un manteau gris. La vieille Thérèse parle d'une lumière près du cimetière. Un jouet en bois gît près du puits — est-ce le sien ?",
+      "id": "la-place-du-village",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "le-cimetière-et-la-dalle",
+          "label": "Continuer vers : Le cimetière et la dalle",
+          "default": true
+        },
+        {
+          "to": "la-boulangerie",
+          "label": "Revenir à : La boulangerie",
+          "gmOnly": true
+        },
+        {
+          "to": "la-vérité-dans-la-brume",
+          "label": "Sauter directement à la scène finale (MJ)",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "Le cimetière et la dalle",
-      "content": "Une dalle récemment bougée près du mausolée des Aubry. Des traces de petits pas mènent vers une crypte entrouverte. Eldric le fossoyeur avoue avoir entendu des voix la nuit dernière — il n'a rien dit par peur."
+      "content": "Une dalle récemment bougée près du mausolée des Aubry. Des traces de petits pas mènent vers une crypte entrouverte. Eldric le fossoyeur avoue avoir entendu des voix la nuit dernière — il n'a rien dit par peur.",
+      "id": "le-cimetière-et-la-dalle",
+      "tags": [],
+      "transitions": [
+        {
+          "to": "la-maison-du-garde",
+          "label": "Continuer vers : La maison du garde",
+          "default": true
+        },
+        {
+          "to": "la-place-du-village",
+          "label": "Revenir à : La place du village",
+          "gmOnly": true
+        },
+        {
+          "to": "la-lisière-de-la-forêt",
+          "label": "Emprunter un autre chemin : La lisière de la forêt",
+          "gmOnly": true
+        },
+        {
+          "to": "la-vérité-dans-la-brume",
+          "label": "Emprunter un autre chemin : La vérité dans la brume",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La maison du garde",
-      "content": "Le garde Tomas nie toute faute. Son registre de ronde comporte une page arrachée. Une clef rouillée manque à son trousseau. Sa fille admet que Tomas connaissait Léna « en secret » — relation interdite par les parents."
+      "content": "Le garde Tomas nie toute faute. Son registre de ronde comporte une page arrachée. Une clef rouillée manque à son trousseau. Sa fille admet que Tomas connaissait Léna « en secret » — relation interdite par les parents.",
+      "id": "la-maison-du-garde",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-lisière-de-la-forêt",
+          "label": "Continuer vers : La lisière de la forêt",
+          "default": true
+        },
+        {
+          "to": "le-cimetière-et-la-dalle",
+          "label": "Revenir à : Le cimetière et la dalle",
+          "gmOnly": true
+        },
+        {
+          "to": "la-boulangerie",
+          "label": "Branche MJ : La boulangerie",
+          "gmOnly": true
+        },
+        {
+          "to": "la-place-du-village",
+          "label": "Branche MJ : La place du village",
+          "gmOnly": true
+        },
+        {
+          "to": "la-vérité-dans-la-brume",
+          "label": "Branche MJ : La vérité dans la brume",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La lisière de la forêt",
-      "content": "Un campement abandonné : cendres encore tièdes, empreintes de bottes adultes et d'enfant. Une bouteille porte une marque de marchands itinérants. Un passage vers une grotte est dissimulé sous des branchages."
+      "content": "Un campement abandonné : cendres encore tièdes, empreintes de bottes adultes et d'enfant. Une bouteille porte une marque de marchands itinérants. Un passage vers une grotte est dissimulé sous des branchages.",
+      "id": "la-lisière-de-la-forêt",
+      "tags": [
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-vérité-dans-la-brume",
+          "label": "Continuer vers : La vérité dans la brume",
+          "default": true
+        },
+        {
+          "to": "la-maison-du-garde",
+          "label": "Revenir à : La maison du garde",
+          "gmOnly": true
+        },
+        {
+          "to": "la-place-du-village",
+          "label": "Branche MJ : La place du village",
+          "gmOnly": true
+        },
+        {
+          "to": "le-cimetière-et-la-dalle",
+          "label": "Branche MJ : Le cimetière et la dalle",
+          "gmOnly": true
+        }
+      ]
     },
     {
       "title": "La vérité dans la brume",
-      "content": "Les témoignages se contredisent : rançon, enlèvement rituel, ou fuite avec un amoureux. Les indices matériels tranchent — si l'équipe sait les recouper. Léna est vivante… pour l'instant."
+      "content": "Les témoignages se contredisent : rançon, enlèvement rituel, ou fuite avec un amoureux. Les indices matériels tranchent — si l'équipe sait les recouper. Léna est vivante… pour l'instant.",
+      "id": "la-vérité-dans-la-brume",
+      "tags": [
+        "fin",
+        "carrefour"
+      ],
+      "transitions": [
+        {
+          "to": "la-lisière-de-la-forêt",
+          "label": "Revenir à : La lisière de la forêt",
+          "gmOnly": true
+        },
+        {
+          "to": "le-cimetière-et-la-dalle",
+          "label": "Branche MJ : Le cimetière et la dalle",
+          "gmOnly": true
+        },
+        {
+          "to": "la-maison-du-garde",
+          "label": "Branche MJ : La maison du garde",
+          "gmOnly": true
+        }
+      ]
     }
   ],
   "npcs": [
     {
       "name": "Simone la boulangère",
       "role": "Mère / plaignante",
-      "description": "Épuisée, méfiante envers les étrangers. Elle cache que Léna recevait des lettres qu'elle brûlait."
+      "description": "Épuisée, méfiante envers les étrangers. Elle cache que Léna recevait des lettres qu'elle brûlait.",
+      "id": "simone-la-boulangère"
     },
     {
       "name": "Gérard le tavernier",
       "role": "Témoin / rumeur",
-      "description": "Aime le sensationnalisme. Il exagère peut-être ce qu'il a vu pour attirer l'attention."
+      "description": "Aime le sensationnalisme. Il exagère peut-être ce qu'il a vu pour attirer l'attention.",
+      "id": "gérard-le-tavernier"
     },
     {
       "name": "Tomas le garde",
       "role": "Suspect",
-      "description": "Amoureux secret de Léna. Il a des trous dans son alibi et des pages manquantes dans son registre."
+      "description": "Amoureux secret de Léna. Il a des trous dans son alibi et des pages manquantes dans son registre.",
+      "id": "tomas-le-garde"
     },
     {
       "name": "Eldric le fossoyeur",
       "role": "Témoin",
-      "description": "Vieil homme superstitieux. Il connaît les passages sous le cimetière — personne ne l'écoute."
+      "description": "Vieil homme superstitieux. Il connaît les passages sous le cimetière — personne ne l'écoute.",
+      "id": "eldric-le-fossoyeur"
     },
     {
       "name": "Thérèse la sage-femme",
       "role": "Informateur",
-      "description": "Connaît tous les secrets du village. Elle insinue qu'une « société » se réunit près de la crypte."
+      "description": "Connaît tous les secrets du village. Elle insinue qu'une « société » se réunit près de la crypte.",
+      "id": "thérèse-la-sage-femme"
     }
   ],
-  "questFormat": "oneshot"
+  "questFormat": "oneshot",
+  "startSceneId": "la-boulangerie"
 }

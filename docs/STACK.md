@@ -66,8 +66,9 @@ game/
 │   └── player.tscn     # Représentation visuelle d'un joueur
 └── scripts/
     ├── main.gd           # Boucle de jeu, inputs clavier
-    ├── network_client.gd # Connexion WebSocket, envoi/réception
-    └── player.gd         # Affichage joueur (carré coloré + nom)
+    ├── multiplayer/
+    │   └── multiplayer_manager.gd  # Autoload ENet + pooling WebSocket
+    └── main_menu.gd                  # UI salon P2P (code 4 chiffres)
 ```
 
 ### Protocole réseau (v0.1)
@@ -122,10 +123,10 @@ cd server && npm run dev
 
 ### Jouer à deux (réseau local)
 
-1. Machine hôte : `npm run dev` dans `server/`
-2. Trouver l'IP locale : `ip addr` (ex. `192.168.1.42`)
-3. Sur le 2e PC : modifier `server_url` dans `network_client.gd` → `ws://192.168.1.42:8080`
-4. Ouvrir le projet Godot et lancer
+1. Machine hôte (MJ) : `npm run dev` dans `server/`, puis lancer Godot et créer un salon
+2. Trouver l'IP locale du MJ : `ipconfig` / `ip addr` (ex. `192.168.1.42`)
+3. Sur le 2e PC : lancer Godot, panneau **Salon multijoueur (P2P)**, URL `ws://192.168.1.42:8080`, rejoindre avec le code à 4 chiffres
+4. Le MJ démarre la partie — connexion P2P ENet sur le port **7777** du PC MJ
 
 ---
 
@@ -178,4 +179,5 @@ curl http://localhost:8080
 | `server/.env` | Port, hôte (copier depuis `.env.example`) |
 | `server/package.json` | Dépendances et scripts npm |
 | `game/project.godot` | Configuration projet Godot |
-| `game/scripts/network_client.gd` | URL du serveur, nom du joueur |
+| `game/scripts/multiplayer/multiplayer_manager.gd` | Pooling WebSocket + hôte/client ENet |
+| `game/scripts/main_menu.gd` | URL serveur pooling, création/rejoindre salon |

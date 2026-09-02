@@ -55,6 +55,10 @@ text = "👥 Fiches de Personnages"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="EntityFilter" type="OptionButton" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="BtnNewChar" type="Button" parent="MainLayout/TopBar"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -79,6 +83,68 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
+
+[node name="TierPickerPanel" type="PanelContainer" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -120.0
+offset_right = 220.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TierPickerVBox" type="VBoxContainer" parent="MainLayout/ContentArea/TierPickerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TierPickerTitle" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 16
+text = "Choisir la complexité de la fiche"
+horizontal_alignment = 1
+
+[node name="TierPickerHint" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+text = "Style Naheulbeuk, JDR classique ou fiche D&D complète."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="TierButtons" type="HBoxContainer" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BtnTierSimple" type="Button" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox/TierButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🎭 Simple"
+
+[node name="BtnTierMedium" type="Button" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox/TierButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⚔️ Classique"
+
+[node name="BtnTierComplete" type="Button" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox/TierButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📜 Complet"
+
+[node name="BtnTierCancel" type="Button" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Annuler"
 
 [node name="FormPanel" type="PanelContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
@@ -171,15 +237,104 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
+[node name="LblEntityType" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
+layout_mode = 2
+text = "Type de fiche :"
+
+[node name="InputEntityType" type="OptionButton" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblRuleset" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
+layout_mode = 2
+text = "Complexité :"
+
+[node name="InputRulesetTier" type="OptionButton" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="HSeparator1" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 
+[node name="LblSimpleStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Stats simplifiées (Naheulbeuk) :"
+
+[node name="GridSimpleStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 4
+
+[node name="LblSimpleForce" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+layout_mode = 2
+text = "Force :"
+
+[node name="InputSimpleForce" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+value = 10.0
+
+[node name="LblSimpleRuse" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+layout_mode = 2
+text = "Ruse :"
+
+[node name="InputSimpleRuse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+value = 10.0
+
+[node name="LblSimpleRobustesse" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+layout_mode = 2
+text = "Robustesse :"
+
+[node name="InputSimpleRobustesse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+value = 10.0
+
+[node name="LblSimpleCharisme" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+layout_mode = 2
+text = "Charisme :"
+
+[node name="InputSimpleCharisme" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 30.0
+value = 10.0
+
+[node name="LblTrait" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Trait marquant :"
+
+[node name="InputTrait" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ex: Couard mais chanceux, Fan de bière..."
+
+[node name="HSeparator1b" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+layout_mode = 2
+
 [node name="LblStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
 text = "Caractéristiques (1-30) :"
 
 [node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
 layout_mode = 2
 columns = 4
 
@@ -277,6 +432,153 @@ layout_mode = 2
 min_value = 1.0
 max_value = 50.0
 value = 10.0
+
+[node name="LblLevel" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Niveau :"
+
+[node name="InputLevel" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 20.0
+value = 1.0
+
+[node name="HSeparator2b" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+layout_mode = 2
+
+[node name="LblMediumExtraTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Compétences & personnalité :"
+
+[node name="LblSkills" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Compétences / talents :"
+
+[node name="InputSkills" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ex: Discrétion, Persuasion, Arcanes..."
+
+[node name="LblPersonality" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Personnalité (IA bots) :"
+
+[node name="InputPersonality" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ex: cautious, bold, curious, diplomatic..."
+
+[node name="LblBotTraits" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Traits du bot (séparés par des virgules) :"
+
+[node name="InputBotTraits" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ex: protecteur, méfiant, curieux"
+
+[node name="HSeparatorComplete" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblCompleteTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Fiche avancée (D&D) :"
+
+[node name="GridComplete" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 2
+
+[node name="LblAlignment" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
+layout_mode = 2
+text = "Alignement :"
+
+[node name="InputAlignment" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ex: Loyal Bon"
+
+[node name="LblSpellcasting" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
+layout_mode = 2
+text = "Lanceur de sorts :"
+
+[node name="InputSpellcasting" type="CheckBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Oui"
+
+[node name="LblProficiencies" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Maîtrises :"
+
+[node name="InputProficiencies" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Armes, outils, langues..."
+
+[node name="LblEquipment" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Équipement & notes :"
+
+[node name="InputEquipment" type="TextEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+placeholder_text = "Armure, armes, objets importants..."
+
+[node name="LblIdeals" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Idéaux :"
+
+[node name="InputIdeals" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblBonds" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Liens :"
+
+[node name="InputBonds" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblFlaws" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Défauts :"
+
+[node name="InputFlaws" type="LineEdit" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblModifiers" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+text = "Modificateurs : FOR +0 | DEX +0 | CON +0 | INT +0 | SAG +0 | CHA +0"
+autowrap_mode = 3
 
 [node name="HSeparator3" type="HSeparator" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2

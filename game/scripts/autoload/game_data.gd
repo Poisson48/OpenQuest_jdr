@@ -13,6 +13,8 @@ const BOTS_REMOVED_PATH = "user://bots_removed.json"
 const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
 
+const QuestNavigation = preload("res://scripts/quest_navigation.gd")
+
 var characters: Array = []
 var scenarios: Array = []
 var removed_scenario_ids: Array = []
@@ -20,6 +22,7 @@ var bots: Array = []
 var removed_bot_ids: Array = []
 var saved_games: Array = []
 var active_game: Dictionary = {}
+var editor_scenario_id: String = ""
 
 func _ready() -> void:
 	load_all_data()
@@ -138,17 +141,18 @@ func get_character_by_id(id: String) -> Dictionary:
 	return {}
 
 func save_character(char_dict: Dictionary) -> void:
-	if not char_dict.has("id") or char_dict["id"].is_empty():
-		char_dict["id"] = generate_id("char")
+	var data := normalize_character(char_dict)
+	if not data.has("id") or str(data["id"]).is_empty():
+		data["id"] = generate_id("char")
 	var index := -1
 	for i in range(characters.size()):
-		if characters[i].get("id") == char_dict["id"]:
+		if characters[i].get("id") == data["id"]:
 			index = i
 			break
 	if index >= 0:
-		characters[index] = char_dict
+		characters[index] = data
 	else:
-		characters.append(char_dict)
+		characters.append(data)
 	save_characters()
 
 func delete_character(id: String) -> void:
@@ -157,25 +161,151 @@ func delete_character(id: String) -> void:
 			characters.remove_at(i)
 	save_characters()
 
-func create_blank_character(roster: String = "general") -> Dictionary:
-	return {
-		"id": generate_id("char"),
-		"name": "Nouveau Héros",
+func get_ruleset_tier(entity: Dictionary) -> String:
+	var tier := str(entity.get("rulesetTier", "medium"))
+	if tier in ["simple", "medium", "complete"]:
+		return tier
+	return "medium"
+
+func stat_modifier(stat_value: int) -> int:
+	return int(floor((stat_value - 10) / 2.0))
+
+func format_modifier(mod: int) -> String:
+	if mod >= 0:
+		return "+%d" % mod
+	return str(mod)
+
+func format_character_summary(entity: Dictionary) -> String:
+	var tier := get_ruleset_tier(entity)
+	var name_val := str(entity.get("name", "?"))
+	var race_val := str(entity.get("race", "?"))
+	var class_val := str(entity.get("class", "?"))
+	var hp_val := int(entity.get("hp", 10))
+
+	if tier == "simple":
+		var simple: Dictionary = entity.get("simpleStats", {})
+		var trait_val := str(entity.get("trait", "")).strip_edges()
+		var trait_part := " · « %s »" % trait_val if not trait_val.is_empty() else ""
+		return "%s — %s %s | PV %d | FOR %d RUSE %d ROB %d CHA %d%s" % [
+			name_val, race_val, class_val, hp_val,
+			int(simple.get("force", 10)), int(simple.get("ruse", 10)),
+			int(simple.get("robustesse", 10)), int(simple.get("charisme", 10)),
+			trait_part,
+		]
+
+	if tier == "complete":
+		var stats: Dictionary = entity.get("stats", {})
+		var level_val := int(entity.get("level", 1))
+		var align_val := str(entity.get("alignment", "")).strip_edges()
+		var align_part := " · %s" % align_val if not align_val.is_empty() else ""
+		var spell_part := " · ✦ sorts" if entity.get("spellcasting", false) else ""
+		return "%s — %s %s niv.%d | PV %d CA %d | FOR %s DEX %s CON %s%s%s" % [
+			name_val, race_val, class_val, level_val, hp_val, int(entity.get("ac", 10)),
+			format_modifier(stat_modifier(int(stats.get("str", 10)))),
+			format_modifier(stat_modifier(int(stats.get("dex", 10)))),
+			format_modifier(stat_modifier(int(stats.get("con", 10)))),
+			align_part, spell_part,
+		]
+
+	var stats: Dictionary = entity.get("stats", {})
+	var perso := str(entity.get("personality", "")).strip_edges()
+	var perso_part := " · %s" % perso if not perso.is_empty() else ""
+	return "%s — %s %s | PV %d CA %d | FOR %d DEX %d CON %d INT %d SAG %d CHA %d%s" % [
+		name_val, race_val, class_val, hp_val, int(entity.get("ac", 10)),
+		int(stats.get("str", 10)), int(stats.get("dex", 10)), int(stats.get("con", 10)),
+		int(stats.get("int", 10)), int(stats.get("wis", 10)), int(stats.get("cha", 10)),
+		perso_part,
+	]
+
+func normalize_character(entity: Dictionary) -> Dictionary:
+	var normalized: Dictionary = entity.duplicate(true)
+	if not normalized.has("rulesetTier"):
+		normalized["rulesetTier"] = "medium"
+	var tier := get_ruleset_tier(normalized)
+	if tier == "simple":
+		if not normalized.has("simpleStats"):
+			normalized["simpleStats"] = {
+				"force": 10, "ruse": 10, "robustesse": 10, "charisme": 10,
+			}
+		if not normalized.has("trait"):
+			normalized["trait"] = ""
+	else:
+		if not normalized.has("stats"):
+			normalized["stats"] = {
+				"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10,
+			}
+		if not normalized.has("ac"):
+			normalized["ac"] = 10
+		if tier == "medium":
+			if not normalized.has("skills"):
+				normalized["skills"] = ""
+			if not normalized.has("personality"):
+				normalized["personality"] = ""
+		elif tier == "complete":
+			if not normalized.has("level"):
+				normalized["level"] = 1
+			if not normalized.has("alignment"):
+				normalized["alignment"] = ""
+			if not normalized.has("proficiencies"):
+				normalized["proficiencies"] = ""
+			if not normalized.has("equipment"):
+				normalized["equipment"] = ""
+			if not normalized.has("ideals"):
+				normalized["ideals"] = ""
+			if not normalized.has("bonds"):
+				normalized["bonds"] = ""
+			if not normalized.has("flaws"):
+				normalized["flaws"] = ""
+			if not normalized.has("spellcasting"):
+				normalized["spellcasting"] = false
+			if not normalized.has("skills"):
+				normalized["skills"] = ""
+			if not normalized.has("personality"):
+				normalized["personality"] = ""
+	if not normalized.has("backstory"):
+		normalized["backstory"] = ""
+	if not normalized.has("hp"):
+		normalized["hp"] = 10
+	return normalized
+
+func create_blank_character(
+		roster: String = "general",
+		tier: String = "medium",
+		as_bot: bool = false,
+	) -> Dictionary:
+	var resolved_tier := tier if tier in ["simple", "medium", "complete"] else "medium"
+	var blank := {
+		"id": generate_id("bot" if as_bot else "char"),
+		"name": "Nouveau Bot" if as_bot else "Nouveau Héros",
 		"race": "Humain" if roster == "general" else "Citadin",
 		"class": "Guerrier" if roster == "general" else "Détective",
 		"roster": roster,
-		"stats": {
-			"str": 10,
-			"dex": 10,
-			"con": 10,
-			"int": 10,
-			"wis": 10,
-			"cha": 10
-		},
+		"rulesetTier": resolved_tier,
 		"hp": 10,
-		"ac": 10,
-		"backstory": ""
+		"backstory": "",
 	}
+	if resolved_tier == "simple":
+		blank["simpleStats"] = { "force": 12, "ruse": 10, "robustesse": 10, "charisme": 10 }
+		blank["trait"] = ""
+	else:
+		blank["stats"] = {
+			"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10,
+		}
+		blank["ac"] = 10
+		blank["skills"] = ""
+		blank["personality"] = "diplomatic" if as_bot else ""
+		if resolved_tier == "complete":
+			blank["level"] = 1
+			blank["alignment"] = ""
+			blank["proficiencies"] = ""
+			blank["equipment"] = ""
+			blank["ideals"] = ""
+			blank["bonds"] = ""
+			blank["flaws"] = ""
+			blank["spellcasting"] = false
+	if as_bot:
+		blank["traits"] = []
+	return normalize_character(blank)
 
 func _create_seed_characters() -> Array:
 	return [
@@ -218,6 +348,14 @@ func _create_seed_characters() -> Array:
 # SCENARIOS
 # ==============================================================================
 
+func reload_builtin_scenarios() -> void:
+	scenarios = _load_default_scenarios()
+	for i in range(scenarios.size()):
+		if scenarios[i] is Dictionary:
+			scenarios[i] = QuestNavigation.normalize_scenario(scenarios[i])
+	save_scenarios()
+	scenarios_updated.emit()
+
 func load_scenarios() -> void:
 	var data = _load_json_file(SCENARIOS_PATH)
 	if data is Array and not data.is_empty():
@@ -225,6 +363,9 @@ func load_scenarios() -> void:
 	else:
 		scenarios = _load_default_scenarios()
 		save_scenarios()
+	for i in range(scenarios.size()):
+		if scenarios[i] is Dictionary:
+			scenarios[i] = QuestNavigation.normalize_scenario(scenarios[i])
 	_load_removed_scenarios()
 	scenarios_updated.emit()
 
@@ -258,7 +399,7 @@ func get_scenarios(quest_format: String = "", roster: String = "") -> Array:
 func get_scenario_by_id(id: String) -> Dictionary:
 	for s in scenarios:
 		if s.get("id") == id:
-			return s
+			return QuestNavigation.normalize_scenario(s)
 	return {}
 
 func sync_game_scenario_metadata(game: Dictionary) -> Dictionary:
@@ -276,6 +417,7 @@ func sync_active_game_scenario_metadata() -> void:
 	if active_game.is_empty():
 		return
 	active_game = sync_game_scenario_metadata(active_game)
+	_ensure_navigation_state()
 
 func get_scenario_display_title(scenario_id: String = "") -> String:
 	var scn_id := scenario_id
@@ -308,15 +450,49 @@ func go_to_game_setup(quest_format: String = "", scenario_id: String = "") -> vo
 		get_tree().set_meta("preselected_scenario_id", scenario_id)
 	get_tree().change_scene_to_file("res://scenes/game_setup.tscn")
 
-func go_to_character_editor(roster: String = "") -> void:
+func go_to_character_editor(roster: String = "", entity_type: String = "") -> void:
 	if roster == "general" or roster == "investigation":
 		get_tree().set_meta("preselected_roster", roster)
+	if entity_type == "bot" or entity_type == "player":
+		get_tree().set_meta("preselected_entity_type", entity_type)
 	get_tree().change_scene_to_file("res://scenes/character_editor.tscn")
 
 func go_to_scenario_list(mode: String = "") -> void:
 	if not mode.is_empty():
 		get_tree().set_meta("preselected_scenario_mode", mode)
 	get_tree().change_scene_to_file("res://scenes/scenario_list.tscn")
+
+func go_to_scenario_editor(scenario_id: String = "", roster: String = "", quest_format: String = "") -> void:
+	editor_scenario_id = scenario_id
+	if not roster.is_empty():
+		get_tree().set_meta("preselected_scenario_roster", roster)
+	if not quest_format.is_empty():
+		get_tree().set_meta("preselected_quest_format", quest_format)
+	get_tree().change_scene_to_file("res://scenes/scenario_editor.tscn")
+
+func create_blank_scenario(roster: String = "general", quest_format: String = "oneshot") -> Dictionary:
+	var start_id := "scene-debut"
+	var blank := {
+		"id": generate_id("scn"),
+		"title": "Nouveau scénario",
+		"synopsis": "",
+		"setting": "",
+		"questFormat": quest_format,
+		"roster": roster,
+		"startSceneId": start_id,
+		"scenes": [{
+			"id": start_id,
+			"title": "Scène de départ",
+			"content": "Décrivez le point d'entrée de l'aventure...",
+			"tags": ["debut"],
+			"transitions": [],
+			"graphPos": { "x": 48, "y": 48 },
+		}],
+		"npcs": [],
+	}
+	if roster == "investigation":
+		blank["mystery"] = "Quelle est l'énigme centrale ?"
+	return QuestNavigation.normalize_scenario(blank)
 
 func save_scenario(scenario_dict: Dictionary) -> void:
 	if not scenario_dict.has("id") or scenario_dict["id"].is_empty():
@@ -443,6 +619,46 @@ func get_bots() -> Array:
 		if not bot_id.is_empty() and not removed_bot_ids.has(bot_id):
 			result.append(b)
 	return result
+
+func save_bot(bot_dict: Dictionary) -> void:
+	var data := normalize_character(bot_dict)
+	if not data.has("id") or str(data["id"]).is_empty():
+		data["id"] = generate_id("bot")
+	if not data.has("traits") or typeof(data["traits"]) != TYPE_ARRAY:
+		data["traits"] = []
+	var index := -1
+	for i in range(bots.size()):
+		if bots[i].get("id") == data["id"]:
+			index = i
+			break
+	if index >= 0:
+		bots[index] = data
+	else:
+		bots.append(data)
+	save_bots()
+
+func get_editable_bots(roster: String = "") -> Array:
+	var result: Array = []
+	for b in bots:
+		var bot_id: String = b.get("id", "")
+		if bot_id.is_empty() or removed_bot_ids.has(bot_id):
+			continue
+		if not roster.is_empty() and b.get("roster", "general") != roster:
+			continue
+		result.append(b)
+	return result
+
+func is_editable_bot(id: String) -> bool:
+	for b in bots:
+		if b.get("id") == id:
+			return true
+	return false
+
+func get_bot_from_storage(id: String) -> Dictionary:
+	for b in bots:
+		if b.get("id") == id:
+			return b
+	return {}
 
 func delete_bot(id: String) -> bool:
 	if id.is_empty() or removed_bot_ids.has(id):
@@ -651,6 +867,7 @@ func load_game_by_id(game_id: String) -> bool:
 	for g in saved_games:
 		if g.get("id") == game_id:
 			active_game = sync_game_scenario_metadata(g.duplicate(true))
+			_ensure_navigation_state()
 			ensure_map_play_state()
 			init_all_world_map_fog()
 			_ensure_party_tokens_on_world_maps()
@@ -695,6 +912,12 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 	var scenario := get_scenario_by_id(scenario_id)
 	var resolved_map_ids: Array = map_ids if not map_ids.is_empty() else MapData.get_map_ids_for_scenario(scenario_id, quest_format)
 	resolved_map_ids = expand_map_ids_with_linked_locals(resolved_map_ids)
+	var start_scene_id := str(scenario.get("startSceneId", ""))
+	if start_scene_id.is_empty():
+		start_scene_id = QuestNavigation.get_scene_id_at_index(scenario, 0)
+	var start_scene := QuestNavigation.get_scene_by_id(scenario, start_scene_id)
+	var start_index := QuestNavigation.get_scene_index(scenario, start_scene_id)
+	var now := Time.get_unix_time_from_system()
 	var new_game := {
 		"id": generate_id("game"),
 		"scenarioId": scenario_id,
@@ -706,13 +929,21 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 		"mapIds": resolved_map_ids,
 		"mapPlayState": {},
 		"mapNavigation": { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null },
-		"currentSceneIndex": 0,
+		"currentSceneId": start_scene_id,
+		"currentSceneIndex": maxi(0, start_index),
+		"visitedSceneIds": [start_scene_id] if not start_scene_id.is_empty() else [],
+		"sceneHistory": [{
+			"sceneId": start_scene_id,
+			"enteredAt": now,
+			"fromSceneId": "",
+			"reason": "Début de l'aventure",
+		}] if not start_scene_id.is_empty() else [],
 		"turnIndex": 0,
 		"waitingForGm": false,
 		"gmName": "MJ",
 		"log": [],
 		"status": "playing",
-		"startedAt": Time.get_unix_time_from_system()
+		"startedAt": now
 	}
 	
 	# Message d'accueil / introduction au journal
@@ -720,9 +951,8 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 	if not scenario.get("synopsis", "").is_empty():
 		welcome_text += scenario.get("synopsis") + "\n\n"
 	
-	var scenes: Array = scenario.get("scenes", [])
-	if not scenes.is_empty():
-		welcome_text += "[b]Scène 1 : %s[/b]\n%s" % [scenes[0].get("title", ""), scenes[0].get("content", "")]
+	if not start_scene.is_empty():
+		welcome_text += "[b]%s[/b]\n%s" % [start_scene.get("title", ""), start_scene.get("content", "")]
 	
 	new_game["log"].append({
 		"author": "MJ" if gm_type == "human" else "MJ (IA)",
@@ -832,26 +1062,142 @@ func advance_scene() -> bool:
 	if active_game.is_empty():
 		return false
 	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
+	var transitions := QuestNavigation.get_available_transitions(scenario, current_id)
+	var default_transition := QuestNavigation.get_default_transition(transitions)
+	if not default_transition.is_empty():
+		return go_to_scene(str(default_transition.get("to", "")), str(default_transition.get("label", "Suite de l'aventure")))
+	var cur: int = int(active_game.get("currentSceneIndex", 0))
 	var scenes: Array = scenario.get("scenes", [])
-	var cur: int = active_game.get("currentSceneIndex", 0)
-	active_game["waitingForGm"] = false
 	if cur + 1 < scenes.size():
-		active_game["currentSceneIndex"] = cur + 1
-		var scene = scenes[cur + 1]
-		var gm_author := get_gm_display_name() if active_game.get("gmType", "ai") == "human" else "MJ"
-		add_log_entry(gm_author, "[b]Nouvelle Scène : %s[/b]\n%s" % [scene.get("title", ""), scene.get("content", "")], "gm")
-		_reveal_world_on_scene_advance()
-		_reveal_investigation_on_scene_advance()
-		save_active_game()
-		return true
-	else:
-		add_log_entry("Système", "[b]Fin du scénario atteint ![/b]", "system")
-		active_game["status"] = "completed"
-		save_active_game()
+		var next_id := QuestNavigation.get_scene_id_at_index(scenario, cur + 1)
+		return go_to_scene(next_id, "Scène suivante")
+	return complete_scenario()
+
+func go_to_scene(scene_id: String, reason: String = "") -> bool:
+	if active_game.is_empty() or active_game.get("status") == "completed":
 		return false
+	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	var target_id := str(scene_id).strip_edges()
+	var target_scene := QuestNavigation.get_scene_by_id(scenario, target_id)
+	if target_scene.is_empty():
+		return false
+	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
+	if current_id == target_id:
+		return false
+
+	_close_current_scene_history_entry()
+
+	active_game["currentSceneId"] = target_id
+	active_game["currentSceneIndex"] = maxi(0, QuestNavigation.get_scene_index(scenario, target_id))
+	active_game["waitingForGm"] = false
+
+	var visited: Array = active_game.get("visitedSceneIds", [])
+	if typeof(visited) != TYPE_ARRAY:
+		visited = []
+	if not visited.has(target_id):
+		visited.append(target_id)
+	active_game["visitedSceneIds"] = visited
+
+	var history: Array = active_game.get("sceneHistory", [])
+	if typeof(history) != TYPE_ARRAY:
+		history = []
+	history.append({
+		"sceneId": target_id,
+		"enteredAt": Time.get_unix_time_from_system(),
+		"fromSceneId": current_id,
+		"reason": reason,
+	})
+	active_game["sceneHistory"] = history
+
+	var gm_author := get_gm_display_name() if active_game.get("gmType", "ai") == "human" else "MJ"
+	var transition_note := ""
+	if not reason.is_empty():
+		transition_note = "\n[i](%s)[/i]" % reason
+	add_log_entry(
+		gm_author,
+		"[b]Nouvelle scène : %s[/b]%s\n%s" % [
+			target_scene.get("title", ""),
+			transition_note,
+			target_scene.get("content", ""),
+		],
+		"gm"
+	)
+	_reveal_world_on_scene_advance()
+	_reveal_investigation_on_scene_advance()
+	save_active_game()
+	return true
+
+func complete_scenario(reason: String = "") -> bool:
+	if active_game.is_empty():
+		return false
+	_close_current_scene_history_entry()
+	var suffix := ""
+	if not reason.is_empty():
+		suffix = " %s" % reason
+	add_log_entry("Système", "[b]Fin du scénario atteinte ![/b]%s" % suffix, "system")
+	active_game["status"] = "completed"
+	active_game["waitingForGm"] = false
+	save_active_game()
+	return false
+
+func get_current_scene() -> Dictionary:
+	if active_game.is_empty():
+		return {}
+	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
+	return QuestNavigation.get_scene_by_id(scenario, current_id)
+
+func get_scene_navigation_summary() -> Dictionary:
+	if active_game.is_empty():
+		return {}
+	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
+	return {
+		"currentSceneId": current_id,
+		"currentScene": QuestNavigation.get_scene_by_id(scenario, current_id),
+		"transitions": QuestNavigation.get_available_transitions(scenario, current_id),
+		"visitedSceneIds": active_game.get("visitedSceneIds", []),
+		"sceneHistory": active_game.get("sceneHistory", []),
+		"progressLabel": QuestNavigation.format_progress_label(scenario, active_game),
+		"isTerminal": QuestNavigation.is_terminal_scene(scenario, current_id),
+	}
+
+func _ensure_navigation_state() -> void:
+	if active_game.is_empty():
+		return
+	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
+	if scenario.is_empty():
+		return
+	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
+	active_game["currentSceneId"] = current_id
+	active_game["currentSceneIndex"] = maxi(0, QuestNavigation.get_scene_index(scenario, current_id))
+	if not active_game.has("visitedSceneIds") or typeof(active_game["visitedSceneIds"]) != TYPE_ARRAY:
+		active_game["visitedSceneIds"] = [current_id] if not current_id.is_empty() else []
+	elif not current_id.is_empty() and not active_game["visitedSceneIds"].has(current_id):
+		active_game["visitedSceneIds"].append(current_id)
+	if not active_game.has("sceneHistory") or typeof(active_game["sceneHistory"]) != TYPE_ARRAY or active_game["sceneHistory"].is_empty():
+		active_game["sceneHistory"] = [{
+			"sceneId": current_id,
+			"enteredAt": active_game.get("startedAt", Time.get_unix_time_from_system()),
+			"fromSceneId": "",
+			"reason": "Reprise de partie",
+		}] if not current_id.is_empty() else []
+
+func _close_current_scene_history_entry() -> void:
+	var history: Array = active_game.get("sceneHistory", [])
+	if typeof(history) != TYPE_ARRAY or history.is_empty():
+		return
+	var last_entry: Dictionary = history[history.size() - 1]
+	if last_entry.has("exitedAt"):
+		return
+	last_entry["exitedAt"] = Time.get_unix_time_from_system()
+	history[history.size() - 1] = last_entry
+	active_game["sceneHistory"] = history
 
 func apply_server_state(state: Dictionary) -> void:
 	active_game = sync_game_scenario_metadata(state.duplicate(true))
+	_ensure_navigation_state()
 	if not active_game.has("mapIds") or active_game["mapIds"].is_empty():
 		var scn_id: String = active_game.get("scenarioId", "")
 		var qf: String = active_game.get("questFormat", "oneshot")
@@ -886,12 +1232,40 @@ func ensure_map_play_state() -> void:
 		active_game["mapIds"] = []
 	if not active_game.has("mapNavigation") or typeof(active_game["mapNavigation"]) != TYPE_DICTIONARY:
 		active_game["mapNavigation"] = { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null }
+	if not active_game.has("mapModeOverrides") or typeof(active_game["mapModeOverrides"]) != TYPE_DICTIONARY:
+		active_game["mapModeOverrides"] = {}
+
+func get_effective_render_mode(map_id: String) -> String:
+	if active_game.is_empty():
+		return MapData.RENDER_MODE_SIMPLE
+	var overrides: Dictionary = active_game.get("mapModeOverrides", {})
+	if overrides.has(map_id):
+		return MapData.RENDER_MODE_COMPLEX if overrides[map_id] == MapData.RENDER_MODE_COMPLEX else MapData.RENDER_MODE_SIMPLE
+	var map_data := MapData.get_by_id(map_id)
+	return MapData.get_render_mode(map_data)
+
+func set_map_render_mode_override(map_id: String, mode: String) -> void:
+	ensure_map_play_state()
+	var overrides: Dictionary = active_game.get("mapModeOverrides", {})
+	overrides[map_id] = MapData.RENDER_MODE_COMPLEX if mode == MapData.RENDER_MODE_COMPLEX else MapData.RENDER_MODE_SIMPLE
+	active_game["mapModeOverrides"] = overrides
+	save_map_play_and_sync()
+
+func save_map_play_and_sync() -> void:
+	save_active_game()
+	if MultiplayerManager.is_p2p_host() and MultiplayerManager.is_p2p_active():
+		MultiplayerManager.broadcast_state()
 
 func get_map_play_entry(map_id: String) -> Dictionary:
 	ensure_map_play_state()
 	var mps: Dictionary = active_game["mapPlayState"]
 	if not mps.has(map_id):
-		mps[map_id] = { "tokens": [], "explored": [], "exploreLevel": 0, "revealedMarkers": [], "revealedLinks": [] }
+		mps[map_id] = {
+			"tokens": [], "explored": [], "exploreLevel": 0,
+			"revealedMarkers": [], "revealedLinks": [],
+			"fogRevealed": [], "effects": [], "zones": [],
+			"viewState": {}, "selectedTokenId": "",
+		}
 	var entry: Dictionary = mps[map_id]
 	if not entry.has("tokens") or typeof(entry["tokens"]) != TYPE_ARRAY:
 		entry["tokens"] = []
@@ -903,7 +1277,180 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 		entry["revealedMarkers"] = []
 	if not entry.has("revealedLinks") or typeof(entry["revealedLinks"]) != TYPE_ARRAY:
 		entry["revealedLinks"] = []
+	if not entry.has("fogRevealed") or typeof(entry["fogRevealed"]) != TYPE_ARRAY:
+		entry["fogRevealed"] = []
+	if not entry.has("effects") or typeof(entry["effects"]) != TYPE_ARRAY:
+		entry["effects"] = []
+	if not entry.has("zones") or typeof(entry["zones"]) != TYPE_ARRAY:
+		entry["zones"] = []
+	if not entry.has("viewState") or typeof(entry["viewState"]) != TYPE_DICTIONARY:
+		entry["viewState"] = {}
+	if not entry.has("selectedTokenId"):
+		entry["selectedTokenId"] = ""
 	return entry
+
+func get_fog_revealed_cells(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["fogRevealed"]
+
+func get_map_effects(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["effects"]
+
+func get_map_zones(map_id: String) -> Array:
+	return get_map_play_entry(map_id)["zones"]
+
+func get_map_view_state(map_id: String) -> Dictionary:
+	return get_map_play_entry(map_id)["viewState"]
+
+func get_selected_token_id(map_id: String) -> String:
+	return str(get_map_play_entry(map_id).get("selectedTokenId", ""))
+
+func set_selected_token_id(map_id: String, token_id: String) -> void:
+	get_map_play_entry(map_id)["selectedTokenId"] = token_id
+	save_map_play_and_sync()
+
+func reveal_fog_cells(map_id: String, cells: Array) -> void:
+	var entry := get_map_play_entry(map_id)
+	for key in cells:
+		var k := str(key)
+		if not entry["fogRevealed"].has(k):
+			entry["fogRevealed"].append(k)
+	save_map_play_and_sync()
+
+func place_map_effect(map_id: String, preset: String, gx: float, gy: float, radius: float = 1.0) -> Dictionary:
+	var entry := get_map_play_entry(map_id)
+	var effect := {
+		"id": generate_id("fx"),
+		"type": "particles",
+		"preset": preset,
+		"x": gx, "y": gy,
+		"radius": radius,
+		"triggered": false,
+		"label": preset,
+	}
+	entry["effects"].append(effect)
+	save_map_play_and_sync()
+	return effect
+
+func trigger_map_effect(map_id: String, effect_id: String) -> void:
+	var entry := get_map_play_entry(map_id)
+	for eff in entry["effects"]:
+		if str(eff.get("id", "")) == effect_id:
+			eff["triggered"] = true
+			break
+	save_map_play_and_sync()
+
+func stop_map_effect(map_id: String, effect_id: String) -> void:
+	var entry := get_map_play_entry(map_id)
+	for eff in entry["effects"]:
+		if str(eff.get("id", "")) == effect_id:
+			eff["triggered"] = false
+			break
+	save_map_play_and_sync()
+
+func place_map_zone(map_id: String, gx: float, gy: float, shape: String = "circle", radius: float = 1.5, label: String = "") -> Dictionary:
+	var entry := get_map_play_entry(map_id)
+	var zone := {
+		"id": generate_id("zone"),
+		"shape": shape,
+		"x": gx, "y": gy,
+		"radius": radius,
+		"width": radius * 2,
+		"height": radius * 2,
+		"label": label,
+		"color": "#c9a227",
+	}
+	entry["zones"].append(zone)
+	save_map_play_and_sync()
+	return zone
+
+func move_complex_token(map_id: String, token_id: String, gx: float, gy: float) -> void:
+	var entry := get_map_play_entry(map_id)
+	for tok in entry["tokens"]:
+		if str(tok.get("id", "")) == token_id:
+			tok["x"] = gx
+			tok["y"] = gy
+			break
+	save_map_play_and_sync()
+
+func apply_complex_map_click(map_id: String, gx: float, gy: float, tool: Dictionary) -> void:
+	if active_game.is_empty() or active_game.get("status") == "completed":
+		return
+	var mode: String = tool.get("mode", "")
+	var ix := int(roundf(gx))
+	var iy := int(roundf(gy))
+	match mode:
+		"erase":
+			remove_map_token_at(map_id, ix, iy)
+			_remove_token_near(map_id, gx, gy)
+		"member":
+			place_complex_member_token(map_id, gx, gy, tool.get("memberId", ""))
+		"marker":
+			place_complex_marker_token(map_id, gx, gy, tool.get("markerType", ""))
+		"effect":
+			place_map_effect(map_id, tool.get("preset", "fire"), gx, gy, float(tool.get("radius", 1.0)))
+		"zone":
+			place_map_zone(map_id, gx, gy, "circle", float(tool.get("radius", 1.5)), tool.get("label", ""))
+	save_map_play_and_sync()
+
+func place_complex_member_token(map_id: String, gx: float, gy: float, member_id: String) -> void:
+	if member_id.is_empty():
+		return
+	remove_member_tokens(map_id, member_id)
+	var member := _find_party_member(member_id)
+	if member.is_empty():
+		return
+	var entry := get_map_play_entry(map_id)
+	entry["tokens"].append({
+		"id": generate_id("tok"),
+		"x": gx, "y": gy,
+		"kind": "member",
+		"memberId": member_id,
+		"label": member.get("name", "Héros"),
+		"hp": member.get("hp", 0),
+		"maxHp": member.get("hp", 0),
+	})
+	if is_gm_view_for_map(map_id):
+		reveal_fog_cells(map_id, _cells_around(int(roundf(gx)), int(roundf(gy)), 2))
+
+func place_complex_marker_token(map_id: String, gx: float, gy: float, marker_type: String) -> void:
+	if marker_type.is_empty():
+		return
+	_remove_token_near(map_id, gx, gy)
+	var entry := get_map_play_entry(map_id)
+	entry["tokens"].append({
+		"id": generate_id("tok"),
+		"x": gx, "y": gy,
+		"kind": "marker",
+		"markerType": marker_type,
+		"label": MapData.get_marker_label(marker_type),
+	})
+
+func _remove_token_near(map_id: String, gx: float, gy: float, threshold: float = 0.45) -> void:
+	var entry := get_map_play_entry(map_id)
+	entry["tokens"] = entry["tokens"].filter(func(t):
+		var dx: float = abs(float(t.get("x", 0)) - gx)
+		var dy: float = abs(float(t.get("y", 0)) - gy)
+		return dx > threshold or dy > threshold
+	)
+
+func _cells_around(cx: int, cy: int, radius: int) -> Array:
+	var cells: Array = []
+	for y in range(cy - radius, cy + radius + 1):
+		for x in range(cx - radius, cx + radius + 1):
+			if abs(x - cx) + abs(y - cy) <= radius:
+				cells.append("%d,%d" % [x, y])
+	return cells
+
+func is_gm_view_for_map(_map_id: String) -> bool:
+	if active_game.get("gmType", "ai") != "human":
+		return true
+	if MultiplayerManager.is_p2p_active():
+		return MultiplayerManager.is_p2p_host() and MultiplayerManager.is_mj()
+	return true
+
+func save_map_view_state(map_id: String, view_state: Dictionary) -> void:
+	get_map_play_entry(map_id)["viewState"] = view_state.duplicate(true)
+	save_map_play_and_sync()
 
 func get_revealed_markers(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["revealedMarkers"]
@@ -1789,7 +2336,7 @@ func apply_map_play_action(map_id: String, x: int, y: int, tool: Dictionary) -> 
 		place_member_token(map_id, x, y, tool.get("memberId", ""))
 	elif mode == "marker":
 		place_marker_token(map_id, x, y, tool.get("markerType", ""))
-	save_active_game()
+	save_map_play_and_sync()
 
 func _find_party_member(member_id: String) -> Dictionary:
 	for m in active_game.get("party", []):

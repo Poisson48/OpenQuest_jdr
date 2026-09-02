@@ -1,0 +1,281 @@
+[gd_scene load_steps=3 format=3 uid="uid://scenario_editor_001"]
+
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/scenario_editor.gd" id="2_script"]
+
+[node name="ScenarioEditor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.101961, 0.0784314, 0.0627451, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "← Bibliothèque"
+
+[node name="Title" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 20
+text = "✏️ Éditeur de scénario"
+
+[node name="LblStatus" type="Label" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Prêt"
+
+[node name="BtnAddScene" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ Scène"
+
+[node name="BtnAddNpc" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ PNJ"
+
+[node name="BtnSave" type="Button" parent="MainLayout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "💾 Enregistrer"
+
+[node name="BodySplit" type="HSplitContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 300
+
+[node name="MetaScroll" type="ScrollContainer" parent="MainLayout/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="MetaVBox" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="LblMeta" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "📋 Métadonnées"
+
+[node name="MetaTitle" type="LineEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Titre du scénario"
+
+[node name="LblSynopsis" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+text = "Synopsis"
+
+[node name="MetaSynopsis" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+
+[node name="LblSetting" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+text = "Cadre / ambiance"
+
+[node name="MetaSetting" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="MetaFormatRow" type="HBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MetaFormat" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/MetaFormatRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MetaRoster" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/MetaFormatRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblMystery" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Énigme centrale (enquête)"
+
+[node name="MetaMystery" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+
+[node name="LblStart" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+text = "Scène de départ"
+
+[node name="MetaStartScene" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "👤 PNJ"
+
+[node name="NpcList" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CenterSplit" type="HSplitContainer" parent="MainLayout/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+split_offset = 520
+
+[node name="GraphPanel" type="PanelContainer" parent="MainLayout/BodySplit/CenterSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="GraphVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/GraphPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="LblGraph" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "🕸️ Graphe non linéaire — reliez les scènes par glisser-déposer"
+
+[node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+right_disconnects = true
+
+[node name="ScenePanel" type="PanelContainer" parent="MainLayout/BodySplit/CenterSplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="SceneScroll" type="ScrollContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="SceneVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="LblScenePanel" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "📍 Scène sélectionnée"
+
+[node name="LblNoSelection" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+text = "Cliquez un nœud du graphe pour éditer la scène."
+autowrap_mode = 3
+
+[node name="SceneEditor" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SceneIdRow" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+
+[node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+text = "id: —"
+
+[node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "★ Départ"
+
+[node name="BtnDeleteScene" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Supprimer"
+
+[node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Titre de la scène"
+
+[node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Tags (virgules) : acte-1, carrefour, fin"
+
+[node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+placeholder_text = "Contenu narratif affiché aux joueurs lors de l'entrée dans la scène..."
+
+[node name="LblTransitions" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+text = "Branches sortantes"
+
+[node name="TransitionsList" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnAddTransition" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "+ Ajouter une branche"
+
+[node name="ConfirmDeleteScene" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Supprimer la scène"
+ok_button_text = "Supprimer"
+cancel_button_text = "Annuler"
