@@ -66,6 +66,44 @@ remonte.
 Un lieu qui possède une carte est souligné en doré et marqué d'une loupe ;
 un lieu purement décoratif (une simple étiquette « Moulin ») reste en bleu.
 
+## 1 ter. Décors : composer la carte par-dessus le fond
+
+Une carte de jeu, ce n'est pas qu'une image de fond : c'est un fond **plus** des
+bâtiments, des charrettes, du mobilier, des objets — puis les personnages qu'on
+déplace dessus. L'outil **🏚 Décor** (`P`) sert à cette couche intermédiaire.
+
+**Bibliothèque** (onglet Biblio, en tête) — sept catégories : Bâtiments,
+Véhicules, Mobilier, Végétation, Objets, Personnages, Sols & chemins.
+**＋ Importer des images…** accepte une sélection multiple de PNG détourés
+(fond transparent). Les fichiers déposés à la main dans
+`user://map_assets/props/<catégorie>/` sont adoptés automatiquement au
+rafraîchissement — pas besoin de passer par le bouton.
+
+**Poser** — cliquez une vignette pour armer l'outil, puis cliquez la carte.
+L'aperçu sous le curseur montre **la vraie image**, à la bonne taille : on voit
+où tombe la maison avant de valider. Les proportions de la source sont
+respectées, donc une charrette large reste large.
+
+**Dressé ou couché** — deux façons de poser une image :
+
+| Pose | Pour quoi | Rendu |
+|------|-----------|-------|
+| **Dressé** (défaut) | Maisons, arbres, charrettes, personnages | L'image se tient debout, pied posé sur la case, et fait face à la caméra |
+| **Couché** | Chemins, tapis, ombres, flaques | L'image épouse le sol |
+
+Un décor est **non éclairé** par défaut : une illustration porte déjà ses
+propres ombres, et un éclairage 3D par-dessus la salirait. Cochez « Éclairé »
+seulement si vous voulez que les torches et le soleil l'affectent.
+
+Les décors se sélectionnent, se déplacent, se dupliquent, se groupent et
+s'annulent comme tout le reste. Ils vivent sur le calque **Décor**, entre le
+fond et les structures — masquez ce calque pour retrouver le fond nu.
+
+**Et les personnages ?** Ce sont des **tokens** (`1`), pas des décors : eux
+seuls se déplacent à la souris pendant la partie, portent un portrait, un rayon
+de vision et une fiche. Un décor est du mobilier de scène, un token est un
+acteur.
+
 ## 2. Outils
 
 Chaque outil est un mode de la machine à états : il décide de ce que font le
@@ -83,6 +121,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | ⬡ Zone libre | `6` | Clics successifs = sommets · `Entrée` ou clic droit ferme le polygone |
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
 | Placer | 🧱 Mur | `8` | Trace un mur 3D qui projette de vraies ombres (`Maj` : contraint à l'axe) |
+| Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
 | Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |
 | Placer | 📝 Note MJ | `9` | Épingle une note visible du MJ uniquement |
 | Placer | 💡 Lumière | `0` | Pose une source lumineuse (torche, brasier) avec vacillement |
@@ -287,7 +326,9 @@ scripts/maps/
 ├── map_complex_editor.gd            # Hôte : outils, panneaux, machine à états
 ├── complex_map_engine_3d.gd         # Rendu 3D + projection + entrée souris
 ├── map_vision.gd                    # Ligne de vue, champ de vision, portes
+├── map_asset_library.gd             # Bibliothèque de décors (import, index, vignettes)
 ├── map_layers/
+│   ├── map_props_3d.gd              # Décors images (dressés ou couchés au sol)
 │   ├── map_walls_3d.gd              # Murs volumétriques (ombres réelles)
 │   ├── map_lights_3d.gd             # Sources lumineuses + vacillement
 │   └── … (sol, grille, tokens, effets, zones, brouillard, élévations)
@@ -324,7 +365,7 @@ Tous les éléments partagent la même forme, quel que soit leur type :
 ```gdscript
 {
   "id": "tok-…", "kind": "token",           # token|marker|effect|zone|platform
-  "x": 3.0, "y": 4.0, "w": 1.0, "h": 1.0,   # overlay|wall|note|light|link|area
+  "x": 3.0, "y": 4.0, "w": 1.0, "h": 1.0,   # overlay|wall|note|light|link|area|prop
   "label": "Garde", "layer": 4, "zOrder": 0.004,
   "locked": false, "hidden": false, "group": "", "notes": "",
   "display": { "rotation": 0.0, "mirrorH": false, "mirrorV": false,
@@ -339,6 +380,18 @@ Tous les éléments partagent la même forme, quel que soit leur type :
 fichier historique — `playDefaults.tokens/effects/zones`, `elevationLayers`,
 `walls`, `notes`, `lighting.sources`, `locationLinks`, `areas` — pour que les
 cartes existantes et le mode session continuent de fonctionner sans migration.
+
+Un **décor** (`kind: "prop"`) porte en plus :
+
+```gdscript
+{
+  "asset": "user://map_assets/props/buildings/taverne-….png",
+  "standing": true,        # dressé face caméra, ou couché au sol
+  "billboard": true,       # suit la caméra quand il est dressé
+  "lit": false,            # soumis aux lumières de la scène
+  "elevation": 0.0
+}
+```
 
 Un **lieu** (`kind: "area"`) porte en plus :
 
@@ -357,7 +410,8 @@ Un **lieu** (`kind: "area"`) porte en plus :
 ### Schéma de carte (version 3)
 
 Ajouts en version 3 : `walls`, `notes`, `layers`, `measure`. En version 4 :
-`areas` (les lieux) et `parentMapId` (la carte dont celle-ci est le zoom).
+`areas` (les lieux), `props` (les décors) et `parentMapId` (la carte dont
+celle-ci est le zoom).
 `MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
 
 ---
@@ -391,6 +445,7 @@ l'information n'est pas envoyée au client.
 godot --headless --path game --script scripts/tests/map_editor_test.gd
 godot --headless --path game --script scripts/tests/map_vision_test.gd
 godot --headless --path game --script scripts/tests/map_areas_test.gd
+godot --headless --path game --script scripts/tests/map_props_test.gd
 ```
 
 `map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix
@@ -413,6 +468,12 @@ test de survol (un lieu imbriqué l'emporte sur celui qui le contient), la
 création de cartes enfants et son idempotence, le fil d'Ariane sur trois
 niveaux, la navigation de session en profondeur avec placement de token à
 l'échelle atteinte, et le tracé d'un lieu dans l'éditeur réel.
+
+`map_props_test.gd` couvre la bibliothèque (catégories, import, refus des
+sources invalides, renommage, suppression), les textures et vignettes avec leur
+cache, la pose d'un décor dans le document et son aller-retour de
+sérialisation, le rendu 3D (dressé contre couché, éléments masqués ou sans
+image ignorés, déplacement sans reconstruction) et l'outil dans l'éditeur réel.
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc
