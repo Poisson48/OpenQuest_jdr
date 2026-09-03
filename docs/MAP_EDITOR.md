@@ -30,6 +30,42 @@ L'interface est en trois colonnes :
 
 ---
 
+## 1 bis. Le cas d'usage principal : une carte de village où l'on zoome
+
+L'éditeur sert d'abord à ceci : importer une **carte illustrée** (un village
+dessiné à la main ou généré), y poser des **lieux nommés**, puis **entrer dans
+un lieu** pour arriver sur sa propre carte détaillée — celle où l'on place
+vraiment les personnages.
+
+```
+Valbois (image du village)          →   Place du Marché (image détaillée)
+├── 🏠 Taverne du Cerf ──────────┐       ├── 🧍 tokens des joueurs
+├── 💰 Épicerie                   │       ├── 🧱 murs, 💡 lumières
+├── ⭐ Place du Marché ───────────┘       └── ⭕ zones, 🔥 effets
+└── ➡  Chemin de la Capitale
+```
+
+**La recette, de bout en bout :**
+
+1. Créez une carte en mode Complexe, **Carte → Fond → Importer PNG…** et
+   choisissez l'illustration du village. La grille s'ajuste à l'image.
+2. Outil **🏠 Lieu** (`A`). Saisissez le nom (« Taverne du Cerf »), choisissez
+   la catégorie, puis **glissez** sur l'illustration pour délimiter le bâtiment.
+   Un cartouche de nom apparaît, relié au lieu par un trait.
+3. Dans l'inspecteur du lieu : **🗺 Créer la carte de ce lieu**. Une carte
+   enfant est créée, nommée d'après le lieu et reliée dans les deux sens.
+4. **↳ Ouvrir cette carte** : l'éditeur bascule dessus. Importez-y
+   l'illustration détaillée, posez murs, lumières et tokens.
+5. Le **fil d'Ariane** en haut (`Valbois › Place du Marché`) ramène d'un clic à
+   l'échelle supérieure.
+
+La profondeur n'est pas limitée : village → place du marché → intérieur de la
+taverne. En session, cliquer un lieu descend d'un cran, et un bouton retour
+remonte.
+
+Un lieu qui possède une carte est souligné en doré et marqué d'une loupe ;
+un lieu purement décoratif (une simple étiquette « Moulin ») reste en bleu.
+
 ## 2. Outils
 
 Chaque outil est un mode de la machine à états : il décide de ce que font le
@@ -47,6 +83,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | ⬡ Zone libre | `6` | Clics successifs = sommets · `Entrée` ou clic droit ferme le polygone |
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
 | Placer | 🧱 Mur | `8` | Trace un mur 3D qui projette de vraies ombres (`Maj` : contraint à l'axe) |
+| Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |
 | Placer | 📝 Note MJ | `9` | Épingle une note visible du MJ uniquement |
 | Placer | 💡 Lumière | `0` | Pose une source lumineuse (torche, brasier) avec vacillement |
 | Terrain | 🖌 Terrain | `B` | Peint les tuiles de sol (taille de pinceau réglable) |
@@ -287,7 +324,7 @@ Tous les éléments partagent la même forme, quel que soit leur type :
 ```gdscript
 {
   "id": "tok-…", "kind": "token",           # token|marker|effect|zone|platform
-  "x": 3.0, "y": 4.0, "w": 1.0, "h": 1.0,   # overlay|wall|note|light|link
+  "x": 3.0, "y": 4.0, "w": 1.0, "h": 1.0,   # overlay|wall|note|light|link|area
   "label": "Garde", "layer": 4, "zOrder": 0.004,
   "locked": false, "hidden": false, "group": "", "notes": "",
   "display": { "rotation": 0.0, "mirrorH": false, "mirrorV": false,
@@ -300,12 +337,27 @@ Tous les éléments partagent la même forme, quel que soit leur type :
 
 À la sauvegarde, `to_map_data()` répartit ce modèle plat dans le format de
 fichier historique — `playDefaults.tokens/effects/zones`, `elevationLayers`,
-`walls`, `notes`, `lighting.sources`, `locationLinks` — pour que les cartes
-existantes et le mode session continuent de fonctionner sans migration.
+`walls`, `notes`, `lighting.sources`, `locationLinks`, `areas` — pour que les
+cartes existantes et le mode session continuent de fonctionner sans migration.
+
+Un **lieu** (`kind: "area"`) porte en plus :
+
+```gdscript
+{
+  "shape": "rect",                  # rect | circle | polygon
+  "category": "shop",               # building | shop | poi | exit | nature
+  "icon": "",                       # surcharge l'icône de la catégorie
+  "label": "Taverne du Cerf",
+  "targetMapId": "map-…",           # carte enfant, vide si simple étiquette
+  "showCallout": true,
+  "labelOffset": { "x": 0.0, "y": -2.8 }
+}
+```
 
 ### Schéma de carte (version 3)
 
-Ajouts par rapport à la version 2 : `walls`, `notes`, `layers`, `measure`.
+Ajouts en version 3 : `walls`, `notes`, `layers`, `measure`. En version 4 :
+`areas` (les lieux) et `parentMapId` (la carte dont celle-ci est le zoom).
 `MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
 
 ---
@@ -338,6 +390,7 @@ l'information n'est pas envoyée au client.
 ```bash
 godot --headless --path game --script scripts/tests/map_editor_test.gd
 godot --headless --path game --script scripts/tests/map_vision_test.gd
+godot --headless --path game --script scripts/tests/map_areas_test.gd
 ```
 
 `map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix
@@ -354,6 +407,12 @@ portée d'un mur, contournement par l'extrémité, champ de vision à plusieurs
 sources), les portes (état de session sans toucher la carte), le brouillard
 dynamique et sa mémoire, les opérations de carte et leur autorité, la vue
 filtrée pour les joueurs, et les portraits de token.
+
+`map_areas_test.gd` couvre les lieux (modèle, sérialisation, catégories), le
+test de survol (un lieu imbriqué l'emporte sur celui qui le contient), la
+création de cartes enfants et son idempotence, le fil d'Ariane sur trois
+niveaux, la navigation de session en profondeur avec placement de token à
+l'échelle atteinte, et le tracé d'un lieu dans l'éditeur réel.
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc
