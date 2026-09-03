@@ -1,0 +1,295 @@
+# Éditeur de cartes OpenQuest
+
+> Complète [INTERACTIVE_MAPS.md](./INTERACTIVE_MAPS.md) (moteur de rendu) et
+> [INTERACTIVE_MAPS_STRATEGY.md](./INTERACTIVE_MAPS_STRATEGY.md) (feuille de route).
+>
+> L'architecture reprend celle de l'éditeur **Meownopoly** de PattouneCorp
+> (document + deltas + machine à états d'outils + panneaux), transposée de
+> QML/C++ vers GDScript et adaptée au JDR : tokens, brouillard de guerre,
+> murs, lumières, zones d'effet et notes MJ à la place des cases de plateau.
+
+---
+
+## 1. Ouvrir l'éditeur
+
+Hub → une carte → **✏️ Modifier**. Les cartes en mode **Complexe** ouvrent
+l'éditeur de battlemap 3D décrit ici ; les cartes en mode **Simple** gardent
+l'éditeur de tuiles historique.
+
+L'interface est en trois colonnes :
+
+```
+┌──────────────┬──────────────────────────────────┬─────────────────┐
+│ Outils       │ Barre d'action (undo/zoom/menu)  │ Inspecteur      │
+│ Options      │                                  │ Calques         │
+│ Aimantation  │        Vue 3D + overlay 2D       │ Carte           │
+│ Mini-carte   │                                  │ Biblio          │
+│              │ Barre de statut                  │ Historique      │
+└──────────────┴──────────────────────────────────┴─────────────────┘
+```
+
+---
+
+## 2. Outils
+
+Chaque outil est un mode de la machine à états : il décide de ce que font le
+clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopoly).
+
+| Groupe | Outil | Touche | Comportement |
+|--------|-------|--------|--------------|
+| Navigation | 👆 Sélection | `V` | Clic : sélectionner · glisser dans le vide : rectangle de sélection · glisser un élément : déplacer |
+| Navigation | ✋ Navigation | `H` | Clic-glisser : déplacer la vue (aussi : clic milieu, ou `Espace` maintenu) |
+| Placer | 🧍 Token | `1` | Pose un token joueur/PNJ (taille et couleur réglables) |
+| Placer | 📍 Marqueur | `2` | Pose un marqueur narratif (PNJ, indice, danger, ville…) |
+| Placer | 🔥 Effet | `3` | Pose un effet de particules (feu, fumée, magie, pluie) |
+| Placer | ⭕ Zone ronde | `4` | Pose une zone circulaire (sort, piège, aura) |
+| Placer | ▭ Zone rect. | `5` | Trace une zone rectangulaire au glisser |
+| Placer | ⬡ Zone libre | `6` | Clics successifs = sommets · `Entrée` ou clic droit ferme le polygone |
+| Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
+| Placer | 🧱 Mur | `8` | Trace un mur 3D qui projette de vraies ombres (`Maj` : contraint à l'axe) |
+| Placer | 📝 Note MJ | `9` | Épingle une note visible du MJ uniquement |
+| Placer | 💡 Lumière | `0` | Pose une source lumineuse (torche, brasier) avec vacillement |
+| Terrain | 🖌 Terrain | `B` | Peint les tuiles de sol (taille de pinceau réglable) |
+| Terrain | 🪣 Remplir | `G` | Remplit la zone contiguë de même tuile |
+| Brouillard | 🌫 Révéler | `R` | Révèle le brouillard autour du curseur |
+| Brouillard | 🚫 Masquer | `T` | Remasque des cases déjà révélées |
+| Outils | 🔗 Lier | `L` | Clic source puis clic cible : crée un lien orienté |
+| Outils | 📏 Mesurer | `M` | Mesure une distance en cases et en mètres |
+| Outils | 🧩 Template | `K` | Pose le template sélectionné (`R` pour le pivoter) |
+| Outils | 🧹 Gomme | `E` | Supprime l'élément sous le curseur |
+
+### Aimantation
+
+Quatre modes : **Libre**, **¼ case**, **½ case**, **1 case** (défaut). Le mode
+choisi s'applique au placement, au déplacement et au tracé.
+
+---
+
+## 3. Sélection et manipulation
+
+- **Clic** : sélectionne l'élément le plus haut sous le curseur.
+- **Glisser dans le vide** : rectangle de sélection, mis à jour en temps réel
+  (test d'intersection AABB sur les empreintes projetées à l'écran — donc
+  correct aussi en vue isométrique).
+- **Ctrl+clic** : ajoute/retire de la sélection · **Maj+clic** : ajoute.
+- **Alt+glisser** : duplique en glissant.
+- Sélectionner un membre d'un **groupe** sélectionne tout le groupe.
+- **Flèches** : décale la sélection d'un pas d'aimantation (`Maj` : 1 case).
+- Les éléments **verrouillés** et les calques verrouillés ne sont pas sélectionnables.
+
+### Alignement
+
+La barre d'action propose aligner à gauche/droite, centrer verticalement et
+distribuer horizontalement ; le document expose aussi `top`, `bottom`,
+`center_h` et la distribution verticale.
+
+---
+
+## 4. Historique undo/redo
+
+L'historique fonctionne **par deltas**, pas par instantanés complets — chaque
+action enregistre un `{ before, after }` minimal.
+
+```gdscript
+{ "type": "elem_mod", "id": "tok-…", "before": {…}, "after": {…}, "note": "Déplacement" }
+```
+
+Types de delta : `elem_add`, `elem_del`, `elem_mod`, `meta` (réglages de carte),
+`tiles` (peinture, stockée en cellules éparses), `fog`, `order`.
+
+**Transactions** — `begin_transaction()` / `commit_transaction()` regroupent
+plusieurs deltas en **une seule étape** d'annulation. Utilisé par le déplacement
+multiple, le collage, la pose d'un template et les modifications de lot.
+
+**Copie de référence (shadow copy)** — chaque élément conserve son dernier état
+validé. Pendant un glisser, la position est modifiée « à vif » sans écrire dans
+l'historique ; au relâchement, `commit_live_edit()` compare avec la copie de
+référence et n'écrit un delta que s'il y a un vrai changement. `Échap` en cours
+de glisser appelle `revert_live_edit()` et restaure la copie.
+
+L'onglet **Historique** liste les étapes ; l'historique est plafonné à 120 étapes.
+
+---
+
+## 5. Liens entre éléments
+
+Les liens sont **bidirectionnels et automatiques** : `link_elements(a, b)`
+ajoute `b` dans `a.links.next` **et** `a` dans `b.links.prev`. Ils sont dessinés
+comme des flèches sur l'overlay.
+
+Usages JDR : chemin de patrouille d'un garde, chaîne d'indices dans une enquête,
+porte reliée à sa contrepartie, ordre de déclenchement d'un piège.
+
+Supprimer un élément nettoie automatiquement les références de ses voisins.
+
+---
+
+## 6. Calques
+
+Six calques par défaut : Terrain, Décor, Structures, Zones & effets, Tokens,
+Notes MJ. Chacun peut être **renommé**, **masqué** ou **verrouillé** depuis
+l'onglet Calques, qui sert aussi d'arborescence :
+
+- recherche plein texte (nom, type, notes) ;
+- visibilité et verrou par élément ;
+- clic pour sélectionner, `Ctrl+clic` pour ajouter, double-clic pour recadrer ;
+- suppression directe.
+
+L'ordre d'empilement se règle avec **Page ↑ / Page ↓** ou les boutons
+premier plan / arrière-plan.
+
+---
+
+## 7. Templates
+
+Un template est un groupe d'éléments enregistré avec ses **positions relatives**,
+replaçable en un clic.
+
+1. Sélectionnez des éléments → **Biblio → ＋ Depuis la sélection** → nommez-le.
+2. Le template apparaît dans la liste ; cliquez-le pour armer l'outil Template.
+3. `⟳` (ou `R`) le fait pivoter par quarts de tour avant la pose.
+4. Cliquez la carte : les éléments sont posés avec de **nouveaux identifiants**
+   (les liens internes au lot sont remappés), en une seule étape d'annulation.
+
+Stockage : `user://map_templates/<nom_normalisé>_template.json`
+
+```json
+{
+  "templateInfo": { "name": "Salle de garde", "elementCount": 6,
+                    "boundingBoxWidth": 8, "boundingBoxHeight": 5,
+                    "creationDate": "2026-09-03T10:00:00" },
+  "elements": [ { "kind": "token", "relativePositionX": 0, "relativePositionY": 0, … } ]
+}
+```
+
+---
+
+## 8. Réglages de carte
+
+Onglet **Carte** :
+
+- **Fond** : import PNG/JPEG/WebP (les dimensions de grille sont déduites de
+  l'image), ajout de calques d'élévation, retrait du fond.
+- **Dimensions** : redimensionnement non destructif — le terrain existant est
+  conservé au coin haut-gauche.
+- **Grille** : affichage, taille en pixels, opacité, couleur.
+- **Échelle** : distance réelle par case (défaut 1,5 m ≈ 5 pieds), unité libre —
+  utilisée par l'outil de mesure.
+- **Brouillard** : activation, tout masquer, tout révéler.
+- **Perspective** : vue de dessus, isométrique, perspective inclinée.
+- **Atmosphère** : teinte d'ambiance, opacité, vignettage.
+- **Éclairage global** : lumière directionnelle, direction, intensité.
+- **Affichage éditeur** : afficher les liens, afficher les noms.
+- **Sauvegarde** : politique **Manuelle**, **À chaque modification** ou
+  **Périodique (30 s)**.
+- **Import / Export JSON** de la carte complète.
+
+---
+
+## 9. Raccourcis clavier
+
+| Touches | Action |
+|---------|--------|
+| `Ctrl+Z` | Annuler |
+| `Ctrl+Y` / `Ctrl+Maj+Z` | Rétablir |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copier / Couper / Coller (au curseur) |
+| `Ctrl+D` | Dupliquer la sélection |
+| `Ctrl+A` / `Ctrl+I` | Tout sélectionner / Inverser |
+| `Ctrl+G` / `Ctrl+Maj+G` | Grouper / Dégrouper |
+| `Ctrl+S` | Enregistrer |
+| `Suppr` / `Retour arrière` | Supprimer la sélection |
+| `Échap` | Annuler l'action en cours, sinon ouvrir le menu éditeur |
+| `Entrée` | Fermer le polygone en cours |
+| Flèches | Décaler la sélection (`Maj` : 1 case) |
+| `Page ↑` / `Page ↓` | Avancer / reculer d'un rang |
+| `F` | Recadrer sur la sélection |
+| Molette | Zoom · clic milieu : déplacer la vue |
+| `Espace` maintenu | Navigation temporaire |
+| `V H 1..0 B G R T L M K E` | Sélection directe d'un outil |
+
+---
+
+## 10. Architecture
+
+```
+scripts/maps/
+├── map_complex_editor.gd            # Hôte : outils, panneaux, machine à états
+├── complex_map_engine_3d.gd         # Rendu 3D + projection + entrée souris
+├── map_layers/
+│   ├── map_walls_3d.gd              # Murs volumétriques (ombres réelles)
+│   ├── map_lights_3d.gd             # Sources lumineuses + vacillement
+│   └── … (sol, grille, tokens, effets, zones, brouillard, élévations)
+└── editor/
+    ├── map_edit_document.gd         # ⭐ Modèle + historique deltas + sélection
+    ├── map_editor_tools.gd          # Catalogue d'outils, aimantation, raccourcis
+    ├── map_editor_overlay.gd        # Overlay 2D : sélection, liens, aperçus, règle
+    ├── map_editor_minimap.gd        # Mini-carte cliquable
+    ├── map_editor_inspector.gd      # Inspecteur + effets visuels
+    ├── map_editor_outliner.gd       # Arborescence / calques
+    └── map_editor_templates.gd      # Lecture/écriture des templates
+```
+
+### Séparation des responsabilités
+
+Le moteur 3D **ne décide de rien** en mode éditeur : il traduit l'entrée souris
+en coordonnées grille et émet `editor_pointer_pressed/moved/released`. L'éditeur
+applique l'outil courant et écrit dans le document ; le document notifie
+(`changed`, `selection_changed`, `history_changed`, `dirty_changed`) ; les
+panneaux et l'overlay se rafraîchissent.
+
+### Projection
+
+L'overlay dessine en 2D par-dessus le viewport 3D via
+`engine.grid_to_screen(gx, gy, hauteur)` (qui s'appuie sur
+`Camera3D.unproject_position`). C'est ce qui permet au rectangle de sélection,
+aux contours et aux flèches de liens de rester justes quelle que soit la
+perspective.
+
+### Modèle unifié
+
+Tous les éléments partagent la même forme, quel que soit leur type :
+
+```gdscript
+{
+  "id": "tok-…", "kind": "token",           # token|marker|effect|zone|platform
+  "x": 3.0, "y": 4.0, "w": 1.0, "h": 1.0,   # overlay|wall|note|light|link
+  "label": "Garde", "layer": 4, "zOrder": 0.004,
+  "locked": false, "hidden": false, "group": "", "notes": "",
+  "display": { "rotation": 0.0, "mirrorH": false, "mirrorV": false,
+               "scale": 1.0, "opacity": 1.0, "tint": "",
+               "colorize": 0.0, "brightness": 0.0,
+               "contrast": 0.0, "saturation": 0.0 },
+  "links": { "next": [], "prev": [] }
+}
+```
+
+À la sauvegarde, `to_map_data()` répartit ce modèle plat dans le format de
+fichier historique — `playDefaults.tokens/effects/zones`, `elevationLayers`,
+`walls`, `notes`, `lighting.sources`, `locationLinks` — pour que les cartes
+existantes et le mode session continuent de fonctionner sans migration.
+
+### Schéma de carte (version 3)
+
+Ajouts par rapport à la version 2 : `walls`, `notes`, `layers`, `measure`.
+`MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
+
+---
+
+## 11. Tests
+
+```bash
+godot --headless --path game --script scripts/tests/map_editor_test.gd
+```
+
+`map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix
+types d'éléments), l'historique (annulation d'ajout/suppression/modification,
+transactions, édition à vif, métadonnées), la sélection et le presse-papiers,
+les liens bidirectionnels et leur nettoyage à la suppression, les calques, le
+terrain et le brouillard, l'alignement, les templates (enregistrement, rotation,
+pose, suppression), puis pilote l'interface réelle : pose de chaque type
+d'élément, tracés au glisser, polygone, peinture, mesure, annulation et
+persistance dans `MapData`.
+
+> Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
+> au moment de la compilation. Les scripts qui référencent `MapData` sont donc
+> chargés à l'exécution via `load()` dans le test.

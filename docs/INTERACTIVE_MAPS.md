@@ -1,7 +1,8 @@
 # Cartes interactives OpenQuest — Architecture dual-mode
 
 > Implémenté : septembre 2026 · Branche `gestion-mj`  
-> Complète [INTERACTIVE_MAPS_STRATEGY.md](./INTERACTIVE_MAPS_STRATEGY.md)
+> Complète [INTERACTIVE_MAPS_STRATEGY.md](./INTERACTIVE_MAPS_STRATEGY.md)  
+> Côté création, voir [MAP_EDITOR.md](./MAP_EDITOR.md) (outils, undo/redo, calques, templates)
 
 ---
 

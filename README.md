@@ -122,6 +122,7 @@ git push origin game/ma-fonctionnalite
 | [docs/STACK.md](docs/STACK.md) | Architecture technique |
 | [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) | Multijoueur P2P + pooling |
 | [docs/INTERACTIVE_MAPS_STRATEGY.md](docs/INTERACTIVE_MAPS_STRATEGY.md) | Analyse concurrentielle VTT et feuille de route cartes |
+| [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur de battlemap : outils, raccourcis, undo/redo, templates |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Résumé contribution |
 
 ---
