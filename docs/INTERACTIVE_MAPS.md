@@ -208,16 +208,24 @@ D:\git\OpenQuest_jdr\scripts\play-godot.ps1 --headless --script res://scripts/te
 | P2P sans serveur jeu | ❌ | ❌ | ❌ | ✅ (sync état complet) |
 | Mode enquête | ❌ | ❌ | ❌ | ✅★ |
 
+### ✅ Livré depuis (voir [MAP_EDITOR.md](./MAP_EDITOR.md))
+
+- **Ligne de vue réelle** : murs bloquants, portes ouvrables en session,
+  brouillard révélé automatiquement par ce que voient les tokens du groupe
+  (`MapVision`, `GameData.recompute_dynamic_fog`)
+- **Tokens image** : avatars PNG/JPEG/WebP découpés en disque
+- **Deltas réseau + permission joueur** : opérations de carte validées par le MJ
+  (`GameData.apply_map_op`, `MultiplayerManager.sync_map_op`), vue filtrée pour
+  les joueurs (`filter_map_entry_for_player`)
+- **Règle de mesure**, murs, notes MJ, lumières — côté éditeur
+
 ### ❌ Manquant (roadmap Phases 2–6)
 
-- Éclairage dynamique temps réel / LOS / murs (vraie occlusion)
 - Import Universal VTT (.dd2vtt)
-- Règle de mesure, ping, dessin éphémère
-- Tokens image (avatars PNG)
-- Initiative overlay carte
-- Deltas réseau optimisés + permission joueur
+- Ping et dessin éphémère à la table (la mesure existe côté éditeur)
+- Liaison token ↔ fiche de personnage / overlay d'initiative
 - Marketplace / modules
-- Hex grid, audio spatial
+- Hex grid, audio spatial, finition mobile
 
 ### 🎯 Différenciateur OpenQuest
 

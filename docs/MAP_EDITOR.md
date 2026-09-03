@@ -140,6 +140,40 @@ premier plan / arrière-plan.
 
 ---
 
+## 6 bis. Ligne de vue, portes et brouillard dynamique
+
+Activez **Carte → Brouillard → Ligne de vue**. Le brouillard cesse alors d'être
+peint à la main : il découle de ce que voient les tokens du groupe.
+
+- **Murs** : un mur avec « Bloque la vue » arrête la lumière et le regard.
+- **Portes** : cochez « Porte » sur un mur. Une porte fermée bloque, une porte
+  ouverte laisse passer. En session, l'ouverture est un **fait de partie**
+  (`doorStates` dans l'état de jeu) — la carte elle-même n'est jamais modifiée,
+  donc rejouer le scénario repart de portes fermées.
+- **Vision par token** : chaque token porte un rayon (`visionRadius`, 8 cases
+  par défaut) et un drapeau `providesVision`. Par défaut **seuls les tokens
+  rattachés à un membre du groupe éclairent** : un gobelin embusqué ne révèle
+  pas sa propre cachette aux joueurs.
+- **Lumières** : une lumière avec `revealsFog` participe au champ de vision.
+- **Aperçu** : Carte → Affichage éditeur → **Aperçu ligne de vue** éclaire les
+  cases atteintes depuis l'élément sélectionné. Ce qui reste sombre est dans
+  l'ombre d'un mur. Les portes sont dessinées en vert (ouvertes) ou orange.
+
+Deux notions de brouillard cohabitent :
+
+| Champ | Sens |
+|-------|------|
+| `fogRevealed` | **Mémoire** de la partie : une case vue une fois le reste |
+| `visibleNow` | Ce qui est éclairé à l'instant t, recalculé à chaque déplacement |
+
+## 6 ter. Avatars de token
+
+Inspecteur d'un token → **Importer une image…** (PNG, JPEG, WebP). L'image est
+copiée dans `user://map_assets/tokens/`, découpée en disque et cerclée de la
+couleur du personnage. Les portraits déjà importés sont proposés dans une liste
+pour être réutilisés d'un token à l'autre. Sans image, le disque coloré
+historique est conservé.
+
 ## 7. Templates
 
 Un template est un groupe d'éléments enregistré avec ses **positions relatives**,
@@ -215,6 +249,7 @@ Onglet **Carte** :
 scripts/maps/
 ├── map_complex_editor.gd            # Hôte : outils, panneaux, machine à états
 ├── complex_map_engine_3d.gd         # Rendu 3D + projection + entrée souris
+├── map_vision.gd                    # Ligne de vue, champ de vision, portes
 ├── map_layers/
 │   ├── map_walls_3d.gd              # Murs volumétriques (ombres réelles)
 │   ├── map_lights_3d.gd             # Sources lumineuses + vacillement
@@ -275,10 +310,34 @@ Ajouts par rapport à la version 2 : `walls`, `notes`, `layers`, `measure`.
 
 ---
 
-## 11. Tests
+## 11. Synchronisation en session
+
+Les modifications de carte ne passent plus par une rediffusion complète de la
+partie. Chaque geste devient une **opération** de quelques dizaines d'octets :
+
+```gdscript
+{ "type": "move_token", "tokenId": "tok-…", "x": 7.0, "y": 3.0 }
+```
+
+Types : `move_token`, `place`, `erase`, `fog_reveal`, `fog_hide`, `door`,
+`effect_trigger`, `select`.
+
+**Autorité MJ** — `GameData.submit_map_op()` est le point d'entrée unique. Côté
+joueur, l'opération part au MJ (`request_map_op`), qui la valide
+(`can_apply_map_op`), l'applique et la rediffuse (`sync_map_op`). Hors P2P
+(solo, MJ IA) tout est autorisé. Un joueur ne peut que déplacer **son propre**
+token, ouvrir une porte et changer sa sélection ; le reste est réservé au MJ.
+
+**Vue filtrée joueur** — `filter_map_entry_for_player()` retire les éléments
+marqués `gmOnly` ou masqués, et **omet les tokens tapis dans une case que le
+groupe ne voit pas**. Le brouillard cesse d'être un simple calque graphique :
+l'information n'est pas envoyée au client.
+
+## 12. Tests
 
 ```bash
 godot --headless --path game --script scripts/tests/map_editor_test.gd
+godot --headless --path game --script scripts/tests/map_vision_test.gd
 ```
 
 `map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix
@@ -289,6 +348,12 @@ terrain et le brouillard, l'alignement, les templates (enregistrement, rotation,
 pose, suppression), puis pilote l'interface réelle : pose de chaque type
 d'élément, tracés au glisser, polygone, peinture, mesure, annulation et
 persistance dans `MapData`.
+
+`map_vision_test.gd` couvre la ligne de vue (extraction des segments, ombre
+portée d'un mur, contournement par l'extrémité, champ de vision à plusieurs
+sources), les portes (état de session sans toucher la carte), le brouillard
+dynamique et sa mémoire, les opérations de carte et leur autorité, la vue
+filtrée pour les joueurs, et les portraits de token.
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc
