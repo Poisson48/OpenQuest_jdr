@@ -1289,6 +1289,10 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 		entry["viewState"] = {}
 	if not entry.has("selectedTokenId"):
 		entry["selectedTokenId"] = ""
+	if not entry.has("doorStates") or typeof(entry["doorStates"]) != TYPE_DICTIONARY:
+		entry["doorStates"] = {}
+	if not entry.has("visibleNow") or typeof(entry["visibleNow"]) != TYPE_ARRAY:
+		entry["visibleNow"] = []
 	_seed_play_defaults_from_map(map_id, entry)
 	return entry
 
@@ -1389,7 +1393,274 @@ func move_complex_token(map_id: String, token_id: String, gx: float, gy: float) 
 			tok["x"] = gx
 			tok["y"] = gy
 			break
+	recompute_dynamic_fog(map_id)
 	save_map_play_and_sync()
+
+# ===========================================================================
+# Opérations de carte synchronisées
+# ===========================================================================
+#
+# Plutôt que rediffuser tout `active_game` à chaque geste, les modifications de
+# carte passent par de petites opérations. Le MJ fait autorité : un joueur
+# soumet, le MJ valide, applique et rediffuse l'opération seule.
+
+const MAP_OP_MOVE_TOKEN := "move_token"
+const MAP_OP_PLACE := "place"
+const MAP_OP_ERASE := "erase"
+const MAP_OP_FOG_REVEAL := "fog_reveal"
+const MAP_OP_FOG_HIDE := "fog_hide"
+const MAP_OP_DOOR := "door"
+const MAP_OP_EFFECT_TRIGGER := "effect_trigger"
+const MAP_OP_SELECT := "select"
+
+## Opérations qu'un joueur non-MJ peut demander de son propre chef.
+const PLAYER_ALLOWED_OPS := [MAP_OP_MOVE_TOKEN, MAP_OP_DOOR, MAP_OP_SELECT]
+
+## Point d'entrée unique de l'UI. En P2P côté joueur, l'opération part au MJ ;
+## sinon elle est appliquée localement puis rediffusée si l'on est hôte.
+func submit_map_op(map_id: String, op: Dictionary) -> bool:
+	if MultiplayerManager.is_p2p_active() and not MultiplayerManager.is_p2p_host():
+		MultiplayerManager.client_request_map_op(map_id, op)
+		return true
+	if not can_apply_map_op(map_id, op, MultiplayerManager.player_id):
+		return false
+	if not apply_map_op(map_id, op):
+		return false
+	save_active_game()
+	MultiplayerManager.host_broadcast_map_op(map_id, op)
+	return true
+
+## Autorité : le MJ peut tout, un joueur ne touche qu'à son propre token
+## (plus les portes et sa sélection).
+func can_apply_map_op(map_id: String, op: Dictionary, player_id: String) -> bool:
+	if not MultiplayerManager.is_p2p_active():
+		return true
+	if MultiplayerManager.is_gm_peer(player_id):
+		return true
+	var type := str(op.get("type", ""))
+	if not PLAYER_ALLOWED_OPS.has(type):
+		return false
+	if type == MAP_OP_MOVE_TOKEN:
+		return _player_owns_token(map_id, str(op.get("tokenId", "")), player_id)
+	return true
+
+func _player_owns_token(map_id: String, token_id: String, player_id: String) -> bool:
+	if token_id.is_empty() or player_id.is_empty():
+		return false
+	var entry := get_map_play_entry(map_id)
+	var member_id := ""
+	for token_variant in entry["tokens"]:
+		var token: Dictionary = token_variant
+		if str(token.get("id", "")) == token_id:
+			member_id = str(token.get("memberId", ""))
+			break
+	if member_id.is_empty():
+		return false
+	for member_variant in active_game.get("party", []):
+		var member: Dictionary = member_variant
+		if str(member.get("id", "")) == member_id:
+			return str(member.get("clientId", "")) == player_id
+	return false
+
+## Applique une opération déjà autorisée. Ne diffuse rien : l'appelant décide.
+func apply_map_op(map_id: String, op: Dictionary) -> bool:
+	if active_game.is_empty() or map_id.is_empty():
+		return false
+	var entry := get_map_play_entry(map_id)
+	var type := str(op.get("type", ""))
+	match type:
+		MAP_OP_MOVE_TOKEN:
+			var token_id := str(op.get("tokenId", ""))
+			var found := false
+			for token_variant in entry["tokens"]:
+				var token: Dictionary = token_variant
+				if str(token.get("id", "")) == token_id:
+					token["x"] = float(op.get("x", token.get("x", 0)))
+					token["y"] = float(op.get("y", token.get("y", 0)))
+					found = true
+					break
+			if not found:
+				return false
+			recompute_dynamic_fog(map_id)
+		MAP_OP_PLACE:
+			apply_complex_map_click_local(map_id, float(op.get("x", 0)), float(op.get("y", 0)), op.get("tool", {}))
+		MAP_OP_ERASE:
+			remove_map_token_at(map_id, int(roundf(float(op.get("x", 0)))), int(roundf(float(op.get("y", 0)))))
+			_remove_token_near(map_id, float(op.get("x", 0)), float(op.get("y", 0)))
+		MAP_OP_FOG_REVEAL:
+			for key in op.get("cells", []):
+				if not entry["fogRevealed"].has(str(key)):
+					entry["fogRevealed"].append(str(key))
+		MAP_OP_FOG_HIDE:
+			for key in op.get("cells", []):
+				entry["fogRevealed"].erase(str(key))
+		MAP_OP_DOOR:
+			var door_id := str(op.get("doorId", ""))
+			if door_id.is_empty():
+				return false
+			var states: Dictionary = entry.get("doorStates", {})
+			states[door_id] = bool(op.get("open", not is_door_open(map_id, door_id)))
+			entry["doorStates"] = states
+			recompute_dynamic_fog(map_id)
+		MAP_OP_EFFECT_TRIGGER:
+			var effect_id := str(op.get("effectId", ""))
+			for effect_variant in entry["effects"]:
+				var effect: Dictionary = effect_variant
+				if str(effect.get("id", "")) == effect_id:
+					effect["triggered"] = bool(op.get("triggered", true))
+					break
+		MAP_OP_SELECT:
+			entry["selectedTokenId"] = str(op.get("tokenId", ""))
+		_:
+			return false
+	return true
+
+## Variante locale de `apply_complex_map_click` sans diffusion d'état complet.
+func apply_complex_map_click_local(map_id: String, gx: float, gy: float, tool: Dictionary) -> void:
+	var mode: String = tool.get("mode", "")
+	match mode:
+		"member":
+			place_complex_member_token(map_id, gx, gy, tool.get("memberId", ""))
+		"marker":
+			place_complex_marker_token(map_id, gx, gy, tool.get("markerType", ""))
+		"effect":
+			place_map_effect(map_id, tool.get("preset", "fire"), gx, gy, float(tool.get("radius", 1.0)))
+		"zone":
+			place_map_zone(map_id, gx, gy, "circle", float(tool.get("radius", 1.5)), tool.get("label", ""))
+
+# ===========================================================================
+# Vue filtrée pour les joueurs
+# ===========================================================================
+
+## État de carte tel qu'un joueur a le droit de le voir.
+##
+## Le MJ reçoit tout. Un joueur ne reçoit ni les éléments marqués MJ, ni les
+## tokens tapis dans une case que le groupe ne voit pas : le brouillard cesse
+## d'être un simple calque graphique, l'information n'est plus là.
+func filter_map_entry_for_player(map_id: String, viewer_is_gm: bool) -> Dictionary:
+	var entry := get_map_play_entry(map_id)
+	if viewer_is_gm:
+		return entry.duplicate(true)
+	var filtered: Dictionary = entry.duplicate(true)
+	var map_def := MapData.get_by_id(map_id)
+	var fog_on := bool(map_def.get("fogEnabled", true))
+	var los_on := bool(map_def.get("losEnabled", false))
+	var visible: Dictionary = {}
+	if los_on:
+		for key in entry.get("visibleNow", []):
+			visible[str(key)] = true
+	var revealed: Dictionary = {}
+	for key in entry.get("fogRevealed", []):
+		revealed[str(key)] = true
+
+	filtered["tokens"] = (entry["tokens"] as Array).filter(func(token):
+		if bool(token.get("gmOnly", false)) or bool(token.get("hidden", false)):
+			return false
+		if not fog_on:
+			return true
+		# Un token du groupe reste toujours visible pour ses joueurs.
+		if not str(token.get("memberId", "")).is_empty():
+			return true
+		var key := "%d,%d" % [int(roundf(float(token.get("x", 0)))), int(roundf(float(token.get("y", 0))))]
+		if los_on:
+			return visible.has(key)
+		return revealed.has(key)
+	)
+	filtered["effects"] = (entry["effects"] as Array).filter(func(effect):
+		return not bool(effect.get("gmOnly", false)) and not bool(effect.get("hidden", false))
+	)
+	filtered["zones"] = (entry["zones"] as Array).filter(func(zone):
+		return not bool(zone.get("gmOnly", false)) and not bool(zone.get("hidden", false))
+	)
+	return filtered
+
+# ===========================================================================
+# Ligne de vue et brouillard dynamique
+# ===========================================================================
+
+## Carte de session avec l'état d'ouverture des portes appliqué.
+## Les portes appartiennent à la carte, leur ouverture est un fait de partie.
+func get_map_with_door_states(map_id: String) -> Dictionary:
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return {}
+	var entry := get_map_play_entry(map_id)
+	var states: Dictionary = entry.get("doorStates", {})
+	return MapVision.apply_door_states(map_def, states if states is Dictionary else {})
+
+func is_los_enabled(map_id: String) -> bool:
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return false
+	return bool(map_def.get("losEnabled", false))
+
+## Cases actuellement dans le champ de vision des tokens de la partie.
+func get_visible_now_cells(map_id: String) -> Array:
+	var entry := get_map_play_entry(map_id)
+	var cells = entry.get("visibleNow", [])
+	return cells if cells is Array else []
+
+## Recalcule le champ de vision et l'ajoute au brouillard déjà révélé.
+##
+## `fogRevealed` est la **mémoire** de la partie : une case vue une fois le
+## reste (exploration). `visibleNow` est ce qui est éclairé à l'instant t, pour
+## que le rendu puisse assombrir le souvenir sans le masquer.
+func recompute_dynamic_fog(map_id: String) -> Array:
+	if not is_los_enabled(map_id):
+		return []
+	var map_def := get_map_with_door_states(map_id)
+	if map_def.is_empty():
+		return []
+	var entry := get_map_play_entry(map_id)
+	var sources: Array = MapVision.vision_sources_from_tokens(entry.get("tokens", []))
+	sources.append_array(MapVision.vision_sources_from_lights(map_def))
+	var visible: Array = MapVision.visible_cells_multi(map_def, sources)
+	entry["visibleNow"] = visible
+	var fog: Array = entry["fogRevealed"]
+	for key in visible:
+		if not fog.has(key):
+			fog.append(key)
+	entry["fogRevealed"] = fog
+	return visible
+
+## Ouvre / ferme une porte et met à jour le champ de vision.
+func toggle_map_door(map_id: String, door_id: String) -> bool:
+	if door_id.is_empty():
+		return false
+	var entry := get_map_play_entry(map_id)
+	var states: Dictionary = entry.get("doorStates", {})
+	if not states is Dictionary:
+		states = {}
+	var map_def := MapData.get_by_id(map_id)
+	var was_open := false
+	for door_variant in MapVision.doors(map_def):
+		var door: Dictionary = door_variant
+		if str(door.get("id", "")) == door_id:
+			was_open = bool(states.get(door_id, door.get("open", false)))
+			break
+	states[door_id] = not was_open
+	entry["doorStates"] = states
+	recompute_dynamic_fog(map_id)
+	save_map_play_and_sync()
+	return not was_open
+
+func is_door_open(map_id: String, door_id: String) -> bool:
+	var entry := get_map_play_entry(map_id)
+	var states: Dictionary = entry.get("doorStates", {})
+	if states is Dictionary and states.has(door_id):
+		return bool(states[door_id])
+	for door_variant in MapVision.doors(MapData.get_by_id(map_id)):
+		var door: Dictionary = door_variant
+		if str(door.get("id", "")) == door_id:
+			return bool(door.get("open", false))
+	return false
+
+## Ligne de vue entre deux positions grille, portes de session comprises.
+func has_line_of_sight(map_id: String, from: Vector2, to: Vector2) -> bool:
+	var map_def := get_map_with_door_states(map_id)
+	if map_def.is_empty():
+		return true
+	return MapVision.has_line_of_sight(map_def, from, to)
 
 func apply_complex_map_click(map_id: String, gx: float, gy: float, tool: Dictionary) -> void:
 	if active_game.is_empty() or active_game.get("status") == "completed":
@@ -1428,7 +1699,10 @@ func place_complex_member_token(map_id: String, gx: float, gy: float, member_id:
 		"hp": member.get("hp", 0),
 		"maxHp": member.get("hp", 0),
 	})
-	if is_gm_view_for_map(map_id):
+	if is_los_enabled(map_id):
+		# Avec la ligne de vue, le brouillard découle des murs, pas d'un disque.
+		recompute_dynamic_fog(map_id)
+	elif is_gm_view_for_map(map_id):
 		reveal_fog_cells(map_id, _cells_around(int(roundf(gx)), int(roundf(gy)), 2))
 
 func place_complex_marker_token(map_id: String, gx: float, gy: float, marker_type: String) -> void:

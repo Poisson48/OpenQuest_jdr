@@ -50,6 +50,9 @@ var _current_mode: String = MapModeScript.SIMPLE
 func _ready() -> void:
 	_build_ui()
 	resized.connect(func(): call_deferred("_sync_map_viewport_size"))
+	# Une opération de carte reçue du MJ (ou validée par lui) redessine la vue
+	# sans attendre une resynchronisation complète de la partie.
+	MultiplayerManager.map_op_received.connect(func(_map_id: String, _op: Dictionary): refresh())
 	refresh()
 
 func _build_ui() -> void:
@@ -514,13 +517,14 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 
 	if use_complex:
 		var tool := _complex_tool_dict()
+		var view: Dictionary = GameData.filter_map_entry_for_player(map_id, is_gm)
 		_complex_engine.configure(
 			display_map,
-			GameData.get_map_play_tokens(map_id),
+			view.get("tokens", []),
 			party,
-			GameData.get_map_effects(map_id),
-			GameData.get_map_zones(map_id),
-			GameData.get_fog_revealed_cells(map_id),
+			view.get("effects", []),
+			view.get("zones", []),
+			view.get("fogRevealed", []),
 			_readonly,
 			is_gm,
 			tool,
@@ -612,7 +616,10 @@ func _on_complex_token_moved(token_id: String, gx: float, gy: float) -> void:
 	var state := GameData.active_game
 	var active_id := _get_active_map_id(state.get("mapIds", []))
 	var map_id: String = GameData.get_session_display_map(active_id).get("displayMap", {}).get("id", "")
-	GameData.move_complex_token(map_id, token_id, gx, gy)
+	GameData.submit_map_op(map_id, {
+		"type": GameData.MAP_OP_MOVE_TOKEN,
+		"tokenId": token_id, "x": gx, "y": gy,
+	})
 	if _complex_engine.has_method("get_view_state"):
 		GameData.save_map_view_state(map_id, _complex_engine.get_view_state())
 

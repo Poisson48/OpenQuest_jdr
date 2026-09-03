@@ -16,6 +16,8 @@ signal game_started(game_id: String, state: Dictionary)
 signal game_state_received(state: Dictionary)
 signal log_entry_received(entry: Dictionary)
 signal dice_result_received(result: Dictionary, formatted: String)
+signal map_op_received(map_id: String, op: Dictionary)
+signal map_op_rejected(map_id: String, op: Dictionary, sender_player_id: String)
 
 const ENET_PORT := 7777
 const SETTINGS_PATH := "user://multiplayer_settings.cfg"
@@ -594,6 +596,48 @@ func sync_log_entry(entry: Dictionary) -> void:
 @rpc("authority", "call_local", "reliable")
 func sync_dice_result(result: Dictionary, formatted: String) -> void:
 	dice_result_received.emit(result, formatted)
+
+# ===========================================================================
+# Opérations de carte
+# ===========================================================================
+#
+# Une opération pèse quelques dizaines d'octets, là où `broadcast_state()`
+# rediffuse toute la partie. Le MJ reste seul juge de ce qui est appliqué.
+
+## Le joueur soumet une opération au MJ.
+func client_request_map_op(map_id: String, op: Dictionary) -> void:
+	if not _is_p2p_active or is_p2p_host():
+		return
+	request_map_op.rpc_id(1, map_id, op, player_id)
+
+## Le MJ rediffuse une opération déjà appliquée chez lui.
+func host_broadcast_map_op(map_id: String, op: Dictionary) -> void:
+	if not _is_p2p_active or not is_p2p_host():
+		return
+	sync_map_op.rpc(map_id, op)
+
+func is_gm_peer(pid: String) -> bool:
+	return _is_gm_peer(pid)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_map_op(map_id: String, op: Dictionary, sender_player_id: String) -> void:
+	if not is_p2p_host():
+		return
+	if not GameData.can_apply_map_op(map_id, op, sender_player_id):
+		map_op_rejected.emit(map_id, op, sender_player_id)
+		return
+	if not GameData.apply_map_op(map_id, op):
+		return
+	GameData.save_active_game()
+	sync_map_op.rpc(map_id, op)
+
+@rpc("authority", "call_local", "reliable")
+func sync_map_op(map_id: String, op: Dictionary) -> void:
+	# L'hôte a déjà appliqué l'opération avant de la diffuser.
+	if not is_p2p_host():
+		GameData.apply_map_op(map_id, op)
+		GameData.save_active_game()
+	map_op_received.emit(map_id, op)
 
 func notify_room_created(room: Dictionary) -> void:
 	_on_room_created_side_effects(room)
