@@ -4,7 +4,7 @@ signal maps_updated
 
 const MAPS_PATH := "user://maps.json"
 const MAP_ASSETS_DIR := "user://map_assets/"
-const SCHEMA_VERSION := 3
+const SCHEMA_VERSION := 4
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
 const DEFAULT_GRID_CONFIG := {
@@ -27,6 +27,16 @@ const DEFAULT_PLAY_DEFAULTS := {
 	"fogRevealed": [],
 	"viewState": {},
 }
+## Catégories de lieux, reprises telles quelles dans la légende de la carte.
+## Elles correspondent aux pictogrammes des cartes de village illustrées.
+const AREA_CATEGORIES := [
+	{"id": "building", "label": "Bâtiment", "icon": "🏠"},
+	{"id": "shop", "label": "Commerce / Service", "icon": "💰"},
+	{"id": "poi", "label": "Lieu d'intérêt", "icon": "⭐"},
+	{"id": "exit", "label": "Sortie", "icon": "➡"},
+	{"id": "nature", "label": "Nature", "icon": "🌲"},
+]
+
 ## Échelle par défaut d'une case (1,5 m ≈ 5 pieds, standard des JDR sur grille).
 const DEFAULT_MEASURE := {
 	"unit": "m",
@@ -363,6 +373,11 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["measure"] = DEFAULT_MEASURE.duplicate(true)
 	if not map_data.has("losEnabled"):
 		map_data["losEnabled"] = false
+	# Schéma 4 — cartes illustrées à plusieurs échelles.
+	if not map_data.has("areas") or typeof(map_data["areas"]) != TYPE_ARRAY:
+		map_data["areas"] = []
+	if not map_data.has("parentMapId"):
+		map_data["parentMapId"] = ""
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
 		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
 	return map_data
@@ -393,7 +408,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 	tiles.resize(grid_cells_w * grid_cells_h)
 	tiles.fill("floor")
 	var map := ensure_map_schema({
-		"id": "map-%d" % Time.get_unix_time_from_system(),
+		"id": generate_id("map"),
 		"title": title,
 		"description": "",
 		"roster": roster,
@@ -416,6 +431,123 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 	maps.append(map)
 	save_maps()
 	return map
+
+# ===========================================================================
+# Cartes à plusieurs échelles
+# ===========================================================================
+#
+# Une carte de village illustrée porte des « lieux » (areas). Chaque lieu peut
+# ouvrir une carte enfant — la place du marché, l'intérieur d'une taverne — où
+# l'on place réellement les personnages. La profondeur n'est pas limitée.
+
+static func area_category(category_id: String) -> Dictionary:
+	for category in AREA_CATEGORIES:
+		if category["id"] == category_id:
+			return category
+	return AREA_CATEGORIES[0]
+
+static func area_icon(area: Dictionary) -> String:
+	var icon := str(area.get("icon", "")).strip_edges()
+	if not icon.is_empty():
+		return icon
+	return str(area_category(str(area.get("category", "building"))).get("icon", "🏠"))
+
+func get_areas(map_data: Dictionary) -> Array:
+	var areas = map_data.get("areas", [])
+	return areas if areas is Array else []
+
+func get_area(map_data: Dictionary, area_id: String) -> Dictionary:
+	for area_variant in get_areas(map_data):
+		if str((area_variant as Dictionary).get("id", "")) == area_id:
+			return area_variant
+	return {}
+
+## Lieu dont l'emprise contient la position grille donnée (le plus petit gagne,
+## pour qu'un lieu imbriqué l'emporte sur celui qui le contient).
+func get_area_at(map_data: Dictionary, gx: float, gy: float) -> Dictionary:
+	var best: Dictionary = {}
+	var best_size := INF
+	for area_variant in get_areas(map_data):
+		var area: Dictionary = area_variant
+		var half_w := float(area.get("w", 2.0)) * 0.5
+		var half_h := float(area.get("h", 2.0)) * 0.5
+		var cx := float(area.get("x", 0.0))
+		var cy := float(area.get("y", 0.0))
+		var inside := false
+		if str(area.get("shape", "rect")) == "circle":
+			inside = Vector2(gx - cx, gy - cy).length() <= maxf(half_w, half_h)
+		else:
+			inside = absf(gx - cx) <= half_w and absf(gy - cy) <= half_h
+		if not inside:
+			continue
+		var size := half_w * half_h
+		if size < best_size:
+			best_size = size
+			best = area
+	return best
+
+## Crée la carte enfant d'un lieu et la relie dans les deux sens.
+## Renvoie la carte créée (ou l'existante si le lieu en avait déjà une).
+func create_child_map_for_area(parent_map_id: String, area_id: String, grid_w: int = 24, grid_h: int = 18) -> Dictionary:
+	var parent := get_by_id(parent_map_id)
+	if parent.is_empty():
+		return {}
+	var area := get_area(parent, area_id)
+	if area.is_empty():
+		return {}
+	var existing := str(area.get("targetMapId", ""))
+	if not existing.is_empty():
+		var already := get_by_id(existing)
+		if not already.is_empty():
+			return already
+	var title := str(area.get("label", "Lieu")).strip_edges()
+	if title.is_empty():
+		title = "Lieu"
+	var child := create_complex_map(
+		title,
+		str(parent.get("roster", "general")),
+		"local",
+		grid_w, grid_h
+	)
+	child["parentMapId"] = parent_map_id
+	child["scenarioId"] = str(parent.get("scenarioId", ""))
+	update_map(child)
+	# Le lieu pointe désormais vers sa carte.
+	for i in range(maps.size()):
+		if maps[i].get("id") != parent_map_id:
+			continue
+		var parent_map: Dictionary = ensure_map_schema(maps[i])
+		var areas: Array = parent_map.get("areas", [])
+		for area_entry_variant in areas:
+			var area_entry: Dictionary = area_entry_variant
+			if str(area_entry.get("id", "")) == area_id:
+				area_entry["targetMapId"] = str(child.get("id", ""))
+		parent_map["areas"] = areas
+		maps[i] = parent_map
+		save_maps()
+		break
+	return child
+
+## Chaîne des cartes parentes, de la racine jusqu'à celle-ci (fil d'Ariane).
+func get_map_breadcrumb(map_id: String) -> Array:
+	var chain: Array = []
+	var current := map_id
+	var guard := 0
+	while not current.is_empty() and guard < 16:
+		var map_def := get_by_id(current)
+		if map_def.is_empty():
+			break
+		chain.push_front({"id": current, "title": str(map_def.get("title", "Carte"))})
+		current = str(map_def.get("parentMapId", ""))
+		guard += 1
+	return chain
+
+func get_child_maps(map_id: String) -> Array:
+	var out: Array = []
+	for m in maps:
+		if str(m.get("parentMapId", "")) == map_id:
+			out.append(m)
+	return out
 
 func import_background_image(map_id: String, source_path: String) -> String:
 	if map_id.is_empty() or source_path.is_empty():
@@ -616,7 +748,7 @@ func create_blank_map(title: String, roster: String, map_kind: String) -> Dictio
 	tiles.resize(w * h)
 	tiles.fill(fill_tile)
 	var map := ensure_map_schema({
-		"id": "map-%d" % Time.get_unix_time_from_system(),
+		"id": generate_id("map"),
 		"title": title,
 		"description": "",
 		"roster": roster,

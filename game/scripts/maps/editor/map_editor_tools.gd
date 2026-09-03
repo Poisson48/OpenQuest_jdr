@@ -26,12 +26,13 @@ const ERASE := "erase"
 const LINK := "link"
 const MEASURE := "measure"
 const TEMPLATE := "template"
+const AREA := "area"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM, AREA]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -84,6 +85,10 @@ const DEFS := [
 	{
 		"id": LIGHT, "icon": "💡", "label": "Lumière", "shortcut": "0", "group": "place",
 		"hint": "Clic : poser une source lumineuse (torche, brasier, lanterne).",
+	},
+	{
+		"id": AREA, "icon": "🏠", "label": "Lieu", "shortcut": "A", "group": "place",
+		"hint": "Clic-glisser : délimiter un lieu nommé (taverne, place, sortie). Un lieu peut ouvrir sa propre carte, où l'on place les personnages.",
 	},
 	{
 		"id": PAINT, "icon": "🖌", "label": "Terrain", "shortcut": "B", "group": "terrain",
