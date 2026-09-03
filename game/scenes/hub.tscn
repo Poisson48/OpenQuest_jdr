@@ -41,8 +41,9 @@ theme_override_constants/separation = 12
 
 [node name="BtnHome" type="Button" parent="MainLayout/TopBar"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 44)
 layout_mode = 2
-text = "🏠 Accueil"
+text = "← Accueil"
 
 [node name="Title" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
@@ -51,10 +52,18 @@ theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 20
 text = "🏛️ OpenQuest — Centre d'Aventures"
 
+[node name="TabNav" type="HBoxContainer" parent="MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
 [node name="TabContainer" type="TabContainer" parent="MainLayout"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
+tabs_visible = false
 current_tab = 0
 
 [node name="Aventures" type="MarginContainer" parent="MainLayout/TabContainer"]
@@ -74,6 +83,7 @@ vertical_scroll_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Aventures/TabScroll"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
 [node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox"]
@@ -97,6 +107,7 @@ text = "Chargement..."
 
 [node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 2
@@ -141,6 +152,7 @@ vertical_scroll_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/TabScroll"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
 [node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
@@ -164,6 +176,7 @@ text = "Chargement..."
 
 [node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 2
@@ -201,6 +214,7 @@ metadata/_tab_index = 2
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Cartes"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
@@ -225,6 +239,7 @@ text = "Crée et gère les cartes pour tes campagnes et enquêtes. Choisis le mo
 
 [node name="MapsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
 [node name="SortLabel" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
@@ -237,27 +252,36 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 
-[node name="ToolbarSpacer" type="Control" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+[node name="MapsCreateRow" type="HBoxContainer" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
-[node name="BtnNewMapWorld" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+[node name="BtnNewMapWorld" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 40)
 text = "+ Monde"
 
-[node name="BtnNewMapAdv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+[node name="BtnNewMapAdv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 40)
 text = "+ Aventure"
 
-[node name="BtnNewMapInv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
+[node name="BtnNewMapInv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 40)
 text = "+ Enquête"
 
 [node name="MapsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
@@ -295,6 +319,7 @@ vertical_scroll_mode = 2
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
 [node name="SessionStatusCard" type="PanelContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox"]
@@ -337,6 +362,8 @@ metadata/_tab_index = 4
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Bots"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="PanelHeader" type="PanelContainer" parent="MainLayout/TabContainer/Bots/VBox"]

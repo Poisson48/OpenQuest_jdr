@@ -97,6 +97,7 @@ func _build_ui() -> void:
 
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer.add_child(header)
 
 	_title_lbl = Label.new()
@@ -107,11 +108,12 @@ func _build_ui() -> void:
 	_title_lbl.clip_text = true
 	header.add_child(_title_lbl)
 
+	_build_zoom_controls(header)
+
 	_tabs_container = HBoxContainer.new()
 	_tabs_container.add_theme_constant_override("separation", 4)
-	header.add_child(_tabs_container)
-
-	_build_zoom_controls(header)
+	_tabs_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.add_child(_tabs_container)
 
 	_build_mode_row(outer)
 
@@ -354,7 +356,8 @@ func _render_tabs(map_ids: Array) -> void:
 		var btn := Button.new()
 		btn.text = str(m.get("title", map_id))
 		btn.toggle_mode = true
-		btn.custom_minimum_size = Vector2(0, 28)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0, 36)
 		btn.add_theme_font_size_override("font_size", 12)
 		btn.button_pressed = map_id == _get_active_map_id(map_ids)
 		var captured_id: String = map_id

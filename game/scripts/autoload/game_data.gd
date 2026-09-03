@@ -14,6 +14,7 @@ const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
+const MapVision = preload("res://scripts/maps/map_vision.gd")
 
 var characters: Array = []
 var scenarios: Array = []

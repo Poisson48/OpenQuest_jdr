@@ -3,6 +3,7 @@ extends Control
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 
 @onready var tab_container: TabContainer = %TabContainer
+@onready var tab_nav: HBoxContainer = %TabNav
 @onready var bots_sections_root: VBoxContainer = %BotsSectionsRoot
 @onready var bots_scroll: ScrollContainer = %BotsScroll
 @onready var bots_filter: OptionButton = %BotsFilter
@@ -56,7 +57,8 @@ func _ready() -> void:
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
-	_ensure_tab_scroll(["Aventures", "Enquête", "Jouer"])
+	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Jouer", "Bots"])
+	_setup_full_width_tabs()
 	MapData.maps_updated.connect(_render_maps_tab)
 	GameData.bots_updated.connect(_render_bots)
 	_setup_maps_sort()
@@ -181,8 +183,8 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 
 func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(280, 0)
-	card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	card.custom_minimum_size = Vector2(240, 0)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
 	style.bg_color = ThemeColors.BG_CARD
 	style.border_color = ThemeColors.BORDER
@@ -256,19 +258,23 @@ func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 8)
+	actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var btn_preview := Button.new()
 	btn_preview.text = "Aperçu"
+	btn_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_preview.pressed.connect(func(): _preview_map(map_id))
 	actions.add_child(btn_preview)
 
 	var btn_edit := Button.new()
 	btn_edit.text = "Modifier"
+	btn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_edit.pressed.connect(func(): _edit_map(map_id))
 	actions.add_child(btn_edit)
 
 	var btn_delete := Button.new()
 	btn_delete.text = "Supprimer"
+	btn_delete.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_delete.pressed.connect(func(): _ask_delete_map(map_id, map_data.get("title", "Sans titre")))
 	actions.add_child(btn_delete)
 
@@ -294,18 +300,25 @@ func _create_map(roster: String, map_kind: String) -> void:
 	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")
 
 func _add_vtt_map_button() -> void:
-	if btn_new_map_adv == null or btn_new_map_adv.get_parent() == null:
-		return
+	var row: Node = get_node_or_null("%MapsCreateRow")
+	if row == null:
+		if btn_new_map_adv == null or btn_new_map_adv.get_parent() == null:
+			return
+		row = btn_new_map_adv.get_parent()
 	var btn_vtt := Button.new()
 	btn_vtt.text = "+ Battlemap 3D"
 	btn_vtt.tooltip_text = "Crée une carte VTT complexe (tokens, brouillard, effets 3D)"
+	btn_vtt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_vtt.custom_minimum_size = Vector2(0, 40)
 	btn_vtt.pressed.connect(func(): _create_complex_map("general"))
-	btn_new_map_adv.get_parent().add_child(btn_vtt)
+	row.add_child(btn_vtt)
 	var btn_vtt_inv := Button.new()
 	btn_vtt_inv.text = "+ Battlemap enquête 3D"
 	btn_vtt_inv.tooltip_text = "Battlemap VTT pour scénarios d'enquête"
+	btn_vtt_inv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_vtt_inv.custom_minimum_size = Vector2(0, 40)
 	btn_vtt_inv.pressed.connect(func(): _create_complex_map("investigation"))
-	btn_new_map_adv.get_parent().add_child(btn_vtt_inv)
+	row.add_child(btn_vtt_inv)
 
 func _create_complex_map(roster: String) -> void:
 	var label := "Battlemap enquête" if roster == "investigation" else "Battlemap VTT"
@@ -573,6 +586,43 @@ func _on_confirm_delete_bot() -> void:
 	GameData.delete_bot(_pending_delete_bot_id)
 	_pending_delete_bot_id = ""
 	_render_bots()
+
+func _setup_full_width_tabs() -> void:
+	tab_container.tabs_visible = false
+	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var native_bar := tab_container.get_tab_bar()
+	if native_bar:
+		native_bar.visible = false
+	tab_nav.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for child in tab_nav.get_children():
+		child.queue_free()
+	var group := ButtonGroup.new()
+	group.allow_unpress = false
+	for i in tab_container.get_tab_count():
+		var btn := Button.new()
+		btn.text = tab_container.get_tab_title(i)
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0, 44)
+		btn.button_pressed = i == tab_container.current_tab
+		var idx := i
+		btn.pressed.connect(func(): tab_container.current_tab = idx)
+		tab_nav.add_child(btn)
+	if not tab_container.tab_changed.is_connected(_sync_tab_nav):
+		tab_container.tab_changed.connect(_sync_tab_nav)
+	_sync_tab_nav(tab_container.current_tab)
+
+func _sync_tab_nav(idx: int) -> void:
+	for i in tab_nav.get_child_count():
+		var btn := tab_nav.get_child(i) as Button
+		if btn == null:
+			continue
+		btn.set_pressed_no_signal(i == idx)
+		if i == idx:
+			btn.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		else:
+			btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 
 func _ensure_tab_scroll(tab_names: Array) -> void:
 	for tab_name in tab_names:
