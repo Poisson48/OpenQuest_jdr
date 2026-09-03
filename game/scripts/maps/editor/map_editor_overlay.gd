@@ -44,6 +44,10 @@ const COL_GROUP := Color(0.7, 0.55, 1.0, 0.7)
 const COL_VISION := Color(1.0, 0.94, 0.72, 0.13)
 const COL_DOOR_OPEN := Color(0.45, 0.9, 0.55, 0.95)
 const COL_DOOR_SHUT := Color(1.0, 0.62, 0.25, 0.95)
+const COL_AREA := Color(0.55, 0.78, 0.95, 0.75)
+const COL_AREA_LINKED := Color(0.95, 0.78, 0.35, 0.95)
+const COL_CALLOUT_BG := Color(0.96, 0.92, 0.80, 0.94)
+const COL_CALLOUT_TEXT := Color(0.16, 0.12, 0.08)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -112,6 +116,7 @@ func _draw() -> void:
 	if show_links:
 		_draw_links()
 	_draw_flat_elements()
+	_draw_areas()
 	_draw_selection()
 	_draw_ghost()
 	_draw_drag_preview()
@@ -187,6 +192,58 @@ func _draw_flat_elements() -> void:
 		if show_ids and font:
 			var label_pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.6)
 			draw_string(font, label_pos + Vector2(8, -4), str(elem.get("label", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.7))
+
+## Lieux : emprise + cartouche de nom relié par un trait, à la manière des
+## cartes de village illustrées. Un lieu qui ouvre sa propre carte est souligné
+## d'un liseré doré et signalé par une loupe.
+func _draw_areas() -> void:
+	var font := get_theme_default_font()
+	for elem_variant in doc.elements_of_kind(MapEditDocument.KIND_AREA):
+		var area: Dictionary = elem_variant
+		if not doc.is_element_visible(area):
+			continue
+		var has_child := not str(area.get("targetMapId", "")).is_empty()
+		var outline := COL_AREA_LINKED if has_child else COL_AREA
+		var center := Vector2(float(area.get("x", 0.0)), float(area.get("y", 0.0)))
+
+		if str(area.get("shape", "rect")) == "circle":
+			var radius_px := _p(center.x + float(area.get("w", 2.0)) * 0.5, center.y).distance_to(_p(center.x, center.y))
+			draw_arc(_p(center.x, center.y), radius_px, 0.0, TAU, 48, outline, 2.0, true)
+		else:
+			var pts := _footprint(area)
+			draw_colored_polygon(pts, Color(outline.r, outline.g, outline.b, 0.07))
+			draw_polyline(_closed(pts), outline, 2.0, true)
+
+		if font == null or not bool(area.get("showCallout", true)):
+			continue
+		var label := str(area.get("label", "Lieu"))
+		if label.is_empty():
+			continue
+		var offset: Dictionary = area.get("labelOffset", {}) if area.get("labelOffset") is Dictionary else {}
+		var anchor := center + Vector2(
+			float(offset.get("x", 0.0)),
+			float(offset.get("y", -(float(area.get("h", 2.0)) * 0.5 + 0.8)))
+		)
+		_draw_callout(font, _p(anchor.x, anchor.y), _p(center.x, center.y),
+			"%s %s" % [MapData.area_icon(area), label], has_child)
+
+## Cartouche « parchemin » : trait de rappel, fond crème, liseré sombre.
+func _draw_callout(font: Font, at: Vector2, target: Vector2, text: String, highlighted: bool) -> void:
+	var font_size := 13
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var padding := Vector2(9, 5)
+	var box := Rect2(at - text_size * 0.5 - padding, text_size + padding * 2.0)
+
+	draw_line(target, at, Color(0.18, 0.14, 0.10, 0.75), 1.5, true)
+	draw_rect(box.grow(1.0), Color(0.18, 0.14, 0.10, 0.85), true)
+	draw_rect(box, COL_CALLOUT_BG, true)
+	if highlighted:
+		draw_rect(box, COL_AREA_LINKED, false, 1.5)
+	draw_string(font, Vector2(box.position.x + padding.x, box.position.y + padding.y + text_size.y * 0.8),
+		text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, COL_CALLOUT_TEXT)
+	if highlighted:
+		draw_string(font, Vector2(box.end.x + 3.0, box.position.y + padding.y + text_size.y * 0.8),
+			"🔍", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 
 func _draw_selection() -> void:
 	var font := get_theme_default_font()

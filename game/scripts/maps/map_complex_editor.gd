@@ -11,6 +11,7 @@ extends Control
 ##     et écrivent uniquement à travers le document.
 
 signal layout_changed
+signal open_map_requested(map_id: String)
 
 const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine_3d.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
@@ -46,6 +47,8 @@ var _brush_size: int = 0
 var _fog_brush: int = 1
 var _paint_tile: String = ""
 var _selected_template: String = ""
+var _area_category: String = "building"
+var _area_label: String = ""
 var _template_rotation: int = 0
 var _space_held: bool = false
 var _syncing: bool = false
@@ -78,6 +81,7 @@ var _status_lbl: Label
 var _hint_lbl: Label
 var _zoom_lbl: Label
 var _dirty_lbl: Label
+var _breadcrumb: HBoxContainer
 var _undo_btn: Button
 var _redo_btn: Button
 var _tool_buttons: Dictionary = {}
@@ -327,6 +331,10 @@ func _build_action_bar() -> HBoxContainer:
 	_icon_button(bar, "↔", "Distribuer horizontalement", func(): doc.distribute_selection(true))
 
 	bar.add_child(VSeparator.new())
+	_breadcrumb = HBoxContainer.new()
+	_breadcrumb.add_theme_constant_override("separation", 2)
+	bar.add_child(_breadcrumb)
+
 	_dirty_lbl = Label.new()
 	_dirty_lbl.add_theme_font_size_override("font_size", 11)
 	_dirty_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -365,6 +373,8 @@ func _build_right_column() -> void:
 	_inspector.set_document(doc)
 	_inspector.focus_requested.connect(_focus_element)
 	_inspector.unlink_requested.connect(func(a, b): doc.unlink_elements(a, b))
+	_inspector.child_map_requested.connect(_on_child_map_requested)
+	_inspector.open_map_requested.connect(_on_open_map_requested)
 	_inspector.link_mode_requested.connect(func(id):
 		_link_source = id
 		_set_tool(ToolsScript.LINK)
@@ -923,7 +933,9 @@ func _finish_draw(to: Vector2) -> void:
 	var from: Vector2 = _press_start_grid
 	if _overlay.drag_preview.has("to"):
 		to = _overlay.drag_preview["to"]
-	if _tool == ToolsScript.ZONE_RECT:
+	if _tool == ToolsScript.AREA:
+		_create_area(from, to)
+	elif _tool == ToolsScript.ZONE_RECT:
 		_create_rect_zone(from, to)
 	elif _tool == ToolsScript.PLATFORM:
 		_create_platform(from, to)
@@ -1037,6 +1049,28 @@ func _create_rect_zone(from: Vector2, to: Vector2) -> void:
 		"layer": 3,
 	}, MapEditDocument.KIND_ZONE, "Zone rectangulaire")
 	doc.select_only(id)
+
+## Un lieu délimite une portion de la carte illustrée : une taverne, une place,
+## une sortie de village. Il porte un nom affiché en cartouche et peut ouvrir
+## sa propre carte, où l'on place réellement les personnages.
+func _create_area(from: Vector2, to: Vector2) -> void:
+	var rect := Rect2(from, to - from).abs()
+	if rect.size.x < 0.5 or rect.size.y < 0.5:
+		rect = Rect2(from - Vector2(1.5, 1.5), Vector2(3.0, 3.0))
+	var id := doc.add_element({
+		"x": rect.get_center().x, "y": rect.get_center().y,
+		"w": rect.size.x, "h": rect.size.y,
+		"shape": "rect",
+		"category": _area_category,
+		"label": _area_label if not _area_label.is_empty() else "Nouveau lieu",
+		"targetMapId": "",
+		"showCallout": true,
+		"labelOffset": {"x": 0.0, "y": -(rect.size.y * 0.5 + 0.8)},
+		"layer": 5,
+	}, MapEditDocument.KIND_AREA, "Lieu")
+	doc.select_only(id)
+	if _right_tabs:
+		_right_tabs.current_tab = 0
 
 func _create_platform(from: Vector2, to: Vector2) -> void:
 	var rect := Rect2(from, to - from).abs()
@@ -1407,6 +1441,31 @@ func _open_esc_menu() -> void:
 		return
 	_esc_menu.popup_centered(Vector2i(320, 380))
 
+## Crée la carte d'un lieu. La carte courante est enregistrée d'abord : elle
+## doit contenir le lieu pour que MapData puisse y écrire le lien retour.
+func _on_child_map_requested(area_id: String) -> void:
+	var map_id := str(doc.map_data.get("id", ""))
+	if map_id.is_empty() or area_id.is_empty():
+		return
+	save_now()
+	var child := MapData.create_child_map_for_area(map_id, area_id)
+	if child.is_empty():
+		_set_status("Impossible de créer la carte de ce lieu.")
+		return
+	# On recharge pour récupérer le lien écrit côté MapData.
+	doc.load_map(MapData.get_by_id(map_id))
+	_sync_settings_ui()
+	_refresh_panels()
+	_refresh_breadcrumb()
+	_set_status("Carte « %s » créée. Ouvrez-la pour la composer." % child.get("title", ""))
+
+func _on_open_map_requested(map_id: String) -> void:
+	if map_id.is_empty():
+		return
+	if doc.is_dirty():
+		save_now()
+	open_map_requested.emit(map_id)
+
 func _focus_selection() -> void:
 	var bounds := doc.selection_bounds()
 	if bounds.size == Vector2.ZERO:
@@ -1531,6 +1590,40 @@ func _ghost_size() -> Vector2:
 		return Vector2(_zone_radius * 2.0, _zone_radius * 2.0)
 	return Vector2.ONE
 
+## Fil d'Ariane : village → place du marché → taverne. Chaque échelon ramène
+## à la carte correspondante.
+func _refresh_breadcrumb() -> void:
+	if _breadcrumb == null:
+		return
+	for child in _breadcrumb.get_children():
+		child.queue_free()
+	var map_id := str(doc.map_data.get("id", ""))
+	if map_id.is_empty():
+		return
+	var chain: Array = MapData.get_map_breadcrumb(map_id)
+	if chain.size() <= 1:
+		return
+	for i in range(chain.size()):
+		var step: Dictionary = chain[i]
+		if i > 0:
+			var sep := Label.new()
+			sep.text = "›"
+			sep.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+			_breadcrumb.add_child(sep)
+		var is_current := i == chain.size() - 1
+		var btn := Button.new()
+		btn.text = str(step.get("title", "Carte"))
+		btn.flat = true
+		btn.disabled = is_current
+		btn.clip_text = true
+		btn.custom_minimum_size = Vector2(0, 26)
+		btn.add_theme_font_size_override("font_size", 11)
+		if is_current:
+			btn.add_theme_color_override("font_color_disabled", ThemeColors.GOLD_LIGHT)
+		var target := str(step.get("id", ""))
+		btn.pressed.connect(func(): _on_open_map_requested(target))
+		_breadcrumb.add_child(btn)
+
 func _refresh_panels() -> void:
 	if _inspector:
 		_inspector.call_deferred("rebuild")
@@ -1538,6 +1631,7 @@ func _refresh_panels() -> void:
 		_outliner.call_deferred("rebuild")
 	if _minimap:
 		_minimap.set_context(_engine, doc)
+	_refresh_breadcrumb()
 	_refresh_history()
 
 func _refresh_history() -> void:
@@ -1867,6 +1961,18 @@ func _rebuild_tool_options() -> void:
 	elif _tool in [ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY]:
 		_spin(_hbox(_tool_options), "Rayon", 0.25, 12.0, _zone_radius, 0.25, func(v): _zone_radius = v)
 		_line_row(_hbox(_tool_options), "Nom", _zone_label, func(text): _zone_label = text)
+	elif _tool == ToolsScript.AREA:
+		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)
+		var cat := OptionButton.new()
+		for i in range(MapData.AREA_CATEGORIES.size()):
+			var category: Dictionary = MapData.AREA_CATEGORIES[i]
+			cat.add_item("%s %s" % [category["icon"], category["label"]], i)
+			cat.set_item_metadata(i, str(category["id"]))
+			if str(category["id"]) == _area_category:
+				cat.select(i)
+		cat.item_selected.connect(func(index): _area_category = str(cat.get_item_metadata(index)))
+		_tool_options.add_child(cat)
+		_option_note("Glissez pour délimiter le lieu, puis reliez-lui une carte depuis l'inspecteur.")
 	elif _tool == ToolsScript.PAINT:
 		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_brush_size), 1, func(v): _brush_size = int(v))
 		_option_note("Tuile : %s" % _paint_tile)

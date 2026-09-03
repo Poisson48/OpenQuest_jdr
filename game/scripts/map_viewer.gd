@@ -111,6 +111,9 @@ func _build_ui() -> void:
 
 	_complex_editor = MapComplexEditorScript.new()
 	_complex_editor.visible = false
+	# Naviguer entre les échelles (village → place → taverne) recharge
+	# simplement l'éditeur sur la carte demandée.
+	_complex_editor.open_map_requested.connect(_on_editor_open_map)
 	_complex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_complex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_complex_editor.custom_minimum_size = Vector2(0, 560)
@@ -804,3 +807,21 @@ func _update_zoom_label() -> void:
 func _rebuild_for_mode() -> void:
 	_build_ui()
 	_load_map()
+
+func _on_editor_open_map(map_id: String) -> void:
+	if map_id.is_empty() or map_id == _map_data.get("id", ""):
+		return
+	var target := MapData.get_by_id(map_id)
+	if target.is_empty():
+		return
+	MapData.preview_map_id = map_id
+	_map_data = target.duplicate(true)
+	if _title_input:
+		_title_input.text = str(_map_data.get("title", ""))
+	else:
+		title_lbl.text = "🗺️ %s" % _map_data.get("title", "Carte")
+	_sync_render_mode_ui()
+	_sync_editor_mode()
+	_refresh_integration_ui()
+	_update_hint()
+	_refresh_map_view(true)

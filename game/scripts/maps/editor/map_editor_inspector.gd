@@ -9,6 +9,8 @@ class_name MapEditorInspector
 signal focus_requested(element_id: String)
 signal unlink_requested(source_id: String, target_id: String)
 signal link_mode_requested(source_id: String)
+signal child_map_requested(area_id: String)
+signal open_map_requested(map_id: String)
 
 var doc: MapEditDocument = null
 var _suppress: bool = false
@@ -213,6 +215,21 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_section("Note MJ")
 		_multiline("Texte", str(elem.get("text", "")),
 			func(text): _apply({"text": text}, "Note"))
+	elif kind == MapEditDocument.KIND_AREA:
+		_section("Lieu")
+		_category_selector(str(elem.get("category", "building")))
+		_line_edit("Icône", str(elem.get("icon", "")),
+			func(text): _apply({"icon": text.strip_edges()}, "Icône"))
+		_shape_selector(str(elem.get("shape", "rect")))
+		_check(_row(), "Afficher le cartouche", bool(elem.get("showCallout", true)),
+			func(on): _apply({"showCallout": on}, "Cartouche"))
+		var offset: Dictionary = elem.get("labelOffset", {}) if elem.get("labelOffset") is Dictionary else {}
+		var offset_row := _row()
+		_spin(offset_row, "Cartouche X", -24.0, 24.0, float(offset.get("x", 0.0)), 0.25,
+			func(v): _apply({"labelOffset": {"x": v, "y": float(offset.get("y", -2.0))}}, "Cartouche"))
+		_spin(offset_row, "Cartouche Y", -24.0, 24.0, float(offset.get("y", -2.0)), 0.25,
+			func(v): _apply({"labelOffset": {"x": float(offset.get("x", 0.0)), "y": v}}, "Cartouche"))
+		_build_child_map_section(elem)
 	elif kind == MapEditDocument.KIND_LINK:
 		_section("Passage vers une scène")
 		_target_map_selector(str(elem.get("targetMapId", "")))
@@ -305,6 +322,69 @@ func _preset_selector(current: String) -> void:
 			option.select(i)
 	option.item_selected.connect(func(index):
 		_apply({"preset": str(option.get_item_metadata(index))}, "Preset")
+	)
+	add_child(option)
+
+func _category_selector(current: String) -> void:
+	var option := OptionButton.new()
+	for i in range(MapData.AREA_CATEGORIES.size()):
+		var category: Dictionary = MapData.AREA_CATEGORIES[i]
+		option.add_item("%s %s" % [category["icon"], category["label"]], i)
+		option.set_item_metadata(i, str(category["id"]))
+		if str(category["id"]) == current:
+			option.select(i)
+	option.item_selected.connect(func(index):
+		_apply({"category": str(option.get_item_metadata(index))}, "Catégorie")
+	)
+	add_child(option)
+
+## Carte enfant d'un lieu : la créer, l'ouvrir, la délier.
+## C'est le cœur du travail à plusieurs échelles — le village renvoie vers la
+## place du marché, qui renvoie vers l'intérieur de la taverne.
+func _build_child_map_section(elem: Dictionary) -> void:
+	_section("Carte de ce lieu")
+	var area_id := str(elem.get("id", ""))
+	var target_id := str(elem.get("targetMapId", ""))
+	var target := MapData.get_by_id(target_id) if not target_id.is_empty() else {}
+
+	if target.is_empty():
+		_add_note("Ce lieu n'a pas encore de carte. Créez-la pour pouvoir y placer les personnages.")
+		var create_btn := Button.new()
+		create_btn.text = "🗺 Créer la carte de ce lieu"
+		create_btn.pressed.connect(func(): child_map_requested.emit(area_id))
+		add_child(create_btn)
+		_link_existing_map_selector(area_id)
+		return
+
+	_add_note("Reliée à « %s » (%d × %d cases)." % [
+		target.get("title", "Carte"), int(target.get("width", 0)), int(target.get("height", 0)),
+	])
+	var open_btn := Button.new()
+	open_btn.text = "↳ Ouvrir cette carte"
+	open_btn.pressed.connect(func(): open_map_requested.emit(target_id))
+	add_child(open_btn)
+	var unlink_btn := Button.new()
+	unlink_btn.text = "✕ Délier (la carte est conservée)"
+	unlink_btn.pressed.connect(func(): _apply({"targetMapId": ""}, "Carte du lieu"))
+	add_child(unlink_btn)
+
+func _link_existing_map_selector(_area_id: String) -> void:
+	var option := OptionButton.new()
+	option.add_item("— Relier une carte existante —", 0)
+	option.set_item_metadata(0, "")
+	var candidates: Array = MapData.get_local_maps_for_linking(str(doc.map_data.get("roster", "general")))
+	var index := 1
+	for candidate_variant in candidates:
+		var candidate: Dictionary = candidate_variant
+		if str(candidate.get("id", "")) == str(doc.map_data.get("id", "")):
+			continue
+		option.add_item(str(candidate.get("title", "Carte")), index)
+		option.set_item_metadata(index, str(candidate.get("id", "")))
+		index += 1
+	option.item_selected.connect(func(selected):
+		var map_id := str(option.get_item_metadata(selected))
+		if not map_id.is_empty():
+			_apply({"targetMapId": map_id}, "Carte du lieu")
 	)
 	add_child(option)
 
