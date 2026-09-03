@@ -4,7 +4,7 @@ signal maps_updated
 
 const MAPS_PATH := "user://maps.json"
 const MAP_ASSETS_DIR := "user://map_assets/"
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
 const DEFAULT_GRID_CONFIG := {
@@ -27,6 +27,20 @@ const DEFAULT_PLAY_DEFAULTS := {
 	"fogRevealed": [],
 	"viewState": {},
 }
+## Échelle par défaut d'une case (1,5 m ≈ 5 pieds, standard des JDR sur grille).
+const DEFAULT_MEASURE := {
+	"unit": "m",
+	"perCell": 1.5,
+}
+## Calques d'édition par défaut (ordre d'empilement du sol vers les notes MJ).
+const DEFAULT_LAYERS := [
+	{"id": 0, "name": "Terrain", "visible": true, "locked": false},
+	{"id": 1, "name": "Décor", "visible": true, "locked": false},
+	{"id": 2, "name": "Structures", "visible": true, "locked": false},
+	{"id": 3, "name": "Zones & effets", "visible": true, "locked": false},
+	{"id": 4, "name": "Tokens", "visible": true, "locked": false},
+	{"id": 5, "name": "Notes MJ", "visible": true, "locked": false},
+]
 const PERSPECTIVE_TOPDOWN := "topdown"
 const PERSPECTIVE_ISOMETRIC := "isometric"
 const PERSPECTIVE_TILT := "perspective"
@@ -340,6 +354,15 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.25, "vignette": 0.15}
 	if not map_data.has("playDefaults"):
 		map_data["playDefaults"] = DEFAULT_PLAY_DEFAULTS.duplicate(true)
+	# Schéma 3 — éléments d'éditeur : murs, notes MJ, calques, échelle.
+	if not map_data.has("walls") or typeof(map_data["walls"]) != TYPE_ARRAY:
+		map_data["walls"] = []
+	if not map_data.has("notes") or typeof(map_data["notes"]) != TYPE_ARRAY:
+		map_data["notes"] = []
+	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
+		map_data["measure"] = DEFAULT_MEASURE.duplicate(true)
+	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
+		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
 	return map_data
 
 func get_play_defaults(map_data: Dictionary) -> Dictionary:

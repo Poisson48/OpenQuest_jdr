@@ -12,6 +12,14 @@ signal fog_hidden(cells: Array)
 signal zoom_changed(zoom_level: float)
 signal token_selected(token_id: String)
 
+## Signaux bas niveau consommés par l'éditeur (`editor_mode = true`).
+## Le moteur ne décide plus rien : il traduit l'entrée souris en coordonnées
+## grille et laisse l'éditeur appliquer l'outil courant.
+signal editor_pointer_pressed(grid_pos: Vector2, screen_pos: Vector2, button: int, mods: Dictionary)
+signal editor_pointer_moved(grid_pos: Vector2, screen_pos: Vector2, mods: Dictionary)
+signal editor_pointer_released(grid_pos: Vector2, screen_pos: Vector2, button: int, mods: Dictionary)
+signal view_changed()
+
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
 const MapToken3DScript := preload("res://scripts/maps/map_layers/map_token_3d.gd")
@@ -19,6 +27,8 @@ const MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.
 const MapZone3DScript := preload("res://scripts/maps/map_layers/map_zone_3d.gd")
 const MapFog3DScript := preload("res://scripts/maps/map_layers/map_fog_3d.gd")
 const MapElevations3DScript := preload("res://scripts/maps/map_layers/map_elevations_3d.gd")
+const MapWalls3DScript := preload("res://scripts/maps/map_layers/map_walls_3d.gd")
+const MapLights3DScript := preload("res://scripts/maps/map_layers/map_lights_3d.gd")
 
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 4.0
@@ -33,6 +43,9 @@ var is_gm: bool = false
 var readonly: bool = false
 var snap_to_grid: bool = true
 var session_tool: Dictionary = { "mode": "member" }
+## Quand vrai, l'entrée souris est relayée à l'éditeur au lieu d'être
+## interprétée par le moteur (drag de token, clic outil…).
+var editor_mode: bool = false
 
 var _loaded_map_id: String = ""
 var _party: Array = []
@@ -57,6 +70,8 @@ var _zones_layer: Node3D
 var _tokens_layer: Node3D
 var _effects_layer: Node3D
 var _fog_layer: Node3D
+var _walls_layer: Node3D
+var _lights_layer: Node3D
 var _sun: DirectionalLight3D
 var _atmosphere: ColorRect
 var _vignette: ColorRect
@@ -150,6 +165,14 @@ func _build_viewport_tree() -> void:
 	_effects_layer = Node3D.new()
 	_effects_layer.name = "Effects"
 	_world.add_child(_effects_layer)
+
+	_walls_layer = MapWalls3DScript.new()
+	_walls_layer.name = "Walls"
+	_world.add_child(_walls_layer)
+
+	_lights_layer = MapLights3DScript.new()
+	_lights_layer.name = "Lights"
+	_world.add_child(_lights_layer)
 
 	_fog_layer = MapFog3DScript.new()
 	_fog_layer.name = "Fog"
@@ -309,9 +332,19 @@ func _rebuild_layers() -> void:
 	if _fog_layer.has_method("configure"):
 		_fog_layer.configure(w, h, _cell_size, _fog_revealed, is_gm, fog_on)
 
+	if _walls_layer and _walls_layer.has_method("configure"):
+		var walls = map_data.get("walls", [])
+		_walls_layer.configure(walls if walls is Array else [], _cell_size)
+
+	if _lights_layer and _lights_layer.has_method("configure"):
+		var sources = _lighting_config.get("sources", [])
+		_lights_layer.configure(sources if sources is Array else [], _cell_size)
+
 	_clear_children(_tokens_layer, _token_nodes)
 	_token_nodes.clear()
 	for tok in _tokens:
+		if bool(tok.get("hidden", false)):
+			continue
 		var node = MapToken3DScript.new()
 		node.setup(tok, _cell_size, _party, readonly)
 		node.snap_to_grid = snap_to_grid
@@ -324,6 +357,8 @@ func _rebuild_layers() -> void:
 	_clear_children(_effects_layer, _effect_nodes)
 	_effect_nodes.clear()
 	for eff in _effects:
+		if bool(eff.get("hidden", false)):
+			continue
 		var enode = MapEffect3DScript.new()
 		enode.setup(eff, _cell_size)
 		_effects_layer.add_child(enode)
@@ -332,6 +367,8 @@ func _rebuild_layers() -> void:
 	_clear_children(_zones_layer, _zone_nodes)
 	_zone_nodes.clear()
 	for zone in _zones:
+		if bool(zone.get("hidden", false)):
+			continue
 		var znode = MapZone3DScript.new()
 		znode.setup(zone, _cell_size)
 		_zones_layer.add_child(znode)
@@ -353,6 +390,7 @@ func _effective_viewport_size() -> Vector2:
 
 func _update_ortho_size() -> void:
 	_camera.size = _base_ortho_size / zoom
+	view_changed.emit()
 
 func _fit_to_view() -> void:
 	if _map_extent == Vector2.ZERO:
@@ -386,6 +424,7 @@ func _clamp_camera() -> void:
 		cz = clampf(cz, min_z, max_z)
 	_camera.position.x = cx
 	_camera.position.z = cz
+	view_changed.emit()
 
 func _apply_zoom(factor: float, anchor: Vector2) -> void:
 	var old_zoom := zoom
@@ -429,6 +468,111 @@ func _screen_to_grid(screen_pos: Vector2) -> Vector2:
 		(world.x - _cell_size * 0.5) / _cell_size,
 		(world.z - _cell_size * 0.5) / _cell_size
 	)
+
+# ===========================================================================
+# API publique de projection — utilisée par l'overlay 2D de l'éditeur
+# ===========================================================================
+
+func get_cell_size() -> float:
+	return _cell_size
+
+func get_map_extent() -> Vector2:
+	return _map_extent
+
+## Coordonnées grille → position en pixels dans ce Control.
+func grid_to_screen(gx: float, gy: float, height: float = 0.0) -> Vector2:
+	if _camera == null:
+		return Vector2.ZERO
+	var world := Vector3(
+		gx * _cell_size + _cell_size * 0.5,
+		height * _cell_size,
+		gy * _cell_size + _cell_size * 0.5
+	)
+	if _camera.is_position_behind(world):
+		return Vector2(-100000.0, -100000.0)
+	return _viewport_to_control(_camera.unproject_position(world))
+
+## Position en pixels dans ce Control → coordonnées grille (float).
+func screen_to_grid_pos(pos: Vector2) -> Vector2:
+	return _screen_to_grid(pos)
+
+func _viewport_to_control(pos: Vector2) -> Vector2:
+	if _viewport == null or _viewport_container == null:
+		return pos
+	var vp_size := Vector2(_viewport.size)
+	if vp_size.x <= 1.0 or vp_size.y <= 1.0:
+		return pos
+	var container_size := _viewport_container.size
+	if container_size.x <= 1.0 or container_size.y <= 1.0:
+		return pos
+	return pos * (container_size / vp_size)
+
+## Rectangle de la carte actuellement visible, en coordonnées grille.
+func visible_grid_rect() -> Rect2:
+	if _camera == null or _cell_size <= 0.0:
+		return Rect2()
+	var aspect := _viewport_aspect()
+	var vis_w := _camera.size * 2.0 * aspect
+	var vis_h := _camera.size * 2.0
+	var origin := Vector2(
+		(_camera.position.x - vis_w * 0.5) / _cell_size,
+		(_camera.position.z - vis_h * 0.5) / _cell_size
+	)
+	return Rect2(origin, Vector2(vis_w / _cell_size, vis_h / _cell_size))
+
+func center_on_grid(gx: float, gy: float) -> void:
+	if _camera == null:
+		return
+	_camera.position.x = gx * _cell_size + _cell_size * 0.5
+	_camera.position.z = gy * _cell_size + _cell_size * 0.5
+	_clamp_camera()
+
+## Recadre la caméra sur un rectangle exprimé en cases.
+func focus_grid_rect(rect: Rect2, margin: float = 1.6) -> void:
+	if _camera == null or rect.size == Vector2.ZERO:
+		return
+	var aspect := maxf(_viewport_aspect(), 0.1)
+	var extent := rect.size * _cell_size * margin
+	var needed := maxf(extent.y * 0.5, extent.x / (aspect * 2.0))
+	if needed > 0.0 and _base_ortho_size > 0.0:
+		zoom = clampf(_base_ortho_size / needed, MIN_ZOOM, MAX_ZOOM)
+		_update_ortho_size()
+	center_on_grid(rect.get_center().x - 0.5, rect.get_center().y - 0.5)
+	zoom_changed.emit(zoom)
+	view_changed.emit()
+
+## Repositionne le nœud 3D d'un élément sans reconstruire la scène (drag live).
+func set_element_position(element_id: String, gx: float, gy: float) -> void:
+	var node: Node3D = null
+	if _token_nodes.has(element_id):
+		node = _token_nodes[element_id]
+	elif _effect_nodes.has(element_id):
+		node = _effect_nodes[element_id]
+	elif _zone_nodes.has(element_id):
+		node = _zone_nodes[element_id]
+	if node == null:
+		return
+	node.position.x = gx * _cell_size + _cell_size * 0.5
+	node.position.z = gy * _cell_size + _cell_size * 0.5
+	if node.has_method("get_token_id"):
+		node.token_data["x"] = gx
+		node.token_data["y"] = gy
+
+func has_element_node(element_id: String) -> bool:
+	return _token_nodes.has(element_id) or _effect_nodes.has(element_id) or _zone_nodes.has(element_id)
+
+func set_editor_mode(on: bool) -> void:
+	editor_mode = on
+	if on:
+		_token_drag = null
+		_pending_click = false
+
+static func _mods(event: InputEvent) -> Dictionary:
+	return {
+		"shift": event.is_shift_pressed(),
+		"ctrl": event.is_ctrl_pressed(),
+		"alt": event.is_alt_pressed(),
+	}
 
 func _pick_token(screen_pos: Vector2) -> Node:
 	var space := _world.get_world_3d().direct_space_state
@@ -478,6 +622,9 @@ func _on_token_selected(token_id: String) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if map_data.is_empty():
+		return
+	if editor_mode:
+		_editor_gui_input(event)
 		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
@@ -535,20 +682,80 @@ func _gui_input(event: InputEvent) -> void:
 				_pan_dragging = true
 				_pending_click = false
 		if _pan_dragging:
-			var delta_pos := motion.position - _drag_start
-			var aspect := _viewport_aspect()
-			var vp := _effective_viewport_size()
-			var world_dx := delta_pos.x * _camera.size * 2.0 * aspect / maxf(vp.x, 1.0)
-			var world_dz := delta_pos.y * _camera.size * 2.0 / maxf(vp.y, 1.0)
-			_camera.position.x = _pan_start.x - world_dx
-			_camera.position.z = _pan_start.z - world_dz
-			_pan_velocity = Vector2(
-				-(motion.position.x - _last_pan_pos.x) * _camera.size * 2.0 * aspect / maxf(vp.x, 1.0),
-				-(motion.position.y - _last_pan_pos.y) * _camera.size * 2.0 / maxf(vp.y, 1.0)
-			) / maxf(get_process_delta_time(), 0.001)
-			_last_pan_pos = motion.position
-			_clamp_camera()
+			_pan_from_motion(motion)
 			accept_event()
+
+## Applique le déplacement de vue correspondant à un mouvement souris.
+func _pan_from_motion(motion: InputEventMouseMotion) -> void:
+	var delta_pos := motion.position - _drag_start
+	var aspect := _viewport_aspect()
+	var vp := _effective_viewport_size()
+	_camera.position.x = _pan_start.x - delta_pos.x * _camera.size * 2.0 * aspect / maxf(vp.x, 1.0)
+	_camera.position.z = _pan_start.z - delta_pos.y * _camera.size * 2.0 / maxf(vp.y, 1.0)
+	_pan_velocity = Vector2(
+		-(motion.position.x - _last_pan_pos.x) * _camera.size * 2.0 * aspect / maxf(vp.x, 1.0),
+		-(motion.position.y - _last_pan_pos.y) * _camera.size * 2.0 / maxf(vp.y, 1.0)
+	) / maxf(get_process_delta_time(), 0.001)
+	_last_pan_pos = motion.position
+	_clamp_camera()
+
+## Entrée souris en mode éditeur : zoom et pan restent internes, tout le reste
+## est relayé à l'éditeur sous forme de coordonnées grille.
+func _editor_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		match mb.button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				_apply_zoom(1.1, mb.position)
+				accept_event()
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_apply_zoom(1.0 / 1.1, mb.position)
+				accept_event()
+			MOUSE_BUTTON_MIDDLE:
+				_pan_dragging = mb.pressed
+				_pan_velocity = Vector2.ZERO
+				if mb.pressed:
+					_drag_start = mb.position
+					_pan_start = _camera.position
+					_last_pan_pos = mb.position
+				accept_event()
+			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
+				if mb.pressed:
+					grab_focus()
+					editor_pointer_pressed.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
+				else:
+					editor_pointer_released.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
+				accept_event()
+	elif event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		if _pan_dragging:
+			_pan_from_motion(motion)
+			accept_event()
+			return
+		editor_pointer_moved.emit(_screen_to_grid(motion.position), motion.position, _mods(motion))
+
+## Déplacement de vue piloté par l'éditeur (outil « main », espace maintenu).
+func begin_view_pan(screen_pos: Vector2) -> void:
+	_pan_dragging = true
+	_pan_velocity = Vector2.ZERO
+	_drag_start = screen_pos
+	_pan_start = _camera.position
+	_last_pan_pos = screen_pos
+
+func update_view_pan(screen_pos: Vector2) -> void:
+	if not _pan_dragging or _camera == null:
+		return
+	var delta_pos := screen_pos - _drag_start
+	var aspect := _viewport_aspect()
+	var vp := _effective_viewport_size()
+	_camera.position.x = _pan_start.x - delta_pos.x * _camera.size * 2.0 * aspect / maxf(vp.x, 1.0)
+	_camera.position.z = _pan_start.z - delta_pos.y * _camera.size * 2.0 / maxf(vp.y, 1.0)
+	_clamp_camera()
+	view_changed.emit()
+
+func end_view_pan() -> void:
+	_pan_dragging = false
+	_pan_velocity = Vector2.ZERO
 
 func _handle_map_click(screen_pos: Vector2) -> void:
 	if readonly and not is_gm:
@@ -603,7 +810,9 @@ func reset_zoom() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		if _viewport:
+		# `SubViewportContainer.stretch` redimensionne déjà le SubViewport :
+		# le faire à la main déclenche un avertissement et n'a aucun effet.
+		if _viewport and _viewport_container and not _viewport_container.stretch:
 			_viewport.size = Vector2i(maxi(64, int(size.x)), maxi(64, int(size.y)))
 		if not map_data.is_empty():
 			_clamp_camera()
