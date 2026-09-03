@@ -46,9 +46,12 @@ func _build_visuals() -> void:
 	add_child(_mesh)
 
 	_sprite = Sprite3D.new()
-	_sprite.texture = _make_portrait_texture()
+	var portrait := _make_portrait_texture()
+	_sprite.texture = portrait
 	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_sprite.pixel_size = cell_size * 0.0045
+	# Le portrait occupe toujours ~0,8 case, quelle que soit la taille de source.
+	var portrait_px: int = maxi(1, portrait.get_width()) if portrait != null else 128
+	_sprite.pixel_size = (cell_size * 0.8) / float(portrait_px)
 	_sprite.position.y = cyl.height + cell_size * 0.08
 	_sprite.modulate = Color(1, 1, 1, 0.95)
 	add_child(_sprite)
@@ -161,6 +164,12 @@ func _token_icon() -> String:
 	return "●"
 
 func _make_portrait_texture() -> Texture2D:
+	# Un avatar importé prend le pas sur le disque généré.
+	var image_path := str(token_data.get("image", "")).strip_edges()
+	if not image_path.is_empty():
+		var portrait := MapData.load_token_portrait(image_path, _token_color().darkened(0.55))
+		if portrait != null:
+			return portrait
 	var sz := 128
 	var img := Image.create(sz, sz, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))

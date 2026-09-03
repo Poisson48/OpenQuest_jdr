@@ -361,6 +361,8 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["notes"] = []
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
 		map_data["measure"] = DEFAULT_MEASURE.duplicate(true)
+	if not map_data.has("losEnabled"):
+		map_data["losEnabled"] = false
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
 		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
 	return map_data
@@ -441,6 +443,72 @@ func import_background_image(map_id: String, source_path: String) -> String:
 			save_maps()
 			return dest
 	return dest
+
+const TOKEN_ASSETS_DIR := "user://map_assets/tokens/"
+
+## Importe un portrait de token et renvoie son chemin dans `user://`.
+## Les avatars sont partagés entre cartes : ils sont nommés d'après leur source.
+func import_token_image(source_path: String) -> String:
+	if source_path.is_empty() or not FileAccess.file_exists(source_path):
+		return ""
+	DirAccess.make_dir_recursive_absolute(TOKEN_ASSETS_DIR)
+	var ext := source_path.get_extension().to_lower()
+	if ext.is_empty():
+		ext = "png"
+	var base := source_path.get_file().get_basename().to_lower()
+	var safe := ""
+	for i in range(base.length()):
+		var c := base[i]
+		safe += c if (c >= "a" and c <= "z") or (c >= "0" and c <= "9") or c == "-" else "_"
+	if safe.is_empty():
+		safe = "token"
+	var dest := "%s%s-%d.%s" % [TOKEN_ASSETS_DIR, safe, Time.get_unix_time_from_system(), ext]
+	var src := FileAccess.open(source_path, FileAccess.READ)
+	if src == null:
+		return ""
+	var dst := FileAccess.open(dest, FileAccess.WRITE)
+	if dst == null:
+		return ""
+	dst.store_buffer(src.get_buffer(src.get_length()))
+	return dest
+
+## Liste les portraits déjà importés, pour la bibliothèque de l'éditeur.
+func list_token_images() -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(TOKEN_ASSETS_DIR)
+	if dir == null:
+		return out
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir() and file_name.get_extension().to_lower() in ["png", "jpg", "jpeg", "webp"]:
+			out.append(TOKEN_ASSETS_DIR + file_name)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	out.sort()
+	return out
+
+## Charge un portrait et le découpe en disque, prêt à coiffer un token.
+## `border` teinte l'anneau extérieur (couleur du personnage).
+func load_token_portrait(path: String, border: Color = Color(0.15, 0.12, 0.1), size: int = 160) -> Texture2D:
+	if path.strip_edges().is_empty():
+		return null
+	var img := Image.new()
+	if img.load(path) != OK:
+		return null
+	img.resize(size, size, Image.INTERPOLATE_LANCZOS)
+	img.convert(Image.FORMAT_RGBA8)
+	var half := float(size) * 0.5
+	for y in range(size):
+		for x in range(size):
+			var dx := (float(x) - half) / half
+			var dy := (float(y) - half) / half
+			var d := sqrt(dx * dx + dy * dy)
+			if d > 1.0:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+			elif d > 0.86:
+				img.set_pixel(x, y, border)
+	return ImageTexture.create_from_image(img)
 
 func get_image_pixel_size(source_path: String) -> Vector2i:
 	if source_path.is_empty() or not FileAccess.file_exists(source_path):

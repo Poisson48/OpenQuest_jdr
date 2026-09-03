@@ -20,9 +20,13 @@ func configure(walls: Array, cell_size: float) -> void:
 		_add_wall(wall)
 
 func _add_wall(wall: Dictionary) -> void:
+	var is_open_door := bool(wall.get("isDoor", false)) and bool(wall.get("open", false))
 	var length := maxf(0.2, float(wall.get("w", 1.0))) * _cell_size
 	var thickness := maxf(0.05, float(wall.get("h", 0.25))) * _cell_size
 	var height := maxf(0.1, float(wall.get("height", 1.4))) * _cell_size
+	if is_open_door:
+		# Porte ouverte : on ne garde qu'un seuil au sol, le passage est libre.
+		height = _cell_size * 0.06
 	var box := BoxMesh.new()
 	box.size = Vector3(length, height, thickness)
 
@@ -39,6 +43,8 @@ func _add_wall(wall: Dictionary) -> void:
 	var mat := StandardMaterial3D.new()
 	var tint := str(wall.get("color", "#4a423a"))
 	mat.albedo_color = Color.html(tint) if not tint.is_empty() else Color(0.29, 0.26, 0.23)
+	if bool(wall.get("isDoor", false)):
+		mat.albedo_color = Color(0.42, 0.72, 0.45) if is_open_door else Color(0.62, 0.42, 0.24)
 	var opacity := float(display.get("opacity", 1.0))
 	if opacity < 1.0:
 		mat.albedo_color.a = opacity
