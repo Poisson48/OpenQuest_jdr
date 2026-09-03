@@ -26,6 +26,10 @@ var drag_preview: Dictionary = {}
 var link_source_id: String = ""
 var show_links: bool = true
 var show_ids: bool = false
+var show_vision: bool = false
+var vision_cells: Dictionary = {}
+var vision_origin: Vector2 = Vector2.ZERO
+var has_vision_origin: bool = false
 
 const COL_SELECT := Color(1.0, 0.82, 0.28, 0.95)
 const COL_SELECT_FILL := Color(1.0, 0.82, 0.28, 0.10)
@@ -37,6 +41,9 @@ const COL_GHOST := Color(0.75, 1.0, 0.75, 0.55)
 const COL_MEASURE := Color(1.0, 0.55, 0.25, 0.95)
 const COL_LOCKED := Color(0.85, 0.35, 0.35, 0.8)
 const COL_GROUP := Color(0.7, 0.55, 1.0, 0.7)
+const COL_VISION := Color(1.0, 0.94, 0.72, 0.13)
+const COL_DOOR_OPEN := Color(0.45, 0.9, 0.55, 0.95)
+const COL_DOOR_SHUT := Color(1.0, 0.62, 0.25, 0.95)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -99,6 +106,8 @@ static func _closed(points: PackedVector2Array) -> PackedVector2Array:
 func _draw() -> void:
 	if engine == null or doc == null:
 		return
+	if show_vision:
+		_draw_vision()
 	_draw_hover()
 	if show_links:
 		_draw_links()
@@ -109,6 +118,21 @@ func _draw() -> void:
 	_draw_polygon()
 	_draw_band()
 	_draw_measure()
+
+## Aperçu du champ de vision : les cases atteintes sont éclaircies, la source
+## est marquée. Ce que le calque ne peint pas est dans l'ombre d'un mur.
+func _draw_vision() -> void:
+	for key in vision_cells.keys():
+		var parts := str(key).split(",")
+		if parts.size() != 2:
+			continue
+		var pts := _cell_rect_points(int(parts[0]), int(parts[1]))
+		if pts.size() == 4:
+			draw_colored_polygon(pts, COL_VISION)
+	if has_vision_origin:
+		var center := _p(vision_origin.x, vision_origin.y, 0.1)
+		draw_circle(center, 5.0, Color(1.0, 0.92, 0.6, 0.9))
+		draw_arc(center, 9.0, 0.0, TAU, 24, Color(1.0, 0.92, 0.6, 0.55), 1.5, true)
 
 func _draw_hover() -> void:
 	if not hover_valid:
@@ -146,7 +170,11 @@ func _draw_flat_elements() -> void:
 			continue
 		var kind := str(elem.get("kind", ""))
 		if kind == MapEditDocument.KIND_WALL:
-			draw_polyline(_closed(_footprint(elem)), Color(0.85, 0.78, 0.66, 0.55), 1.5, true)
+			if bool(elem.get("isDoor", false)):
+				var door_color := COL_DOOR_OPEN if bool(elem.get("open", false)) else COL_DOOR_SHUT
+				draw_polyline(_closed(_footprint(elem)), door_color, 2.5, true)
+			else:
+				draw_polyline(_closed(_footprint(elem)), Color(0.85, 0.78, 0.66, 0.55), 1.5, true)
 		elif kind in [MapEditDocument.KIND_NOTE, MapEditDocument.KIND_LIGHT, MapEditDocument.KIND_LINK, MapEditDocument.KIND_MARKER]:
 			var pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.3)
 			var icon := str(MapEditDocument.KIND_ICONS.get(kind, "•"))

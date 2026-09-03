@@ -440,6 +440,13 @@ func _build_map_settings_tab() -> ScrollContainer:
 
 	_section(box, "🌫 Brouillard de guerre")
 	_settings_widgets["fog_enabled"] = _checkbox(box, "Activer le brouillard", true, func(_on): _on_fog_setting_changed())
+	_settings_widgets["los_enabled"] = _checkbox(box, "Ligne de vue (murs bloquants)", false, func(_on): _on_los_changed())
+	var los_note := Label.new()
+	los_note.text = "En session, le brouillard se révèle automatiquement selon ce que voient les tokens, murs et portes compris."
+	los_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	los_note.add_theme_font_size_override("font_size", 10)
+	los_note.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	box.add_child(los_note)
 	var fog_row := HBoxContainer.new()
 	fog_row.add_theme_constant_override("separation", 4)
 	box.add_child(fog_row)
@@ -488,6 +495,10 @@ func _build_map_settings_tab() -> ScrollContainer:
 	_checkbox(box, "Afficher les noms", false, func(on):
 		_overlay.show_ids = on
 		_refresh_overlay()
+	)
+	_checkbox(box, "Aperçu ligne de vue", false, func(on):
+		_overlay.show_vision = on
+		_refresh_vision_preview()
 	)
 
 	_section(box, "💾 Sauvegarde")
@@ -1452,6 +1463,32 @@ func _refresh_overlay() -> void:
 	if _minimap:
 		_minimap.queue_redraw()
 
+## Recalcule l'aperçu de ligne de vue depuis l'élément sélectionné (ou le
+## curseur si rien n'est sélectionné).
+func _refresh_vision_preview() -> void:
+	if _overlay == null:
+		return
+	_overlay.vision_cells.clear()
+	_overlay.has_vision_origin = false
+	if not _overlay.show_vision or doc.map_data.is_empty():
+		_refresh_overlay()
+		return
+	var origin := Vector2.ZERO
+	var selected := doc.selection()
+	if not selected.is_empty():
+		var elem: Dictionary = doc.get_element(str(selected[0]))
+		origin = Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+	elif _overlay.hover_valid:
+		origin = _snap(_overlay.hover_grid)
+	else:
+		_refresh_overlay()
+		return
+	for key in MapVision.visible_cells(doc.to_map_data(), origin, MapVision.DEFAULT_VISION_RADIUS):
+		_overlay.vision_cells[str(key)] = true
+	_overlay.vision_origin = origin
+	_overlay.has_vision_origin = true
+	_refresh_overlay()
+
 func _refresh_ghost() -> void:
 	if _overlay == null:
 		return
@@ -1536,6 +1573,8 @@ func _on_doc_changed(reason: String) -> void:
 	layout_changed.emit()
 
 func _on_selection_changed(_ids: Array) -> void:
+	if _overlay and _overlay.show_vision:
+		call_deferred("_refresh_vision_preview")
 	if _inspector:
 		_inspector.call_deferred("rebuild")
 	if _outliner:
@@ -1578,6 +1617,7 @@ func _sync_settings_ui() -> void:
 	_set_check("grid_enabled", bool(grid.get("enabled", true)))
 	_set_color("grid_color", str(grid.get("color", "#ffffff")))
 	_set_check("fog_enabled", bool(doc.map_data.get("fogEnabled", true)))
+	_set_check("los_enabled", bool(doc.map_data.get("losEnabled", false)))
 	var measure: Dictionary = doc.map_data.get("measure", {}) if doc.map_data.get("measure") is Dictionary else {}
 	_set_spin("measure_per_cell", float(measure.get("perCell", 1.5)))
 	_set_line("measure_unit", str(measure.get("unit", "m")))
@@ -1650,6 +1690,12 @@ func _on_lighting_changed() -> void:
 		light["direction"] = str(option.get_item_metadata(option.selected))
 	doc.set_meta_values({"lighting": light}, "Éclairage")
 	_sync_engine()
+
+func _on_los_changed() -> void:
+	if _syncing:
+		return
+	doc.set_meta_values({"losEnabled": _get_check("los_enabled")}, "Ligne de vue")
+	_refresh_overlay()
 
 func _on_fog_setting_changed() -> void:
 	if _syncing:

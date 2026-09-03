@@ -130,6 +130,12 @@ func _build_multi(selected: Array) -> void:
 func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 	if kind == MapEditDocument.KIND_TOKEN:
 		_section("Token")
+		_portrait_field(str(elem.get("image", "")))
+		var size_row := _row()
+		_spin(size_row, "Vision (cases)", 0.0, 40.0, float(elem.get("visionRadius", MapVision.DEFAULT_VISION_RADIUS)), 0.5,
+			func(v): _apply({"visionRadius": v}, "Vision"))
+		_check(size_row, "Porte la vue", bool(elem.get("providesVision", true)),
+			func(on): _apply({"providesVision": on}, "Vision"))
 		_color_field("Couleur", str(elem.get("color", "#e8c547")),
 			func(hex): _apply({"color": hex}, "Couleur"))
 		_line_edit("Emoji", str(elem.get("emoji", "")),
@@ -180,8 +186,15 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(v): _apply({"h": v}, "Épaisseur"))
 		_color_field("Couleur", str(elem.get("color", "#4a423a")),
 			func(hex): _apply({"color": hex}, "Couleur"))
-		_check(_row(), "Bloque la vue", bool(elem.get("blocksSight", true)),
+		var sight_row := _row()
+		_check(sight_row, "Bloque la vue", bool(elem.get("blocksSight", true)),
 			func(on): _apply({"blocksSight": on}, "Occlusion"))
+		_check(sight_row, "Porte", bool(elem.get("isDoor", false)),
+			func(on): _apply({"isDoor": on}, "Porte"))
+		if bool(elem.get("isDoor", false)):
+			_check(_row(), "Ouverte au départ", bool(elem.get("open", false)),
+				func(on): _apply({"open": on}, "Porte"))
+			_add_note("Une porte ouverte ne bloque plus la ligne de vue. En session, le MJ l'ouvre et le brouillard se recalcule.")
 	elif kind == MapEditDocument.KIND_LIGHT:
 		_section("Lumière")
 		var row := _row()
@@ -428,6 +441,69 @@ func _multiline(label_text: String, value: String, on_change: Callable) -> TextE
 	edit.focus_exited.connect(func(): on_change.call(edit.text))
 	add_child(edit)
 	return edit
+
+## Avatar du token : aperçu, import depuis le disque, réutilisation des
+## portraits déjà importés, retour au disque coloré par défaut.
+func _portrait_field(current: String) -> void:
+	var row := _row()
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(48, 48)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if not current.is_empty():
+		preview.texture = MapData.load_token_portrait(current)
+	row.add_child(preview)
+
+	var actions := VBoxContainer.new()
+	actions.add_theme_constant_override("separation", 2)
+	actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(actions)
+
+	var import_btn := Button.new()
+	import_btn.text = "Importer une image…"
+	import_btn.pressed.connect(_open_portrait_dialog)
+	actions.add_child(import_btn)
+
+	var known: Array = MapData.list_token_images()
+	if not known.is_empty():
+		var picker := OptionButton.new()
+		picker.add_item("— Portraits importés —", 0)
+		picker.set_item_metadata(0, "")
+		for i in range(known.size()):
+			picker.add_item(str(known[i]).get_file(), i + 1)
+			picker.set_item_metadata(i + 1, str(known[i]))
+			if str(known[i]) == current:
+				picker.select(i + 1)
+		picker.item_selected.connect(func(index):
+			var path := str(picker.get_item_metadata(index))
+			if not path.is_empty():
+				_apply({"image": path}, "Portrait")
+		)
+		actions.add_child(picker)
+
+	if not current.is_empty():
+		var clear_btn := Button.new()
+		clear_btn.text = "✕ Retirer l'image"
+		clear_btn.pressed.connect(func(): _apply({"image": ""}, "Portrait"))
+		actions.add_child(clear_btn)
+
+func _open_portrait_dialog() -> void:
+	var dialog := FileDialog.new()
+	dialog.title = "Portrait du token"
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.filters = PackedStringArray([
+		"*.png ; Images PNG", "*.jpg, *.jpeg ; Images JPEG", "*.webp ; Images WebP",
+	])
+	dialog.file_selected.connect(func(path):
+		var dest := MapData.import_token_image(path)
+		if not dest.is_empty():
+			_apply({"image": dest}, "Portrait")
+		dialog.queue_free()
+	)
+	dialog.canceled.connect(func(): dialog.queue_free())
+	add_child(dialog)
+	dialog.popup_centered(Vector2i(760, 500))
 
 func _color_field(label_text: String, value: String, on_change: Callable) -> void:
 	var row := _row()
