@@ -291,6 +291,20 @@ func _draw_ghost() -> void:
 		_p(cx + w * 0.5, cy + h * 0.5),
 		_p(cx - w * 0.5, cy + h * 0.5),
 	])
+	# Un décor s'aperçoit avec sa vraie image : on voit où tombe la maison
+	# avant de cliquer, pas juste un rectangle.
+	var texture = ghost.get("texture")
+	if texture is Texture2D:
+		var min_p := pts[0]
+		var max_p := pts[0]
+		for point in pts:
+			min_p.x = minf(min_p.x, point.x)
+			min_p.y = minf(min_p.y, point.y)
+			max_p.x = maxf(max_p.x, point.x)
+			max_p.y = maxf(max_p.y, point.y)
+		draw_texture_rect(texture, Rect2(min_p, max_p - min_p), false, Color(1, 1, 1, 0.65))
+		draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
+		return
 	draw_colored_polygon(pts, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.14))
 	draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
 	var font := get_theme_default_font()

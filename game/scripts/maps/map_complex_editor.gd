@@ -22,6 +22,7 @@ const MinimapScript := preload("res://scripts/maps/editor/map_editor_minimap.gd"
 const InspectorScript := preload("res://scripts/maps/editor/map_editor_inspector.gd")
 const OutlinerScript := preload("res://scripts/maps/editor/map_editor_outliner.gd")
 const TemplatesScript := preload("res://scripts/maps/editor/map_editor_templates.gd")
+const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
@@ -48,6 +49,10 @@ var _fog_brush: int = 1
 var _paint_tile: String = ""
 var _selected_template: String = ""
 var _area_category: String = "building"
+var _prop_asset: String = ""
+var _prop_size: float = 2.0
+var _prop_standing: bool = true
+var _prop_category: String = "buildings"
 var _area_label: String = ""
 var _template_rotation: int = 0
 var _space_held: bool = false
@@ -77,6 +82,10 @@ var _right_scroll: ScrollContainer
 var _tool_options: VBoxContainer
 var _history_list: VBoxContainer
 var _template_list: VBoxContainer
+var _asset_grid: GridContainer
+var _asset_category_row: HBoxContainer
+var _asset_dialog: FileDialog
+var _asset_hint: Label
 var _status_lbl: Label
 var _hint_lbl: Label
 var _zoom_lbl: Label
@@ -133,6 +142,7 @@ func load_map(map_data: Dictionary) -> void:
 	_marker_type = _first_marker_type()
 	_sync_settings_ui()
 	_rebuild_palettes()
+	_refresh_asset_library()
 	_refresh_templates()
 	_sync_engine(true)
 	_refresh_panels()
@@ -545,6 +555,34 @@ func _build_library_tab() -> ScrollContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 5)
 
+	_section(box, "🏚 Décors à poser")
+	_asset_hint = Label.new()
+	_asset_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_asset_hint.add_theme_font_size_override("font_size", 11)
+	_asset_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	box.add_child(_asset_hint)
+
+	var asset_cat_scroll := ScrollContainer.new()
+	asset_cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	asset_cat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	asset_cat_scroll.custom_minimum_size = Vector2(0, 36)
+	box.add_child(asset_cat_scroll)
+	_asset_category_row = HBoxContainer.new()
+	_asset_category_row.add_theme_constant_override("separation", 3)
+	asset_cat_scroll.add_child(_asset_category_row)
+
+	_asset_grid = GridContainer.new()
+	_asset_grid.columns = 3
+	_asset_grid.add_theme_constant_override("h_separation", 4)
+	_asset_grid.add_theme_constant_override("v_separation", 4)
+	box.add_child(_asset_grid)
+
+	var asset_actions := HBoxContainer.new()
+	asset_actions.add_theme_constant_override("separation", 4)
+	box.add_child(asset_actions)
+	_text_button(asset_actions, "＋ Importer des images…", func(): _asset_dialog.popup_centered(Vector2i(820, 560)))
+	_text_button(asset_actions, "⟳", func(): _refresh_asset_library())
+
 	_section(box, "🧍 Tokens")
 	var member_grid := GridContainer.new()
 	member_grid.columns = 6
@@ -669,6 +707,10 @@ func _build_dialogs() -> void:
 
 	_import_dialog = _make_file_dialog("Importer une carte", FileDialog.FILE_MODE_OPEN_FILE, ["*.json ; Carte JSON"])
 	_import_dialog.file_selected.connect(_on_import_selected)
+
+	_asset_dialog = _make_file_dialog("Importer des décors", FileDialog.FILE_MODE_OPEN_FILES,
+		["*.png ; Images PNG (fond transparent)", "*.webp ; Images WebP", "*.jpg, *.jpeg ; Images JPEG"])
+	_asset_dialog.files_selected.connect(_on_assets_imported)
 
 	_template_name_dialog = AcceptDialog.new()
 	_template_name_dialog.title = "Nom du template"
@@ -979,6 +1021,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_create_note(grid)
 	elif _tool == ToolsScript.LIGHT:
 		_create_light(grid)
+	elif _tool == ToolsScript.PROP:
+		_create_prop(grid)
 	_sync_engine()
 
 func _create_token(grid: Vector2) -> void:
@@ -1102,6 +1146,29 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 		"layer": 2,
 		"display": {"rotation": rad_to_deg(delta.angle())},
 	}, MapEditDocument.KIND_WALL, "Mur")
+	doc.select_only(id)
+
+## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
+## on ne se retrouve pas avec une charrette carrée.
+func _create_prop(grid: Vector2) -> void:
+	if _prop_asset.is_empty():
+		_set_status("Choisissez d'abord un décor dans la bibliothèque (onglet Biblio).")
+		return
+	var ratio := AssetLibraryScript.aspect_ratio(_prop_asset)
+	var height := maxf(0.25, _prop_size)
+	var width := maxf(0.25, height * ratio)
+	var asset := AssetLibraryScript.get_asset(_prop_asset)
+	var id := doc.add_element({
+		"x": grid.x, "y": grid.y,
+		"w": width, "h": height,
+		"asset": _prop_asset,
+		"standing": _prop_standing,
+		"billboard": _prop_standing,
+		"lit": false,
+		"elevation": 0.0,
+		"label": str(asset.get("name", _prop_asset.get_file().get_basename())),
+		"layer": 1,
+	}, MapEditDocument.KIND_PROP, "Décor")
 	doc.select_only(id)
 
 func _create_note(grid: Vector2) -> void:
@@ -1241,6 +1308,84 @@ func _on_template_name_confirmed() -> void:
 		_refresh_templates()
 	else:
 		_set_status("Échec de l'enregistrement du template.")
+
+## Bibliothèque de décors : une rangée de catégories, puis les vignettes.
+## Cliquer une vignette arme l'outil Décor avec cet asset.
+func _refresh_asset_library() -> void:
+	if _asset_category_row == null or _asset_grid == null:
+		return
+	for child in _asset_category_row.get_children():
+		child.queue_free()
+	for child in _asset_grid.get_children():
+		child.queue_free()
+
+	for category_variant in AssetLibraryScript.CATEGORIES:
+		var category: Dictionary = category_variant
+		var category_id := str(category["id"])
+		var btn := Button.new()
+		btn.text = "%s %s" % [category["icon"], category["label"]]
+		btn.toggle_mode = true
+		btn.button_pressed = category_id == _prop_category
+		btn.add_theme_font_size_override("font_size", 11)
+		btn.pressed.connect(func():
+			_prop_category = category_id
+			_refresh_asset_library()
+		)
+		_asset_category_row.add_child(btn)
+
+	var assets: Array = AssetLibraryScript.list_assets(_prop_category)
+	if assets.is_empty():
+		_asset_hint.text = "Aucun décor dans « %s ». Importez des PNG détourés (fond transparent) : maisons, charrettes, tonneaux, arbres…" % \
+			AssetLibraryScript.category(_prop_category).get("label", _prop_category)
+		return
+	_asset_hint.text = "%d décor(s) — cliquez pour armer l'outil, puis cliquez la carte." % assets.size()
+
+	for asset_variant in assets:
+		var asset: Dictionary = asset_variant
+		var path := str(asset.get("path", ""))
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(84, 92)
+		btn.tooltip_text = "%s\n%s" % [asset.get("name", ""), path.get_file()]
+		btn.toggle_mode = true
+		btn.button_pressed = path == _prop_asset
+		btn.icon = AssetLibraryScript.load_thumbnail(path)
+		btn.expand_icon = true
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		btn.text = str(asset.get("name", "")).substr(0, 12)
+		btn.add_theme_font_size_override("font_size", 10)
+		btn.pressed.connect(func(): _select_prop_asset(asset))
+		_asset_grid.add_child(btn)
+
+		var remove := Button.new()
+		remove.text = "✕"
+		remove.flat = true
+		remove.custom_minimum_size = Vector2(18, 18)
+		remove.tooltip_text = "Retirer de la bibliothèque"
+		remove.pressed.connect(func():
+			AssetLibraryScript.remove_asset(path)
+			if _prop_asset == path:
+				_prop_asset = ""
+			_refresh_asset_library()
+		)
+		btn.add_child(remove)
+
+func _select_prop_asset(asset: Dictionary) -> void:
+	_prop_asset = str(asset.get("path", ""))
+	_prop_size = float(asset.get("size", 2.0))
+	_prop_standing = bool(asset.get("standing", true))
+	_set_tool(ToolsScript.PROP)
+	_refresh_asset_library()
+	_set_status("Décor « %s » prêt — cliquez la carte." % asset.get("name", ""))
+
+func _on_assets_imported(paths: PackedStringArray) -> void:
+	var count := 0
+	for path in paths:
+		if not (AssetLibraryScript.import_asset(path, _prop_category) as Dictionary).is_empty():
+			count += 1
+	_refresh_asset_library()
+	_set_status("%d décor(s) importé(s) dans « %s »." % [
+		count, AssetLibraryScript.category(_prop_category).get("label", _prop_category)])
 
 func _refresh_templates() -> void:
 	if _template_list == null:
@@ -1554,7 +1699,16 @@ func _refresh_ghost() -> void:
 	if not _editable:
 		_overlay.ghost.clear()
 		return
-	if ToolsScript.is_pose_tool(_tool):
+	if _tool == ToolsScript.PROP and not _prop_asset.is_empty():
+		var ratio := AssetLibraryScript.aspect_ratio(_prop_asset)
+		var snapped := _snap(_overlay.hover_grid)
+		_overlay.ghost = {
+			"x": snapped.x, "y": snapped.y,
+			"w": maxf(0.25, _prop_size * ratio), "h": maxf(0.25, _prop_size),
+			"icon": "",
+			"texture": AssetLibraryScript.load_thumbnail(_prop_asset),
+		}
+	elif ToolsScript.is_pose_tool(_tool):
 		var size := _ghost_size()
 		_overlay.ghost = {
 			"x": _snap(_overlay.hover_grid).x,
@@ -1961,6 +2115,13 @@ func _rebuild_tool_options() -> void:
 	elif _tool in [ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY]:
 		_spin(_hbox(_tool_options), "Rayon", 0.25, 12.0, _zone_radius, 0.25, func(v): _zone_radius = v)
 		_line_row(_hbox(_tool_options), "Nom", _zone_label, func(text): _zone_label = text)
+	elif _tool == ToolsScript.PROP:
+		if _prop_asset.is_empty():
+			_option_note("Aucun décor sélectionné. Ouvrez l'onglet Biblio pour en choisir un.")
+		else:
+			_option_note("Décor : %s" % _prop_asset.get_file())
+		_spin(_hbox(_tool_options), "Taille (cases)", 0.25, 40.0, _prop_size, 0.25, func(v): _prop_size = v)
+		_checkbox(_tool_options, "Dressé face caméra", _prop_standing, func(on): _prop_standing = on)
 	elif _tool == ToolsScript.AREA:
 		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)
 		var cat := OptionButton.new()

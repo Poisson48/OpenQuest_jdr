@@ -215,6 +215,18 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_section("Note MJ")
 		_multiline("Texte", str(elem.get("text", "")),
 			func(text): _apply({"text": text}, "Note"))
+	elif kind == MapEditDocument.KIND_PROP:
+		_section("Décor")
+		_prop_asset_preview(str(elem.get("asset", "")))
+		var pose_row := _row()
+		_check(pose_row, "Dressé", bool(elem.get("standing", true)),
+			func(on): _apply({"standing": on, "billboard": on}, "Pose"))
+		_check(pose_row, "Éclairé", bool(elem.get("lit", false)),
+			func(on): _apply({"lit": on}, "Éclairage"))
+		_spin(_row(), "Élévation", -2.0, 12.0, float(elem.get("elevation", 0.0)), 0.1,
+			func(v): _apply({"elevation": v}, "Élévation"))
+		_add_note("« Dressé » fait tenir l'image debout face à la caméra (maison, arbre) ; décochez pour la coucher au sol (chemin, tapis, ombre). « Éclairé » soumet le décor aux lumières — à laisser décoché si l'illustration porte déjà ses ombres.")
+		_proportions_button(elem)
 	elif kind == MapEditDocument.KIND_AREA:
 		_section("Lieu")
 		_category_selector(str(elem.get("category", "building")))
@@ -324,6 +336,47 @@ func _preset_selector(current: String) -> void:
 		_apply({"preset": str(option.get_item_metadata(index))}, "Preset")
 	)
 	add_child(option)
+
+## Aperçu de l'image du décor, avec son nom et ses dimensions réelles.
+func _prop_asset_preview(asset_path: String) -> void:
+	var row := _row()
+	var preview := TextureRect.new()
+	preview.custom_minimum_size = Vector2(72, 72)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview.texture = MapAssetLibrary.load_thumbnail(asset_path)
+	row.add_child(preview)
+
+	var info := VBoxContainer.new()
+	info.add_theme_constant_override("separation", 2)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+
+	var name_lbl := Label.new()
+	var entry: Dictionary = MapAssetLibrary.get_asset(asset_path)
+	name_lbl.text = str(entry.get("name", asset_path.get_file()))
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_lbl.add_theme_font_size_override("font_size", 12)
+	info.add_child(name_lbl)
+
+	var pixels := MapAssetLibrary.image_size(asset_path)
+	var size_lbl := Label.new()
+	size_lbl.text = "%d × %d px" % [pixels.x, pixels.y] if pixels != Vector2i.ZERO else "image introuvable"
+	size_lbl.add_theme_font_size_override("font_size", 10)
+	size_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	info.add_child(size_lbl)
+
+## Remet le décor à ses proportions d'origine, après un redimensionnement
+## approximatif à la souris.
+func _proportions_button(elem: Dictionary) -> void:
+	var btn := Button.new()
+	btn.text = "⤢ Rétablir les proportions"
+	btn.pressed.connect(func():
+		var ratio := MapAssetLibrary.aspect_ratio(str(elem.get("asset", "")))
+		var height := maxf(0.25, float(elem.get("h", 1.0)))
+		_apply({"w": height * ratio, "h": height}, "Proportions")
+	)
+	add_child(btn)
 
 func _category_selector(current: String) -> void:
 	var option := OptionButton.new()
