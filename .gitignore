@@ -8,3 +8,5 @@ Thumbs.db
 node_modules/
 server/data/sessions/
 data/sessions/
+.claude/settings.local.json
+game/.godot/
