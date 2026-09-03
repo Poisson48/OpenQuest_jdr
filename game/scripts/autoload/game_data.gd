@@ -2006,6 +2006,73 @@ func enter_local_map(world_map_id: String, x: int, y: int, target_map_id: String
 	}
 	save_active_game()
 
+# ===========================================================================
+# Navigation entre échelles de carte
+# ===========================================================================
+#
+# Une carte de village porte des lieux ; entrer dans un lieu empile sa carte.
+# La pile permet une profondeur libre : village → place du marché → taverne.
+
+func get_area_stack() -> Array:
+	ensure_map_play_state()
+	var nav: Dictionary = active_game["mapNavigation"]
+	var stack = nav.get("areaStack", [])
+	if not stack is Array:
+		stack = []
+		nav["areaStack"] = stack
+	return stack
+
+## Carte réellement affichée compte tenu de la pile de lieux.
+func get_current_area_map_id(root_map_id: String) -> String:
+	var stack := get_area_stack()
+	if stack.is_empty():
+		return root_map_id
+	var top: Dictionary = stack[stack.size() - 1]
+	if str(top.get("rootMapId", "")) != root_map_id:
+		return root_map_id
+	return str(top.get("mapId", root_map_id))
+
+## Entre dans le lieu `area_id` de `map_id` : sa carte devient la vue courante.
+func enter_area(map_id: String, area_id: String) -> bool:
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return false
+	var area := MapData.get_area(map_def, area_id)
+	var target_id := str(area.get("targetMapId", ""))
+	if target_id.is_empty() or MapData.get_by_id(target_id).is_empty():
+		return false
+	ensure_map_play_state()
+	var stack := get_area_stack()
+	var root_id: String = str(stack[0].get("rootMapId", map_id)) if not stack.is_empty() else map_id
+	stack.append({
+		"rootMapId": root_id,
+		"fromMapId": map_id,
+		"areaId": area_id,
+		"mapId": target_id,
+		"label": str(area.get("label", "Lieu")),
+	})
+	active_game["mapNavigation"]["areaStack"] = stack
+	var ids: Array = active_game["mapIds"]
+	if not ids.has(target_id):
+		ids.append(target_id)
+	save_map_play_and_sync()
+	return true
+
+## Remonte d'un cran dans la pile de lieux.
+func exit_area() -> bool:
+	var stack := get_area_stack()
+	if stack.is_empty():
+		return false
+	stack.pop_back()
+	active_game["mapNavigation"]["areaStack"] = stack
+	save_map_play_and_sync()
+	return true
+
+func clear_area_stack() -> void:
+	ensure_map_play_state()
+	active_game["mapNavigation"]["areaStack"] = []
+	save_active_game()
+
 func exit_to_world_map() -> void:
 	ensure_map_play_state()
 	var nav: Dictionary = active_game["mapNavigation"]
@@ -2662,6 +2729,21 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 	if active_map.is_empty():
 		return { "displayMap": {}, "navContext": {} }
 	var nav: Dictionary = active_game.get("mapNavigation", {})
+	# La pile de lieux prime : elle décrit l'échelle à laquelle on joue.
+	var area_map_id := get_current_area_map_id(active_map_id)
+	if area_map_id != active_map_id:
+		var area_map := MapData.get_by_id(area_map_id)
+		if not area_map.is_empty():
+			var stack := get_area_stack()
+			return {
+				"displayMap": area_map,
+				"navContext": {
+					"mode": "area",
+					"rootMap": active_map,
+					"areaStack": stack,
+					"areaLabel": str((stack[stack.size() - 1] as Dictionary).get("label", "")),
+				},
+			}
 	if nav.get("view") == "local" and nav.get("worldMapId") == active_map_id:
 		var local_map := MapData.get_by_id(nav.get("localMapId", ""))
 		if not local_map.is_empty():
