@@ -376,6 +376,8 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	# Schéma 4 — cartes illustrées à plusieurs échelles.
 	if not map_data.has("areas") or typeof(map_data["areas"]) != TYPE_ARRAY:
 		map_data["areas"] = []
+	if not map_data.has("props") or typeof(map_data["props"]) != TYPE_ARRAY:
+		map_data["props"] = []
 	if not map_data.has("parentMapId"):
 		map_data["parentMapId"] = ""
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:

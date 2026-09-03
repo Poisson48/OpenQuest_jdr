@@ -37,23 +37,25 @@ const KIND_NOTE := "note"
 const KIND_LIGHT := "light"
 const KIND_LINK := "link"
 const KIND_AREA := "area"
+const KIND_PROP := "prop"
 
 const ALL_KINDS := [
 	KIND_TOKEN, KIND_MARKER, KIND_EFFECT, KIND_ZONE, KIND_PLATFORM,
 	KIND_OVERLAY, KIND_WALL, KIND_NOTE, KIND_LIGHT, KIND_LINK, KIND_AREA,
+	KIND_PROP,
 ]
 
 const KIND_ICONS := {
 	KIND_TOKEN: "🧍", KIND_MARKER: "📍", KIND_EFFECT: "✨", KIND_ZONE: "⭕",
 	KIND_PLATFORM: "🟫", KIND_OVERLAY: "🖼", KIND_WALL: "🧱", KIND_NOTE: "📝",
-	KIND_LIGHT: "💡", KIND_LINK: "🌀", KIND_AREA: "🏠",
+	KIND_LIGHT: "💡", KIND_LINK: "🌀", KIND_AREA: "🏠", KIND_PROP: "🏚",
 }
 
 const KIND_LABELS := {
 	KIND_TOKEN: "Token", KIND_MARKER: "Marqueur", KIND_EFFECT: "Effet",
 	KIND_ZONE: "Zone", KIND_PLATFORM: "Plateforme", KIND_OVERLAY: "Calque image",
 	KIND_WALL: "Mur", KIND_NOTE: "Note MJ", KIND_LIGHT: "Lumière",
-	KIND_LINK: "Passage", KIND_AREA: "Lieu",
+	KIND_LINK: "Passage", KIND_AREA: "Lieu", KIND_PROP: "Décor",
 }
 
 const DEFAULT_DISPLAY := {
@@ -123,6 +125,8 @@ func _ensure_editor_schema() -> void:
 		map_data["notes"] = []
 	if not map_data.has("areas") or typeof(map_data["areas"]) != TYPE_ARRAY:
 		map_data["areas"] = []
+	if not map_data.has("props") or typeof(map_data["props"]) != TYPE_ARRAY:
+		map_data["props"] = []
 	if not map_data.has("backgroundTransform") or typeof(map_data["backgroundTransform"]) != TYPE_DICTIONARY:
 		map_data["backgroundTransform"] = {"offsetX": 0.0, "offsetY": 0.0, "scale": 1.0, "opacity": 1.0}
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
@@ -185,6 +189,9 @@ func _deserialize() -> void:
 	for area in map_data.get("areas", []):
 		if area is Dictionary:
 			_ingest(area, KIND_AREA, 5)
+	for prop in map_data.get("props", []):
+		if prop is Dictionary:
+			_ingest(prop, KIND_PROP, 1)
 
 func _ingest(raw: Dictionary, kind: String, default_layer: int) -> void:
 	var elem := normalize_element(raw, kind, default_layer)
@@ -298,6 +305,7 @@ func to_map_data() -> Dictionary:
 	var lights: Array = []
 	var links: Array = []
 	var areas: Array = []
+	var props: Array = []
 	for id in _order:
 		var elem: Dictionary = _elements.get(id, {})
 		if elem.is_empty():
@@ -336,6 +344,8 @@ func to_map_data() -> Dictionary:
 				links.append(payload)
 			KIND_AREA:
 				areas.append(payload)
+			KIND_PROP:
+				props.append(payload)
 	var pd: Dictionary = play_defaults.duplicate(true)
 	pd["tokens"] = tokens
 	pd["effects"] = effects
@@ -350,6 +360,7 @@ func to_map_data() -> Dictionary:
 	out["notes"] = notes
 	out["locationLinks"] = links
 	out["areas"] = areas
+	out["props"] = props
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
 	out["lighting"] = lighting
@@ -640,6 +651,8 @@ func _shadow_state(id: String) -> Dictionary:
 static func default_layer_for_kind(kind: String) -> int:
 	match kind:
 		KIND_OVERLAY:
+			return 1
+		KIND_PROP:
 			return 1
 		KIND_PLATFORM, KIND_WALL, KIND_LIGHT:
 			return 2

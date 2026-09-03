@@ -29,6 +29,7 @@ const MapFog3DScript := preload("res://scripts/maps/map_layers/map_fog_3d.gd")
 const MapElevations3DScript := preload("res://scripts/maps/map_layers/map_elevations_3d.gd")
 const MapWalls3DScript := preload("res://scripts/maps/map_layers/map_walls_3d.gd")
 const MapLights3DScript := preload("res://scripts/maps/map_layers/map_lights_3d.gd")
+const MapProps3DScript := preload("res://scripts/maps/map_layers/map_props_3d.gd")
 
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 4.0
@@ -70,6 +71,7 @@ var _zones_layer: Node3D
 var _tokens_layer: Node3D
 var _effects_layer: Node3D
 var _fog_layer: Node3D
+var _props_layer: Node3D
 var _walls_layer: Node3D
 var _lights_layer: Node3D
 var _sun: DirectionalLight3D
@@ -99,13 +101,17 @@ func _build_viewport_tree() -> void:
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_viewport_container.stretch = true
-	_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	# IGNORE : sinon le container avale les clics et le parent ne reçoit jamais
+	# `_gui_input` (pan, pose, drag tokens, pointeur éditeur). Le picking 3D
+	# est fait ici par raycast, pas via physics picking du SubViewport.
+	_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_viewport_container)
 
 	_viewport = SubViewport.new()
 	_viewport.disable_3d = false
 	_viewport.transparent_bg = false
 	_viewport.handle_input_locally = false
+	_viewport.physics_object_picking = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_viewport.size = Vector2i(1024, 768)
 	_viewport_container.add_child(_viewport)
@@ -165,6 +171,10 @@ func _build_viewport_tree() -> void:
 	_effects_layer = Node3D.new()
 	_effects_layer.name = "Effects"
 	_world.add_child(_effects_layer)
+
+	_props_layer = MapProps3DScript.new()
+	_props_layer.name = "Props"
+	_world.add_child(_props_layer)
 
 	_walls_layer = MapWalls3DScript.new()
 	_walls_layer.name = "Walls"
@@ -331,6 +341,10 @@ func _rebuild_layers() -> void:
 
 	if _fog_layer.has_method("configure"):
 		_fog_layer.configure(w, h, _cell_size, _fog_revealed, is_gm, fog_on)
+
+	if _props_layer and _props_layer.has_method("configure"):
+		var props = map_data.get("props", [])
+		_props_layer.configure(props if props is Array else [], _cell_size)
 
 	if _walls_layer and _walls_layer.has_method("configure"):
 		var walls = map_data.get("walls", [])
@@ -551,6 +565,8 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 	elif _zone_nodes.has(element_id):
 		node = _zone_nodes[element_id]
 	if node == null:
+		if _props_layer and _props_layer.has_method("set_prop_position"):
+			_props_layer.set_prop_position(element_id, gx, gy)
 		return
 	node.position.x = gx * _cell_size + _cell_size * 0.5
 	node.position.z = gy * _cell_size + _cell_size * 0.5
@@ -559,6 +575,8 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 		node.token_data["y"] = gy
 
 func has_element_node(element_id: String) -> bool:
+	if _props_layer and _props_layer.has_method("has_prop") and _props_layer.has_prop(element_id):
+		return true
 	return _token_nodes.has(element_id) or _effect_nodes.has(element_id) or _zone_nodes.has(element_id)
 
 func set_editor_mode(on: bool) -> void:
@@ -595,7 +613,7 @@ func _pick_token(screen_pos: Vector2) -> Node:
 	return null
 
 func _is_token_node(node: Node) -> bool:
-	return node.get_script() == MapToken3DScript
+	return node is MapToken3D or node.get_script() == MapToken3DScript
 
 func _process(delta: float) -> void:
 	if _token_drag:

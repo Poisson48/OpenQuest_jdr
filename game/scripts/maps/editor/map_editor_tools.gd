@@ -27,9 +27,10 @@ const LINK := "link"
 const MEASURE := "measure"
 const TEMPLATE := "template"
 const AREA := "area"
+const PROP := "prop"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
-const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT]
+const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
 const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM, AREA]
@@ -85,6 +86,10 @@ const DEFS := [
 	{
 		"id": LIGHT, "icon": "💡", "label": "Lumière", "shortcut": "0", "group": "place",
 		"hint": "Clic : poser une source lumineuse (torche, brasier, lanterne).",
+	},
+	{
+		"id": PROP, "icon": "🏚", "label": "Décor", "shortcut": "P", "group": "place",
+		"hint": "Clic : poser le décor sélectionné dans la bibliothèque (bâtiment, charrette, mobilier…). Molette + Maj : agrandir · R : pivoter.",
 	},
 	{
 		"id": AREA, "icon": "🏠", "label": "Lieu", "shortcut": "A", "group": "place",
