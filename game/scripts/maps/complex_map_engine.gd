@@ -82,7 +82,8 @@ func _build_viewport_tree() -> void:
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_viewport_container.stretch = true
-	_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Voir complex_map_engine_3d.gd : le parent doit recevoir `_gui_input`.
+	_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_viewport_container)
 
 	_viewport = SubViewport.new()

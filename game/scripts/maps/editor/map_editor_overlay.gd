@@ -265,6 +265,11 @@ func _draw_selection() -> void:
 			draw_polyline(_closed(pts), COL_LOCKED, 1.0, true)
 		if not str(elem.get("group", "")).is_empty():
 			draw_polyline(_closed(pts), COL_GROUP, 1.0, true)
+	# Poignées souris : redimensionner / pivoter un décor seul.
+	if selected.size() == 1:
+		var sole: Dictionary = doc.get_element(str(selected[0]))
+		if str(sole.get("kind", "")) == MapEditDocument.KIND_PROP and not bool(sole.get("locked", false)):
+			_draw_prop_handles(sole)
 	if selected.size() > 1:
 		var bounds := doc.selection_bounds()
 		var corners := PackedVector2Array([
@@ -417,6 +422,56 @@ func elements_in_band(rect: Rect2) -> Array:
 		if band.intersects(elem_rect):
 			ids.append(str(elem.get("id", "")))
 	return ids
+
+const HANDLE_HIT := 10.0
+
+## Poignées d'un décor : 4 coins (resize) + 1 poignée de rotation au-dessus.
+func prop_handle_points(elem: Dictionary) -> Dictionary:
+	var pts := _footprint(elem)
+	if pts.size() < 4:
+		return {}
+	var top_mid := (pts[0] + pts[1]) * 0.5
+	var rotate_at := top_mid + Vector2(0.0, -28.0)
+	return {"corners": pts, "rotate": rotate_at, "top": top_mid}
+
+func _draw_prop_handles(elem: Dictionary) -> void:
+	var handles := prop_handle_points(elem)
+	if handles.is_empty():
+		return
+	var corners: PackedVector2Array = handles["corners"]
+	for corner in corners:
+		draw_rect(Rect2(corner - Vector2(5, 5), Vector2(10, 10)), Color(0.12, 0.10, 0.08, 0.85), true)
+		draw_rect(Rect2(corner - Vector2(5, 5), Vector2(10, 10)), COL_SELECT, false, 1.5)
+	var rot: Vector2 = handles["rotate"]
+	var top: Vector2 = handles["top"]
+	draw_line(top, rot, COL_SELECT, 1.5, true)
+	draw_circle(rot, 6.0, Color(0.12, 0.10, 0.08, 0.9))
+	draw_arc(rot, 6.0, 0.0, TAU, 24, COL_SELECT, 1.5, true)
+
+## `{ id, kind: "resize"|"rotate", corner }` si le curseur est sur une poignée.
+func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
+	if doc == null:
+		return {}
+	var selected := doc.selection()
+	if selected.size() != 1:
+		return {}
+	var id := str(selected[0])
+	var elem: Dictionary = doc.get_element(id)
+	if str(elem.get("kind", "")) != MapEditDocument.KIND_PROP:
+		return {}
+	if bool(elem.get("locked", false)):
+		return {}
+	var handles := prop_handle_points(elem)
+	if handles.is_empty():
+		return {}
+	var rot: Vector2 = handles["rotate"]
+	if rot.distance_to(pos) <= radius:
+		return {"id": id, "kind": "rotate", "corner": -1}
+	var corners: PackedVector2Array = handles["corners"]
+	for i in range(corners.size()):
+		if corners[i].distance_to(pos) <= radius:
+			return {"id": id, "kind": "resize", "corner": i}
+	return {}
 
 ## Élément le plus « au-dessus » sous un point écran (ordre de calque inversé).
 func element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:

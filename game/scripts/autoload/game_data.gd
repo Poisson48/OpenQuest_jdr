@@ -1520,7 +1520,10 @@ func apply_complex_map_click_local(map_id: String, gx: float, gy: float, tool: D
 	var mode: String = tool.get("mode", "")
 	match mode:
 		"member":
-			place_complex_member_token(map_id, gx, gy, tool.get("memberId", ""))
+			var mid := str(tool.get("memberId", ""))
+			if member_token_on_map(map_id, mid):
+				return
+			place_complex_member_token(map_id, gx, gy, mid)
 		"marker":
 			place_complex_marker_token(map_id, gx, gy, tool.get("markerType", ""))
 		"effect":
@@ -1673,7 +1676,11 @@ func apply_complex_map_click(map_id: String, gx: float, gy: float, tool: Diction
 			remove_map_token_at(map_id, ix, iy)
 			_remove_token_near(map_id, gx, gy)
 		"member":
-			place_complex_member_token(map_id, gx, gy, tool.get("memberId", ""))
+			# Pose initiale en un clic ; ensuite déplacement = drag & drop uniquement.
+			var mid := str(tool.get("memberId", ""))
+			if member_token_on_map(map_id, mid):
+				return
+			place_complex_member_token(map_id, gx, gy, mid)
 		"marker":
 			place_complex_marker_token(map_id, gx, gy, tool.get("markerType", ""))
 		"effect":
@@ -1681,6 +1688,15 @@ func apply_complex_map_click(map_id: String, gx: float, gy: float, tool: Diction
 		"zone":
 			place_map_zone(map_id, gx, gy, "circle", float(tool.get("radius", 1.5)), tool.get("label", ""))
 	save_map_play_and_sync()
+
+func member_token_on_map(map_id: String, member_id: String) -> bool:
+	if member_id.is_empty():
+		return false
+	for t_variant in get_map_play_tokens(map_id):
+		var t: Dictionary = t_variant
+		if str(t.get("memberId", "")) == member_id:
+			return true
+	return false
 
 func place_complex_member_token(map_id: String, gx: float, gy: float, member_id: String) -> void:
 	if member_id.is_empty():
@@ -1690,7 +1706,8 @@ func place_complex_member_token(map_id: String, gx: float, gy: float, member_id:
 	if member.is_empty():
 		return
 	var entry := get_map_play_entry(map_id)
-	entry["tokens"].append({
+	var portrait := str(member.get("portrait", member.get("image", ""))).strip_edges()
+	var tok := {
 		"id": generate_id("tok"),
 		"x": gx, "y": gy,
 		"kind": "member",
@@ -1698,7 +1715,10 @@ func place_complex_member_token(map_id: String, gx: float, gy: float, member_id:
 		"label": member.get("name", "Héros"),
 		"hp": member.get("hp", 0),
 		"maxHp": member.get("hp", 0),
-	})
+	}
+	if not portrait.is_empty():
+		tok["image"] = portrait
+	entry["tokens"].append(tok)
 	if is_los_enabled(map_id):
 		# Avec la ligne de vue, le brouillard découle des murs, pas d'un disque.
 		recompute_dynamic_fog(map_id)
@@ -1739,7 +1759,8 @@ func is_gm_view_for_map(_map_id: String) -> bool:
 		return true
 	if MultiplayerManager.is_p2p_active():
 		return MultiplayerManager.is_p2p_host() and MultiplayerManager.is_mj()
-	return true
+	# Solo : le rôle local (MJ vs joueur) pilote le brouillard / outils MJ.
+	return MultiplayerManager.is_mj() or MultiplayerManager.is_gm
 
 func save_map_view_state(map_id: String, view_state: Dictionary) -> void:
 	get_map_play_entry(map_id)["viewState"] = view_state.duplicate(true)
@@ -2098,13 +2119,17 @@ func place_member_token(map_id: String, x: int, y: int, member_id: String) -> vo
 	if member.is_empty():
 		return
 	var tokens: Array = get_map_play_tokens(map_id)
-	tokens.append({
+	var portrait := str(member.get("portrait", member.get("image", ""))).strip_edges()
+	var tok := {
 		"id": generate_id("tok"),
 		"x": x, "y": y,
 		"kind": "member",
 		"memberId": member_id,
 		"label": member.get("name", "Héros"),
-	})
+	}
+	if not portrait.is_empty():
+		tok["image"] = portrait
+	tokens.append(tok)
 	var map_data := MapData.get_by_id(map_id)
 	var quest_format: String = active_game.get("questFormat", "oneshot") if not active_game.is_empty() else "oneshot"
 	if MapData.is_world_map(map_data):
@@ -2693,7 +2718,11 @@ func apply_map_play_action(map_id: String, x: int, y: int, tool: Dictionary) -> 
 	if mode == "erase":
 		remove_map_token_at(map_id, x, y)
 	elif mode == "member":
-		place_member_token(map_id, x, y, tool.get("memberId", ""))
+		var mid := str(tool.get("memberId", ""))
+		# Déjà sur la carte → pas de téléport au clic (drag only).
+		if member_token_on_map(map_id, mid):
+			return
+		place_member_token(map_id, x, y, mid)
 	elif mode == "marker":
 		place_marker_token(map_id, x, y, tool.get("markerType", ""))
 	save_map_play_and_sync()

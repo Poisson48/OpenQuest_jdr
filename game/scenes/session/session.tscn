@@ -86,11 +86,12 @@ text = "Scène Suivante ⏭️"
 [node name="ContentSplit" type="HSplitContainer" parent="MainLayout"]
 layout_mode = 2
 size_flags_vertical = 3
-split_offset = 280
+split_offset = 220
 
 [node name="Sidebar" type="VBoxContainer" parent="MainLayout/ContentSplit"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.55
 theme_override_constants/separation = 8
 
 [node name="PartyPanel" type="PanelContainer" parent="MainLayout/ContentSplit/Sidebar"]
@@ -225,14 +226,14 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.2
+size_flags_stretch_ratio = 4.2
 script = ExtResource("3_map_panel")
 
 [node name="LogPanel" type="PanelContainer" parent="MainLayout/ContentSplit/MainGameArea"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
+size_flags_stretch_ratio = 0.45
 
 [node name="LogVBox" type="VBoxContainer" parent="MainLayout/ContentSplit/MainGameArea/LogPanel"]
 layout_mode = 2

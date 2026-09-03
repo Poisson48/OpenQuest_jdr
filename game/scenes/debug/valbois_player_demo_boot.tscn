@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://valbois_player_demo_boot"]
+
+[ext_resource type="Script" path="res://scripts/debug/valbois_player_demo_boot.gd" id="1_script"]
+
+[node name="ValboisPlayerDemoBoot" type="Node"]
+script = ExtResource("1_script")

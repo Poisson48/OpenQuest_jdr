@@ -4,6 +4,7 @@ const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 
 @onready var status_lbl: Label = %LblStatus
 @onready var graph_edit: GraphEdit = %GraphEdit
+@onready var graph_health_lbl: Label = %LblGraphHealth
 @onready var meta_title: LineEdit = %MetaTitle
 @onready var meta_synopsis: TextEdit = %MetaSynopsis
 @onready var meta_setting: TextEdit = %MetaSetting
@@ -20,12 +21,14 @@ const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 @onready var scene_tags: LineEdit = %SceneTags
 @onready var scene_content: TextEdit = %SceneContent
 @onready var transitions_list: VBoxContainer = %TransitionsList
+@onready var scene_badge_lbl: Label = %LblSceneBadge
 
 var _scenario: Dictionary = {}
 var _selected_scene_id: String = ""
 var _rebuilding_graph: bool = false
 var _locked_roster: String = ""
 var _locked_format: String = ""
+var _dirty: bool = false
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
@@ -35,13 +38,30 @@ func _ready() -> void:
 	%BtnSetStart.pressed.connect(_on_set_start_pressed)
 	%BtnDeleteScene.pressed.connect(_on_delete_scene_pressed)
 	%BtnAddTransition.pressed.connect(_on_add_transition_pressed)
+	%BtnAutoLayout.pressed.connect(_on_auto_layout_pressed)
+	%BtnFitView.pressed.connect(_on_fit_view_pressed)
+	%BtnValidate.pressed.connect(_on_validate_pressed)
 	%ConfirmDeleteScene.confirmed.connect(_on_confirm_delete_scene)
 
+	_configure_graph_edit()
 	_setup_option_buttons()
 	_apply_entry_context()
 	_load_scenario()
 	_connect_graph_signals()
 	_refresh_all()
+	call_deferred("_on_fit_view_pressed")
+
+func _configure_graph_edit() -> void:
+	graph_edit.show_grid = true
+	graph_edit.snapping_enabled = true
+	graph_edit.snapping_distance = 16
+	graph_edit.right_disconnects = true
+	graph_edit.minimap_enabled = true
+	graph_edit.minimap_size = Vector2(140, 90)
+	if graph_edit.has_method("set_connection_lines_curvature"):
+		graph_edit.connection_lines_curvature = 0.35
+	if "connection_lines_thickness" in graph_edit:
+		graph_edit.connection_lines_thickness = 2.0
 
 func _setup_option_buttons() -> void:
 	meta_format.clear()
@@ -88,6 +108,8 @@ func _load_scenario() -> void:
 			_scenario = GameData.create_blank_scenario()
 		else:
 			_scenario = existing.duplicate(true)
+	_scenario = QuestNavigation.ensure_graph_positions(_scenario)
+	_dirty = false
 
 func _connect_graph_signals() -> void:
 	graph_edit.connection_request.connect(_on_graph_connection_request)
@@ -102,6 +124,7 @@ func _refresh_all() -> void:
 	_refresh_npc_list()
 	_refresh_scene_panel()
 	_update_mystery_visibility()
+	_refresh_graph_health()
 
 func _sync_meta_ui() -> void:
 	meta_title.text = str(_scenario.get("title", ""))
@@ -147,7 +170,8 @@ func _refresh_start_scene_options() -> void:
 func _on_start_scene_selected(_idx: int) -> void:
 	if meta_start_scene.selected >= 0:
 		_scenario["startSceneId"] = str(meta_start_scene.get_item_metadata(meta_start_scene.selected))
-		_set_status("Scène de départ mise à jour")
+		_mark_dirty("Scène de départ mise à jour")
+		_rebuild_graph()
 
 func _on_meta_changed(_arg = null) -> void:
 	_scenario["title"] = meta_title.text.strip_edges()
@@ -159,11 +183,21 @@ func _on_meta_changed(_arg = null) -> void:
 	if meta_roster.selected >= 0:
 		_scenario["roster"] = str(meta_roster.get_item_metadata(meta_roster.selected))
 	_update_mystery_visibility()
+	_dirty = true
+	_refresh_graph_health()
 
 func _update_mystery_visibility() -> void:
 	var show: bool = str(_scenario.get("roster", "")) == "investigation" or str(_scenario.get("questFormat", "")) == "investigation"
 	lbl_mystery.visible = show
 	meta_mystery.visible = show
+
+func _refresh_graph_health() -> void:
+	var analysis := QuestNavigation.analyze_graph(_scenario)
+	graph_health_lbl.text = QuestNavigation.format_graph_health(analysis)
+	if analysis.get("ok", false):
+		graph_health_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	else:
+		graph_health_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 
 func _rebuild_graph() -> void:
 	call_deferred("_rebuild_graph_deferred")
@@ -176,30 +210,126 @@ func _rebuild_graph_deferred() -> void:
 			child.queue_free()
 
 	var scenes: Array = _scenario.get("scenes", [])
+	var analysis := QuestNavigation.analyze_graph(_scenario)
+	var unreachable: Dictionary = {}
+	for uid in analysis.get("unreachable", []):
+		unreachable[str(uid)] = true
+
 	for i in range(scenes.size()):
 		var scene: Dictionary = scenes[i]
 		if typeof(scene) != TYPE_DICTIONARY:
 			continue
 		var sid: String = str(scene.get("id", "scene-%d" % i))
-		var node := GraphNode.new()
-		node.name = _graph_node_name(i)
-		node.set_meta("scene_id", sid)
-		var is_start: bool = sid == str(_scenario.get("startSceneId", ""))
-		node.title = ("★ " if is_start else "") + str(scene.get("title", sid))
-		node.position_offset = _scene_graph_pos(scene, i)
-
-		var body := Label.new()
-		var content: String = str(scene.get("content", ""))
-		if content.length() > 90:
-			content = content.substr(0, 87) + "..."
-		body.text = content if not content.is_empty() else "(vide)"
-		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.custom_minimum_size = Vector2(180, 0)
-		node.add_child(body)
-		node.set_slot(0, true, 0, ThemeColors.GOLD, true, 0, ThemeColors.GOLD_LIGHT)
+		var node := _build_scene_graph_node(scene, sid, i, unreachable.has(sid))
 		graph_edit.add_child(node)
 
 	call_deferred("_finish_graph_connections")
+
+func _build_scene_graph_node(scene: Dictionary, sid: String, index: int, is_unreachable: bool) -> GraphNode:
+	var node := GraphNode.new()
+	node.name = _graph_node_name(index)
+	node.set_meta("scene_id", sid)
+	var is_start: bool = sid == str(_scenario.get("startSceneId", ""))
+	var transitions: Array = scene.get("transitions", [])
+	if typeof(transitions) != TYPE_ARRAY:
+		transitions = []
+	var is_terminal: bool = transitions.is_empty()
+	var is_selected: bool = sid == _selected_scene_id
+
+	var title := str(scene.get("title", sid))
+	if is_start:
+		title = "★ " + title
+	elif is_terminal:
+		title = "⚑ " + title
+	node.title = title
+	node.position_offset = _scene_graph_pos(scene, index)
+	node.custom_minimum_size = Vector2(QuestNavigation.NODE_WIDTH, 0)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = ThemeColors.BG_CARD
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	style.set_border_width_all(2)
+	if is_selected:
+		style.border_color = ThemeColors.GOLD_LIGHT
+		style.bg_color = Color(ThemeColors.BG_CARD.r, ThemeColors.BG_CARD.g, ThemeColors.BG_CARD.b, 1.0).lightened(0.08)
+	elif is_start:
+		style.border_color = ThemeColors.GOLD
+	elif is_unreachable:
+		style.border_color = ThemeColors.DANGER
+	elif is_terminal:
+		style.border_color = ThemeColors.SUCCESS
+	else:
+		style.border_color = ThemeColors.BORDER
+	node.add_theme_stylebox_override("panel", style)
+	node.add_theme_stylebox_override("panel_selected", style)
+	node.add_theme_color_override("title_color", ThemeColors.GOLD_LIGHT if is_start else ThemeColors.TEXT)
+
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 4)
+
+	var tags: Array = scene.get("tags", [])
+	if tags is Array and not tags.is_empty():
+		var tags_lbl := Label.new()
+		var tag_parts: PackedStringArray = []
+		for tag in tags:
+			tag_parts.append("#%s" % str(tag))
+		tags_lbl.text = " ".join(tag_parts)
+		tags_lbl.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
+		tags_lbl.add_theme_font_size_override("font_size", 11)
+		tags_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(tags_lbl)
+
+	var content: String = str(scene.get("content", "")).strip_edges()
+	var preview := Label.new()
+	if content.is_empty():
+		preview.text = "(contenu vide)"
+		preview.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	else:
+		preview.text = content if content.length() <= 100 else content.substr(0, 97) + "…"
+		preview.add_theme_color_override("font_color", ThemeColors.TEXT)
+	preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	preview.custom_minimum_size = Vector2(190, 0)
+	preview.add_theme_font_size_override("font_size", 12)
+	body.add_child(preview)
+
+	var branches_lbl := Label.new()
+	if is_terminal:
+		branches_lbl.text = "⚑ Fin de branche"
+		branches_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	else:
+		var lines: PackedStringArray = []
+		for transition in transitions:
+			if typeof(transition) != TYPE_DICTIONARY:
+				continue
+			var mark := "★" if transition.get("default", false) else ("👁" if transition.get("gmOnly", false) else "→")
+			var label := str(transition.get("label", "Branche")).strip_edges()
+			if label.is_empty():
+				label = str(transition.get("to", "?"))
+			if label.length() > 28:
+				label = label.substr(0, 25) + "…"
+			lines.append("%s %s" % [mark, label])
+		branches_lbl.text = "\n".join(lines)
+		branches_lbl.add_theme_color_override("font_color", ThemeColors.GOLD)
+	branches_lbl.add_theme_font_size_override("font_size", 11)
+	branches_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	body.add_child(branches_lbl)
+
+	if is_unreachable and not is_start:
+		var warn := Label.new()
+		warn.text = "⚠ Inatteignable"
+		warn.add_theme_color_override("font_color", ThemeColors.DANGER)
+		warn.add_theme_font_size_override("font_size", 11)
+		body.add_child(warn)
+
+	node.add_child(body)
+
+	var slot_color := ThemeColors.GOLD if is_start else (ThemeColors.SUCCESS if is_terminal else ThemeColors.GOLD_LIGHT)
+	node.set_slot(0, true, 0, slot_color, true, 0, slot_color)
+	return node
 
 func _finish_graph_connections() -> void:
 	var scenes: Array = _scenario.get("scenes", [])
@@ -217,7 +347,10 @@ func _finish_graph_connections() -> void:
 				continue
 			if not graph_edit.is_node_connected(from_name, 0, to_name, 0):
 				graph_edit.connect_node(from_name, 0, to_name, 0)
+			var activity := 1.0 if transition.get("default", false) else (0.35 if transition.get("gmOnly", false) else 0.7)
+			graph_edit.set_connection_activity(from_name, 0, to_name, 0, activity)
 	_rebuilding_graph = false
+	_refresh_graph_health()
 
 func _scene_graph_pos(scene: Dictionary, index: int) -> Vector2:
 	var gp = scene.get("graphPos", {})
@@ -253,14 +386,20 @@ func _get_scene_dict(scene_id: String) -> Dictionary:
 func _on_graph_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	if _rebuilding_graph:
 		return
-	graph_edit.connect_node(from_node, from_port, to_node, to_port)
 	var from_id := _scene_id_from_graph_node(from_node)
 	var to_id := _scene_id_from_graph_node(to_node)
-	if from_id.is_empty() or to_id.is_empty():
+	if from_id.is_empty() or to_id.is_empty() or from_id == to_id:
+		_set_status("Lien impossible (même scène).")
 		return
+	if _has_transition(from_id, to_id):
+		_set_status("Cette branche existe déjà.")
+		return
+	graph_edit.connect_node(from_node, from_port, to_node, to_port)
 	_add_or_update_transition(from_id, to_id, "Nouvelle branche", false, false)
+	_mark_dirty("Branche créée")
 	if _selected_scene_id == from_id:
 		_refresh_transitions_ui()
+	_rebuild_graph()
 
 func _on_graph_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	if _rebuilding_graph:
@@ -269,8 +408,10 @@ func _on_graph_disconnection_request(from_node: StringName, from_port: int, to_n
 	var from_id := _scene_id_from_graph_node(from_node)
 	var to_id := _scene_id_from_graph_node(to_node)
 	_remove_transition(from_id, to_id)
+	_mark_dirty("Branche retirée")
 	if _selected_scene_id == from_id:
 		_refresh_transitions_ui()
+	_rebuild_graph()
 
 func _scene_id_from_graph_node(node_name: StringName) -> String:
 	for child in graph_edit.get_children():
@@ -283,6 +424,7 @@ func _on_graph_node_selected(node: Node) -> void:
 		_commit_scene_editor()
 		_selected_scene_id = str(node.get_meta("scene_id", ""))
 		_refresh_scene_panel()
+		_rebuild_graph()
 
 func _on_graph_node_dragged(node: Node) -> void:
 	if not node is GraphNode:
@@ -292,6 +434,7 @@ func _on_graph_node_dragged(node: Node) -> void:
 	if scene.is_empty():
 		return
 	scene["graphPos"] = { "x": node.position_offset.x, "y": node.position_offset.y }
+	_dirty = true
 
 func _refresh_scene_panel() -> void:
 	if _selected_scene_id.is_empty():
@@ -304,6 +447,19 @@ func _refresh_scene_panel() -> void:
 	if scene.is_empty():
 		return
 	lbl_scene_id.text = "id: %s" % _selected_scene_id
+	var is_start: bool = _selected_scene_id == str(_scenario.get("startSceneId", ""))
+	var transitions: Array = scene.get("transitions", [])
+	var is_terminal: bool = typeof(transitions) != TYPE_ARRAY or transitions.is_empty()
+	if is_start:
+		scene_badge_lbl.text = "★ Scène de départ"
+		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.GOLD)
+	elif is_terminal:
+		scene_badge_lbl.text = "⚑ Scène terminale"
+		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+	else:
+		var branch_n: int = transitions.size() if typeof(transitions) == TYPE_ARRAY else 0
+		scene_badge_lbl.text = "↔ %d branche(s) sortante(s)" % branch_n
+		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	scene_title.text = str(scene.get("title", ""))
 	var tags: Array = scene.get("tags", [])
 	if tags is Array:
@@ -322,6 +478,7 @@ func _commit_scene_editor() -> void:
 	var scene := _get_scene_dict(_selected_scene_id)
 	if scene.is_empty():
 		return
+	var prev_title := str(scene.get("title", ""))
 	scene["title"] = scene_title.text.strip_edges()
 	scene["content"] = scene_content.text.strip_edges()
 	var tag_parts := scene_tags.text.split(",", false)
@@ -331,6 +488,8 @@ func _commit_scene_editor() -> void:
 		if not tag.is_empty():
 			tags.append(tag)
 	scene["tags"] = tags
+	if scene["title"] != prev_title:
+		_dirty = true
 
 func _refresh_transitions_ui() -> void:
 	for child in transitions_list.get_children():
@@ -339,6 +498,13 @@ func _refresh_transitions_ui() -> void:
 	if scene.is_empty():
 		return
 	var transitions: Array = scene.get("transitions", [])
+	if transitions.is_empty():
+		var empty := Label.new()
+		empty.text = "Aucune branche — scène terminale, ou glissez un lien depuis le graphe."
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		transitions_list.add_child(empty)
+		return
 	for t_idx in range(transitions.size()):
 		var transition: Dictionary = transitions[t_idx]
 		if typeof(transition) != TYPE_DICTIONARY:
@@ -347,30 +513,54 @@ func _refresh_transitions_ui() -> void:
 
 func _create_transition_row(from_id: String, index: int, transition: Dictionary) -> PanelContainer:
 	var panel := PanelContainer.new()
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = ThemeColors.BG_INPUT
+	panel_style.set_corner_radius_all(6)
+	panel_style.content_margin_left = 8
+	panel_style.content_margin_right = 8
+	panel_style.content_margin_top = 6
+	panel_style.content_margin_bottom = 6
+	panel_style.set_border_width_all(1)
+	if transition.get("default", false):
+		panel_style.border_color = ThemeColors.GOLD
+	elif transition.get("gmOnly", false):
+		panel_style.border_color = ThemeColors.INVESTIGATION_ACCENT
+	else:
+		panel_style.border_color = ThemeColors.BORDER
+	panel.add_theme_stylebox_override("panel", panel_style)
+
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 
 	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 6)
+	var arrow := Label.new()
+	arrow.text = "★→" if transition.get("default", false) else ("👁→" if transition.get("gmOnly", false) else "→")
+	arrow.add_theme_color_override("font_color", ThemeColors.GOLD)
+	top.add_child(arrow)
 	var target_opt := OptionButton.new()
 	target_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_populate_target_options(target_opt, str(transition.get("to", "")))
+	_populate_target_options(target_opt, str(transition.get("to", "")), from_id)
 	var captured_idx := index
 	target_opt.item_selected.connect(func(_i):
 		_update_transition_field(from_id, captured_idx, "to", str(target_opt.get_item_metadata(target_opt.selected)))
+		_mark_dirty()
 		call_deferred("_rebuild_graph")
 	)
 	top.add_child(target_opt)
 	row.add_child(top)
 
 	var label_edit := LineEdit.new()
-	label_edit.placeholder_text = "Libellé de la branche"
+	label_edit.placeholder_text = "Libellé de la branche (affiché au MJ)"
 	label_edit.text = str(transition.get("label", ""))
 	label_edit.text_changed.connect(func(t):
 		_update_transition_field(from_id, captured_idx, "label", t.strip_edges())
+		_dirty = true
 	)
 	row.add_child(label_edit)
 
 	var flags := HBoxContainer.new()
+	flags.add_theme_constant_override("separation", 8)
 	var chk_default := CheckBox.new()
 	chk_default.text = "Défaut ★"
 	chk_default.button_pressed = transition.get("default", false)
@@ -378,16 +568,25 @@ func _create_transition_row(from_id: String, index: int, transition: Dictionary)
 		if v:
 			_clear_default_transitions(from_id)
 		_update_transition_field(from_id, captured_idx, "default", v)
+		_mark_dirty()
 		call_deferred("_rebuild_graph")
+		call_deferred("_refresh_transitions_ui")
 	)
 	var chk_gm := CheckBox.new()
 	chk_gm.text = "MJ seul"
 	chk_gm.button_pressed = transition.get("gmOnly", false)
-	chk_gm.toggled.connect(func(v): _update_transition_field(from_id, captured_idx, "gmOnly", v))
+	chk_gm.toggled.connect(func(v):
+		_update_transition_field(from_id, captured_idx, "gmOnly", v)
+		_mark_dirty()
+		call_deferred("_rebuild_graph")
+		call_deferred("_refresh_transitions_ui")
+	)
 	var btn_del := Button.new()
 	btn_del.text = "✕"
+	btn_del.tooltip_text = "Supprimer cette branche"
 	btn_del.pressed.connect(func():
 		_remove_transition_at(from_id, captured_idx)
+		_mark_dirty("Branche supprimée")
 		_refresh_transitions_ui()
 		call_deferred("_rebuild_graph")
 	)
@@ -399,16 +598,20 @@ func _create_transition_row(from_id: String, index: int, transition: Dictionary)
 	panel.add_child(row)
 	return panel
 
-func _populate_target_options(opt: OptionButton, selected_id: String) -> void:
+func _populate_target_options(opt: OptionButton, selected_id: String, exclude_id: String = "") -> void:
 	opt.clear()
 	var select_idx := 0
+	var added := 0
 	for i in range(_scenario.get("scenes", []).size()):
 		var scene: Dictionary = _scenario["scenes"][i]
 		var sid := str(scene.get("id", ""))
-		opt.add_item("%s" % scene.get("title", sid), i)
-		opt.set_item_metadata(i, sid)
+		if sid == exclude_id:
+			continue
+		opt.add_item("%s" % scene.get("title", sid), added)
+		opt.set_item_metadata(added, sid)
 		if sid == selected_id:
-			select_idx = i
+			select_idx = added
+		added += 1
 	if opt.item_count > 0:
 		opt.select(select_idx)
 
@@ -429,6 +632,13 @@ func _clear_default_transitions(from_id: String) -> void:
 		if typeof(transitions[i]) == TYPE_DICTIONARY:
 			transitions[i]["default"] = false
 	scene["transitions"] = transitions
+
+func _has_transition(from_id: String, to_id: String) -> bool:
+	var scene := _get_scene_dict(from_id)
+	for transition in scene.get("transitions", []):
+		if typeof(transition) == TYPE_DICTIONARY and str(transition.get("to", "")) == to_id:
+			return true
+	return false
 
 func _add_or_update_transition(from_id: String, to_id: String, label: String, default: bool, gm_only: bool) -> void:
 	var scene := _get_scene_dict(from_id)
@@ -467,13 +677,14 @@ func _on_add_transition_pressed() -> void:
 	var target_id := ""
 	for scene in scenes:
 		var sid := str(scene.get("id", ""))
-		if sid != _selected_scene_id:
+		if sid != _selected_scene_id and not _has_transition(_selected_scene_id, sid):
 			target_id = sid
 			break
 	if target_id.is_empty():
-		_set_status("Ajoutez une autre scène pour créer une branche.")
+		_set_status("Ajoutez une autre scène (non déjà liée) pour créer une branche.")
 		return
 	_add_or_update_transition(_selected_scene_id, target_id, "Nouvelle branche", false, false)
+	_mark_dirty("Branche ajoutée")
 	_refresh_transitions_ui()
 	_rebuild_graph()
 
@@ -483,31 +694,45 @@ func _on_add_scene_pressed() -> void:
 	var new_id := "scene-%d" % (scenes.size() + 1)
 	while _scene_index_for_id(new_id) >= 0:
 		new_id += "-x"
+	var offset := Vector2(40 + (scenes.size() % 3) * 260, 40 + int(scenes.size() / 3) * 150)
+	# Place near selected node if any
+	if not _selected_scene_id.is_empty():
+		var selected := _get_scene_dict(_selected_scene_id)
+		var gp = selected.get("graphPos", {})
+		if gp is Dictionary and gp.has("x"):
+			offset = Vector2(float(gp["x"]) + QuestNavigation.LAYOUT_H_GAP, float(gp["y"]))
 	var new_scene := {
 		"id": new_id,
 		"title": "Nouvelle scène %d" % (scenes.size() + 1),
 		"content": "",
 		"tags": [],
 		"transitions": [],
-		"graphPos": { "x": 40 + (scenes.size() % 3) * 260, "y": 40 + int(scenes.size() / 3) * 150 },
+		"graphPos": { "x": offset.x, "y": offset.y },
 	}
 	scenes.append(new_scene)
 	_scenario["scenes"] = scenes
 	if scenes.size() == 1:
 		_scenario["startSceneId"] = new_id
+	# Auto-link from selected scene if it had no path to the new one
+	if not _selected_scene_id.is_empty() and _selected_scene_id != new_id:
+		var from_scene := _get_scene_dict(_selected_scene_id)
+		var existing: Array = from_scene.get("transitions", [])
+		if typeof(existing) != TYPE_ARRAY or existing.is_empty():
+			_add_or_update_transition(_selected_scene_id, new_id, "Continuer", true, false)
 	_selected_scene_id = new_id
 	_refresh_start_scene_options()
+	_mark_dirty("Scène ajoutée")
 	_rebuild_graph()
 	_refresh_scene_panel()
-	_set_status("Scène ajoutée")
 
 func _on_set_start_pressed() -> void:
 	if _selected_scene_id.is_empty():
 		return
 	_scenario["startSceneId"] = _selected_scene_id
 	_refresh_start_scene_options()
+	_mark_dirty("Scène de départ définie")
 	_rebuild_graph()
-	_set_status("Scène de départ définie")
+	_refresh_scene_panel()
 
 func _on_delete_scene_pressed() -> void:
 	if _selected_scene_id.is_empty():
@@ -539,9 +764,60 @@ func _on_confirm_delete_scene() -> void:
 			_scenario["startSceneId"] = ""
 	_selected_scene_id = ""
 	_refresh_start_scene_options()
+	_mark_dirty("Scène supprimée")
 	_rebuild_graph()
 	_refresh_scene_panel()
-	_set_status("Scène supprimée")
+
+func _on_auto_layout_pressed() -> void:
+	_commit_scene_editor()
+	_scenario = QuestNavigation.apply_auto_layout(_scenario)
+	_mark_dirty("Disposition automatique")
+	_rebuild_graph()
+	call_deferred("_on_fit_view_pressed")
+
+func _on_fit_view_pressed() -> void:
+	var min_pos := Vector2(INF, INF)
+	var max_pos := Vector2(-INF, -INF)
+	var found := false
+	for child in graph_edit.get_children():
+		if child is GraphNode:
+			found = true
+			var pos: Vector2 = child.position_offset
+			var size: Vector2 = child.size
+			if size.x < 10:
+				size = Vector2(QuestNavigation.NODE_WIDTH, QuestNavigation.NODE_HEIGHT)
+			min_pos = Vector2(minf(min_pos.x, pos.x), minf(min_pos.y, pos.y))
+			max_pos = Vector2(maxf(max_pos.x, pos.x + size.x), maxf(max_pos.y, pos.y + size.y))
+	if not found:
+		return
+	var margin := Vector2(40, 40)
+	var bounds := Rect2(min_pos - margin, (max_pos - min_pos) + margin * 2.0)
+	var view := graph_edit.size
+	if view.x < 10 or view.y < 10:
+		return
+	var zoom_x := view.x / maxf(bounds.size.x, 1.0)
+	var zoom_y := view.y / maxf(bounds.size.y, 1.0)
+	var zoom := clampf(minf(zoom_x, zoom_y), 0.35, 1.25)
+	graph_edit.zoom = zoom
+	graph_edit.scroll_offset = bounds.position * zoom - (view - bounds.size * zoom) * 0.5
+
+func _on_validate_pressed() -> void:
+	_commit_scene_editor()
+	_on_meta_changed()
+	var errors := QuestNavigation.validate_scenario_graph(_scenario)
+	var analysis := QuestNavigation.analyze_graph(_scenario)
+	_refresh_graph_health()
+	if not errors.is_empty():
+		_set_status("Erreur : %s" % str(errors[0]))
+		return
+	var warnings: Array = analysis.get("warnings", [])
+	if not warnings.is_empty():
+		_set_status("Attention : %s" % str(warnings[0]))
+	else:
+		_set_status("Graphe valide — %d scènes, %d branches" % [
+			int(analysis.get("sceneCount", 0)),
+			int(analysis.get("branchCount", 0)),
+		])
 
 func _refresh_npc_list() -> void:
 	for child in npc_list.get_children():
@@ -554,25 +830,45 @@ func _refresh_npc_list() -> void:
 
 func _create_npc_row(index: int, npc: Dictionary) -> PanelContainer:
 	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = ThemeColors.BG_INPUT
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	style.set_border_width_all(1)
+	style.border_color = ThemeColors.BORDER
+	panel.add_theme_stylebox_override("panel", style)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
 	var name_edit := LineEdit.new()
 	name_edit.placeholder_text = "Nom du PNJ"
 	name_edit.text = str(npc.get("name", ""))
-	name_edit.text_changed.connect(func(t): _scenario["npcs"][index]["name"] = t.strip_edges())
+	name_edit.text_changed.connect(func(t):
+		_scenario["npcs"][index]["name"] = t.strip_edges()
+		_dirty = true
+	)
 	var role_edit := LineEdit.new()
 	role_edit.placeholder_text = "Rôle"
 	role_edit.text = str(npc.get("role", ""))
-	role_edit.text_changed.connect(func(t): _scenario["npcs"][index]["role"] = t.strip_edges())
+	role_edit.text_changed.connect(func(t):
+		_scenario["npcs"][index]["role"] = t.strip_edges()
+		_dirty = true
+	)
 	var desc_edit := TextEdit.new()
 	desc_edit.custom_minimum_size = Vector2(0, 48)
 	desc_edit.placeholder_text = "Description"
 	desc_edit.text = str(npc.get("description", ""))
-	desc_edit.text_changed.connect(func(): _scenario["npcs"][index]["description"] = desc_edit.text.strip_edges())
+	desc_edit.text_changed.connect(func():
+		_scenario["npcs"][index]["description"] = desc_edit.text.strip_edges()
+		_dirty = true
+	)
 	var btn_del := Button.new()
 	btn_del.text = "Supprimer PNJ"
 	btn_del.pressed.connect(func():
 		_scenario["npcs"].remove_at(index)
+		_dirty = true
 		_refresh_npc_list()
 	)
 	vbox.add_child(name_edit)
@@ -588,6 +884,7 @@ func _on_add_npc_pressed() -> void:
 		npcs = []
 	npcs.append({ "id": "npc-%d" % (npcs.size() + 1), "name": "Nouveau PNJ", "role": "", "description": "" })
 	_scenario["npcs"] = npcs
+	_dirty = true
 	_refresh_npc_list()
 
 func _on_save_pressed() -> void:
@@ -600,33 +897,27 @@ func _on_save_pressed() -> void:
 		return
 	GameData.save_scenario(normalized)
 	_scenario = normalized.duplicate(true)
+	_dirty = false
 	_refresh_all()
 	_set_status("Scénario enregistré ✓")
 
 func _validate_scenario(scenario: Dictionary) -> String:
-	if str(scenario.get("title", "")).strip_edges().is_empty():
-		return "Le titre est obligatoire."
-	var scenes: Array = scenario.get("scenes", [])
-	if scenes.is_empty():
-		return "Ajoutez au moins une scène."
-	var start_id := str(scenario.get("startSceneId", ""))
-	if start_id.is_empty():
-		return "Définissez une scène de départ."
-	if QuestNavigation.get_scene_by_id(scenario, start_id).is_empty():
-		return "La scène de départ est invalide."
-	for scene in scenes:
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		for transition in scene.get("transitions", []):
-			if typeof(transition) != TYPE_DICTIONARY:
-				continue
-			var to_id := str(transition.get("to", ""))
-			if QuestNavigation.get_scene_by_id(scenario, to_id).is_empty():
-				return "Branche invalide vers « %s »." % to_id
+	var errors := QuestNavigation.validate_scenario_graph(scenario)
+	if not errors.is_empty():
+		return str(errors[0])
 	return ""
 
 func _on_back_pressed() -> void:
 	GameData.go_to_scenario_list()
 
+func _mark_dirty(status: String = "") -> void:
+	_dirty = true
+	_refresh_graph_health()
+	if not status.is_empty():
+		_set_status(status)
+
 func _set_status(text: String) -> void:
-	status_lbl.text = text
+	if _dirty and not text.begins_with("Scénario enregistré") and not text.begins_with("Erreur"):
+		status_lbl.text = text + " · non sauvé"
+	else:
+		status_lbl.text = text

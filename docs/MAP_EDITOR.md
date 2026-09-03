@@ -99,10 +99,29 @@ Les décors se sélectionnent, se déplacent, se dupliquent, se groupent et
 s'annulent comme tout le reste. Ils vivent sur le calque **Décor**, entre le
 fond et les structures — masquez ce calque pour retrouver le fond nu.
 
-**Et les personnages ?** Ce sont des **tokens** (`1`), pas des décors : eux
+**Confort d'édition** — un décor sélectionné affiche des **poignées** : coins
+pour redimensionner, pastille au-dessus pour pivoter. Dans l'inspecteur,
+**Plan rapide** (Arrière / Médian / Avant) règle le calque de profondeur sans
+taper un numéro. Un décor **dressé** s'ancre par son **pied** au sol.
+**Alt+glisser** duplique en plaçant.
+
+Et les personnages ? Ce sont des **tokens** (`1`), pas des décors : eux
 seuls se déplacent à la souris pendant la partie, portent un portrait, un rayon
 de vision et une fiche. Un décor est du mobilier de scène, un token est un
 acteur.
+
+## 1 quater. Style de rendu : diorama (défaut) ou VTT
+
+Chaque carte complexe a un **`renderStyle`** :
+
+| Style | Usage | Caméra | Ombres | Murs | Grille |
+|-------|--------|--------|--------|------|--------|
+| **Diorama 2.5D** (défaut) | Village illustré, exploration | Perspective ~52° | Non | Invisibles (LOS seulement) | Masquée par défaut |
+| **VTT 3D** | Combat tactique | Ortho / iso | Oui | Volumes | Visible |
+
+Réglage : onglet **Carte → Style de rendu**. Les données (décors, lieux, murs)
+sont communes ; seul le rendu change. En session, cliquer un **lieu** lié
+entre dans sa carte enfant ; **← Remonter** remonte d'un cran.
 
 ## 2. Outils
 
@@ -149,6 +168,7 @@ choisi s'applique au placement, au déplacement et au tracé.
   correct aussi en vue isométrique).
 - **Ctrl+clic** : ajoute/retire de la sélection · **Maj+clic** : ajoute.
 - **Alt+glisser** : duplique en glissant.
+- **Poignées décor** : coins = redimensionner · pastille au-dessus = pivoter.
 - Sélectionner un membre d'un **groupe** sélectionne tout le groupe.
 - **Flèches** : décale la sélection d'un pas d'aimantation (`Maj` : 1 case).
 - Les éléments **verrouillés** et les calques verrouillés ne sont pas sélectionnables.
@@ -280,15 +300,20 @@ Onglet **Carte** :
 
 - **Fond** : import PNG/JPEG/WebP (les dimensions de grille sont déduites de
   l'image), ajout de calques d'élévation, retrait du fond.
+- **Style de rendu** : **Diorama 2.5D** (défaut — fond peint + découpes) ou
+  **VTT 3D** (battlemap tactique avec ombres et murs volumétriques).
 - **Dimensions** : redimensionnement non destructif — le terrain existant est
   conservé au coin haut-gauche.
-- **Grille** : affichage, taille en pixels, opacité, couleur.
+- **Grille** : affichage, taille en pixels, opacité, couleur (masquée par
+  défaut en diorama).
 - **Échelle** : distance réelle par case (défaut 1,5 m ≈ 5 pieds), unité libre —
   utilisée par l'outil de mesure.
 - **Brouillard** : activation, tout masquer, tout révéler.
-- **Perspective** : vue de dessus, isométrique, perspective inclinée.
+- **Perspective** : vue de dessus, isométrique, perspective inclinée (surtout
+  utile en VTT ; le diorama force sa propre inclinaison).
 - **Atmosphère** : teinte d'ambiance, opacité, vignettage.
-- **Éclairage global** : lumière directionnelle, direction, intensité.
+- **Éclairage global** : lumière directionnelle, direction, intensité (coupé
+  en diorama ; les torches restent des lumières douces sans ombres).
 - **Affichage éditeur** : afficher les liens, afficher les noms.
 - **Sauvegarde** : politique **Manuelle**, **À chaque modification** ou
   **Périodique (30 s)**.
@@ -325,6 +350,7 @@ Onglet **Carte** :
 scripts/maps/
 ├── map_complex_editor.gd            # Hôte : outils, panneaux, machine à états
 ├── complex_map_engine_3d.gd         # Rendu 3D + projection + entrée souris
+├── map_render_style.gd              # Diorama 2.5D / VTT : caméra, parallaxe, teinte
 ├── map_vision.gd                    # Ligne de vue, champ de vision, portes
 ├── map_asset_library.gd             # Bibliothèque de décors (import, index, vignettes)
 ├── map_layers/
@@ -446,6 +472,7 @@ godot --headless --path game --script scripts/tests/map_editor_test.gd
 godot --headless --path game --script scripts/tests/map_vision_test.gd
 godot --headless --path game --script scripts/tests/map_areas_test.gd
 godot --headless --path game --script scripts/tests/map_props_test.gd
+godot --headless --path game --script scripts/tests/map_render_style_test.gd
 ```
 
 `map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix
@@ -467,13 +494,19 @@ filtrée pour les joueurs, et les portraits de token.
 test de survol (un lieu imbriqué l'emporte sur celui qui le contient), la
 création de cartes enfants et son idempotence, le fil d'Ariane sur trois
 niveaux, la navigation de session en profondeur avec placement de token à
-l'échelle atteinte, et le tracé d'un lieu dans l'éditeur réel.
+l'échelle atteinte, l'entrée au clic (hit-test → `enter_area`), et le tracé
+d'un lieu dans l'éditeur réel.
 
 `map_props_test.gd` couvre la bibliothèque (catégories, import, refus des
 sources invalides, renommage, suppression), les textures et vignettes avec leur
 cache, la pose d'un décor dans le document et son aller-retour de
-sérialisation, le rendu 3D (dressé contre couché, éléments masqués ou sans
-image ignorés, déplacement sans reconstruction) et l'outil dans l'éditeur réel.
+sérialisation, le rendu 3D (dressé contre couché, tri en profondeur diorama,
+éléments masqués ou sans image ignorés, déplacement sans reconstruction) et
+l'outil dans l'éditeur réel.
+
+`map_render_style_test.gd` couvre la résolution `diorama`/`vtt`, le parallaxe,
+la teinte de profondeur, la priorité de rendu, et les matériaux des décors
+selon le style.
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc

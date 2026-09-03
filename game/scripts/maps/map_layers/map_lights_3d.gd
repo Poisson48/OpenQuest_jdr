@@ -58,3 +58,10 @@ func _process(delta: float) -> void:
 		var base := float(entry["base"])
 		var wobble := sin(_time * 7.3 + phase) * 0.08 + sin(_time * 2.1 + phase * 1.7) * 0.05
 		node.light_energy = maxf(0.05, base * (1.0 + wobble))
+
+func set_shadows_enabled(on: bool) -> void:
+	for child in get_children():
+		if child is OmniLight3D:
+			(child as OmniLight3D).shadow_enabled = on and (child as OmniLight3D).shadow_enabled
+			if not on:
+				(child as OmniLight3D).shadow_enabled = false

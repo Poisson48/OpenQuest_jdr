@@ -196,6 +196,15 @@ func _test_session_navigation(md, gd) -> void:
 	_assert("nav_enter_without_map", not gd.enter_area(village_id, "a-vide"))
 	_assert("nav_enter_unknown", not gd.enter_area(village_id, "inconnu"))
 
+	# Clic session : hit-test lieu → enter_area (même chemin que area_clicked).
+	gd.clear_area_stack()
+	var hit: Dictionary = md.get_area_at(md.get_by_id(village_id), 20.0, 16.0)
+	_assert("click_hit_area", str(hit.get("id", "")) == "a-marche")
+	_assert("click_has_target", not str(hit.get("targetMapId", "")).is_empty())
+	_assert("click_enter", gd.enter_area(village_id, str(hit.get("id", ""))))
+	_assert("click_display", str((gd.get_session_display_map(village_id)["displayMap"] as Dictionary).get("id", "")) == marche_id)
+	_assert("click_exit", gd.exit_area())
+
 	gd.clear_area_stack()
 	_assert("nav_cleared", (gd.get_area_stack() as Array).is_empty())
 

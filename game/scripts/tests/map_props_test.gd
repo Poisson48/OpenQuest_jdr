@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_textures()
 	_test_document_props(md)
 	_test_rendering()
+	_test_diorama_depth_sort()
 	await _test_editor_prop_tool(md)
 	_cleanup()
 
@@ -185,7 +186,7 @@ func _test_rendering() -> void:
 		{"id": "p-couche", "x": 5.0, "y": 5.0, "w": 4.0, "h": 4.0, "asset": asset_path, "standing": false},
 		{"id": "p-masque", "x": 8.0, "y": 8.0, "asset": asset_path, "hidden": true},
 		{"id": "p-sans-image", "x": 9.0, "y": 9.0, "asset": "user://absent.png"},
-	], 1.0)
+	], 1.0, {"renderStyle": "vtt", "height": 20})
 
 	_assert("render_visible_only", layer.get_child_count() == 2)
 	_assert("render_has_standing", layer.has_prop("p-debout"))
@@ -213,6 +214,35 @@ func _test_rendering() -> void:
 	layer.configure([], 1.0)
 	_assert("render_cleared", not layer.has_prop("p-debout"))
 
+	layer.queue_free()
+
+func _test_diorama_depth_sort() -> void:
+	var assets: Array = LibraryScript.list_assets()
+	var asset_path := str((assets[0] as Dictionary).get("path", "")) if not assets.is_empty() else ""
+	if asset_path.is_empty():
+		_assert("depth_has_asset", false)
+		return
+	var layer: Node3D = Props3DScript.new()
+	get_root().add_child(layer)
+	var map_data := {"height": 20, "renderStyle": "diorama", "atmosphere": {"tint": "#101018"}}
+	layer.configure([
+		{"id": "far", "x": 4.0, "y": 2.0, "w": 3.0, "h": 4.0, "asset": asset_path, "standing": true, "layer": 1},
+		{"id": "near", "x": 4.0, "y": 16.0, "w": 3.0, "h": 4.0, "asset": asset_path, "standing": true, "layer": 1},
+	], 1.0, map_data)
+	var far_pri := -999
+	var near_pri := -999
+	var far_node: Node3D = layer._nodes.get("far")
+	var near_node: Node3D = layer._nodes.get("near")
+	_assert("depth_nodes", far_node != null and near_node != null)
+	if far_node and near_node:
+		var far_mat := (far_node.get_child(0) as MeshInstance3D).material_override as StandardMaterial3D
+		var near_mat := (near_node.get_child(0) as MeshInstance3D).material_override as StandardMaterial3D
+		far_pri = far_mat.render_priority
+		near_pri = near_mat.render_priority
+		_assert("depth_unshaded", far_mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED)
+		_assert("depth_prepass", far_mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS)
+		_assert("foot_snap", (far_node.get_child(0) as MeshInstance3D).position.y > 1.0)
+	_assert("depth_near_higher", near_pri > far_pri)
 	layer.queue_free()
 
 func _test_editor_prop_tool(md) -> void:

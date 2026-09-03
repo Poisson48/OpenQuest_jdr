@@ -411,6 +411,9 @@ func _test_editor_ui(base: Dictionary) -> void:
 	_assert("ui_engine", editor._engine != null)
 	_assert("ui_overlay", editor._overlay != null)
 	_assert("ui_minimap", editor._minimap != null)
+	# Le SubViewportContainer ne doit pas voler les clics au parent.
+	var container = editor._engine.get("_viewport_container")
+	_assert("ui_viewport_mouse_ignore", container != null and container.mouse_filter == Control.MOUSE_FILTER_IGNORE)
 
 	var mods := {"shift": false, "ctrl": false, "alt": false}
 

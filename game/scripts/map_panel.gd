@@ -46,18 +46,51 @@ var _snap_btn: Button
 var _trigger_btn: Button
 var _readonly: bool = false
 var _current_mode: String = MapModeScript.SIMPLE
+var _base_hint: String = ""
+var _toolbar_scroll: ScrollContainer
+var _complex_scroll: ScrollContainer
+var _explore_mode: bool = false  # carte illustrée : chrome minimal
+var _immersive: bool = false
 
 func _ready() -> void:
 	_build_ui()
 	resized.connect(func(): call_deferred("_sync_map_viewport_size"))
-	# Une opération de carte reçue du MJ (ou validée par lui) redessine la vue
-	# sans attendre une resynchronisation complète de la partie.
 	MultiplayerManager.map_op_received.connect(func(_map_id: String, _op: Dictionary): refresh())
 	refresh()
 
+func set_immersive(on: bool) -> void:
+	_immersive = on
+	_apply_immersive_chrome()
+	call_deferred("_sync_map_viewport_size")
+
+func _apply_immersive_chrome() -> void:
+	if not _immersive:
+		return
+	if _title_lbl and _title_lbl.get_parent():
+		_title_lbl.get_parent().visible = false
+	if _mode_row:
+		_mode_row.visible = false
+	if _toolbar_scroll:
+		_toolbar_scroll.visible = false
+	if _complex_scroll:
+		_complex_scroll.visible = false
+	if _hint_lbl:
+		_hint_lbl.visible = false
+	# Cadre sans bordure : la carte colle aux bords.
+	if _map_frame:
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(0.02, 0.02, 0.02, 1.0)
+		st.set_border_width_all(0)
+		st.set_corner_radius_all(0)
+		st.content_margin_left = 0
+		st.content_margin_right = 0
+		st.content_margin_top = 0
+		st.content_margin_bottom = 0
+		_map_frame.add_theme_stylebox_override("panel", st)
+
 func _build_ui() -> void:
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 6)
+	outer.add_theme_constant_override("separation", 4)
 	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(outer)
@@ -67,8 +100,9 @@ func _build_ui() -> void:
 	outer.add_child(header)
 
 	_title_lbl = Label.new()
-	_title_lbl.text = "🗺️ Carte interactive"
+	_title_lbl.text = "Carte"
 	_title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	_title_lbl.add_theme_font_size_override("font_size", 15)
 	_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_title_lbl.clip_text = true
 	header.add_child(_title_lbl)
@@ -86,46 +120,51 @@ func _build_ui() -> void:
 	_nav_bar.visible = false
 	outer.add_child(_nav_bar)
 
-	var toolbar_scroll := ScrollContainer.new()
-	toolbar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	toolbar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	toolbar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	toolbar_scroll.custom_minimum_size = Vector2(0, 52)
-	outer.add_child(toolbar_scroll)
+	_toolbar_scroll = ScrollContainer.new()
+	_toolbar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_toolbar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_toolbar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_toolbar_scroll.custom_minimum_size = Vector2(0, 44)
+	outer.add_child(_toolbar_scroll)
 
 	_toolbar_container = HBoxContainer.new()
 	_toolbar_container.add_theme_constant_override("separation", 6)
 	_toolbar_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	toolbar_scroll.add_child(_toolbar_container)
+	_toolbar_scroll.add_child(_toolbar_container)
 
-	var complex_scroll := ScrollContainer.new()
-	complex_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	complex_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	complex_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	complex_scroll.custom_minimum_size = Vector2(0, 48)
-	complex_scroll.visible = false
-	outer.add_child(complex_scroll)
+	_complex_scroll = ScrollContainer.new()
+	_complex_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_complex_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_complex_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_complex_scroll.custom_minimum_size = Vector2(0, 44)
+	_complex_scroll.visible = false
+	outer.add_child(_complex_scroll)
 
 	_complex_toolbar = HBoxContainer.new()
 	_complex_toolbar.add_theme_constant_override("separation", 6)
 	_complex_toolbar.alignment = BoxContainer.ALIGNMENT_CENTER
-	complex_scroll.add_child(_complex_toolbar)
-	complex_scroll.set_meta("scroll", complex_scroll)
+	_complex_scroll.add_child(_complex_toolbar)
 
 	_hint_lbl = Label.new()
 	_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_hint_lbl.add_theme_font_size_override("font_size", 12)
-	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_lbl.add_theme_font_size_override("font_size", 11)
+	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_hint_lbl.clip_text = true
 	_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hint_lbl.custom_minimum_size = Vector2(0, 0)
 	outer.add_child(_hint_lbl)
 
 	var map_frame := PanelContainer.new()
 	_map_frame = map_frame
 	var map_style := StyleBoxFlat.new()
-	map_style.bg_color = ThemeColors.BG_INPUT
+	map_style.bg_color = Color(0.06, 0.05, 0.04, 1.0)
 	map_style.border_color = ThemeColors.BORDER
 	map_style.set_border_width_all(1)
-	map_style.set_corner_radius_all(4)
+	map_style.set_corner_radius_all(2)
+	map_style.content_margin_left = 0
+	map_style.content_margin_right = 0
+	map_style.content_margin_top = 0
+	map_style.content_margin_bottom = 0
 	map_frame.add_theme_stylebox_override("panel", map_style)
 	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -146,8 +185,11 @@ func _build_ui() -> void:
 	_complex_engine.map_clicked.connect(_on_complex_map_clicked)
 	_complex_engine.token_moved.connect(_on_complex_token_moved)
 	_complex_engine.fog_revealed.connect(_on_fog_revealed)
+	_complex_engine.fog_hidden.connect(_on_fog_hidden)
 	_complex_engine.effect_trigger_requested.connect(_on_effect_trigger)
 	_complex_engine.token_selected.connect(_on_token_selected)
+	_complex_engine.area_clicked.connect(_on_area_clicked)
+	_complex_engine.area_hovered.connect(_on_area_hovered)
 	_complex_engine.zoom_changed.connect(func(_z): _update_zoom_label())
 	map_frame.add_child(_complex_engine)
 
@@ -240,12 +282,18 @@ func refresh() -> void:
 	_readonly = state.get("status") == "completed"
 	_init_session_tool(state)
 	var active_id := _get_active_map_id(map_ids)
+	var ctx := GameData.get_session_display_map(active_id)
+	var display_map: Dictionary = ctx.get("displayMap", {})
+	_explore_mode = not str(display_map.get("backgroundImage", "")).strip_edges().is_empty()
 	_current_mode = GameData.get_effective_render_mode(active_id)
+	if _explore_mode:
+		_current_mode = MapModeScript.COMPLEX
 	_sync_mode_selector()
 	_render_tabs(map_ids)
 	_render_toolbar(state)
 	_render_complex_toolbar(state)
 	_render_active_map(state)
+	_apply_immersive_chrome()
 	map_changed.emit()
 
 func _sync_mode_selector() -> void:
@@ -259,24 +307,22 @@ func _sync_mode_selector() -> void:
 	var overrides: Dictionary = state.get("mapModeOverrides", {})
 	var has_override := overrides.has(active_id)
 
-	_mode_row.visible = not active_id.is_empty()
-	_mode_label.visible = is_gm
-	_btn_mode_simple.visible = is_gm
-	_btn_mode_complex.visible = is_gm
-	_mode_badge.visible = not is_gm and not active_id.is_empty()
+	# Exploration illustrée : pas de bascule Simple/Complexe (bruit inutile).
+	_mode_row.visible = not _immersive and not active_id.is_empty() and not _explore_mode and is_gm
+	_mode_label.visible = _mode_row.visible
+	_btn_mode_simple.visible = _mode_row.visible
+	_btn_mode_complex.visible = _mode_row.visible
+	_mode_badge.visible = false
 
-	if is_gm:
+	if _mode_row.visible:
 		_btn_mode_simple.set_pressed_no_signal(_current_mode == MapModeScript.SIMPLE)
 		_btn_mode_complex.set_pressed_no_signal(_current_mode == MapModeScript.COMPLEX)
 		_btn_mode_simple.disabled = _readonly
 		_btn_mode_complex.disabled = _readonly
-	else:
-		_mode_badge.text = "Mode : %s" % MapModeScript.badge(_current_mode)
-		_mode_badge.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT if _current_mode == MapModeScript.COMPLEX else ThemeColors.TEXT_MUTED)
 
 	var hint := _mode_row.get_node_or_null("OverrideHint") as Label
 	if hint:
-		hint.visible = is_gm and has_override and overrides[active_id] != base_mode
+		hint.visible = _mode_row.visible and has_override and overrides[active_id] != base_mode
 
 func _on_session_mode_pressed(mode: String) -> void:
 	if mode == _current_mode:
@@ -298,17 +344,18 @@ func _init_session_tool(state: Dictionary) -> void:
 func _render_tabs(map_ids: Array) -> void:
 	for child in _tabs_container.get_children():
 		child.queue_free()
-	if map_ids.size() <= 1:
+	# En exploration, une seule carte affichée à la fois — pas d'onglets bruyants.
+	if _explore_mode or map_ids.size() <= 1:
 		return
 	for map_id in map_ids:
 		var m := MapData.get_by_id(map_id)
 		if m.is_empty():
 			continue
 		var btn := Button.new()
-		var kind := "Monde" if MapData.is_world_map(m) else "Scène"
-		btn.text = "%s · %s" % [kind, m.get("title", map_id)]
+		btn.text = str(m.get("title", map_id))
 		btn.toggle_mode = true
-		btn.custom_minimum_size = Vector2(0, 34)
+		btn.custom_minimum_size = Vector2(0, 28)
+		btn.add_theme_font_size_override("font_size", 12)
 		btn.button_pressed = map_id == _get_active_map_id(map_ids)
 		var captured_id: String = map_id
 		btn.pressed.connect(func():
@@ -320,8 +367,8 @@ func _render_tabs(map_ids: Array) -> void:
 func _render_toolbar(state: Dictionary) -> void:
 	for child in _toolbar_container.get_children():
 		child.queue_free()
-	var show_simple := _current_mode == MapModeScript.SIMPLE
-	_toolbar_container.get_parent().visible = show_simple and not _readonly
+	var show_simple := _current_mode == MapModeScript.SIMPLE and not _explore_mode
+	_toolbar_scroll.visible = show_simple and not _readonly
 	if not show_simple or _readonly:
 		return
 
@@ -368,9 +415,9 @@ func _render_toolbar(state: Dictionary) -> void:
 func _render_complex_toolbar(state: Dictionary) -> void:
 	for child in _complex_toolbar.get_children():
 		child.queue_free()
-	var scroll: ScrollContainer = _complex_toolbar.get_parent()
-	scroll.visible = _current_mode == MapModeScript.COMPLEX and not _readonly
-	if _current_mode != MapModeScript.COMPLEX or _readonly:
+	# Exploration illustrée : pas de barre VTT (brouillard, effets, grille…).
+	_complex_scroll.visible = _current_mode == MapModeScript.COMPLEX and not _readonly and not _explore_mode
+	if not _complex_scroll.visible:
 		return
 
 	var active_id := _get_active_map_id(state.get("mapIds", []))
@@ -381,6 +428,7 @@ func _render_complex_toolbar(state: Dictionary) -> void:
 	for member in party:
 		var mid: String = member.get("id", "")
 		var btn := _make_tool_button(MapData.get_member_emoji(mid, party, quest_format), true)
+		btn.tooltip_text = member.get("name", "")
 		btn.button_pressed = _session_tool.get("mode") == "member" and _session_tool.get("member_id") == mid
 		btn.pressed.connect(func():
 			_session_tool = { "mode": "member", "member_id": mid }
@@ -422,10 +470,11 @@ func _render_complex_toolbar(state: Dictionary) -> void:
 	_complex_toolbar.add_child(zone_btn)
 
 	_snap_btn = Button.new()
-	_snap_btn.text = "⊞ Grille"
+	_snap_btn.text = "⊞"
 	_snap_btn.toggle_mode = true
 	_snap_btn.button_pressed = true
 	_snap_btn.tooltip_text = "Accrochage à la grille"
+	_snap_btn.custom_minimum_size = TOOL_ICON_BUTTON_SIZE
 	_snap_btn.pressed.connect(func():
 		if _complex_engine.has_method("set_snap_to_grid"):
 			_complex_engine.set_snap_to_grid(_snap_btn.button_pressed)
@@ -433,8 +482,9 @@ func _render_complex_toolbar(state: Dictionary) -> void:
 	_complex_toolbar.add_child(_snap_btn)
 
 	_trigger_btn = Button.new()
-	_trigger_btn.text = "▶ Déclencher"
+	_trigger_btn.text = "▶"
 	_trigger_btn.tooltip_text = "Déclencher l'effet sélectionné"
+	_trigger_btn.custom_minimum_size = TOOL_ICON_BUTTON_SIZE
 	_trigger_btn.pressed.connect(_on_trigger_selected_effect)
 	_complex_toolbar.add_child(_trigger_btn)
 
@@ -469,25 +519,66 @@ func _render_active_map(state: Dictionary) -> void:
 
 	if display_map.is_empty():
 		_hint_lbl.text = ""
+		_title_lbl.text = "Carte"
 		return
 
-	_title_lbl.text = "🗺️ Carte%s" % ("s" if map_ids.size() > 1 else "")
+	_explore_mode = not str(display_map.get("backgroundImage", "")).strip_edges().is_empty()
+	# Carte illustrée → mode complexe implicite (pas de bascule Simple/Complexe).
+	if _explore_mode and _current_mode != MapModeScript.COMPLEX:
+		_current_mode = MapModeScript.COMPLEX
+
+	var map_title := str(display_map.get("title", "Carte")).strip_edges()
+	if nav_ctx.get("mode") == "area":
+		_title_lbl.text = str(nav_ctx.get("areaLabel", map_title))
+	else:
+		_title_lbl.text = map_title
+
 	_render_nav_bar(nav_ctx)
 	_apply_map_config(state, active_id, ctx)
+	_sync_mode_selector()
 
-	if _current_mode == MapModeScript.COMPLEX:
-		_hint_lbl.text = "Mode VTT 3D : tokens ombrés · effets 🔥💨✨ (particules 3D) · brouillard 🌫️ · zones ⭕ · glisser / molette"
-	elif nav_ctx.get("mode") == "local":
-		_hint_lbl.text = "Clique sur la sortie 🚪 ou « Monde » pour revenir à la carte du monde."
-	elif MapData.is_world_map(display_map) and nav_ctx.is_empty():
-		_hint_lbl.text = "Mode simple — lieux 🌀 · glisser · molette zoom. Le mode par défaut se règle dans Hub → Cartes → Modifier."
+	if nav_ctx.get("mode") == "area":
+		_hint_lbl.text = "Molette pour zoomer · glisser pour déplacer · ← Remonter"
+	elif _explore_mode:
+		_hint_lbl.text = "Cliquez un lieu du plan pour y entrer · glisser · molette"
+	elif _current_mode == MapModeScript.COMPLEX:
+		_hint_lbl.text = "Tokens · glisser · molette"
+	elif MapData.is_world_map(display_map):
+		_hint_lbl.text = "Cliquez un lieu pour voyager"
 	else:
-		_hint_lbl.text = "Glisser pour déplacer · molette ou +/− pour zoomer · ⟲ pour tout afficher."
+		_hint_lbl.text = "Glisser · molette · ⟲ recadrer"
+	_base_hint = _hint_lbl.text
+	_hint_lbl.visible = not _base_hint.is_empty() and not _immersive
 
 func _render_nav_bar(nav_ctx: Dictionary) -> void:
 	for child in _nav_bar.get_children():
 		child.queue_free()
-	if nav_ctx.is_empty() or nav_ctx.get("mode") != "local":
+	var mode := str(nav_ctx.get("mode", ""))
+	if mode == "area":
+		_nav_bar.visible = true
+		var back_btn := Button.new()
+		back_btn.text = "← Remonter"
+		back_btn.tooltip_text = "Revenir à l'échelle supérieure"
+		back_btn.pressed.connect(func():
+			GameData.exit_area()
+			refresh()
+		)
+		_nav_bar.add_child(back_btn)
+		var crumb := Label.new()
+		var parts: PackedStringArray = []
+		var root: Dictionary = nav_ctx.get("rootMap", {})
+		if not root.is_empty():
+			parts.append(str(root.get("title", "Carte")))
+		for entry_variant in nav_ctx.get("areaStack", []):
+			if entry_variant is Dictionary:
+				parts.append(str((entry_variant as Dictionary).get("label", "Lieu")))
+		crumb.text = " › ".join(parts)
+		crumb.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		crumb.clip_text = true
+		crumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_nav_bar.add_child(crumb)
+		return
+	if mode != "local":
 		_nav_bar.visible = false
 		return
 	_nav_bar.visible = true
@@ -502,6 +593,30 @@ func _render_nav_bar(nav_ctx: Dictionary) -> void:
 	crumb.text = "%s › %s" % [nav_ctx.get("worldMap", {}).get("title", "Monde"), nav_ctx.get("localMap", {}).get("title", "Scène")]
 	crumb.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	_nav_bar.add_child(crumb)
+
+func _on_area_clicked(area: Dictionary) -> void:
+	var state := GameData.active_game
+	var active_id := _get_active_map_id(state.get("mapIds", []))
+	var ctx := GameData.get_session_display_map(active_id)
+	var map_id: String = ctx.get("displayMap", {}).get("id", "")
+	if map_id.is_empty():
+		return
+	var area_id := str(area.get("id", ""))
+	if area_id.is_empty():
+		return
+	if GameData.enter_area(map_id, area_id):
+		refresh()
+
+func _on_area_hovered(area: Dictionary) -> void:
+	if area.is_empty():
+		_hint_lbl.text = _base_hint
+		return
+	var label := str(area.get("label", "")).strip_edges()
+	if label.is_empty():
+		return
+	var linked := not str(area.get("targetMapId", "")).is_empty()
+	_hint_lbl.text = ("Entrer dans « %s »" if linked else "%s") % label
+	_hint_lbl.visible = true
 
 func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) -> void:
 	var display_map: Dictionary = ctx.get("displayMap", {})
@@ -584,6 +699,11 @@ func _sync_map_viewport_size() -> void:
 		var sz := Vector2(maxi(64, frame_w - 4), maxi(64, frame_h - 4))
 		_simple_map.custom_minimum_size = sz
 		_complex_engine.custom_minimum_size = sz
+		_simple_map.size = sz
+		_complex_engine.size = sz
+		# Après layout : recadrer (sinon la caméra garde un cadrage calculé à size≈0).
+		if _current_mode == MapModeScript.COMPLEX and _complex_engine and _complex_engine.has_method("reset_zoom"):
+			_complex_engine.call_deferred("reset_zoom")
 
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():
@@ -628,6 +748,18 @@ func _on_fog_revealed(cells: Array) -> void:
 	var active_id := _get_active_map_id(state.get("mapIds", []))
 	var map_id: String = GameData.get_session_display_map(active_id).get("displayMap", {}).get("id", "")
 	GameData.reveal_fog_cells(map_id, cells)
+	_apply_map_config(state, active_id, GameData.get_session_display_map(active_id))
+
+func _on_fog_hidden(cells: Array) -> void:
+	var state := GameData.active_game
+	var active_id := _get_active_map_id(state.get("mapIds", []))
+	var map_id: String = GameData.get_session_display_map(active_id).get("displayMap", {}).get("id", "")
+	if map_id.is_empty():
+		return
+	GameData.submit_map_op(map_id, {
+		"type": GameData.MAP_OP_FOG_HIDE,
+		"cells": cells,
+	})
 	_apply_map_config(state, active_id, GameData.get_session_display_map(active_id))
 
 func _on_token_selected(token_id: String) -> void:

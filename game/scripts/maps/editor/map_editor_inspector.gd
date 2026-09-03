@@ -225,7 +225,12 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(on): _apply({"lit": on}, "Éclairage"))
 		_spin(_row(), "Élévation", -2.0, 12.0, float(elem.get("elevation", 0.0)), 0.1,
 			func(v): _apply({"elevation": v}, "Élévation"))
-		_add_note("« Dressé » fait tenir l'image debout face à la caméra (maison, arbre) ; décochez pour la coucher au sol (chemin, tapis, ombre). « Éclairé » soumet le décor aux lumières — à laisser décoché si l'illustration porte déjà ses ombres.")
+		_section("Plan rapide")
+		var plane_row := _row()
+		_text_button(plane_row, "Arrière", func(): _apply({"layer": 1}, "Plan arrière"))
+		_text_button(plane_row, "Médian", func(): _apply({"layer": 2}, "Plan médian"))
+		_text_button(plane_row, "Avant", func(): _apply({"layer": 5}, "Plan avant"))
+		_add_note("« Dressé » : pied au sol, face caméra. Alt+glisser pour dupliquer. Plan rapide = calque de profondeur.")
 		_proportions_button(elem)
 	elif kind == MapEditDocument.KIND_AREA:
 		_section("Lieu")
@@ -503,6 +508,15 @@ func _add_note(text: String) -> void:
 	lbl.add_theme_font_size_override("font_size", 11)
 	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	add_child(lbl)
+
+func _text_button(parent: Control, text: String, action: Callable) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 11)
+	btn.pressed.connect(action)
+	parent.add_child(btn)
+	return btn
 
 func _add_placeholder(text: String) -> void:
 	_add_note(text)

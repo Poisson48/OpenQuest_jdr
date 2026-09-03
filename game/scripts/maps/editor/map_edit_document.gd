@@ -736,6 +736,20 @@ func set_live_position(id: String, gx: float, gy: float) -> void:
 	elem["y"] = gy
 	_elements[id] = elem
 
+## Mutations live (taille / rotation d'un décor pendant les poignées).
+func set_live_fields(id: String, fields: Dictionary) -> void:
+	if not _elements.has(id) or fields.is_empty():
+		return
+	var elem: Dictionary = _elements[id]
+	for key in fields.keys():
+		if key == "display" and fields[key] is Dictionary:
+			var display: Dictionary = (elem.get("display", {}) as Dictionary).duplicate(true)
+			display.merge(fields[key], true)
+			elem["display"] = display
+		else:
+			elem[key] = fields[key]
+	_elements[id] = elem
+
 func commit_live_edit(ids: Array, note: String = "Déplacement") -> void:
 	if ids.is_empty():
 		return

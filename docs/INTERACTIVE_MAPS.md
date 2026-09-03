@@ -13,43 +13,49 @@ OpenQuest propose **deux modes de carte** coexistent sans régression :
 | Mode | Classe | Usage |
 |------|--------|-------|
 | **Simple** (`simple`) | `SimpleMapRenderer` → `InteractiveMap` | Cartes pixel/tuiles, monde, enquête, Naheulbeuk-style |
-| **Complexe** (`complex`) | `ComplexMapEngine3D` | VTT **3D top-down** : battlemap, tokens 3D, fog, effets particules, zones, élévations |
+| **Complexe** (`complex`) | `ComplexMapEngine3D` | Battlemap : **diorama 2.5D** (défaut) ou **VTT 3D** tactique |
 
 Le MJ choisit le mode **par carte** via le sélecteur session (persisté dans `active_game.mapModeOverrides`).
 
+### Styles de rendu (cartes complexes)
+
+| `renderStyle` | Défaut | Rendu |
+|---------------|--------|--------|
+| `diorama` | **oui** | Fond peint + découpes 2D dressées, caméra perspective ~52°, parallaxe, profondeur atmosphérique. Pas d'ombres portées ; murs invisibles (LOS seulement) ; grille masquée ; tokens en découpes. |
+| `vtt` | non | Battlemap tactique : murs volumétriques, ombres, éclairage directionnel, tokens cylindriques. |
+
+Navigation multi-échelles : cliquer un **lieu** (`areas`) avec `targetMapId` appelle `enter_area` ; le fil d'Ariane session propose **← Remonter** (`exit_area`).
+
 ---
 
-## 2. Architecture moteur (mode complexe — **3D top-down**)
+## 2. Architecture moteur (mode complexe)
 
-Vue par-dessus d'une **scène Godot 3D réelle** (ARPG / XCOM / Diablo-style), pas des astuces 2D.
+Vue d'une **scène Godot 3D** : en **diorama**, surtout pour disposer des images
+(fond + découpes) avec parallaxe ; en **VTT**, pour une battlemap tactique
+(murs, ombres, tokens cylindriques).
 
 ```
 MapPanel (UI session)
 ├── SimpleMapRenderer     ← mode simple 2D (inchangé)
-└── ComplexMapEngine      ← SubViewportContainer
-        └── SubViewport (3D activé)
-              ├── WorldEnvironment (SSAO, ambient)
-              ├── DirectionalLight3D (ombres dynamiques)
-              ├── Camera3D (orthographique top-down ~52°, ou perspective/isométrique)
+└── ComplexMapEngine3D    ← SubViewportContainer
+        └── SubViewport (3D)
+              ├── WorldEnvironment + Atmosphere / Vignette
+              ├── DirectionalLight3D (VTT) / lumières douces (diorama)
+              ├── Camera3D (perspective inclinée diorama, ou ortho/iso VTT)
               └── Scene (Node3D)
-                    ├── MapGround3D         ← PlaneMesh + texture PNG battlemap
-                    ├── Elevations          ← PlaneMesh surélevés (PNG overlay)
-                    ├── MapZone3D           ← disques AOE au sol
-                    ├── MapToken3D          ← CylinderMesh + Sprite3D portrait, ombres réelles
-                    ├── MapEffect3D         ← GPUParticles3D + OmniLight3D
-                    └── MapFog3D            ← dalles 3D semi-transparentes
-        Atmosphere + Vignette (Control overlay UI 2D)
+                    ├── MapGround3D         ← fond peint / tuiles
+                    ├── MapProps3D          ← découpes dressées (ALPHA_DEPTH_PRE_PASS)
+                    ├── Elevations          ← VTT seulement
+                    ├── MapWalls3D          ← volumes VTT / collision LOS diorama
+                    ├── MapZone3D / MapFog3D / MapLights3D
+                    └── MapToken3D          ← découpe diorama ou cylindre VTT
 ```
 
-**Rendu :** sol texturé → plateformes → zones → tokens (StaticBody3D, raycast drag) → particules 3D → fog 3D → overlays UI.
+### Tokens (`MapToken3D`)
 
-### Tokens 3D (`MapToken3D`)
-
-- **CylinderMesh** avec ombres portées (`DirectionalLight3D`)
-- **Sprite3D** billboard portrait (initiale PJ)
-- Anneau de sélection 3D (TorusMesh émissif)
+- **Diorama** : découpe dressée + ombre elliptique peinte + anneau au sol
+- **VTT** : CylinderMesh + portrait, ombres portées
 - Drag par **raycast** sur le plan du sol (Y=0)
-- Lift vertical à la sélection
 
 ### Effets 3D (`MapEffect3D`)
 

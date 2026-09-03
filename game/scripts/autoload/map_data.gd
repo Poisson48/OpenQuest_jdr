@@ -382,6 +382,16 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["parentMapId"] = ""
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
 		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
+	# Schéma 5 — style diorama 2.5D (défaut) ou VTT tactique.
+	if not map_data.has("renderStyle"):
+		map_data["renderStyle"] = "diorama"
+	if str(map_data.get("renderStyle", "diorama")) == "diorama":
+		# Grille masquée par défaut sur un village illustré.
+		var grid: Dictionary = map_data.get("grid", {})
+		if grid is Dictionary and not grid.has("show"):
+			grid = grid.duplicate(true)
+			grid["show"] = false
+			map_data["grid"] = grid
 	return map_data
 
 func get_play_defaults(map_data: Dictionary) -> Dictionary:
@@ -416,6 +426,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"roster": roster,
 		"mapKind": map_kind,
 		"renderMode": RENDER_MODE_COMPLEX,
+		"renderStyle": "diorama",
 		"scenarioId": "",
 		"width": grid_cells_w,
 		"height": grid_cells_h,
@@ -625,13 +636,15 @@ func list_token_images() -> Array:
 ## Charge un portrait et le découpe en disque, prêt à coiffer un token.
 ## `border` teinte l'anneau extérieur (couleur du personnage).
 func load_token_portrait(path: String, border: Color = Color(0.15, 0.12, 0.1), size: int = 160) -> Texture2D:
-	if path.strip_edges().is_empty():
+	var img := _load_rgba_image(path)
+	if img == null:
 		return null
-	var img := Image.new()
-	if img.load(path) != OK:
-		return null
+	# Cadre carré centré (meilleur pour les portraits en pied).
+	var side := mini(img.get_width(), img.get_height())
+	var ox := (img.get_width() - side) / 2
+	var oy := maxi(0, (img.get_height() - side) / 5)  # un peu vers le haut (visage)
+	img = img.get_region(Rect2i(ox, oy, side, side))
 	img.resize(size, size, Image.INTERPOLATE_LANCZOS)
-	img.convert(Image.FORMAT_RGBA8)
 	var half := float(size) * 0.5
 	for y in range(size):
 		for x in range(size):
@@ -644,11 +657,170 @@ func load_token_portrait(path: String, border: Color = Color(0.15, 0.12, 0.1), s
 				img.set_pixel(x, y, border)
 	return ImageTexture.create_from_image(img)
 
-func get_image_pixel_size(source_path: String) -> Vector2i:
-	if source_path.is_empty() or not FileAccess.file_exists(source_path):
-		return Vector2i.ZERO
+## Découpe en pied pour le diorama. Si le PNG a déjà de l'alpha, on le garde
+## (évite de percer les habits sombres). Sinon détourage du fond depuis les bords.
+func load_token_cutout(path: String, max_height: int = 256) -> Texture2D:
+	var img := _load_rgba_image(path)
+	if img == null:
+		return null
+	var w := img.get_width()
+	var h := img.get_height()
+	var clear_n := 0
+	for y in range(h):
+		for x in range(w):
+			if img.get_pixel(x, y).a < 0.05:
+				clear_n += 1
+	# Déjà détouré (fond transparent) → ne pas flood-fill les pixels sombres du perso.
+	if clear_n < int(w * h * 0.05):
+		_knockout_edge_background(img, 0.045)
+	var scale := float(max_height) / float(maxi(1, h))
+	var new_w := maxi(1, int(round(float(w) * scale)))
+	var new_h := max_height
+	img.resize(new_w, new_h, Image.INTERPOLATE_LANCZOS)
+	_harden_cutout_alpha(img, 0.40)
+	return ImageTexture.create_from_image(img)
+
+## Opaque ou transparent — jamais semi-transparent (évite le fantôme sur la carte).
+func _harden_cutout_alpha(img: Image, keep_threshold: float = 0.4) -> void:
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			var c := img.get_pixel(x, y)
+			if c.a >= keep_threshold:
+				c.a = 1.0
+				img.set_pixel(x, y, c)
+			elif c.a > 0.02 and (c.r + c.g + c.b) > 0.08:
+				# Anti-alias / trou sombre du perso → opaque, pas transparent.
+				c.a = 1.0
+				img.set_pixel(x, y, c)
+			else:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+	_fill_cutout_interior_holes(img)
+
+## Bouche les trous intérieurs : tout transparent non relié aux bords = trou dans le perso.
+func _fill_cutout_interior_holes(img: Image) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	if w < 3 or h < 3:
+		return
+	var outside := PackedByteArray()
+	outside.resize(w * h)
+	outside.fill(0)
+	var queue: Array[Vector2i] = []
+	for x in range(w):
+		queue.append(Vector2i(x, 0))
+		queue.append(Vector2i(x, h - 1))
+	for y in range(h):
+		queue.append(Vector2i(0, y))
+		queue.append(Vector2i(w - 1, y))
+	var head := 0
+	while head < queue.size():
+		var p: Vector2i = queue[head]
+		head += 1
+		if p.x < 0 or p.y < 0 or p.x >= w or p.y >= h:
+			continue
+		var idx := p.y * w + p.x
+		if outside[idx] != 0:
+			continue
+		if img.get_pixel(p.x, p.y).a >= 0.5:
+			continue
+		outside[idx] = 1
+		queue.append(Vector2i(p.x + 1, p.y))
+		queue.append(Vector2i(p.x - 1, p.y))
+		queue.append(Vector2i(p.x, p.y + 1))
+		queue.append(Vector2i(p.x, p.y - 1))
+	for y in range(h):
+		for x in range(w):
+			var idx := y * w + x
+			if outside[idx] != 0:
+				continue
+			if img.get_pixel(x, y).a >= 0.5:
+				continue
+			# Trou intérieur : moyenne des voisins opaques.
+			var op := 0
+			var ar := 0.0
+			var ag := 0.0
+			var ab := 0.0
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					var nx := x + dx
+					var ny := y + dy
+					if nx < 0 or ny < 0 or nx >= w or ny >= h:
+						continue
+					var n := img.get_pixel(nx, ny)
+					if n.a < 0.5:
+						continue
+					op += 1
+					ar += n.r
+					ag += n.g
+					ab += n.b
+			if op > 0:
+				img.set_pixel(x, y, Color(ar / float(op), ag / float(op), ab / float(op), 1.0))
+			else:
+				img.set_pixel(x, y, Color(0.15, 0.12, 0.1, 1.0))
+
+## Remplit en transparent uniquement le fond sombre relié aux bords de l'image.
+func _knockout_edge_background(img: Image, threshold: float = 0.12) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	if w <= 0 or h <= 0:
+		return
+	var visited := PackedByteArray()
+	visited.resize(w * h)
+	visited.fill(0)
+	var queue: Array[Vector2i] = []
+	for x in range(w):
+		queue.append(Vector2i(x, 0))
+		queue.append(Vector2i(x, h - 1))
+	for y in range(h):
+		queue.append(Vector2i(0, y))
+		queue.append(Vector2i(w - 1, y))
+	var head := 0
+	while head < queue.size():
+		var p: Vector2i = queue[head]
+		head += 1
+		if p.x < 0 or p.y < 0 or p.x >= w or p.y >= h:
+			continue
+		var idx := p.y * w + p.x
+		if visited[idx] != 0:
+			continue
+		visited[idx] = 1
+		var c := img.get_pixel(p.x, p.y)
+		if c.a < 0.05:
+			continue
+		if c.r > threshold or c.g > threshold or c.b > threshold:
+			continue
+		img.set_pixel(p.x, p.y, Color(0, 0, 0, 0))
+		queue.append(Vector2i(p.x + 1, p.y))
+		queue.append(Vector2i(p.x - 1, p.y))
+		queue.append(Vector2i(p.x, p.y + 1))
+		queue.append(Vector2i(p.x, p.y - 1))
+
+func _load_rgba_image(path: String) -> Image:
+	var raw := path.strip_edges()
+	if raw.is_empty():
+		return null
+	var resolved := raw
+	if raw.begins_with("res://") or raw.begins_with("user://"):
+		resolved = ProjectSettings.globalize_path(raw)
 	var img := Image.new()
-	if img.load(source_path) != OK:
+	if img.load(resolved) != OK:
+		# Fallback : texture importée Godot.
+		if raw.begins_with("res://") and ResourceLoader.exists(raw):
+			var tex = load(raw)
+			if tex is Texture2D:
+				img = (tex as Texture2D).get_image()
+				if img == null:
+					return null
+			else:
+				return null
+		else:
+			return null
+	img.convert(Image.FORMAT_RGBA8)
+	return img
+
+func get_image_pixel_size(source_path: String) -> Vector2i:
+	var img := _load_rgba_image(source_path)
+	if img == null:
 		return Vector2i.ZERO
 	return Vector2i(img.get_width(), img.get_height())
 

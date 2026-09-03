@@ -1,6 +1,8 @@
 extends Control
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
+const CharacterSheetScript = preload("res://scripts/ui/character_sheet.gd")
+const PlayerSessionHudScript = preload("res://scripts/ui/player_session_hud.gd")
 
 @onready var log_label: RichTextLabel = %GameLog
 @onready var input_action: LineEdit = %InputAction
@@ -46,31 +48,42 @@ const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 
 var session_seconds: int = 0
 var timer_active: bool = true
+var _character_sheet: Control = null
+var _player_hud: Control = null
+var _immersive_player: bool = false
+var _layout_nodes: Dictionary = {}
 
 func _configure_layout() -> void:
 	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
 	var log_panel: PanelContainer = main_area.get_node("LogPanel") as PanelContainer
-	var dice_section: Control = main_area.get_node("DiceSection")
-	var action_section: Control = main_area.get_node("ActionSection")
+	var dice_sec: Control = main_area.get_node("DiceSection")
+	var action_sec: Control = main_area.get_node("ActionSection")
 
 	_remove_legacy_middle_scroll(main_area, log_panel)
-	_unwrap_session_scroll(main_area, [map_panel, log_panel, dice_section, action_section])
+	_unwrap_session_scroll(main_area, [map_panel, log_panel, dice_sec, action_sec])
+
+	_layout_nodes = {
+		"header": $MainLayout/HeaderBar,
+		"content_split": $MainLayout/ContentSplit,
+		"main_area": main_area,
+		"log_panel": log_panel,
+		"dice": dice_sec,
+		"action": action_sec,
+	}
 
 	main_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
 	map_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_panel.size_flags_stretch_ratio = 1.2
-	map_panel.custom_minimum_size = Vector2.ZERO
-
+	map_panel.size_flags_stretch_ratio = 4.2
+	map_panel.custom_minimum_size = Vector2(0, 360)
 	log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_panel.size_flags_stretch_ratio = 1.0
-	log_panel.custom_minimum_size = Vector2.ZERO
-
-	dice_section.size_flags_vertical = Control.SIZE_SHRINK_END
-	action_section.size_flags_vertical = Control.SIZE_SHRINK_END
+	log_panel.size_flags_stretch_ratio = 0.45
+	log_panel.custom_minimum_size = Vector2(0, 80)
+	dice_sec.size_flags_vertical = Control.SIZE_SHRINK_END
+	action_sec.size_flags_vertical = Control.SIZE_SHRINK_END
 
 	var content_split: HSplitContainer = $MainLayout/ContentSplit
 	content_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_split.split_offset = 220
 
 	var party_scroll: ScrollContainer = $MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll
 	party_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -78,6 +91,14 @@ func _configure_layout() -> void:
 
 	_configure_sidebar_scroll()
 	_configure_log_readability()
+	_layout_nodes["sidebar"] = content_split.get_child(0)
+	var sidebar_host: Control = _layout_nodes["sidebar"] as Control
+	if sidebar_host:
+		sidebar_host.custom_minimum_size = Vector2(200, 0)
+		sidebar_host.size_flags_stretch_ratio = 0.55
+	var main_host: Control = content_split.get_child(1) as Control if content_split.get_child_count() > 1 else null
+	if main_host:
+		main_host.size_flags_stretch_ratio = 2.4
 
 func _configure_sidebar_scroll() -> void:
 	var split: HSplitContainer = $MainLayout/ContentSplit
@@ -178,9 +199,11 @@ func _sync_log_layout() -> void:
 func _ready() -> void:
 	if not GameData.has_active_game():
 		_create_fallback_game()
+	_configure_layout()
 	_refresh_session_ui()
 
-	_configure_layout()
+	_character_sheet = CharacterSheetScript.new()
+	add_child(_character_sheet)
 
 	btn_back_hub.pressed.connect(_on_leave_session_pressed)
 	btn_advance_scene.pressed.connect(_on_advance_scene_pressed)
@@ -240,27 +263,124 @@ func _is_mj_controller() -> bool:
 		return false
 	if MultiplayerManager.is_p2p_active():
 		return MultiplayerManager.is_p2p_host() and MultiplayerManager.is_mj()
-	return true
+	# Solo / local : le rôle choisi (gm vs player) pilote la vue.
+	return MultiplayerManager.is_mj() or MultiplayerManager.is_gm
 
 func _local_client_id() -> String:
 	if MultiplayerManager.is_p2p_active():
 		return MultiplayerManager.player_id
 	return ""
 
+func _is_player_view() -> bool:
+	# Vue immersive carte : joueur (pas MJ), y compris solo forcé en player.
+	if bool(GameData.active_game.get("forcePlayerView", false)):
+		return true
+	if not _is_human_gm_mode():
+		# MJ IA : le joueur local joue — carte immersive.
+		return true
+	return not _is_mj_controller()
+
+func _ensure_player_hud() -> void:
+	if _player_hud != null:
+		return
+	_player_hud = PlayerSessionHudScript.new()
+	add_child(_player_hud)
+	_player_hud.leave_pressed.connect(_on_leave_session_pressed)
+	_player_hud.open_character.connect(_open_character_sheet)
+	_player_hud.action_submitted.connect(func(t: String):
+		input_action.text = t
+		_on_send_action_pressed()
+	)
+	_player_hud.roll_requested.connect(func(formula: String):
+		custom_dice_input.text = formula
+		_on_roll_custom_dice()
+	)
+
+func _apply_immersive_player_layout(on: bool) -> void:
+	_immersive_player = on
+	_ensure_player_hud()
+	_player_hud.visible = on
+
+	var header: Control = _layout_nodes.get("header") as Control
+	var sidebar: Control = _layout_nodes.get("sidebar") as Control
+	var log_panel: Control = _layout_nodes.get("log_panel") as Control
+	var dice_sec: Control = _layout_nodes.get("dice") as Control
+	var action_sec: Control = _layout_nodes.get("action") as Control
+	var split: HSplitContainer = _layout_nodes.get("content_split") as HSplitContainer
+
+	if header == null:
+		header = get_node_or_null("MainLayout/HeaderBar") as Control
+	if split == null:
+		split = get_node_or_null("MainLayout/ContentSplit") as HSplitContainer
+	if sidebar == null and split and split.get_child_count() > 0:
+		sidebar = split.get_child(0) as Control
+	if log_panel == null:
+		log_panel = get_node_or_null("MainLayout/ContentSplit/MainGameArea/LogPanel") as Control
+	if dice_sec == null:
+		dice_sec = dice_section
+	if action_sec == null:
+		action_sec = action_section
+
+	if header:
+		header.visible = not on
+	if sidebar:
+		sidebar.visible = not on
+	if log_panel:
+		log_panel.visible = not on
+	if dice_sec:
+		dice_sec.visible = not on
+	if action_sec:
+		action_sec.visible = not on
+	if split:
+		split.dragger_visibility = SplitContainer.DRAGGER_HIDDEN if on else SplitContainer.DRAGGER_VISIBLE
+		if on:
+			split.split_offset = 0
+
+	# Carte : plein espace restant, sans chrome session.
+	if map_panel:
+		map_panel.size_flags_stretch_ratio = 10.0 if on else 4.2
+		map_panel.custom_minimum_size = Vector2(0, 0) if on else Vector2(0, 360)
+		if on:
+			var flat := StyleBoxFlat.new()
+			flat.bg_color = Color(0.02, 0.02, 0.02, 1.0)
+			flat.set_border_width_all(0)
+			flat.set_corner_radius_all(0)
+			flat.content_margin_left = 0
+			flat.content_margin_right = 0
+			flat.content_margin_top = 0
+			flat.content_margin_bottom = 0
+			map_panel.add_theme_stylebox_override("panel", flat)
+		if map_panel.has_method("set_immersive"):
+			map_panel.set_immersive(on)
+		if map_panel.has_method("_sync_map_viewport_size"):
+			map_panel.call_deferred("_sync_map_viewport_size")
+		if map_panel.has_method("refresh"):
+			map_panel.call_deferred("refresh")
+
+	if on:
+		_player_hud.set_title(GameData.get_scenario_display_title())
+		_player_hud.set_party(GameData.active_game.get("party", []))
+		var log_entries: Array = GameData.active_game.get("log", [])
+		if not log_entries.is_empty():
+			var last: Dictionary = log_entries[-1]
+			_player_hud.show_toast("%s — %s" % [last.get("speaker", last.get("author", "")), last.get("text", "")])
+
 func _apply_role_ui() -> void:
 	var human_gm: bool = _is_human_gm_mode()
 	var mj: bool = _is_mj_controller()
 	var completed: bool = str(GameData.active_game.get("status", "")) == "completed"
+	var player_view := _is_player_view() and not completed
 
-	gm_panel.visible = human_gm and mj and not completed
-	action_section.visible = not mj or not human_gm
-	btn_advance_scene.visible = not human_gm or not mj
+	gm_panel.visible = human_gm and mj and not completed and not player_view
+	action_section.visible = (not mj or not human_gm) and not player_view
+	btn_advance_scene.visible = (not human_gm or not mj) and not player_view
 
-	if human_gm and mj:
+	if human_gm and mj and not player_view:
 		_populate_gm_npcs()
 		_update_gm_wait_label()
 		_refresh_scene_navigation_ui()
 
+	_apply_immersive_player_layout(player_view)
 	_render_turn_ui()
 	_update_player_controls()
 
@@ -432,11 +552,12 @@ func _is_human_gm_user() -> bool:
 func _render_party_list() -> void:
 	for child in party_container.get_children():
 		child.queue_free()
-		
+
 	var party: Array = GameData.active_game.get("party", [])
 	var active := GameData.get_active_member()
 	var active_id: String = active.get("id", "")
-	for member in party:
+	for member_variant in party:
+		var member: Dictionary = member_variant
 		var panel := PanelContainer.new()
 		var style := StyleBoxFlat.new()
 		var is_active_turn: bool = _is_human_gm_mode() and not active_id.is_empty() and str(member.get("id", "")) == active_id
@@ -449,17 +570,48 @@ func _render_party_list() -> void:
 		style.content_margin_top = 6
 		style.content_margin_bottom = 6
 		panel.add_theme_stylebox_override("panel", style)
-		
+		panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		panel.tooltip_text = "Ouvrir la fiche de %s" % member.get("name", "ce personnage")
+		var captured: Dictionary = member.duplicate(true)
+		panel.gui_input.connect(func(ev: InputEvent):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				_open_character_sheet(captured)
+		)
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		panel.add_child(row)
+
+		# Mini silhouette si portrait dispo.
+		var thumb := TextureRect.new()
+		thumb.custom_minimum_size = Vector2(40, 52)
+		thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var ppath := str(member.get("portrait", member.get("image", ""))).strip_edges()
+		if not ppath.is_empty():
+			var cut := MapData.load_token_cutout(ppath, 96)
+			if cut != null:
+				thumb.texture = cut
+		row.add_child(thumb)
+
 		var vbox := VBoxContainer.new()
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(vbox)
+
 		var name_row := HBoxContainer.new()
-		
+		name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var name_lbl := Label.new()
 		name_lbl.text = member.get("name", "Aventurier")
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		name_row.add_child(name_lbl)
-		
+
 		var badge := Label.new()
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if is_active_turn and _is_human_gm_mode():
 			badge.text = "TOUR"
 			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
@@ -474,19 +626,25 @@ func _render_party_list() -> void:
 			badge.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 		name_row.add_child(badge)
 		vbox.add_child(name_row)
-		
+
 		var stats_lbl := Label.new()
-		stats_lbl.text = "%s %s · PV %d · CA %d" % [
-			member.get("race", ""),
+		stats_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		stats_lbl.text = "%s · PV %d · CA %d" % [
 			member.get("class", ""),
 			member.get("hp", 10),
 			member.get("ac", 10)
 		]
 		stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		stats_lbl.add_theme_font_size_override("font_size", 12)
 		vbox.add_child(stats_lbl)
-		
-		panel.add_child(vbox)
+
 		party_container.add_child(panel)
+
+func _open_character_sheet(member: Dictionary) -> void:
+	if _character_sheet == null:
+		_character_sheet = CharacterSheetScript.new()
+		add_child(_character_sheet)
+	_character_sheet.open(member)
 
 func _render_log() -> void:
 	var saved_scroll := _get_session_scroll()
@@ -501,6 +659,10 @@ func _render_log() -> void:
 		call_deferred("_restore_session_scroll", saved_scroll)
 	else:
 		call_deferred("_scroll_session_to_bottom")
+
+	if _immersive_player and _player_hud != null and not log_entries.is_empty():
+		var last: Dictionary = log_entries[-1]
+		_player_hud.show_toast("%s — %s" % [last.get("speaker", last.get("author", "")), last.get("text", "")])
 
 func _get_session_scroll() -> float:
 	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea

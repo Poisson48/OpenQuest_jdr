@@ -1,16 +1,18 @@
 extends Node3D
 class_name MapWalls3D
 
-## Murs 3D — volumes pleins projetant de vraies ombres sur la battlemap.
-## Un mur est décrit en coordonnées grille : centre (x, y), longueur `w`,
-## épaisseur `h`, hauteur `height` et angle `display.rotation` en degrés.
+## Murs 3D — volumes pleins (mode VTT) ou invisibles (mode diorama : LOS seulement).
 
 var _cell_size: float = 1.0
+var _visible: bool = true
 
-func configure(walls: Array, cell_size: float) -> void:
+func configure(walls: Array, cell_size: float, visible: bool = true) -> void:
 	_cell_size = cell_size
+	_visible = visible
 	for child in get_children():
 		child.queue_free()
+	if not _visible:
+		return
 	for wall_variant in walls:
 		if not wall_variant is Dictionary:
 			continue
@@ -25,7 +27,6 @@ func _add_wall(wall: Dictionary) -> void:
 	var thickness := maxf(0.05, float(wall.get("h", 0.25))) * _cell_size
 	var height := maxf(0.1, float(wall.get("height", 1.4))) * _cell_size
 	if is_open_door:
-		# Porte ouverte : on ne garde qu'un seuil au sol, le passage est libre.
 		height = _cell_size * 0.06
 	var box := BoxMesh.new()
 	box.size = Vector3(length, height, thickness)

@@ -176,16 +176,58 @@ layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 4
 
-[node name="LblGraph" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
+[node name="GraphHeader" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblGraph" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "🕸️ Graphe non linéaire — reliez les scènes par glisser-déposer"
+text = "🕸️ Graphe narratif"
+
+[node name="BtnAutoLayout" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Disposer automatiquement les scènes en couches depuis le départ"
+text = "Auto-layout"
+
+[node name="BtnFitView" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Cadrer tout le graphe dans la vue"
+text = "Cadrer"
+
+[node name="BtnValidate" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Vérifier branches cassées, orphelines et accessibilité"
+text = "Valider"
+
+[node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.266667, 0.666667, 0.6, 1)
+text = "✓ Graphe"
+autowrap_mode = 3
+
+[node name="LblGraphLegend" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  glisser un port → pour créer une branche"
+autowrap_mode = 3
 
 [node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 360)
 layout_mode = 2
 size_flags_vertical = 3
 right_disconnects = true
+show_grid = true
+snapping_enabled = true
+minimap_enabled = true
 
 [node name="ScenePanel" type="PanelContainer" parent="MainLayout/BodySplit/CenterSplit"]
 layout_mode = 2
@@ -213,7 +255,7 @@ text = "📍 Scène sélectionnée"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
-text = "Cliquez un nœud du graphe pour éditer la scène."
+text = "Cliquez un nœud du graphe pour éditer la scène, ou ajoutez-en une avec « + Scène »."
 autowrap_mode = 3
 
 [node name="SceneEditor" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
@@ -222,8 +264,16 @@ visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "★ Scène"
+
 [node name="SceneIdRow" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
 unique_name_in_owner = true
@@ -236,28 +286,49 @@ text = "id: —"
 [node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Définir cette scène comme point d'entrée"
 text = "★ Départ"
 
 [node name="BtnDeleteScene" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Supprimer la scène et nettoyer les liens"
 text = "Supprimer"
+
+[node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Titre"
 
 [node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "Titre de la scène"
 
+[node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Tags"
+
 [node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
 layout_mode = 2
-placeholder_text = "Tags (virgules) : acte-1, carrefour, fin"
+placeholder_text = "acte-1, carrefour, fin"
+
+[node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Narration"
 
 [node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
-placeholder_text = "Contenu narratif affiché aux joueurs lors de l'entrée dans la scène..."
+placeholder_text = "Texte lu / montré aux joueurs à l'entrée de cette scène…"
+wrap_mode = 1
 
 [node name="LblTransitions" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2

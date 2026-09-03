@@ -65,6 +65,7 @@ var _press_start_screen: Vector2 = Vector2.ZERO
 var _press_moved: bool = false
 var _drag_ids: Array = []
 var _drag_origins: Dictionary = {}
+var _handle_state: Dictionary = {}
 var _link_source: String = ""
 var _painted_cells: Dictionary = {}
 var _band_base_selection: Array = []
@@ -473,6 +474,22 @@ func _build_map_settings_tab() -> ScrollContainer:
 	_text_button(fog_row, "Tout masquer", func(): doc.set_fog_cells([], "Brouillard total"))
 	_text_button(fog_row, "Tout révéler", func(): doc.reveal_all_fog())
 
+	_section(box, "🎨 Style de rendu")
+	var style_opt := OptionButton.new()
+	style_opt.add_item("Diorama 2.5D", 0)
+	style_opt.set_item_metadata(0, "diorama")
+	style_opt.add_item("VTT 3D (tactique)", 1)
+	style_opt.set_item_metadata(1, "vtt")
+	style_opt.item_selected.connect(func(_i): _on_render_style_changed())
+	box.add_child(style_opt)
+	_settings_widgets["render_style"] = style_opt
+	var style_hint := Label.new()
+	style_hint.text = "Diorama : fond peint + découpes, parallaxe. VTT : murs, ombres, combat tactique."
+	style_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	style_hint.add_theme_font_size_override("font_size", 10)
+	style_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	box.add_child(style_hint)
+
 	_section(box, "📷 Perspective")
 	var persp := OptionButton.new()
 	persp.add_item("Vue de dessus", 0)
@@ -848,6 +865,28 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 	_press_mode = "none"
 
 func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> void:
+	# Poignées d'un décor déjà sélectionné : resize / rotate avant le hit-test.
+	var handle := _overlay.handle_at_screen(screen)
+	if not handle.is_empty():
+		var hid := str(handle.get("id", ""))
+		var handle_elem: Dictionary = doc.get_element(hid)
+		if not handle_elem.is_empty():
+			doc.select_only(hid)
+			_press_mode = str(handle.get("kind", "resize"))
+			_drag_ids = [hid]
+			var display: Dictionary = handle_elem.get("display", {}) if handle_elem.get("display") is Dictionary else {}
+			_handle_state = {
+				"id": hid,
+				"corner": int(handle.get("corner", 0)),
+				"x": float(handle_elem.get("x", 0.0)),
+				"y": float(handle_elem.get("y", 0.0)),
+				"w": float(handle_elem.get("w", 1.0)),
+				"h": float(handle_elem.get("h", 1.0)),
+				"rotation": float(display.get("rotation", 0.0)),
+				"start_grid": grid,
+			}
+			_refresh_overlay()
+			return
 	var hit := _overlay.element_at_screen(screen)
 	if hit.is_empty():
 		_press_mode = "band"
@@ -902,6 +941,12 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				var target := _snap(origin + delta)
 				doc.set_live_position(id, target.x, target.y)
 				_engine.set_element_position(id, target.x, target.y)
+		"resize":
+			_press_moved = true
+			_apply_handle_resize(grid)
+		"rotate":
+			_press_moved = true
+			_apply_handle_rotate(grid)
 		"draw":
 			_press_moved = true
 			var to := _snap(grid)
@@ -931,6 +976,18 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 				_sync_engine()
 			_drag_ids.clear()
 			_drag_origins.clear()
+		"resize":
+			if _press_moved:
+				doc.commit_live_edit(_drag_ids, "Redimensionnement")
+				_sync_engine()
+			_drag_ids.clear()
+			_handle_state.clear()
+		"rotate":
+			if _press_moved:
+				doc.commit_live_edit(_drag_ids, "Rotation")
+				_sync_engine()
+			_drag_ids.clear()
+			_handle_state.clear()
 		"draw":
 			_finish_draw(_snap(grid))
 		"paint":
@@ -951,15 +1008,39 @@ func _handle_right_click(grid: Vector2) -> void:
 		_set_status("Position (%.1f, %.1f) — %s" % [grid.x, grid.y, doc.get_tile_at(int(roundf(grid.x)), int(roundf(grid.y)))])
 
 func _cancel_action() -> void:
-	if _press_mode == "move" and not _drag_ids.is_empty():
+	if _press_mode in ["move", "resize", "rotate"] and not _drag_ids.is_empty():
 		doc.revert_live_edit(_drag_ids)
 		_sync_engine()
 	_press_mode = "none"
 	_drag_ids.clear()
 	_drag_origins.clear()
+	_handle_state.clear()
 	_overlay.clear_transient()
 	_link_source = ""
 	_set_status("Action annulée.")
+
+func _apply_handle_resize(grid: Vector2) -> void:
+	if _handle_state.is_empty():
+		return
+	var id := str(_handle_state.get("id", ""))
+	var center := Vector2(float(_handle_state.get("x", 0.0)), float(_handle_state.get("y", 0.0)))
+	var start: Vector2 = _handle_state.get("start_grid", _press_start_grid)
+	var start_dist := maxf(0.15, start.distance_to(center))
+	var scale := clampf(grid.distance_to(center) / start_dist, 0.15, 8.0)
+	var w := maxf(0.25, float(_handle_state.get("w", 1.0)) * scale)
+	var h := maxf(0.25, float(_handle_state.get("h", 1.0)) * scale)
+	doc.set_live_fields(id, {"w": w, "h": h})
+
+func _apply_handle_rotate(grid: Vector2) -> void:
+	if _handle_state.is_empty():
+		return
+	var id := str(_handle_state.get("id", ""))
+	var center := Vector2(float(_handle_state.get("x", 0.0)), float(_handle_state.get("y", 0.0)))
+	var start: Vector2 = _handle_state.get("start_grid", _press_start_grid)
+	var start_angle := (start - center).angle()
+	var cur_angle := (grid - center).angle()
+	var rot := float(_handle_state.get("rotation", 0.0)) + rad_to_deg(cur_angle - start_angle)
+	doc.set_live_fields(id, {"display": {"rotation": rot}})
 
 func _constrain_axis(from: Vector2, to: Vector2) -> Vector2:
 	if absf(to.x - from.x) >= absf(to.y - from.y):
@@ -1879,6 +1960,7 @@ func _sync_settings_ui() -> void:
 	_set_spin("light_intensity", float(light.get("intensity", 0.35)))
 	_select_metadata("light_dir", str(light.get("direction", "nw")))
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
+	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "diorama")))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -1914,6 +1996,24 @@ func _on_perspective_changed() -> void:
 	if option == null or option.selected < 0:
 		return
 	doc.set_meta_values({"perspective": str(option.get_item_metadata(option.selected))}, "Perspective")
+
+func _on_render_style_changed() -> void:
+	if _syncing:
+		return
+	var option: OptionButton = _settings_widgets.get("render_style")
+	if option == null or option.selected < 0:
+		return
+	var style := str(option.get_item_metadata(option.selected))
+	var patch := {"renderStyle": style}
+	# Diorama : grille masquée + perspective inclinable ; VTT : grille visible.
+	var grid: Dictionary = MapData.get_grid_config(doc.map_data).duplicate(true)
+	grid["show"] = style == "vtt"
+	patch["grid"] = grid
+	if style == "diorama":
+		patch["perspective"] = MapData.PERSPECTIVE_TILT
+	doc.set_meta_values(patch, "Style de rendu")
+	_sync_settings_ui()
+	_sync_engine(true)
 	_sync_engine()
 
 func _on_atmosphere_changed() -> void:
