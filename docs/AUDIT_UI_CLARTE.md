@@ -110,36 +110,33 @@ Chaque entrée précise l'emplacement, la reproduction, la gravité et la preuve
 
 ---
 
-### 3.1 — L'éditeur et la visionneuse de cartes ne se chargent pas · **CRITIQUE**
+### 3.1 — L'éditeur et la visionneuse de cartes ne se chargent pas · **CRITIQUE** · ✅ **CORRIGÉ** (2026-09-06)
 
-**Où** : `scripts/maps/map_complex_editor.gd` (lignes 32, 75-78, 869, 890, 1112-1305, 1537, 1696-1771, 2112,
-2151) → cascade vers `scripts/map_viewer.gd:112`, déclenché depuis `scripts/hub.gd:281` et `:306`.
+**Où** : `scripts/maps/map_complex_editor.gd` (anciennement lignes 32, 75-78, …) → cascade vers `scripts/map_viewer.gd`.
+
+**Correction** : types consommés via `preload` (`DocumentScript`, panneaux, `MapVisionScript`,
+`MapEffectPresetsScript`, `MapAssetLibraryScript`) au lieu des identifiants `class_name` globaux.
+Vérifié : `map_editor_test` PASS avec et sans `.godot/global_script_class_cache.cfg`.
+
+<details><summary>Constat historique (avant correctif)</summary>
 
 **Reproduction** : Hub → onglet *Cartes* → bouton *Éditer* sur n'importe quelle carte.
 
-**Constat** : `map_complex_editor.gd` est le seul script de `scripts/maps/` à consommer des types globaux par
+**Constat** : `map_complex_editor.gd` était le seul script de `scripts/maps/` à consommer des types globaux par
 simple identifiant. Tous les autres passent par `const X := preload(...)` — par exemple
 `complex_map_engine_3d.gd:25-36`. Les classes existent bien (`class_name MapEditDocument` dans
 `scripts/maps/editor/map_edit_document.gd:2`, etc.), mais le cache de classes globales de Godot
 (`.godot/global_script_class_cache.cfg`) n'est pas versionné : sur un clone neuf, ou après nettoyage du dossier
-`.godot/`, la résolution échoue et le script ne compile pas.
+`.godot/`, la résolution échouait et le script ne compilait pas.
 
 **Preuve** — `godot-launch.err.log` :
 
 ```
 SCRIPT ERROR: Parse Error: Could not find type "MapEditDocument" in the current scope.
    at: GDScript::reload (res://scripts/maps/map_complex_editor.gd:32)
-       [0] _edit_map (res://scripts/hub.gd:306)
-...
-SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
-   at: GDScript::reload (res://scripts/map_viewer.gd:0)
-ERROR: Failed to load script "res://scripts/map_viewer.gd" with error "Compilation failed".
-SCRIPT ERROR: Invalid call. Nonexistent function 'new' in base 'GDScript'.
-   at: _build_ui (res://scripts/map_viewer.gd:112)
 ```
 
-**Impact visuel** : l'écran s'ouvre vide ou partiellement construit. Aucun message d'erreur n'est présenté à
-l'utilisateur — l'application semble simplement figée sur une page blanche.
+</details>
 
 ---
 
@@ -654,7 +651,7 @@ Consignés pour éviter de les re-traiter.
 
 | # | Correction | Cibles | Réf. |
 |---|---|---|---|
-| P0-1 | Remplacer les six identifiants de classe globale par des `const … := preload(...)`, comme dans le reste de `scripts/maps/` | `scripts/maps/map_complex_editor.gd:32, 75-78, 1112-1305, 1537, 1771, 2112, 2151` | §3.1 |
+| P0-1 | ~~Remplacer les six identifiants de classe globale par des `const … := preload(...)`~~ **FAIT** (2026-09-06) : `map_complex_editor.gd` + panneaux `editor/*` + `MapVision` / `MapEffectPresets` / `MapAssetLibrary` | `scripts/maps/map_complex_editor.gd` ; `scripts/maps/editor/map_editor_{overlay,inspector,outliner,minimap}.gd` | §3.1 |
 | P0-2 | Rendre le cadrage de carte déterministe : un seul point d'entrée de recadrage, exécuté après la passe de layout (`await get_tree().process_frame` ou signal `resized` débouncé), lisant `_map_frame.size` et non un `size` écrit à la main | `complex_map_engine_3d.gd:_fit_to_view()`, `_load_ground()`, `_notification()` ; `map_panel.gd:_sync_map_viewport_size()` | §3.2, §3.14 |
 | P0-3 | Supprimer l'effet de cliquet : ne plus écrire `custom_minimum_size` ni `size` sur `_complex_engine`, laisser le `PanelContainer` dimensionner son enfant | `map_panel.gd:701-715` | §3.4 |
 | P0-4 | Garantir un journal lisible : plancher d'environ 160 px, ratios revus (par ex. carte 3,0 / journal 1,0), et suppression du `\n\n` final du gabarit d'entrée | `session.gd:74-82`, `:710` | §3.4 |
@@ -705,8 +702,9 @@ Liste de vérification à repasser après correction. Chaque point est observabl
 
 ### 6.1 Absence de bug visuel
 
-- [ ] Hub → Cartes → Éditer ouvre l'éditeur, et `godot-launch.err.log` ne contient plus aucune ligne
-      `SCRIPT ERROR` ni `Parse Error`.
+- [x] Hub → Cartes → Éditer ouvre l'éditeur, et `godot-launch.err.log` ne contient plus aucune ligne
+      `SCRIPT ERROR` ni `Parse Error` *(P0-1 preload : vérifié headless `map_editor_test` avec et sans
+      `.godot/global_script_class_cache.cfg` ; smoke UI Hub manuel recommandé)*.
 - [ ] Sur la carte de Valbois, en vue MJ **et** en vue joueur, les éléments suivants sont visibles
       simultanément : le cartouche « VALBOIS — Village de l'Ouest », la rose des vents, l'encart LÉGENDE, le
       Moulin, le Temple d'Éliandre, la Forge, les Écuries, la Maison du Maire, les treize cartouches de

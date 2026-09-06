@@ -1,13 +1,15 @@
 extends VBoxContainer
 class_name MapEditorOutliner
 
+const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+
 ## Arborescence des éléments de la carte, groupés par calque.
 ## Recherche, visibilité/verrou par calque et par élément, sélection croisée
 ## avec la vue 3D, recadrage au double-clic.
 
 signal focus_requested(element_id: String)
 
-var doc: MapEditDocument = null
+var doc = null
 
 var _search: LineEdit
 var _tree_host: VBoxContainer
@@ -43,7 +45,7 @@ func _ready() -> void:
 	_tree_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(_tree_host)
 
-func set_document(p_doc: MapEditDocument) -> void:
+func set_document(p_doc) -> void:
 	doc = p_doc
 	rebuild()
 
@@ -168,7 +170,7 @@ func _add_element_row(elem: Dictionary) -> void:
 	row.add_child(spacer)
 
 	var btn := Button.new()
-	var icon := str(MapEditDocument.KIND_ICONS.get(str(elem.get("kind", "")), "•"))
+	var icon := str(DocumentScript.KIND_ICONS.get(str(elem.get("kind", "")), "•"))
 	btn.text = "%s %s" % [icon, elem.get("label", id)]
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.flat = true
@@ -176,7 +178,7 @@ func _add_element_row(elem: Dictionary) -> void:
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.custom_minimum_size = Vector2(0, 22)
 	btn.tooltip_text = "%s — (%.1f, %.1f)\nClic : sélectionner · Ctrl+clic : ajouter" % [
-		MapEditDocument.KIND_LABELS.get(str(elem.get("kind", "")), "Élément"),
+		DocumentScript.KIND_LABELS.get(str(elem.get("kind", "")), "Élément"),
 		float(elem.get("x", 0.0)), float(elem.get("y", 0.0)),
 	]
 	if doc.is_selected(id):

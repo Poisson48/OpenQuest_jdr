@@ -1,6 +1,11 @@
 extends VBoxContainer
 class_name MapEditorInspector
 
+const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
+const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
+const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
+
 ## Inspecteur de l'élément (ou du lot) sélectionné : identité, transformation,
 ## effets visuels, propriétés spécifiques au type et liens sortants/entrants.
 ##
@@ -12,14 +17,14 @@ signal link_mode_requested(source_id: String)
 signal child_map_requested(area_id: String)
 signal open_map_requested(map_id: String)
 
-var doc: MapEditDocument = null
+var doc = null
 var _suppress: bool = false
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 6)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-func set_document(p_doc: MapEditDocument) -> void:
+func set_document(p_doc) -> void:
 	doc = p_doc
 	rebuild()
 
@@ -28,7 +33,7 @@ func rebuild() -> void:
 		child.queue_free()
 	if doc == null:
 		return
-	var selected := doc.selection()
+	var selected: Array = doc.selection()
 	if selected.is_empty():
 		_add_placeholder("Aucune sélection.\nCliquez un élément, ou glissez dans le vide pour un rectangle de sélection.")
 		return
@@ -45,7 +50,7 @@ func _build_single(elem: Dictionary) -> void:
 	if elem.is_empty():
 		return
 	var kind := str(elem.get("kind", ""))
-	_title("%s %s" % [MapEditDocument.KIND_ICONS.get(kind, "•"), MapEditDocument.KIND_LABELS.get(kind, kind)])
+	_title("%s %s" % [DocumentScript.KIND_ICONS.get(kind, "•"), DocumentScript.KIND_LABELS.get(kind, kind)])
 
 	_line_edit("Nom", str(elem.get("label", "")), func(text): _apply({"label": text}, "Renommage"))
 
@@ -123,18 +128,18 @@ func _build_multi(selected: Array) -> void:
 		var elem: Dictionary = doc.get_element(id)
 		var row := _row()
 		var btn := Button.new()
-		btn.text = "%s %s" % [MapEditDocument.KIND_ICONS.get(str(elem.get("kind", "")), "•"), elem.get("label", id)]
+		btn.text = "%s %s" % [DocumentScript.KIND_ICONS.get(str(elem.get("kind", "")), "•"), elem.get("label", id)]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(func(): focus_requested.emit(id))
 		row.add_child(btn)
 
 func _build_kind_fields(elem: Dictionary, kind: String) -> void:
-	if kind == MapEditDocument.KIND_TOKEN:
+	if kind == DocumentScript.KIND_TOKEN:
 		_section("Token")
 		_portrait_field(str(elem.get("image", "")))
 		var size_row := _row()
-		_spin(size_row, "Vision (cases)", 0.0, 40.0, float(elem.get("visionRadius", MapVision.DEFAULT_VISION_RADIUS)), 0.5,
+		_spin(size_row, "Vision (cases)", 0.0, 40.0, float(elem.get("visionRadius", MapVisionScript.DEFAULT_VISION_RADIUS)), 0.5,
 			func(v): _apply({"visionRadius": v}, "Vision"))
 		_check(size_row, "Porte la vue", bool(elem.get("providesVision", true)),
 			func(on): _apply({"providesVision": on}, "Vision"))
@@ -144,10 +149,10 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(text): _apply({"emoji": text}, "Emoji"))
 		_line_edit("Identifiant membre", str(elem.get("memberId", "")),
 			func(text): _apply({"memberId": text}, "Membre"))
-	elif kind == MapEditDocument.KIND_MARKER:
+	elif kind == DocumentScript.KIND_MARKER:
 		_section("Marqueur")
 		_marker_selector(str(elem.get("markerType", "npc")))
-	elif kind == MapEditDocument.KIND_EFFECT:
+	elif kind == DocumentScript.KIND_EFFECT:
 		_section("Effet")
 		_preset_selector(str(elem.get("preset", "fire")))
 		var row := _row()
@@ -155,14 +160,14 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(v): _apply({"radius": v, "w": v * 2.0, "h": v * 2.0}, "Rayon"))
 		_check(row, "Actif", bool(elem.get("triggered", false)),
 			func(on): _apply({"triggered": on}, "Déclenchement"))
-	elif kind == MapEditDocument.KIND_ZONE:
+	elif kind == DocumentScript.KIND_ZONE:
 		_section("Zone")
 		_shape_selector(str(elem.get("shape", "circle")))
 		_spin(_row(), "Rayon", 0.25, 12.0, float(elem.get("radius", 1.5)), 0.25,
 			func(v): _apply({"radius": v, "w": v * 2.0, "h": v * 2.0}, "Rayon"))
 		_color_field("Couleur", str(elem.get("color", "#c9a227")),
 			func(hex): _apply({"color": hex}, "Couleur"))
-	elif kind == MapEditDocument.KIND_PLATFORM:
+	elif kind == DocumentScript.KIND_PLATFORM:
 		_section("Plateforme")
 		var row := _row()
 		_spin(row, "Élévation", 0.1, 6.0, float(elem.get("elevation", 1.0)), 0.1,
@@ -171,7 +176,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(v): _apply({"opacity": v}, "Opacité"))
 		_color_field("Teinte", str(elem.get("tint", "#8a7a60")),
 			func(hex): _apply({"tint": hex}, "Teinte"))
-	elif kind == MapEditDocument.KIND_OVERLAY:
+	elif kind == DocumentScript.KIND_OVERLAY:
 		_section("Calque image")
 		_add_note(str(elem.get("image", "")).get_file())
 		var row := _row()
@@ -179,7 +184,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(v): _apply({"elevation": v}, "Élévation"))
 		_spin(row, "Opacité", 0.05, 1.0, float(elem.get("opacity", 0.92)), 0.05,
 			func(v): _apply({"opacity": v}, "Opacité"))
-	elif kind == MapEditDocument.KIND_WALL:
+	elif kind == DocumentScript.KIND_WALL:
 		_section("Mur")
 		var row := _row()
 		_spin(row, "Hauteur", 0.2, 6.0, float(elem.get("height", 1.4)), 0.1,
@@ -197,7 +202,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			_check(_row(), "Ouverte au départ", bool(elem.get("open", false)),
 				func(on): _apply({"open": on}, "Porte"))
 			_add_note("Une porte ouverte ne bloque plus la ligne de vue. En session, le MJ l'ouvre et le brouillard se recalcule.")
-	elif kind == MapEditDocument.KIND_LIGHT:
+	elif kind == DocumentScript.KIND_LIGHT:
 		_section("Lumière")
 		var row := _row()
 		_spin(row, "Rayon", 0.5, 24.0, float(elem.get("radius", 3.0)), 0.5,
@@ -211,11 +216,11 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(on): _apply({"flicker": on}, "Vacillement"))
 		_check(flags, "Ombres", bool(elem.get("shadows", false)),
 			func(on): _apply({"shadows": on}, "Ombres"))
-	elif kind == MapEditDocument.KIND_NOTE:
+	elif kind == DocumentScript.KIND_NOTE:
 		_section("Note MJ")
 		_multiline("Texte", str(elem.get("text", "")),
 			func(text): _apply({"text": text}, "Note"))
-	elif kind == MapEditDocument.KIND_PROP:
+	elif kind == DocumentScript.KIND_PROP:
 		_section("Décor")
 		_prop_asset_preview(str(elem.get("asset", "")))
 		var pose_row := _row()
@@ -232,7 +237,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_text_button(plane_row, "Avant", func(): _apply({"layer": 5}, "Plan avant"))
 		_add_note("« Dressé » : pied au sol, face caméra. Alt+glisser pour dupliquer. Plan rapide = calque de profondeur.")
 		_proportions_button(elem)
-	elif kind == MapEditDocument.KIND_AREA:
+	elif kind == DocumentScript.KIND_AREA:
 		_section("Lieu")
 		_category_selector(str(elem.get("category", "building")))
 		_line_edit("Icône", str(elem.get("icon", "")),
@@ -247,7 +252,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_spin(offset_row, "Cartouche Y", -24.0, 24.0, float(offset.get("y", -2.0)), 0.25,
 			func(v): _apply({"labelOffset": {"x": float(offset.get("x", 0.0)), "y": v}}, "Cartouche"))
 		_build_child_map_section(elem)
-	elif kind == MapEditDocument.KIND_LINK:
+	elif kind == DocumentScript.KIND_LINK:
 		_section("Passage vers une scène")
 		_target_map_selector(str(elem.get("targetMapId", "")))
 
@@ -329,10 +334,10 @@ func _marker_selector(current: String) -> void:
 
 func _preset_selector(current: String) -> void:
 	var option := OptionButton.new()
-	var presets: Array = MapEffectPresets.PRESET_IDS
+	var presets: Array = MapEffectPresetsScript.PRESET_IDS
 	for i in range(presets.size()):
 		var preset_id := str(presets[i])
-		var preset := MapEffectPresets.get_preset(preset_id)
+		var preset: Dictionary = MapEffectPresetsScript.get_preset(preset_id)
 		option.add_item("%s %s" % [preset.get("emoji", "✨"), preset.get("label", preset_id)], i)
 		option.set_item_metadata(i, preset_id)
 		if preset_id == current:
@@ -349,7 +354,7 @@ func _prop_asset_preview(asset_path: String) -> void:
 	preview.custom_minimum_size = Vector2(72, 72)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview.texture = MapAssetLibrary.load_thumbnail(asset_path)
+	preview.texture = MapAssetLibraryScript.load_thumbnail(asset_path)
 	row.add_child(preview)
 
 	var info := VBoxContainer.new()
@@ -358,13 +363,13 @@ func _prop_asset_preview(asset_path: String) -> void:
 	row.add_child(info)
 
 	var name_lbl := Label.new()
-	var entry: Dictionary = MapAssetLibrary.get_asset(asset_path)
+	var entry: Dictionary = MapAssetLibraryScript.get_asset(asset_path)
 	name_lbl.text = str(entry.get("name", asset_path.get_file()))
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_lbl.add_theme_font_size_override("font_size", 12)
 	info.add_child(name_lbl)
 
-	var pixels := MapAssetLibrary.image_size(asset_path)
+	var pixels: Vector2i = MapAssetLibraryScript.image_size(asset_path)
 	var size_lbl := Label.new()
 	size_lbl.text = "%d × %d px" % [pixels.x, pixels.y] if pixels != Vector2i.ZERO else "image introuvable"
 	size_lbl.add_theme_font_size_override("font_size", 10)
@@ -377,7 +382,7 @@ func _proportions_button(elem: Dictionary) -> void:
 	var btn := Button.new()
 	btn.text = "⤢ Rétablir les proportions"
 	btn.pressed.connect(func():
-		var ratio := MapAssetLibrary.aspect_ratio(str(elem.get("asset", "")))
+		var ratio: float = MapAssetLibraryScript.aspect_ratio(str(elem.get("asset", "")))
 		var height := maxf(0.25, float(elem.get("h", 1.0)))
 		_apply({"w": height * ratio, "h": height}, "Proportions")
 	)

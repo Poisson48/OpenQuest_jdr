@@ -23,13 +23,15 @@ const InspectorScript := preload("res://scripts/maps/editor/map_editor_inspector
 const OutlinerScript := preload("res://scripts/maps/editor/map_editor_outliner.gd")
 const TemplatesScript := preload("res://scripts/maps/editor/map_editor_templates.gd")
 const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
+const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
 const SAVE_INTERVAL := "interval"
 
 # --- État --------------------------------------------------------------------
-var doc: MapEditDocument = MapEditDocument.new()
+# Types via preload (pas class_name global) : clone sans .godot compile (AUDIT UI P0-1).
+var doc = DocumentScript.new()
 var _editable: bool = true
 var _tool: String = ToolsScript.SELECT
 var _snap_mode: String = "cell"
@@ -72,10 +74,10 @@ var _band_base_selection: Array = []
 
 # --- Nœuds --------------------------------------------------------------------
 var _engine: Control
-var _overlay: MapEditorOverlay
-var _minimap: MapEditorMinimap
-var _inspector: MapEditorInspector
-var _outliner: MapEditorOutliner
+var _overlay
+var _minimap
+var _inspector
+var _outliner
 var _left_panel: VBoxContainer
 var _left_scroll: ScrollContainer
 var _right_tabs: TabContainer
@@ -866,7 +868,7 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 
 func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> void:
 	# Poignées d'un décor déjà sélectionné : resize / rotate avant le hit-test.
-	var handle := _overlay.handle_at_screen(screen)
+	var handle: Dictionary = _overlay.handle_at_screen(screen)
 	if not handle.is_empty():
 		var hid := str(handle.get("id", ""))
 		var handle_elem: Dictionary = doc.get_element(hid)
@@ -887,7 +889,7 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 			}
 			_refresh_overlay()
 			return
-	var hit := _overlay.element_at_screen(screen)
+	var hit: String = _overlay.element_at_screen(screen)
 	if hit.is_empty():
 		_press_mode = "band"
 		_overlay.band_active = true
@@ -1109,10 +1111,10 @@ func _place_pose_element(grid: Vector2) -> void:
 func _create_token(grid: Vector2) -> void:
 	var label := _token_label
 	if label.is_empty():
-		label = "Token %d" % (doc.count_of_kind(MapEditDocument.KIND_TOKEN) + 1)
+		label = "Token %d" % (doc.count_of_kind(DocumentScript.KIND_TOKEN) + 1)
 	var color: String = str(MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()])
 	var emoji: String = str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[_member_index % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()])
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": _token_size, "h": _token_size,
 		"tokenKind": "member",
@@ -1122,21 +1124,21 @@ func _create_token(grid: Vector2) -> void:
 		"emoji": emoji,
 		"color": color,
 		"layer": 4,
-	}, MapEditDocument.KIND_TOKEN, "Token")
+	}, DocumentScript.KIND_TOKEN, "Token")
 	doc.select_only(id)
 
 func _create_marker(grid: Vector2) -> void:
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"markerType": _marker_type,
 		"label": MapData.get_marker_label(_marker_type),
 		"layer": 3,
-	}, MapEditDocument.KIND_MARKER, "Marqueur")
+	}, DocumentScript.KIND_MARKER, "Marqueur")
 	doc.select_only(id)
 
 func _create_effect(grid: Vector2) -> void:
 	var preset := MapEffectPresetsScript.get_preset(_effect_preset)
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": _effect_radius * 2.0, "h": _effect_radius * 2.0,
 		"type": "particles",
@@ -1145,11 +1147,11 @@ func _create_effect(grid: Vector2) -> void:
 		"triggered": true,
 		"label": str(preset.get("label", _effect_preset)),
 		"layer": 3,
-	}, MapEditDocument.KIND_EFFECT, "Effet")
+	}, DocumentScript.KIND_EFFECT, "Effet")
 	doc.select_only(id)
 
 func _create_circle_zone(grid: Vector2) -> void:
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"shape": "circle",
 		"radius": _zone_radius,
@@ -1157,14 +1159,14 @@ func _create_circle_zone(grid: Vector2) -> void:
 		"label": _zone_label,
 		"color": "#c9a227",
 		"layer": 3,
-	}, MapEditDocument.KIND_ZONE, "Zone")
+	}, DocumentScript.KIND_ZONE, "Zone")
 	doc.select_only(id)
 
 func _create_rect_zone(from: Vector2, to: Vector2) -> void:
 	var rect := Rect2(from, to - from).abs()
 	if rect.size.x < 0.25 or rect.size.y < 0.25:
 		return
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": rect.get_center().x, "y": rect.get_center().y,
 		"shape": "rect",
 		"w": rect.size.x, "h": rect.size.y,
@@ -1172,7 +1174,7 @@ func _create_rect_zone(from: Vector2, to: Vector2) -> void:
 		"label": _zone_label,
 		"color": "#c9a227",
 		"layer": 3,
-	}, MapEditDocument.KIND_ZONE, "Zone rectangulaire")
+	}, DocumentScript.KIND_ZONE, "Zone rectangulaire")
 	doc.select_only(id)
 
 ## Un lieu délimite une portion de la carte illustrée : une taverne, une place,
@@ -1182,7 +1184,7 @@ func _create_area(from: Vector2, to: Vector2) -> void:
 	var rect := Rect2(from, to - from).abs()
 	if rect.size.x < 0.5 or rect.size.y < 0.5:
 		rect = Rect2(from - Vector2(1.5, 1.5), Vector2(3.0, 3.0))
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": rect.get_center().x, "y": rect.get_center().y,
 		"w": rect.size.x, "h": rect.size.y,
 		"shape": "rect",
@@ -1192,7 +1194,7 @@ func _create_area(from: Vector2, to: Vector2) -> void:
 		"showCallout": true,
 		"labelOffset": {"x": 0.0, "y": -(rect.size.y * 0.5 + 0.8)},
 		"layer": 5,
-	}, MapEditDocument.KIND_AREA, "Lieu")
+	}, DocumentScript.KIND_AREA, "Lieu")
 	doc.select_only(id)
 	if _right_tabs:
 		_right_tabs.current_tab = 0
@@ -1201,7 +1203,7 @@ func _create_platform(from: Vector2, to: Vector2) -> void:
 	var rect := Rect2(from, to - from).abs()
 	if rect.size.x < 0.5 or rect.size.y < 0.5:
 		rect.size = Vector2(3, 3)
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": rect.position.x, "y": rect.position.y,
 		"w": maxf(1.0, roundf(rect.size.x)), "h": maxf(1.0, roundf(rect.size.y)),
 		"elevation": 1.0,
@@ -1209,7 +1211,7 @@ func _create_platform(from: Vector2, to: Vector2) -> void:
 		"tint": "#8a7a60",
 		"label": "Plateforme",
 		"layer": 2,
-	}, MapEditDocument.KIND_PLATFORM, "Plateforme")
+	}, DocumentScript.KIND_PLATFORM, "Plateforme")
 	doc.select_only(id)
 
 func _create_wall(from: Vector2, to: Vector2) -> void:
@@ -1217,7 +1219,7 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 	var length := delta.length()
 	if length < 0.4:
 		return
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": (from.x + to.x) * 0.5, "y": (from.y + to.y) * 0.5,
 		"w": length, "h": 0.25,
 		"height": 1.4,
@@ -1226,7 +1228,7 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 		"label": "Mur",
 		"layer": 2,
 		"display": {"rotation": rad_to_deg(delta.angle())},
-	}, MapEditDocument.KIND_WALL, "Mur")
+	}, DocumentScript.KIND_WALL, "Mur")
 	doc.select_only(id)
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
@@ -1239,7 +1241,7 @@ func _create_prop(grid: Vector2) -> void:
 	var height := maxf(0.25, _prop_size)
 	var width := maxf(0.25, height * ratio)
 	var asset := AssetLibraryScript.get_asset(_prop_asset)
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": width, "h": height,
 		"asset": _prop_asset,
@@ -1249,22 +1251,22 @@ func _create_prop(grid: Vector2) -> void:
 		"elevation": 0.0,
 		"label": str(asset.get("name", _prop_asset.get_file().get_basename())),
 		"layer": 1,
-	}, MapEditDocument.KIND_PROP, "Décor")
+	}, DocumentScript.KIND_PROP, "Décor")
 	doc.select_only(id)
 
 func _create_note(grid: Vector2) -> void:
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"label": "Note",
 		"text": "",
 		"layer": 5,
-	}, MapEditDocument.KIND_NOTE, "Note")
+	}, DocumentScript.KIND_NOTE, "Note")
 	doc.select_only(id)
 	if _right_tabs:
 		_right_tabs.current_tab = 0
 
 func _create_light(grid: Vector2) -> void:
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"radius": 3.0,
 		"energy": 1.6,
@@ -1273,7 +1275,7 @@ func _create_light(grid: Vector2) -> void:
 		"flicker": true,
 		"label": "Lumière",
 		"layer": 2,
-	}, MapEditDocument.KIND_LIGHT, "Lumière")
+	}, DocumentScript.KIND_LIGHT, "Lumière")
 	doc.select_only(id)
 
 func _close_polygon() -> void:
@@ -1293,7 +1295,7 @@ func _close_polygon() -> void:
 		max_p.y = maxf(max_p.y, point.y)
 		serialized.append({"x": point.x, "y": point.y})
 	var center := (min_p + max_p) * 0.5
-	var id := doc.add_element({
+	var id: String = doc.add_element({
 		"x": center.x, "y": center.y,
 		"shape": "polygon",
 		"points": serialized,
@@ -1302,19 +1304,19 @@ func _close_polygon() -> void:
 		"label": _zone_label,
 		"color": "#7ad9a0",
 		"layer": 3,
-	}, MapEditDocument.KIND_ZONE, "Zone libre")
+	}, DocumentScript.KIND_ZONE, "Zone libre")
 	doc.select_only(id)
 	_sync_engine()
 
 func _erase_at(screen: Vector2) -> void:
-	var hit := _overlay.element_at_screen(screen)
+	var hit: String = _overlay.element_at_screen(screen)
 	if hit.is_empty():
 		return
 	doc.remove_element(hit)
 	_sync_engine()
 
 func _handle_link_click(screen: Vector2) -> void:
-	var hit := _overlay.element_at_screen(screen)
+	var hit: String = _overlay.element_at_screen(screen)
 	if hit.is_empty():
 		_link_source = ""
 		_set_status("Lien annulé : aucun élément sous le curseur.")
@@ -1534,7 +1536,7 @@ func _place_template(grid: Vector2) -> void:
 	var new_ids: Array = []
 	for elem_variant in elements:
 		var elem: Dictionary = elem_variant
-		new_ids.append(doc.add_element(elem, str(elem.get("kind", MapEditDocument.KIND_TOKEN)), "Template"))
+		new_ids.append(doc.add_element(elem, str(elem.get("kind", DocumentScript.KIND_TOKEN)), "Template"))
 	doc.commit_transaction()
 	doc.set_selection(new_ids)
 	_sync_engine()
@@ -1693,7 +1695,7 @@ func _on_open_map_requested(map_id: String) -> void:
 	open_map_requested.emit(map_id)
 
 func _focus_selection() -> void:
-	var bounds := doc.selection_bounds()
+	var bounds: Rect2 = doc.selection_bounds()
 	if bounds.size == Vector2.ZERO:
 		_engine.reset_zoom()
 		return
@@ -1711,7 +1713,7 @@ func _focus_element(element_id: String) -> void:
 func _sync_engine(reset_view: bool = false) -> void:
 	if _engine == null or doc.map_data.is_empty():
 		return
-	var snapshot := doc.to_map_data()
+	var snapshot: Dictionary = doc.to_map_data()
 	var defaults: Dictionary = snapshot.get("playDefaults", {})
 	var view_state: Dictionary = defaults.get("viewState", {}) if defaults.get("viewState") is Dictionary else {}
 	_engine.set_snap_to_grid(_snap_mode == "cell")
@@ -1759,7 +1761,7 @@ func _refresh_vision_preview() -> void:
 		_refresh_overlay()
 		return
 	var origin := Vector2.ZERO
-	var selected := doc.selection()
+	var selected: Array = doc.selection()
 	if not selected.is_empty():
 		var elem: Dictionary = doc.get_element(str(selected[0]))
 		origin = Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
@@ -1768,7 +1770,7 @@ func _refresh_vision_preview() -> void:
 	else:
 		_refresh_overlay()
 		return
-	for key in MapVision.visible_cells(doc.to_map_data(), origin, MapVision.DEFAULT_VISION_RADIUS):
+	for key in MapVisionScript.visible_cells(doc.to_map_data(), origin, MapVisionScript.DEFAULT_VISION_RADIUS):
 		_overlay.vision_cells[str(key)] = true
 	_overlay.vision_origin = origin
 	_overlay.has_vision_origin = true
@@ -2109,7 +2111,7 @@ func _on_overlay_imported(path: String) -> void:
 		"h": float(last.get("mapHeight", doc.map_data.get("height", 12))),
 		"label": dest.get_file(),
 		"layer": 1,
-	}, MapEditDocument.KIND_OVERLAY, "Calque")
+	}, DocumentScript.KIND_OVERLAY, "Calque")
 	_sync_engine()
 	_set_status("Calque ajouté : %s" % dest.get_file())
 
@@ -2148,7 +2150,7 @@ func _on_import_selected(path: String) -> void:
 
 func _trigger_all_effects() -> void:
 	doc.begin_transaction()
-	for elem_variant in doc.elements_of_kind(MapEditDocument.KIND_EFFECT):
+	for elem_variant in doc.elements_of_kind(DocumentScript.KIND_EFFECT):
 		var elem: Dictionary = elem_variant
 		doc.modify_element(str(elem.get("id", "")), {"triggered": true}, "Déclenchement")
 	doc.commit_transaction()

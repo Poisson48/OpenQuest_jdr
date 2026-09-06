@@ -1,6 +1,8 @@
 extends Control
 class_name MapEditorOverlay
 
+const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+
 ## Calque 2D dessiné par-dessus le viewport 3D : sélection, rectangle de
 ## sélection, liens, aperçu d'outil, règle de mesure, icônes des éléments
 ## sans représentation 3D (murs en cours, notes, lumières).
@@ -9,7 +11,7 @@ class_name MapEditorOverlay
 ## rend l'overlay correct en vue de dessus comme en isométrique.
 
 var engine: Control = null
-var doc: MapEditDocument = null
+var doc = null
 
 # --- État transitoire piloté par l'éditeur ---------------------------------
 var hover_grid: Vector2 = Vector2(-999, -999)
@@ -53,7 +55,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-func set_context(p_engine: Control, p_doc: MapEditDocument) -> void:
+func set_context(p_engine: Control, p_doc) -> void:
 	engine = p_engine
 	doc = p_doc
 	queue_redraw()
@@ -174,20 +176,20 @@ func _draw_flat_elements() -> void:
 		if not doc.is_element_visible(elem):
 			continue
 		var kind := str(elem.get("kind", ""))
-		if kind == MapEditDocument.KIND_WALL:
+		if kind == DocumentScript.KIND_WALL:
 			if bool(elem.get("isDoor", false)):
 				var door_color := COL_DOOR_OPEN if bool(elem.get("open", false)) else COL_DOOR_SHUT
 				draw_polyline(_closed(_footprint(elem)), door_color, 2.5, true)
 			else:
 				draw_polyline(_closed(_footprint(elem)), Color(0.85, 0.78, 0.66, 0.55), 1.5, true)
-		elif kind in [MapEditDocument.KIND_NOTE, MapEditDocument.KIND_LIGHT, MapEditDocument.KIND_LINK, MapEditDocument.KIND_MARKER]:
+		elif kind in [DocumentScript.KIND_NOTE, DocumentScript.KIND_LIGHT, DocumentScript.KIND_LINK, DocumentScript.KIND_MARKER]:
 			var pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.3)
-			var icon := str(MapEditDocument.KIND_ICONS.get(kind, "•"))
-			if kind == MapEditDocument.KIND_MARKER:
+			var icon := str(DocumentScript.KIND_ICONS.get(kind, "•"))
+			if kind == DocumentScript.KIND_MARKER:
 				icon = MapData.get_marker_emoji(str(elem.get("markerType", "npc")))
 			if font:
 				draw_string(font, pos + Vector2(-8, 6), icon, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size + 4)
-		elif kind in [MapEditDocument.KIND_PLATFORM, MapEditDocument.KIND_OVERLAY]:
+		elif kind in [DocumentScript.KIND_PLATFORM, DocumentScript.KIND_OVERLAY]:
 			draw_polyline(_closed(_footprint(elem)), Color(0.72, 0.62, 0.45, 0.35), 1.0, true)
 		if show_ids and font:
 			var label_pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.6)
@@ -198,7 +200,7 @@ func _draw_flat_elements() -> void:
 ## d'un liseré doré et signalé par une loupe.
 func _draw_areas() -> void:
 	var font := get_theme_default_font()
-	for elem_variant in doc.elements_of_kind(MapEditDocument.KIND_AREA):
+	for elem_variant in doc.elements_of_kind(DocumentScript.KIND_AREA):
 		var area: Dictionary = elem_variant
 		if not doc.is_element_visible(area):
 			continue
@@ -247,7 +249,7 @@ func _draw_callout(font: Font, at: Vector2, target: Vector2, text: String, highl
 
 func _draw_selection() -> void:
 	var font := get_theme_default_font()
-	var selected := doc.selection()
+	var selected: Array = doc.selection()
 	if selected.is_empty():
 		return
 	for id_variant in selected:
@@ -268,10 +270,10 @@ func _draw_selection() -> void:
 	# Poignées souris : redimensionner / pivoter un décor seul.
 	if selected.size() == 1:
 		var sole: Dictionary = doc.get_element(str(selected[0]))
-		if str(sole.get("kind", "")) == MapEditDocument.KIND_PROP and not bool(sole.get("locked", false)):
+		if str(sole.get("kind", "")) == DocumentScript.KIND_PROP and not bool(sole.get("locked", false)):
 			_draw_prop_handles(sole)
 	if selected.size() > 1:
-		var bounds := doc.selection_bounds()
+		var bounds: Rect2 = doc.selection_bounds()
 		var corners := PackedVector2Array([
 			_p(bounds.position.x, bounds.position.y),
 			_p(bounds.end.x, bounds.position.y),
@@ -452,12 +454,12 @@ func _draw_prop_handles(elem: Dictionary) -> void:
 func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 	if doc == null:
 		return {}
-	var selected := doc.selection()
+	var selected: Array = doc.selection()
 	if selected.size() != 1:
 		return {}
 	var id := str(selected[0])
 	var elem: Dictionary = doc.get_element(id)
-	if str(elem.get("kind", "")) != MapEditDocument.KIND_PROP:
+	if str(elem.get("kind", "")) != DocumentScript.KIND_PROP:
 		return {}
 	if bool(elem.get("locked", false)):
 		return {}
@@ -477,7 +479,7 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 func element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
 	if doc == null:
 		return ""
-	var sorted := doc.elements_sorted()
+	var sorted: Array = doc.elements_sorted()
 	for i in range(sorted.size() - 1, -1, -1):
 		var elem: Dictionary = sorted[i]
 		if not doc.is_element_selectable(elem):

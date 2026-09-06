@@ -1,11 +1,13 @@
 extends Control
 class_name MapEditorMinimap
 
+const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+
 ## Mini-carte : vue d'ensemble cliquable avec rectangle du viewport courant.
 
 signal jump_requested(grid_pos: Vector2)
 
-var doc: MapEditDocument = null
+var doc = null
 var engine: Control = null
 
 const KIND_COLORS := {
@@ -25,7 +27,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	tooltip_text = "Mini-carte — clic pour recadrer la vue"
 
-func set_context(p_engine: Control, p_doc: MapEditDocument) -> void:
+func set_context(p_engine: Control, p_doc) -> void:
 	engine = p_engine
 	doc = p_doc
 	queue_redraw()
@@ -75,7 +77,7 @@ func _draw() -> void:
 		var kind := str(elem.get("kind", ""))
 		var color: Color = KIND_COLORS.get(kind, Color(0.7, 0.7, 0.7))
 		var pos := _grid_to_local(float(elem.get("x", 0.0)) + 0.5, float(elem.get("y", 0.0)) + 0.5)
-		if kind == MapEditDocument.KIND_PLATFORM or kind == MapEditDocument.KIND_OVERLAY or kind == MapEditDocument.KIND_WALL:
+		if kind == DocumentScript.KIND_PLATFORM or kind == DocumentScript.KIND_OVERLAY or kind == DocumentScript.KIND_WALL:
 			var top_left := _grid_to_local(
 				float(elem.get("x", 0.0)) + 0.5 - float(elem.get("w", 1.0)) * 0.5,
 				float(elem.get("y", 0.0)) + 0.5 - float(elem.get("h", 1.0)) * 0.5
