@@ -86,13 +86,13 @@ func _run() -> void:
 	_assert("hud_present", hud != null and hud.visible)
 	_assert("player_view", bool(session.call("_is_player_view")))
 
-	var header: Control = session.get_node_or_null("MainLayout/HeaderBar") as Control
-	_assert("header_hidden", header == null or not header.visible)
+	var header: Control = session.get_node_or_null("%HeaderBar") as Control
+	_assert("header_present", header != null)
+	_assert("header_hidden", header != null and not header.visible)
 
-	var split: Node = session.get_node_or_null("MainLayout/ContentSplit")
-	if split and split.get_child_count() > 0:
-		var side_child: Control = split.get_child(0) as Control
-		_assert("sidebar_hidden", side_child == null or not side_child.visible)
+	var band: Control = session.get_node_or_null("%TopBand") as Control
+	_assert("band_present", band != null)
+	_assert("band_hidden", band != null and not band.visible)
 
 	var map_panel: Control = session.get("map_panel") as Control
 	_assert("map_panel", map_panel != null)

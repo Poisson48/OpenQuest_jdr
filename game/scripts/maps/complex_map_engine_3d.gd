@@ -1113,9 +1113,13 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if not mb.ctrl_pressed:
+				return
 			_apply_zoom(1.1, mb.position)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if not mb.ctrl_pressed:
+				return
 			_apply_zoom(1.0 / 1.1, mb.position)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
@@ -1197,9 +1201,13 @@ func _editor_gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		match mb.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
+				if not mb.ctrl_pressed:
+					return
 				_apply_zoom(1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_WHEEL_DOWN:
+				if not mb.ctrl_pressed:
+					return
 				_apply_zoom(1.0 / 1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_MIDDLE:

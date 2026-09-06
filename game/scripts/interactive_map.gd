@@ -94,7 +94,7 @@ func _recalc_base_cell() -> void:
 	var avail := _get_viewport_size()
 	var by_w := int(avail.x / w)
 	var by_h := int(avail.y / h)
-	var max_fit := 12 if MapData.is_world_map(map_data) else 24
+	var max_fit := 12 if MapData.is_world_map(map_data) else 48
 	_base_cell = maxi(MIN_CELL, mini(max_fit, mini(by_w, by_h)))
 
 func _clamp_pan() -> void:
@@ -391,9 +391,13 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if not mb.ctrl_pressed:
+				return
 			_apply_zoom(1.1, mb.position)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if not mb.ctrl_pressed:
+				return
 			_apply_zoom(1.0 / 1.1, mb.position)
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
