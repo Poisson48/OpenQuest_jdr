@@ -7,6 +7,7 @@ class_name MapLights3D
 var _cell_size: float = 1.0
 var _flickering: Array = []
 var _time: float = 0.0
+var _nodes: Dictionary = {} # id -> OmniLight3D
 
 func _ready() -> void:
 	set_process(true)
@@ -14,8 +15,10 @@ func _ready() -> void:
 func configure(sources: Array, cell_size: float) -> void:
 	_cell_size = cell_size
 	_flickering.clear()
+	_nodes.clear()
 	for child in get_children():
-		child.queue_free()
+		remove_child(child)
+		child.free()
 	for source_variant in sources:
 		if not source_variant is Dictionary:
 			continue
@@ -26,6 +29,8 @@ func configure(sources: Array, cell_size: float) -> void:
 
 func _add_light(source: Dictionary) -> void:
 	var light := OmniLight3D.new()
+	var lid := str(source.get("id", ""))
+	light.name = lid if not lid.is_empty() else "light"
 	light.position = Vector3(
 		float(source.get("x", 0.0)) * _cell_size + _cell_size * 0.5,
 		maxf(0.1, float(source.get("elevation", 0.5))) * _cell_size,
@@ -38,12 +43,34 @@ func _add_light(source: Dictionary) -> void:
 	light.omni_attenuation = 1.4
 	light.shadow_enabled = bool(source.get("shadows", false))
 	add_child(light)
+	if not lid.is_empty():
+		_nodes[lid] = light
 	if bool(source.get("flicker", true)):
 		_flickering.append({
 			"node": light,
 			"base": light.light_energy,
 			"phase": randf() * TAU,
 		})
+
+func set_light_position(light_id: String, gx: float, gy: float) -> void:
+	if not _nodes.has(light_id):
+		return
+	var light: OmniLight3D = _nodes[light_id]
+	if not is_instance_valid(light):
+		return
+	light.position.x = gx * _cell_size + _cell_size * 0.5
+	light.position.z = gy * _cell_size + _cell_size * 0.5
+
+func set_light_radius(light_id: String, radius_cells: float) -> void:
+	if not _nodes.has(light_id):
+		return
+	var light: OmniLight3D = _nodes[light_id]
+	if not is_instance_valid(light):
+		return
+	light.omni_range = maxf(0.5, radius_cells) * _cell_size
+
+func has_light(light_id: String) -> bool:
+	return _nodes.has(light_id)
 
 func _process(delta: float) -> void:
 	if _flickering.is_empty():
@@ -62,6 +89,5 @@ func _process(delta: float) -> void:
 func set_shadows_enabled(on: bool) -> void:
 	for child in get_children():
 		if child is OmniLight3D:
-			(child as OmniLight3D).shadow_enabled = on and (child as OmniLight3D).shadow_enabled
 			if not on:
 				(child as OmniLight3D).shadow_enabled = false

@@ -40,6 +40,20 @@ func _ready() -> void:
 	_counter.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	add_child(_counter)
 
+	var layer_actions := HBoxContainer.new()
+	layer_actions.add_theme_constant_override("separation", 4)
+	add_child(layer_actions)
+	var add_btn := Button.new()
+	add_btn.text = "＋ Calque"
+	add_btn.tooltip_text = "Créer un calque"
+	add_btn.pressed.connect(func():
+		if doc == null:
+			return
+		doc.add_layer()
+		rebuild()
+	)
+	layer_actions.add_child(add_btn)
+
 	_tree_host = VBoxContainer.new()
 	_tree_host.add_theme_constant_override("separation", 1)
 	_tree_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -75,8 +89,9 @@ func rebuild() -> void:
 	_counter.text = "%d élément(s)%s" % [total, "" if _filter.is_empty() else " · %d affiché(s)" % shown]
 
 	var layers: Array = doc.map_data.get("layers", [])
-	for layer_variant in layers:
-		var layer_def: Dictionary = layer_variant
+	# Premier plan en haut de l'arborescence (comme Photoshop / GIMP).
+	for i in range(layers.size() - 1, -1, -1):
+		var layer_def: Dictionary = layers[i]
 		var layer_id := int(layer_def.get("id", 0))
 		var items: Array = by_layer.get(layer_id, [])
 		if items.is_empty() and not _filter.is_empty():
@@ -84,8 +99,9 @@ func rebuild() -> void:
 		_add_layer_header(layer_def, items.size())
 		if _collapsed.get(layer_id, false):
 			continue
-		for elem_variant in items:
-			_add_element_row(elem_variant)
+		# Éléments du calque : z-order décroissant (dessus en premier).
+		for j in range(items.size() - 1, -1, -1):
+			_add_element_row(items[j])
 
 	# Éléments dont le calque n'existe plus.
 	for layer_id in by_layer.keys():
@@ -152,6 +168,40 @@ func _add_layer_header(layer_def: Dictionary, count: int) -> void:
 	)
 	row.add_child(lock_btn)
 
+	var up_btn := Button.new()
+	up_btn.text = "▲"
+	up_btn.flat = true
+	up_btn.tooltip_text = "Monter (premier plan)"
+	up_btn.custom_minimum_size = Vector2(22, 22)
+	up_btn.pressed.connect(func():
+		# Liste inversée : monter dans l'UI = index plus grand dans layers.
+		doc.move_layer_down(layer_id)
+		rebuild()
+	)
+	row.add_child(up_btn)
+
+	var down_btn := Button.new()
+	down_btn.text = "▼"
+	down_btn.flat = true
+	down_btn.tooltip_text = "Descendre (arrière-plan)"
+	down_btn.custom_minimum_size = Vector2(22, 22)
+	down_btn.pressed.connect(func():
+		doc.move_layer_up(layer_id)
+		rebuild()
+	)
+	row.add_child(down_btn)
+
+	var del_btn := Button.new()
+	del_btn.text = "✕"
+	del_btn.flat = true
+	del_btn.tooltip_text = "Supprimer le calque (éléments migrés)"
+	del_btn.custom_minimum_size = Vector2(22, 22)
+	del_btn.pressed.connect(func():
+		doc.remove_layer(layer_id)
+		rebuild()
+	)
+	row.add_child(del_btn)
+
 func _add_orphan_header(layer_id: int) -> void:
 	var lbl := Label.new()
 	lbl.text = "Calque %d (hors liste)" % layer_id
@@ -177,7 +227,7 @@ func _add_element_row(elem: Dictionary) -> void:
 	btn.clip_text = true
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.custom_minimum_size = Vector2(0, 22)
-	btn.tooltip_text = "%s — (%.1f, %.1f)\nClic : sélectionner · Ctrl+clic : ajouter" % [
+	btn.tooltip_text = "%s — (%.1f, %.1f)\nClic : sélectionner · Ctrl+clic : ajouter · Double-clic : recadrer" % [
 		DocumentScript.KIND_LABELS.get(str(elem.get("kind", "")), "Élément"),
 		float(elem.get("x", 0.0)), float(elem.get("y", 0.0)),
 	]

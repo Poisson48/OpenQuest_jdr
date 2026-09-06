@@ -206,7 +206,10 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_section("Lumière")
 		var row := _row()
 		_spin(row, "Rayon", 0.5, 24.0, float(elem.get("radius", 3.0)), 0.5,
-			func(v): _apply({"radius": v}, "Rayon"))
+			func(v):
+				_apply({"radius": v}, "Rayon")
+				_stamp_light_selection()
+		)
 		_spin(row, "Intensité", 0.1, 6.0, float(elem.get("energy", 1.6)), 0.1,
 			func(v): _apply({"energy": v}, "Intensité"))
 		_color_field("Couleur", str(elem.get("color", "#ffb35c")),
@@ -216,6 +219,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 			func(on): _apply({"flicker": on}, "Vacillement"))
 		_check(flags, "Ombres", bool(elem.get("shadows", false)),
 			func(on): _apply({"shadows": on}, "Ombres"))
+		_add_note("En mode nuit, le rayon révèle le jour (comme le brouillard révèle la carte).")
 	elif kind == DocumentScript.KIND_NOTE:
 		_section("Note MJ")
 		_multiline("Texte", str(elem.get("text", "")),
@@ -489,6 +493,14 @@ func _apply(mutations: Dictionary, note: String) -> void:
 	if _suppress or doc == null:
 		return
 	doc.modify_selection(mutations, note)
+
+func _stamp_light_selection() -> void:
+	if doc == null:
+		return
+	for id_variant in doc.selection():
+		var elem: Dictionary = doc.get_element(str(id_variant))
+		if str(elem.get("kind", "")) == DocumentScript.KIND_LIGHT:
+			doc.stamp_light_reveal(elem)
 
 func _title(text: String) -> void:
 	var lbl := Label.new()

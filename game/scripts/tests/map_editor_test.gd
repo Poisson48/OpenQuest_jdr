@@ -273,6 +273,26 @@ func _test_layers(base: Dictionary) -> void:
 	doc.bring_to_front()
 	_assert("z_front", doc.element_ids()[doc.element_ids().size() - 1] == second)
 
+	# Calques : créer, réordonner, supprimer (migration).
+	var extra_id: int = doc.add_layer("Décors custom")
+	_assert("layer_add", extra_id >= 0 and doc.layer_name(extra_id) == "Décors custom")
+	var layers_before: Array = (doc.map_data.get("layers", []) as Array).duplicate()
+	doc.move_layer_up(extra_id)
+	var layers_after: Array = doc.map_data.get("layers", []) as Array
+	_assert("layer_move_up", layers_after.size() == layers_before.size())
+	doc.move_layer_down(extra_id)
+	doc.set_layer_for_selection(extra_id)  # second is selected
+	_assert("layer_assign", int(doc.get_element(second).get("layer", -1)) == extra_id)
+	doc.remove_layer(extra_id)
+	_assert("layer_remove", not _layer_id_exists(doc, extra_id))
+	_assert("layer_migrated", int(doc.get_element(second).get("layer", -1)) != extra_id)
+
+func _layer_id_exists(doc: Variant, layer_id: int) -> bool:
+	for layer_variant in doc.map_data.get("layers", []):
+		if int((layer_variant as Dictionary).get("id", -1)) == layer_id:
+			return true
+	return false
+
 func _test_terrain_and_fog(base: Dictionary) -> void:
 	var doc: Variant = DocScript.new()
 	doc.load_map(base)
@@ -406,6 +426,57 @@ func _test_editor_ui(base: Dictionary) -> void:
 	await process_frame
 	editor.load_map(base)
 	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
+	_assert("ui_dock_left_wide", editor._dock_left_w >= 150.0 and editor._dock_left_w <= 260.0)
+	_assert("ui_dock_right_wide", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
+	_assert("ui_docks_fit_wide", editor._dock_left_w + editor._dock_right_w < 1280.0 - 120.0)
+	_assert("ui_right_min_w", editor._right_tabs != null and editor._right_tabs.custom_minimum_size.x >= 200.0)
+	_assert("ui_right_visible", editor._right_tabs.visible)
+
+	# Ultrawide 21:9 — docks % de la largeur réelle, centre restant.
+	editor.size = Vector2(2560, 1080)
+	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
+	_assert("ui_ultrawide_left", editor._dock_left_w >= 150.0 and editor._dock_left_w <= 260.0)
+	_assert("ui_ultrawide_right", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
+	_assert("ui_ultrawide_sum", editor._dock_left_w + editor._dock_right_w < 2560.0 - 280.0)
+	_assert("ui_ultrawide_visible", editor._right_tabs.visible and editor._left_scroll.visible)
+
+	# 16:10 laptop.
+	editor.size = Vector2(1920, 1200)
+	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
+	_assert("ui_16x10_fit", editor._dock_left_w + editor._dock_right_w < 1920.0 - 200.0)
+	_assert("ui_16x10_visible", editor._right_tabs.visible)
+
+	# Fenêtre courte / compacte (ex. 16:10 bas ou 3:2).
+	editor.size = Vector2(1280, 800)
+	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
+	_assert("ui_1280x800_fit", editor._dock_left_w + editor._dock_right_w < 1280.0 - 120.0)
+
+	editor.size = Vector2(900, 700)
+	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
+	_assert("ui_dock_left_narrow", editor._dock_left_w <= 200.0)
+	_assert("ui_dock_right_narrow", editor._dock_right_w <= 280.0)
+	_assert("ui_right_visible_narrow", editor._right_tabs.visible)
+	_assert("ui_narrow_sum", editor._dock_left_w + editor._dock_right_w < 900.0 - 100.0)
+	var right_w_before_click: float = editor._right_tabs.custom_minimum_size.x
+	# Clic carte ne doit pas écraser le dock droit (régression UX).
+	editor._on_pointer_pressed(Vector2(5, 5), Vector2(200, 200), MOUSE_BUTTON_LEFT, {"shift": false, "ctrl": false, "alt": false})
+	await process_frame
+	editor._apply_responsive_layout()
+	_assert("ui_right_stable_after_click", editor._right_tabs.visible and editor._right_tabs.custom_minimum_size.x >= right_w_before_click - 1.0)
+	editor.size = Vector2(1280, 800)
+	await process_frame
+	editor._layout_force = true
+	editor._apply_responsive_layout()
 
 	_assert("ui_doc_loaded", not editor.doc.map_data.is_empty())
 	_assert("ui_engine", editor._engine != null)
@@ -527,6 +598,64 @@ func _test_editor_ui(base: Dictionary) -> void:
 	editor._do_undo()
 	_assert("drag_undo", is_equal_approx(float(editor.doc.get_element(str(target.get("id", ""))).get("x", 0)), tx))
 	editor._do_redo()
+
+	# Drag collant (GIMP) : sélection sous un élément empilé — on déplace la
+	# sélection, pas le dessus.
+	editor._do_undo()  # revient à (tx, ty)
+	var bottom_id := str(target.get("id", ""))
+	var top_id: String = editor.doc.add_element({
+		"x": tx, "y": ty, "w": 1.0, "h": 1.0, "label": "dessus",
+	}, K_TOKEN)
+	editor.doc.select_only(bottom_id)
+	_assert("sticky_pick_top", editor._overlay.element_at_screen(screen) == top_id)
+	_assert("sticky_hit_selected", editor._overlay.selected_element_at_screen(screen) == bottom_id)
+	var top_x_before := float(editor.doc.get_element(top_id).get("x", 0))
+	editor._set_tool(ToolsScript.SELECT)
+	editor._on_pointer_pressed(Vector2(tx, ty), screen, MOUSE_BUTTON_LEFT, mods)
+	_assert("sticky_keeps_sel", editor.doc.is_selected(bottom_id) and not editor.doc.is_selected(top_id))
+	editor._on_pointer_moved(Vector2(tx + 3.0, ty), screen + Vector2(20, 0), mods)
+	editor._on_pointer_released(Vector2(tx + 3.0, ty), screen + Vector2(20, 0), MOUSE_BUTTON_LEFT, mods)
+	_assert("sticky_moved_bottom", is_equal_approx(float(editor.doc.get_element(bottom_id).get("x", 0)), tx + 3.0))
+	_assert("sticky_top_unmoved", is_equal_approx(float(editor.doc.get_element(top_id).get("x", 0)), top_x_before))
+	_assert("sticky_still_selected", editor.doc.is_selected(bottom_id))
+
+	# Nouveau clic sans sélection préalable : prend le dessus.
+	editor.doc.clear_selection()
+	editor._on_pointer_pressed(Vector2(tx + 3.0, ty), editor._engine.grid_to_screen(tx + 3.0, ty), MOUSE_BUTTON_LEFT, mods)
+	editor._on_pointer_released(Vector2(tx + 3.0, ty), editor._engine.grid_to_screen(tx + 3.0, ty), MOUSE_BUTTON_LEFT, mods)
+	# Le dessus est toujours à (tx, ty) ; le dessous à (tx+3). Clic sur dessus.
+	var top_screen: Vector2 = editor._engine.grid_to_screen(tx, ty)
+	editor._on_pointer_pressed(Vector2(tx, ty), top_screen, MOUSE_BUTTON_LEFT, mods)
+	editor._on_pointer_released(Vector2(tx, ty), top_screen, MOUSE_BUTTON_LEFT, mods)
+	_assert("fresh_click_picks_top", editor.doc.is_selected(top_id))
+
+	# Calque verrouillé : non sélectionnable + message de blocage.
+	editor.doc.set_layer_locked(4, true)
+	editor.doc.clear_selection()
+	var locked_pick: String = editor._overlay.element_at_screen(top_screen)
+	_assert("locked_layer_not_picked", locked_pick != top_id and locked_pick != bottom_id)
+	var blocked_pick: String = editor._overlay.blocked_element_at_screen(top_screen)
+	_assert("locked_layer_blocked_hit", blocked_pick == top_id or blocked_pick == bottom_id)
+	editor.doc.set_layer_locked(4, false)
+
+	# Ordre de picking suit l'ordre des calques (pas seulement l'id numérique).
+	var decor_id: int = 1
+	var tokens_id: int = 4
+	editor.doc.modify_element(bottom_id, {"layer": decor_id}, "Calque décor")
+	editor.doc.modify_element(top_id, {"layer": tokens_id}, "Calque tokens")
+	# Monter Décor au-dessus de Tokens (index plus grand = premier plan).
+	while editor.doc.layer_stack_index(decor_id) < editor.doc.layer_stack_index(tokens_id):
+		if not editor.doc.move_layer_down(decor_id):
+			break
+	_assert("layer_stack_decor_above", editor.doc.layer_stack_index(decor_id) > editor.doc.layer_stack_index(tokens_id))
+	var sorted_ids: Array = []
+	for e in editor.doc.elements_sorted():
+		sorted_ids.append(str((e as Dictionary).get("id", "")))
+	_assert("layer_sort_order", sorted_ids.find(bottom_id) > sorted_ids.find(top_id))
+
+	# Nettoyage : on retire le token empilé pour ne pas fausser la persistance.
+	editor.doc.remove_element(top_id)
+	editor.doc.modify_element(bottom_id, {"layer": tokens_id, "x": tx + 8.0, "y": ty + 6.0}, "Reset sticky")
 
 	# Gomme : supprime l'élément visé par la projection.
 	var count_tokens: int = editor.doc.count_of_kind(K_TOKEN)

@@ -46,6 +46,17 @@ func _ready() -> void:
 	_edit_mode = MapData.editor_mode == "edit"
 	_build_ui()
 	_load_map()
+	resized.connect(_on_viewer_resized)
+	var vp := get_viewport()
+	if vp and not vp.size_changed.is_connected(_on_viewer_resized):
+		vp.size_changed.connect(_on_viewer_resized)
+
+func _on_viewer_resized() -> void:
+	# Relayer le resize / fullscreen à l'éditeur pour qu'il mesure sa taille réelle.
+	if _complex_editor == null or not _complex_editor.visible:
+		return
+	if _complex_editor.has_method("_on_viewport_size_changed"):
+		_complex_editor.call("_on_viewport_size_changed")
 
 func _build_ui() -> void:
 	_reset_top_bar()
@@ -56,6 +67,8 @@ func _build_ui() -> void:
 	_editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_editor_panel.add_theme_constant_override("separation", 8)
+	_editor_panel.clip_contents = true
+	content_host.clip_contents = true
 	content_host.add_child(_editor_panel)
 
 	if _edit_mode:
@@ -95,14 +108,15 @@ func _build_ui() -> void:
 	map_frame.add_theme_stylebox_override("panel", map_style)
 	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_frame.custom_minimum_size = Vector2(0, 420)
+	# Min bas : s'adapte aux écrans courts ; le fill vertical prend le reste.
+	map_frame.custom_minimum_size = Vector2(0, 120)
 	_editor_panel.add_child(map_frame)
 
 	_interactive_map = InteractiveMapScript.new()
 	_interactive_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_interactive_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_interactive_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_interactive_map.custom_minimum_size = Vector2(320, 380)
+	_interactive_map.custom_minimum_size = Vector2(160, 120)
 	_interactive_map.cell_clicked.connect(_on_cell_clicked)
 	_interactive_map.cell_paint.connect(_on_cell_paint)
 	_interactive_map.paint_drag_finished.connect(_on_paint_drag_finished)
@@ -116,7 +130,8 @@ func _build_ui() -> void:
 	_complex_editor.open_map_requested.connect(_on_editor_open_map)
 	_complex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_complex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_complex_editor.custom_minimum_size = Vector2(0, 560)
+	_complex_editor.size_flags_stretch_ratio = 1.0
+	_complex_editor.clip_contents = true
 	_editor_panel.add_child(_complex_editor)
 
 	if _edit_mode:
@@ -205,6 +220,8 @@ func _sync_render_mode_ui() -> void:
 			var style := str(_map_data.get("renderStyle", "diorama"))
 			if style == "vtt":
 				_mode_hint_lbl.text = "VTT 3D : grille, murs volumétriques, ombres, fog et tokens."
+			elif style == "dd2_hybrid":
+				_mode_hint_lbl.text = "Hybride DD2 : fond illustré + caméra inclinée + personnages dressés."
 			else:
 				_mode_hint_lbl.text = "Diorama 2.5D : fond illustré, lieux cliquables, décors et tokens."
 		else:
@@ -244,7 +261,6 @@ func _sync_editor_mode() -> void:
 		if is_complex:
 			_complex_editor.set_editable(_edit_mode)
 			_complex_editor.load_map(_map_data)
-			_complex_editor.custom_minimum_size = Vector2(0, 640 if _edit_mode else 520)
 	if _editor_panel and is_complex:
 		_hint_lbl.visible = not is_complex or not _edit_mode
 
@@ -700,6 +716,8 @@ func _update_hint() -> void:
 		var style := str(_map_data.get("renderStyle", "diorama"))
 		if style == "vtt":
 			_hint_lbl.text = "Éditeur VTT 3D — murs, fog, tokens, effets. Enregistrez pour persister."
+		elif style == "dd2_hybrid":
+			_hint_lbl.text = "Éditeur hybride DD2 — fond illustré, caméra inclinée, props/tokens dressés."
 		else:
 			_hint_lbl.text = "Éditeur diorama — importez un PNG, placez lieux/décors/tokens. Enregistrez pour persister."
 		return

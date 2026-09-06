@@ -71,6 +71,20 @@ func _test_resolution() -> void:
 	_assert("illustrated_no_persp", not bool(illustrated.get("perspective", true)))
 	_assert("illustrated_tilt_flat", is_equal_approx(float(illustrated.get("tilt", 0.0)), -90.0))
 	_assert("illustrated_no_parallax", is_equal_approx(float(illustrated.get("parallax", 1.0)), 0.0))
+	_assert("illustrated_flat_props", bool(illustrated.get("preferFlatProps", false)))
+
+	_assert("dd2_style", StyleScript.style_of({"renderStyle": "dd2_hybrid"}) == StyleScript.DD2_HYBRID)
+	_assert("dd2_is_diorama_family", StyleScript.is_diorama({"renderStyle": "dd2_hybrid"}))
+	_assert("dd2_flag", StyleScript.is_dd2({"renderStyle": "dd2_hybrid"}))
+	var dd2: Dictionary = StyleScript.config({
+		"renderStyle": "dd2_hybrid",
+		"backgroundImage": "user://map_assets/fake.png",
+	})
+	_assert("dd2_keeps_perspective", bool(dd2.get("perspective", false)))
+	_assert("dd2_tilted", float(dd2.get("tilt", 0.0)) > -90.0 and float(dd2.get("tilt", 0.0)) < -30.0)
+	_assert("dd2_standing_props", not bool(dd2.get("preferFlatProps", true)))
+	_assert("dd2_parallax", float(dd2.get("parallax", 0.0)) > 0.0)
+	_assert("label_dd2", not StyleScript.style_label(StyleScript.DD2_HYBRID).is_empty())
 
 func _test_parallax_and_tint() -> void:
 	var cfg: Dictionary = StyleScript.CONFIGS[StyleScript.DIORAMA]

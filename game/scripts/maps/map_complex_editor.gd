@@ -22,8 +22,13 @@ const MinimapScript := preload("res://scripts/maps/editor/map_editor_minimap.gd"
 const InspectorScript := preload("res://scripts/maps/editor/map_editor_inspector.gd")
 const OutlinerScript := preload("res://scripts/maps/editor/map_editor_outliner.gd")
 const TemplatesScript := preload("res://scripts/maps/editor/map_editor_templates.gd")
+const HistoryPanelScript := preload("res://scripts/maps/editor/map_editor_history_panel.gd")
+const SettingsPanelScript := preload("res://scripts/maps/editor/map_editor_settings_panel.gd")
+const LibraryPanelScript := preload("res://scripts/maps/editor/map_editor_library_panel.gd")
+const EscMenuScript := preload("res://scripts/maps/editor/map_editor_esc_menu.gd")
 const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
+const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
@@ -54,11 +59,24 @@ var _area_category: String = "building"
 var _prop_asset: String = ""
 var _prop_size: float = 2.0
 var _prop_standing: bool = true
+var _prop_rotation: float = 0.0
 var _prop_category: String = "buildings"
+var _last_saved_at: float = 0.0
+var _status_badges: HBoxContainer
+var _policy_chip: Label
+var _saved_ago_lbl: Label
+var _autosave_lbl: Label
+var _undo_depth_lbl: Label
+var _status_tick: Timer
+var _effect_list: VBoxContainer
 var _area_label: String = ""
 var _template_rotation: int = 0
 var _space_held: bool = false
 var _syncing: bool = false
+## Aperçu session : ce que voit le joueur (brouillard + nuit/lumières). Non persisté.
+var _player_view: bool = false
+var _player_view_btn: Button
+var _light_place_radius: float = 3.0
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -102,23 +120,38 @@ var _file_dialog: FileDialog
 var _overlay_dialog: FileDialog
 var _export_dialog: FileDialog
 var _import_dialog: FileDialog
-var _esc_menu: PopupPanel
+var _esc_menu
+var _settings_panel
+var _library_panel
 var _template_name_dialog: AcceptDialog
 var _template_name_input: LineEdit
 var _settings_widgets: Dictionary = {}
 var _split_outer: HSplitContainer
 var _split_inner: HSplitContainer
+var _center_column: VBoxContainer
+## Largeurs de dock adaptées à la surface client réelle (recalculées au resize).
+var _dock_left_w: float = 220.0
+var _dock_right_w: float = 300.0
+var _layout_applied_size: Vector2 = Vector2(-1, -1)
+var _layout_retry: int = 0
+var _layout_force: bool = true
+var _viewport_frame: PanelContainer
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	custom_minimum_size = Vector2(0, 640)
+	custom_minimum_size = Vector2(0, 0)
+	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
 	doc.changed.connect(_on_doc_changed)
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
 	doc.dirty_changed.connect(_on_dirty_changed)
 	_build_ui()
+	resized.connect(_on_editor_resized)
+	var vp := get_viewport()
+	if vp and not vp.size_changed.is_connected(_on_viewport_size_changed):
+		vp.size_changed.connect(_on_viewport_size_changed)
 
 # ===========================================================================
 # API publique (consommée par map_viewer.gd)
@@ -132,16 +165,12 @@ func set_editable(on: bool) -> void:
 		_right_tabs.visible = on
 	elif _right_scroll:
 		_right_scroll.visible = on
-	if _split_outer:
-		_split_outer.split_offset = 250 if on else 0
-	if _split_inner:
-		_split_inner.split_offset = 900 if on else 0
 	if _engine and _engine.has_method("set_editor_mode"):
 		_engine.set_editor_mode(on)
 	_sync_engine()
 	_update_hint()
-	if on:
-		call_deferred("_ensure_right_panel_width")
+	_layout_force = true
+	call_deferred("_apply_responsive_layout")
 
 func load_map(map_data: Dictionary) -> void:
 	doc.load_map(map_data)
@@ -169,7 +198,9 @@ func save_now() -> void:
 	var snapshot := apply_to_map_data()
 	MapData.update_map(snapshot)
 	doc.mark_saved()
+	_last_saved_at = Time.get_unix_time_from_system()
 	_set_status("Carte enregistrée.")
+	_refresh_status_badges()
 	layout_changed.emit()
 
 # ===========================================================================
@@ -177,11 +208,13 @@ func save_now() -> void:
 # ===========================================================================
 
 func _build_ui() -> void:
+	# MapComplexEditor est un Control nu (pas un Container) : le split
+	# doit remplir via anchors. Les size_flags seuls ne suffisent pas.
 	_split_outer = HSplitContainer.new()
 	_split_outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_split_outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_split_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_split_outer.split_offset = 250
+	_split_outer.clip_contents = true
 	add_child(_split_outer)
 
 	_build_left_column()
@@ -189,8 +222,8 @@ func _build_ui() -> void:
 	_split_inner = HSplitContainer.new()
 	_split_inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_split_inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# Offset positif : largeur du centre. On fixe après le 1er layout.
-	_split_inner.split_offset = 900
+	_split_inner.size_flags_stretch_ratio = 1.0
+	_split_inner.clip_contents = true
 	_split_outer.add_child(_split_inner)
 
 	_build_center_column()
@@ -206,15 +239,25 @@ func _build_ui() -> void:
 	)
 	add_child(_autosave_timer)
 
+	_status_tick = Timer.new()
+	_status_tick.wait_time = 1.0
+	_status_tick.timeout.connect(_refresh_status_badges)
+	add_child(_status_tick)
+	_status_tick.start()
+
 	_set_tool(ToolsScript.SELECT)
-	call_deferred("_ensure_right_panel_width")
+	_layout_force = true
+	call_deferred("_apply_responsive_layout")
+	call_deferred("_refresh_status_badges")
 
 # --- Colonne gauche : outils --------------------------------------------------
 
 func _build_left_column() -> void:
 	_left_scroll = ScrollContainer.new()
-	_left_scroll.custom_minimum_size = Vector2(240, 0)
+	_left_scroll.custom_minimum_size = Vector2(160, 0)
+	_left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_left_scroll.size_flags_stretch_ratio = 0.0
 	_left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_split_outer.add_child(_left_scroll)
 
@@ -272,15 +315,19 @@ func _build_left_column() -> void:
 # --- Colonne centrale : vue 3D -------------------------------------------------
 
 func _build_center_column() -> void:
-	var center := VBoxContainer.new()
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	center.add_theme_constant_override("separation", 4)
-	_split_inner.add_child(center)
+	_center_column = VBoxContainer.new()
+	_center_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_center_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_center_column.size_flags_stretch_ratio = 1.0
+	_center_column.custom_minimum_size = Vector2(80, 0)
+	_center_column.clip_contents = true
+	_center_column.add_theme_constant_override("separation", 4)
+	_split_inner.add_child(_center_column)
 
-	center.add_child(_build_action_bar())
+	_center_column.add_child(_build_action_bar())
 
 	var frame := PanelContainer.new()
+	_viewport_frame = frame
 	var style := StyleBoxFlat.new()
 	style.bg_color = ThemeColors.BG_INPUT
 	style.border_color = ThemeColors.BORDER
@@ -289,9 +336,10 @@ func _build_center_column() -> void:
 	frame.add_theme_stylebox_override("panel", style)
 	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	frame.custom_minimum_size = Vector2(320, 460)
+	# Min bas : s'adapte aux écrans courts (16:10, ultrawide bas) sans déborder.
+	frame.custom_minimum_size = Vector2(80, 80)
 	frame.clip_contents = true
-	center.add_child(frame)
+	_center_column.add_child(frame)
 
 	var stack := Control.new()
 	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -316,7 +364,7 @@ func _build_center_column() -> void:
 
 	var status_row := HBoxContainer.new()
 	status_row.add_theme_constant_override("separation", 10)
-	center.add_child(status_row)
+	_center_column.add_child(status_row)
 
 	_status_lbl = Label.new()
 	_status_lbl.add_theme_font_size_override("font_size", 11)
@@ -329,11 +377,22 @@ func _build_center_column() -> void:
 	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_lbl.add_theme_font_size_override("font_size", 11)
 	_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	center.add_child(_hint_lbl)
+	_center_column.add_child(_hint_lbl)
 
-func _build_action_bar() -> HBoxContainer:
+func _build_action_bar() -> Control:
+	# Scroll horizontal : la rangée de boutons (~900px) ne doit jamais
+	# définir la largeur minimum de la colonne centrale (sinon le dock droit disparaît).
+	var host := ScrollContainer.new()
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.custom_minimum_size = Vector2(0, 34)
+	host.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	host.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	host.clip_contents = true
+
 	var bar := HBoxContainer.new()
 	bar.add_theme_constant_override("separation", 4)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	host.add_child(bar)
 
 	_undo_btn = _icon_button(bar, "↶", "Annuler (Ctrl+Z)", func(): _do_undo())
 	_redo_btn = _icon_button(bar, "↷", "Rétablir (Ctrl+Y)", func(): _do_redo())
@@ -358,10 +417,24 @@ func _build_action_bar() -> HBoxContainer:
 	_breadcrumb.add_theme_constant_override("separation", 2)
 	bar.add_child(_breadcrumb)
 
+	_status_badges = HBoxContainer.new()
+	_status_badges.add_theme_constant_override("separation", 6)
+	_status_badges.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(_status_badges)
+
 	_dirty_lbl = Label.new()
 	_dirty_lbl.add_theme_font_size_override("font_size", 11)
-	_dirty_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(_dirty_lbl)
+	_status_badges.add_child(_dirty_lbl)
+
+	_policy_chip = _make_status_chip("Manuelle")
+	_status_badges.add_child(_policy_chip)
+	_saved_ago_lbl = _make_status_chip("—")
+	_status_badges.add_child(_saved_ago_lbl)
+	_autosave_lbl = _make_status_chip("")
+	_autosave_lbl.visible = false
+	_status_badges.add_child(_autosave_lbl)
+	_undo_depth_lbl = _make_status_chip("↶ 0")
+	_status_badges.add_child(_undo_depth_lbl)
 
 	_icon_button(bar, "−", "Dézoomer", func(): _engine.zoom_out())
 	_zoom_lbl = Label.new()
@@ -378,18 +451,27 @@ func _build_action_bar() -> HBoxContainer:
 			_engine.reset_zoom()
 	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
+	bar.add_child(VSeparator.new())
+	_player_view_btn = Button.new()
+	_player_view_btn.toggle_mode = true
+	_player_view_btn.text = "👁 Vue joueur"
+	_player_view_btn.tooltip_text = "Aperçu de ce que voit le groupe (nuit, lumières, brouillard). Non enregistré."
+	_player_view_btn.add_theme_font_size_override("font_size", 11)
+	_player_view_btn.toggled.connect(_on_player_view_toggled)
+	bar.add_child(_player_view_btn)
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
-	return bar
+	return host
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
 func _build_right_column() -> void:
 	# Pas de ScrollContainer externe : il écrasait la largeur utile du dock.
 	_right_tabs = TabContainer.new()
-	_right_tabs.custom_minimum_size = Vector2(300, 0)
+	_right_tabs.custom_minimum_size = Vector2(220, 0)
 	_right_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_right_tabs.size_flags_stretch_ratio = 0.0
+	_right_tabs.clip_contents = true
 	_split_inner.add_child(_right_tabs)
 	_right_scroll = null
 
@@ -417,15 +499,144 @@ func _build_right_column() -> void:
 	_right_tabs.add_child(_build_library_tab())
 	_right_tabs.add_child(_build_history_tab())
 
-func _ensure_right_panel_width() -> void:
-	if _split_inner == null or _right_tabs == null:
+func _on_viewport_size_changed() -> void:
+	_layout_force = true
+	_on_editor_resized()
+
+func _on_editor_resized() -> void:
+	# Debounce : ignorer les micro-variations (focus SubViewport / clic carte).
+	var measured := _measure_layout_size()
+	if not _layout_force \
+			and absf(measured.x - _layout_applied_size.x) < 6.0 \
+			and absf(measured.y - _layout_applied_size.y) < 6.0:
 		return
-	var total := _split_inner.size.x
-	if total < 200.0:
-		call_deferred("_ensure_right_panel_width")
+	_apply_responsive_layout()
+
+## Surface client réelle de l'éditeur (jamais un ratio 16:9 déduit).
+func _measure_layout_size() -> Vector2:
+	var s := size
+	if s.x >= 80.0 and s.y >= 60.0:
+		return s
+	var vp := get_viewport()
+	if vp:
+		var vr := vp.get_visible_rect().size
+		if vr.x >= 80.0 and vr.y >= 60.0:
+			return vr
+	return s
+
+## Calcule docks et chrome d'après la largeur ET la hauteur client actuelles.
+func _apply_responsive_layout() -> void:
+	if _split_outer == null:
 		return
-	var right_w := 320.0
-	_split_inner.split_offset = int(maxi(200, int(total - right_w)))
+	var measured := _measure_layout_size()
+	var total := measured.x
+	var total_h := measured.y
+	if total < 80.0:
+		_layout_retry += 1
+		if _layout_retry < 12:
+			call_deferred("_apply_responsive_layout")
+		return
+	_layout_retry = 0
+
+	if not _layout_force \
+			and absf(total - _layout_applied_size.x) < 6.0 \
+			and absf(total_h - _layout_applied_size.y) < 6.0:
+		return
+
+	# Ratios de la largeur COURANTE — bornes qui restent valides en ultrawide
+	# (2560×1080) comme en 16:10 / 3:2 / fenêtre étroite.
+	var left_w := clampf(total * 0.14, 150.0, 260.0)
+	var right_w := clampf(total * 0.20, 200.0, 380.0)
+	if total < 1400.0:
+		left_w = clampf(total * 0.15, 150.0, 230.0)
+		right_w = clampf(total * 0.22, 190.0, 320.0)
+	if total < 1100.0:
+		left_w = clampf(total * 0.16, 140.0, 200.0)
+		right_w = clampf(total * 0.24, 180.0, 280.0)
+	if total < 900.0:
+		left_w = clampf(total * 0.18, 130.0, 170.0)
+		right_w = clampf(total * 0.26, 160.0, 230.0)
+
+	# Écrans courts (ultrawide bas, 16:10 laptop) : docks un peu plus étroits
+	# pour laisser de la hauteur utile au viewport central.
+	if total_h > 0.0 and total_h < 720.0:
+		left_w = minf(left_w, 200.0)
+		right_w = minf(right_w, 280.0)
+	if total_h > 0.0 and total_h < 600.0:
+		left_w = minf(left_w, 170.0)
+		right_w = minf(right_w, 220.0)
+
+	# Toujours laisser de la place au centre + aux deux docks.
+	var min_center := clampf(total * 0.28, 120.0, 280.0)
+	var max_side := maxf(0.0, (total - min_center) * 0.5)
+	left_w = minf(left_w, max_side)
+	right_w = minf(right_w, max_side)
+	if not _editable:
+		left_w = 0.0
+		right_w = 0.0
+
+	_dock_left_w = left_w
+	_dock_right_w = right_w
+	_layout_applied_size = measured
+	_layout_force = false
+
+	if _left_scroll:
+		_left_scroll.custom_minimum_size = Vector2(left_w if left_w > 1.0 else 0.0, 0)
+		_left_scroll.visible = _editable
+		_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if _right_tabs:
+		_right_tabs.custom_minimum_size = Vector2(right_w if right_w > 1.0 else 0.0, 0)
+		_right_tabs.visible = _editable
+		_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# split_offset depuis la largeur ÉDITEUR mesurée (pas size interne stale).
+	if _editable:
+		_split_outer.split_offset = int(left_w)
+		var center_w := maxf(total - left_w - right_w, min_center)
+		_split_inner.split_offset = int(center_w)
+	else:
+		_split_outer.split_offset = 0
+		if _split_inner:
+			_split_inner.split_offset = int(maxi(80, int(total)))
+
+	_adapt_tool_chrome(total, total_h)
+
+func _adapt_tool_chrome(total_w: float, total_h: float = 800.0) -> void:
+	var btn_w := 46.0
+	var btn_h := 38.0
+	var cols := 4
+	if total_w < 1280.0 or total_h < 720.0:
+		btn_w = 42.0
+		btn_h = 34.0
+	if total_w < 980.0 or total_h < 600.0:
+		btn_w = 38.0
+		btn_h = 32.0
+		cols = 3
+	if total_w < 820.0:
+		btn_w = 34.0
+		btn_h = 30.0
+		cols = 3
+	for btn in _tool_buttons.values():
+		if btn is Button:
+			(btn as Button).custom_minimum_size = Vector2(btn_w, btn_h)
+	if _left_panel:
+		for child in _left_panel.get_children():
+			if child is GridContainer:
+				(child as GridContainer).columns = cols
+	var mini_h := 110.0
+	if total_h < 720.0 or total_w < 1280.0:
+		mini_h = 90.0
+	if total_h < 600.0:
+		mini_h = 70.0
+	if _minimap and _minimap.has_method("set_preferred_height"):
+		_minimap.call("set_preferred_height", mini_h)
+	elif _minimap:
+		_minimap.custom_minimum_size = Vector2(0, mini_h)
+	if _viewport_frame:
+		# Hauteur min du viewport central : proportion de la hauteur client,
+		# jamais une constante calée sur 16:9.
+		var frame_min_h := clampf(total_h * 0.35, 80.0, 160.0) if total_h > 0.0 else 80.0
+		_viewport_frame.custom_minimum_size = Vector2(80, frame_min_h)
 
 func _wrap_scroll(content: Control, tab_name: String) -> ScrollContainer:
 	var scroll := ScrollContainer.new()
@@ -442,293 +653,99 @@ func _wrap_scroll(content: Control, tab_name: String) -> ScrollContainer:
 # ===========================================================================
 
 func _build_map_settings_tab() -> ScrollContainer:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
-
-	_section(box, "🖼 Fond de carte")
-	var bg_status := Label.new()
-	bg_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bg_status.add_theme_font_size_override("font_size", 11)
-	bg_status.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	box.add_child(bg_status)
-	_settings_widgets["bg_status"] = bg_status
-
-	var bg_row := HBoxContainer.new()
-	bg_row.add_theme_constant_override("separation", 4)
-	box.add_child(bg_row)
-	_text_button(bg_row, "Importer PNG…", func(): _file_dialog.popup_centered(Vector2i(760, 500)))
-	_text_button(bg_row, "Calque +", func(): _overlay_dialog.popup_centered(Vector2i(760, 500)))
-	_text_button(bg_row, "✕", func(): _remove_background())
-
-	_section(box, "📐 Dimensions (cases)")
-	var size_row := HBoxContainer.new()
-	size_row.add_theme_constant_override("separation", 6)
-	box.add_child(size_row)
-	_settings_widgets["width"] = _spin(size_row, "Largeur", 4, 128, 16, 1, func(v): _on_size_changed())
-	_settings_widgets["height"] = _spin(size_row, "Hauteur", 4, 128, 12, 1, func(v): _on_size_changed())
-
-	_section(box, "⊞ Grille")
-	_settings_widgets["grid_enabled"] = _checkbox(box, "Afficher la grille", true, func(_on): _on_grid_changed())
-	var grid_row := HBoxContainer.new()
-	grid_row.add_theme_constant_override("separation", 6)
-	box.add_child(grid_row)
-	_settings_widgets["grid_size"] = _spin(grid_row, "Taille px", 20, 160, 70, 1, func(v): _on_grid_changed())
-	_settings_widgets["grid_opacity"] = _spin(grid_row, "Opacité", 0.0, 1.0, 0.22, 0.01, func(v): _on_grid_changed())
-	_settings_widgets["grid_color"] = _color_row(box, "Couleur", "#ffffff", func(hex): _on_grid_changed())
-
-	_section(box, "📏 Échelle")
-	var measure_row := HBoxContainer.new()
-	measure_row.add_theme_constant_override("separation", 6)
-	box.add_child(measure_row)
-	_settings_widgets["measure_per_cell"] = _spin(measure_row, "Par case", 0.1, 100.0, 1.5, 0.1, func(v): _on_measure_changed())
-	_settings_widgets["measure_unit"] = _line_row(measure_row, "Unité", "m", func(text): _on_measure_changed())
-
-	_section(box, "🌫 Brouillard de guerre")
-	_settings_widgets["fog_enabled"] = _checkbox(box, "Activer le brouillard", true, func(_on): _on_fog_setting_changed())
-	_settings_widgets["los_enabled"] = _checkbox(box, "Ligne de vue (murs bloquants)", false, func(_on): _on_los_changed())
-	var los_note := Label.new()
-	los_note.text = "En session, le brouillard se révèle automatiquement selon ce que voient les tokens, murs et portes compris."
-	los_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	los_note.add_theme_font_size_override("font_size", 10)
-	los_note.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	box.add_child(los_note)
-	var fog_row := HBoxContainer.new()
-	fog_row.add_theme_constant_override("separation", 4)
-	box.add_child(fog_row)
-	_text_button(fog_row, "Tout masquer", func(): doc.set_fog_cells([], "Brouillard total"))
-	_text_button(fog_row, "Tout révéler", func(): doc.reveal_all_fog())
-
-	_section(box, "🎨 Style de rendu")
-	var style_opt := OptionButton.new()
-	style_opt.add_item("Diorama 2.5D", 0)
-	style_opt.set_item_metadata(0, "diorama")
-	style_opt.add_item("VTT 3D (tactique)", 1)
-	style_opt.set_item_metadata(1, "vtt")
-	style_opt.item_selected.connect(func(_i): _on_render_style_changed())
-	box.add_child(style_opt)
-	_settings_widgets["render_style"] = style_opt
-	var style_hint := Label.new()
-	style_hint.text = "Diorama : fond peint + découpes, parallaxe. VTT : murs, ombres, combat tactique."
-	style_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	style_hint.add_theme_font_size_override("font_size", 10)
-	style_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	box.add_child(style_hint)
-
-	_section(box, "📷 Perspective")
-	var persp := OptionButton.new()
-	persp.add_item("Vue de dessus", 0)
-	persp.set_item_metadata(0, MapData.PERSPECTIVE_TOPDOWN)
-	persp.add_item("Isométrique", 1)
-	persp.set_item_metadata(1, MapData.PERSPECTIVE_ISOMETRIC)
-	persp.add_item("Perspective inclinée", 2)
-	persp.set_item_metadata(2, MapData.PERSPECTIVE_TILT)
-	persp.item_selected.connect(func(_i): _on_perspective_changed())
-	box.add_child(persp)
-	_settings_widgets["perspective"] = persp
-
-	_section(box, "🌘 Atmosphère")
-	_settings_widgets["atmo_enabled"] = _checkbox(box, "Teinte d'ambiance", false, func(_on): _on_atmosphere_changed())
-	_settings_widgets["atmo_tint"] = _color_row(box, "Teinte", "#141018", func(hex): _on_atmosphere_changed())
-	var atmo_row := HBoxContainer.new()
-	atmo_row.add_theme_constant_override("separation", 6)
-	box.add_child(atmo_row)
-	_settings_widgets["atmo_opacity"] = _spin(atmo_row, "Opacité", 0.0, 1.0, 0.12, 0.01, func(v): _on_atmosphere_changed())
-	_settings_widgets["atmo_vignette"] = _spin(atmo_row, "Vignettage", 0.0, 1.0, 0.18, 0.01, func(v): _on_atmosphere_changed())
-
-	_section(box, "💡 Éclairage global")
-	_settings_widgets["light_enabled"] = _checkbox(box, "Éclairage directionnel", false, func(_on): _on_lighting_changed())
-	var light_dir := OptionButton.new()
-	var dirs := ["nw", "ne", "sw", "se"]
-	var dir_labels := ["Nord-Ouest", "Nord-Est", "Sud-Ouest", "Sud-Est"]
-	for i in range(dirs.size()):
-		light_dir.add_item(dir_labels[i], i)
-		light_dir.set_item_metadata(i, dirs[i])
-	light_dir.item_selected.connect(func(_i): _on_lighting_changed())
-	box.add_child(light_dir)
-	_settings_widgets["light_dir"] = light_dir
-	_settings_widgets["light_intensity"] = _spin(_hbox(box), "Intensité", 0.0, 2.0, 0.35, 0.05, func(v): _on_lighting_changed())
-
-	_section(box, "👁 Affichage éditeur")
-	_checkbox(box, "Afficher les liens", true, func(on):
-		_overlay.show_links = on
+	_settings_panel = SettingsPanelScript.new()
+	_settings_panel.name = "Carte"
+	_settings_widgets = _settings_panel.widgets
+	_settings_panel.import_background_pressed.connect(func(): _file_dialog.popup_centered(Vector2i(760, 500)))
+	_settings_panel.import_overlay_pressed.connect(func(): _overlay_dialog.popup_centered(Vector2i(760, 500)))
+	_settings_panel.remove_background_pressed.connect(_remove_background)
+	_settings_panel.size_changed.connect(_on_size_changed)
+	_settings_panel.grid_changed.connect(_on_grid_changed)
+	_settings_panel.measure_changed.connect(_on_measure_changed)
+	_settings_panel.fog_setting_changed.connect(_on_fog_setting_changed)
+	_settings_panel.los_changed.connect(_on_los_changed)
+	_settings_panel.fog_hide_all_pressed.connect(func(): doc.set_fog_cells([], "Brouillard total"))
+	_settings_panel.fog_reveal_all_pressed.connect(func(): doc.reveal_all_fog())
+	_settings_panel.render_style_changed.connect(_on_render_style_changed)
+	_settings_panel.perspective_changed.connect(_on_perspective_changed)
+	_settings_panel.atmosphere_changed.connect(_on_atmosphere_changed)
+	_settings_panel.lighting_changed.connect(_on_lighting_changed)
+	_settings_panel.night_mode_changed.connect(_on_night_mode_changed)
+	_settings_panel.clear_light_reveal_pressed.connect(func():
+		doc.clear_light_reveal()
+		_sync_engine()
+		_set_status("Zones éclairées effacées.")
+	)
+	_settings_panel.show_links_toggled.connect(func(on):
+		_overlay.show_links = on and not _player_view
 		_refresh_overlay()
 	)
-	_checkbox(box, "Afficher les noms", false, func(on):
+	_settings_panel.show_ids_toggled.connect(func(on):
 		_overlay.show_ids = on
 		_refresh_overlay()
 	)
-	_checkbox(box, "Aperçu ligne de vue", false, func(on):
+	_settings_panel.show_vision_toggled.connect(func(on):
 		_overlay.show_vision = on
 		_refresh_vision_preview()
 	)
-
-	_section(box, "💾 Sauvegarde")
-	var policy := OptionButton.new()
-	policy.add_item("Manuelle", 0)
-	policy.set_item_metadata(0, SAVE_MANUAL)
-	policy.add_item("À chaque modification", 1)
-	policy.set_item_metadata(1, SAVE_ON_CHANGE)
-	policy.add_item("Périodique (30 s)", 2)
-	policy.set_item_metadata(2, SAVE_INTERVAL)
-	policy.item_selected.connect(func(index):
-		_save_policy = str(policy.get_item_metadata(index))
+	_settings_panel.save_policy_changed.connect(func(policy, label):
+		_save_policy = policy
 		if _save_policy == SAVE_INTERVAL:
 			_autosave_timer.start(_save_interval)
 		else:
 			_autosave_timer.stop()
-		_set_status("Politique de sauvegarde : %s" % policy.get_item_text(index))
+		_set_status("Politique de sauvegarde : %s" % label)
+		_refresh_status_badges()
+		if _esc_menu and _esc_menu.has_method("sync_policy"):
+			_esc_menu.sync_policy(_save_policy)
 	)
-	box.add_child(policy)
+	_settings_panel.export_json_pressed.connect(func(): _export_dialog.popup_centered(Vector2i(760, 500)))
+	_settings_panel.import_json_pressed.connect(func(): _import_dialog.popup_centered(Vector2i(760, 500)))
+	return _wrap_scroll(_settings_panel, "Carte")
 
-	var io_row := HBoxContainer.new()
-	io_row.add_theme_constant_override("separation", 4)
-	box.add_child(io_row)
-	_text_button(io_row, "⬆ Exporter JSON", func(): _export_dialog.popup_centered(Vector2i(760, 500)))
-	_text_button(io_row, "⬇ Importer JSON", func(): _import_dialog.popup_centered(Vector2i(760, 500)))
-
-	return _wrap_scroll(box, "Carte")
 
 # ===========================================================================
 # Onglet « Bibliothèque »
 # ===========================================================================
 
 func _build_library_tab() -> ScrollContainer:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
+	_library_panel = LibraryPanelScript.new()
+	_library_panel.name = "Biblio"
+	_asset_hint = _library_panel.asset_hint
+	_asset_category_row = _library_panel.asset_category_row
+	_asset_grid = _library_panel.asset_grid
+	_effect_list = _library_panel.effect_list
+	_template_list = _library_panel.template_list
+	_settings_widgets["member_grid"] = _library_panel.member_grid
+	_settings_widgets["marker_box"] = _library_panel.marker_box
+	_settings_widgets["tile_box"] = _library_panel.tile_box
+	_library_panel.import_assets_pressed.connect(func(): _asset_dialog.popup_centered(Vector2i(820, 560)))
+	_library_panel.refresh_assets_pressed.connect(_refresh_asset_library)
+	_library_panel.member_token_pressed.connect(func(index):
+		_member_index = index
+		_set_tool(ToolsScript.TOKEN)
+	)
+	_library_panel.effect_preset_pressed.connect(func(preset_id):
+		_effect_preset = preset_id
+		_set_tool(ToolsScript.EFFECT)
+	)
+	_library_panel.trigger_all_effects_pressed.connect(_trigger_all_effects)
+	_library_panel.save_template_pressed.connect(_prompt_save_template)
+	_library_panel.refresh_templates_pressed.connect(_refresh_templates)
+	return _wrap_scroll(_library_panel, "Biblio")
 
-	_section(box, "🏚 Décors à poser")
-	_asset_hint = Label.new()
-	_asset_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_asset_hint.add_theme_font_size_override("font_size", 11)
-	_asset_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	box.add_child(_asset_hint)
-
-	var asset_cat_scroll := ScrollContainer.new()
-	asset_cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	asset_cat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	asset_cat_scroll.custom_minimum_size = Vector2(0, 36)
-	box.add_child(asset_cat_scroll)
-	_asset_category_row = HBoxContainer.new()
-	_asset_category_row.add_theme_constant_override("separation", 3)
-	asset_cat_scroll.add_child(_asset_category_row)
-
-	_asset_grid = GridContainer.new()
-	_asset_grid.columns = 3
-	_asset_grid.add_theme_constant_override("h_separation", 4)
-	_asset_grid.add_theme_constant_override("v_separation", 4)
-	box.add_child(_asset_grid)
-
-	var asset_actions := HBoxContainer.new()
-	asset_actions.add_theme_constant_override("separation", 4)
-	box.add_child(asset_actions)
-	_text_button(asset_actions, "＋ Importer des images…", func(): _asset_dialog.popup_centered(Vector2i(820, 560)))
-	_text_button(asset_actions, "⟳", func(): _refresh_asset_library())
-
-	_section(box, "🧍 Tokens")
-	var member_grid := GridContainer.new()
-	member_grid.columns = 6
-	member_grid.add_theme_constant_override("h_separation", 3)
-	box.add_child(member_grid)
-	_settings_widgets["member_grid"] = member_grid
-	for i in range(MapData.MEMBER_COLOR_HEX.size()):
-		var index := i
-		var btn := Button.new()
-		btn.text = str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[i % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()])
-		btn.toggle_mode = true
-		btn.button_pressed = i == 0
-		btn.custom_minimum_size = Vector2(38, 32)
-		btn.tooltip_text = "Couleur de token %d" % (i + 1)
-		btn.pressed.connect(func():
-			_member_index = index
-			for child in member_grid.get_children():
-				if child is Button:
-					(child as Button).button_pressed = false
-			btn.button_pressed = true
-			_set_tool(ToolsScript.TOKEN)
-		)
-		member_grid.add_child(btn)
-
-	_section(box, "📍 Marqueurs")
-	var marker_box := VBoxContainer.new()
-	marker_box.add_theme_constant_override("separation", 2)
-	box.add_child(marker_box)
-	_settings_widgets["marker_box"] = marker_box
-
-	_section(box, "✨ Effets")
-	var fx_grid := GridContainer.new()
-	fx_grid.columns = 4
-	fx_grid.add_theme_constant_override("h_separation", 3)
-	box.add_child(fx_grid)
-	for preset_id_variant in MapEffectPresetsScript.PRESET_IDS:
-		var preset_id := str(preset_id_variant)
-		var preset := MapEffectPresetsScript.get_preset(preset_id)
-		var btn := Button.new()
-		btn.text = str(preset.get("emoji", "✨"))
-		btn.tooltip_text = str(preset.get("label", preset_id))
-		btn.custom_minimum_size = Vector2(42, 32)
-		btn.pressed.connect(func():
-			_effect_preset = preset_id
-			_set_tool(ToolsScript.EFFECT)
-		)
-		fx_grid.add_child(btn)
-	_text_button(box, "▶ Déclencher tous les effets", func(): _trigger_all_effects())
-
-	_section(box, "🎨 Terrain")
-	var tile_box := VBoxContainer.new()
-	tile_box.add_theme_constant_override("separation", 2)
-	box.add_child(tile_box)
-	_settings_widgets["tile_box"] = tile_box
-
-	_section(box, "🧩 Templates")
-	var tpl_actions := HBoxContainer.new()
-	tpl_actions.add_theme_constant_override("separation", 4)
-	box.add_child(tpl_actions)
-	_text_button(tpl_actions, "＋ Depuis la sélection", func(): _prompt_save_template())
-	_text_button(tpl_actions, "⟳", func(): _refresh_templates())
-	_template_list = VBoxContainer.new()
-	_template_list.add_theme_constant_override("separation", 2)
-	box.add_child(_template_list)
-
-	return _wrap_scroll(box, "Biblio")
 
 # ===========================================================================
 # Onglet « Historique »
 # ===========================================================================
 
 func _build_history_tab() -> ScrollContainer:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	_section(box, "🕘 Historique")
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	box.add_child(row)
-	_text_button(row, "↶ Annuler", func(): _do_undo())
-	_text_button(row, "↷ Rétablir", func(): _do_redo())
-	_history_list = VBoxContainer.new()
-	_history_list.add_theme_constant_override("separation", 1)
-	box.add_child(_history_list)
-
-	_section(box, "⌨ Raccourcis")
-	for entry_variant in ToolsScript.SHORTCUTS:
-		var entry: Dictionary = entry_variant
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 6)
-		box.add_child(line)
-		var keys := Label.new()
-		keys.text = str(entry["keys"])
-		keys.custom_minimum_size = Vector2(120, 0)
-		keys.add_theme_font_size_override("font_size", 11)
-		keys.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-		line.add_child(keys)
-		var action := Label.new()
-		action.text = str(entry["action"])
-		action.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		action.add_theme_font_size_override("font_size", 11)
-		action.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		line.add_child(action)
-
-	return _wrap_scroll(box, "Historique")
+	var panel = HistoryPanelScript.new()
+	panel.name = "Historique"
+	panel.undo_pressed.connect(_do_undo)
+	panel.redo_pressed.connect(_do_redo)
+	_history_list = panel.history_list
+	return _wrap_scroll(panel, "Historique")
 
 # ===========================================================================
 # Dialogues
@@ -767,64 +784,29 @@ func _build_dialogs() -> void:
 	_template_name_dialog.confirmed.connect(_on_template_name_confirmed)
 	add_child(_template_name_dialog)
 
-	_esc_menu = PopupPanel.new()
-	var menu_box := VBoxContainer.new()
-	menu_box.add_theme_constant_override("separation", 4)
-	menu_box.custom_minimum_size = Vector2(300, 0)
-	_esc_menu.add_child(menu_box)
-	_section(menu_box, "☰ Menu éditeur")
-	_text_button(menu_box, "💾 Enregistrer", func():
-		save_now()
-		_esc_menu.hide()
-	)
-	_text_button(menu_box, "↶ Annuler", func(): _do_undo())
-	_text_button(menu_box, "↷ Rétablir", func(): _do_redo())
-	_text_button(menu_box, "🎯 Recadrer sur la carte", func():
+	_esc_menu = EscMenuScript.new()
+	_esc_menu.save_pressed.connect(save_now)
+	_esc_menu.undo_pressed.connect(_do_undo)
+	_esc_menu.redo_pressed.connect(_do_redo)
+	_esc_menu.fit_view_pressed.connect(func():
 		if _engine and _engine.has_method("request_fit_to_view"):
 			_engine.request_fit_to_view()
 		elif _engine:
 			_engine.reset_zoom()
-		_esc_menu.hide()
 	)
-	_text_button(menu_box, "🧹 Vider la sélection", func():
-		doc.clear_selection()
-		_esc_menu.hide()
+	_esc_menu.clear_selection_pressed.connect(func(): doc.clear_selection())
+	_esc_menu.import_json_pressed.connect(func(): _import_dialog.popup_centered(Vector2i(760, 500)))
+	_esc_menu.export_json_pressed.connect(func(): _export_dialog.popup_centered(Vector2i(760, 500)))
+	_esc_menu.save_policy_selected.connect(func(policy, label):
+		_save_policy = policy
+		if _save_policy == SAVE_INTERVAL:
+			_autosave_timer.start(_save_interval)
+		else:
+			_autosave_timer.stop()
+		_set_status("Sauvegarde : %s" % label)
+		_refresh_status_badges()
 	)
-	_section(menu_box, "Fichier")
-	_text_button(menu_box, "⬇ Importer JSON…", func():
-		_esc_menu.hide()
-		_import_dialog.popup_centered(Vector2i(760, 500))
-	)
-	_text_button(menu_box, "⬆ Exporter JSON…", func():
-		_esc_menu.hide()
-		_export_dialog.popup_centered(Vector2i(760, 500))
-	)
-	_section(menu_box, "Sauvegarde auto")
-	var save_row := HBoxContainer.new()
-	save_row.add_theme_constant_override("separation", 6)
-	menu_box.add_child(save_row)
-	for entry in [
-		[SAVE_MANUAL, "Manuelle"],
-		[SAVE_ON_CHANGE, "À chaque modif"],
-		[SAVE_INTERVAL, "Toutes les 30 s"],
-	]:
-		var policy := str(entry[0])
-		var btn := Button.new()
-		btn.text = str(entry[1])
-		btn.toggle_mode = true
-		btn.button_pressed = (_save_policy == policy)
-		btn.pressed.connect(func():
-			_save_policy = policy
-			_esc_menu.hide()
-			_set_status("Sauvegarde : %s" % entry[1])
-		)
-		save_row.add_child(btn)
-	var help := Label.new()
-	help.text = ToolsScript.shortcuts_text()
-	help.add_theme_font_size_override("font_size", 10)
-	help.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	menu_box.add_child(help)
+	_esc_menu.sync_policy(_save_policy)
 	add_child(_esc_menu)
 
 func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
@@ -944,14 +926,38 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 			}
 			_refresh_overlay()
 			return
+
+	var additive := bool(mods.get("ctrl", false)) or bool(mods.get("shift", false))
+	# GIMP / Meownopoly : si le clic touche la sélection courante, on déplace
+	# celle-ci même si un autre élément est empilé par-dessus.
+	if not additive and not doc.selection().is_empty():
+		var sticky: String = _overlay.selected_element_at_screen(screen)
+		if not sticky.is_empty():
+			var movable: Array = doc.movable_selection_ids()
+			if movable.is_empty():
+				_press_mode = "none"
+				_set_status("Sélection verrouillée — déverrouillez l'élément ou le calque.")
+				_refresh_overlay()
+				return
+			if bool(mods.get("alt", false)):
+				doc.duplicate_selection()
+				movable = doc.movable_selection_ids()
+			_start_move_drag(movable)
+			return
+
 	var hit: String = _overlay.element_at_screen(screen)
 	if hit.is_empty():
+		var blocked: String = _overlay.blocked_element_at_screen(screen)
+		if not blocked.is_empty() and not additive:
+			_press_mode = "none"
+			_set_status("Élément verrouillé — impossible de le sélectionner.")
+			_refresh_overlay()
+			return
 		_press_mode = "band"
 		_overlay.band_active = true
 		_overlay.band_start = screen
 		_overlay.band_end = screen
 		# Ctrl/Maj : le rectangle s'ajoute à la sélection existante.
-		var additive := bool(mods.get("ctrl", false)) or bool(mods.get("shift", false))
 		_band_base_selection = doc.selection() if additive else []
 		if not additive:
 			doc.clear_selection()
@@ -966,8 +972,17 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 	doc.expand_selection_to_groups()
 	if bool(mods.get("alt", false)):
 		doc.duplicate_selection()
+	var movable_hit: Array = doc.movable_selection_ids()
+	if movable_hit.is_empty():
+		_press_mode = "none"
+		_set_status("Sélection verrouillée — déverrouillez l'élément ou le calque.")
+		_refresh_overlay()
+		return
+	_start_move_drag(movable_hit)
+
+func _start_move_drag(ids: Array) -> void:
 	_press_mode = "move"
-	_drag_ids = doc.selection()
+	_drag_ids = ids.duplicate()
 	_drag_origins.clear()
 	for id_variant in _drag_ids:
 		var elem: Dictionary = doc.get_element(str(id_variant))
@@ -992,12 +1007,17 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 		"move":
 			_press_moved = true
 			var delta := grid - _press_start_grid
+			var moved_light := false
 			for id_variant in _drag_ids:
 				var id := str(id_variant)
 				var origin: Vector2 = _drag_origins.get(id, Vector2.ZERO)
 				var target := _snap(origin + delta)
 				doc.set_live_position(id, target.x, target.y)
 				_engine.set_element_position(id, target.x, target.y)
+				if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
+					moved_light = true
+			if moved_light:
+				_refresh_light_mask_live()
 		"resize":
 			_press_moved = true
 			_apply_handle_resize(grid)
@@ -1021,6 +1041,7 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: Dictionary) -> void:
 	if button != MOUSE_BUTTON_LEFT:
 		return
+	var was_live := _press_mode in ["move", "resize", "rotate"]
 	match _press_mode:
 		"pan":
 			_engine.end_view_pan()
@@ -1030,12 +1051,14 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 		"move":
 			if _press_moved:
 				doc.commit_live_edit(_drag_ids, "Déplacement")
+				_rebuild_lights_illumination(_drag_ids)
 				_sync_engine()
 			_drag_ids.clear()
 			_drag_origins.clear()
 		"resize":
 			if _press_moved:
 				doc.commit_live_edit(_drag_ids, "Redimensionnement")
+				_rebuild_lights_illumination(_drag_ids)
 				_sync_engine()
 			_drag_ids.clear()
 			_handle_state.clear()
@@ -1051,6 +1074,8 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_painted_cells.clear()
 	_press_mode = "none"
 	_overlay.drag_preview.clear()
+	if was_live:
+		_refresh_panels()
 	_refresh_overlay()
 
 func _handle_right_click(grid: Vector2) -> void:
@@ -1074,6 +1099,7 @@ func _cancel_action() -> void:
 	_handle_state.clear()
 	_overlay.clear_transient()
 	_link_source = ""
+	_refresh_panels()
 	_set_status("Action annulée.")
 
 func _apply_handle_resize(grid: Vector2) -> void:
@@ -1086,7 +1112,16 @@ func _apply_handle_resize(grid: Vector2) -> void:
 	var scale := clampf(grid.distance_to(center) / start_dist, 0.15, 8.0)
 	var w := maxf(0.25, float(_handle_state.get("w", 1.0)) * scale)
 	var h := maxf(0.25, float(_handle_state.get("h", 1.0)) * scale)
-	doc.set_live_fields(id, {"w": w, "h": h})
+	var fields: Dictionary = {"w": w, "h": h}
+	if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
+		var radius := maxf(0.5, maxf(w, h) * 0.5)
+		fields["radius"] = radius
+		doc.set_live_fields(id, fields)
+		if _engine and _engine.has_method("set_element_light_radius"):
+			_engine.set_element_light_radius(id, radius)
+		_refresh_light_mask_live()
+		return
+	doc.set_live_fields(id, fields)
 
 func _apply_handle_rotate(grid: Vector2) -> void:
 	if _handle_state.is_empty():
@@ -1315,16 +1350,19 @@ func _create_prop(grid: Vector2) -> void:
 	var height := maxf(0.25, _prop_size)
 	var width := maxf(0.25, height * ratio)
 	var asset := AssetLibraryScript.get_asset(_prop_asset)
+	# Carte illustrée top-down : forcer à plat pour rester visible (sinon tranche).
+	var standing := _prop_standing and not MapRenderStyleScript.prefer_flat_props(doc.map_data)
 	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": width, "h": height,
 		"asset": _prop_asset,
-		"standing": _prop_standing,
-		"billboard": _prop_standing,
+		"standing": standing,
+		"billboard": standing,
 		"lit": false,
 		"elevation": 0.0,
 		"label": str(asset.get("name", _prop_asset.get_file().get_basename())),
 		"layer": 1,
+		"display": {"rotation": _prop_rotation},
 	}, DocumentScript.KIND_PROP, "Décor")
 	doc.select_only(id)
 
@@ -1342,7 +1380,7 @@ func _create_note(grid: Vector2) -> void:
 func _create_light(grid: Vector2) -> void:
 	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
-		"radius": 3.0,
+		"radius": _light_place_radius,
 		"energy": 1.6,
 		"color": "#ffb35c",
 		"elevation": 0.6,
@@ -1351,6 +1389,11 @@ func _create_light(grid: Vector2) -> void:
 		"layer": 2,
 	}, DocumentScript.KIND_LIGHT, "Lumière")
 	doc.select_only(id)
+	# Halo = position courante des lumières (rebuild, pas d'accumulation).
+	doc.rebuild_light_reveal_from_lights("Pose lumière")
+	if MapData.is_night_mode(doc.map_data):
+		_set_status("Mode nuit — les lumières révèlent le jour")
+	_sync_engine()
 
 func _close_polygon() -> void:
 	var points: Array = _overlay.polygon_points.duplicate()
@@ -1531,6 +1574,9 @@ func _select_prop_asset(asset: Dictionary) -> void:
 	_prop_asset = str(asset.get("path", ""))
 	_prop_size = float(asset.get("size", 2.0))
 	_prop_standing = bool(asset.get("standing", true))
+	if MapRenderStyleScript.prefer_flat_props(doc.map_data):
+		_prop_standing = false
+	_prop_rotation = 0.0
 	_set_tool(ToolsScript.PROP)
 	_refresh_asset_library()
 	_set_status("Décor « %s » prêt — cliquez la carte." % asset.get("name", ""))
@@ -1632,6 +1678,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not key.pressed or key.echo:
 		return
 
+	# Pendant un drag / tracé : Échap annule, le reste des raccourcis outils est ignoré.
+	var gesturing := _press_mode != "none"
+	if gesturing and key.keycode != KEY_ESCAPE:
+		if key.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_DELETE, KEY_BACKSPACE]:
+			get_viewport().set_input_as_handled()
+			return
+		# Les lettres d'outils ne doivent pas changer d'outil en plein geste.
+		var tool_probe := ToolsScript.tool_for_shortcut(OS.get_keycode_string(key.keycode))
+		if not tool_probe.is_empty() and not key.ctrl_pressed:
+			get_viewport().set_input_as_handled()
+			return
+
 	if key.ctrl_pressed:
 		match key.keycode:
 			KEY_Z:
@@ -1712,6 +1770,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if _tool == ToolsScript.TEMPLATE:
 				_template_rotation = (_template_rotation + 1) % 4
 				_refresh_ghost()
+			elif _tool == ToolsScript.PROP:
+				_prop_rotation = fmod(_prop_rotation + 90.0, 360.0)
+				_set_status("Rotation du décor : %d°" % int(_prop_rotation))
+				_refresh_ghost()
 			else:
 				_apply_shortcut_tool(key)
 				return
@@ -1721,6 +1783,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _apply_shortcut_tool(key: InputEventKey) -> void:
+	if _press_mode != "none":
+		return
 	var text := OS.get_keycode_string(key.keycode)
 	var tool_id := ToolsScript.tool_for_shortcut(text)
 	if tool_id.is_empty():
@@ -1745,7 +1809,12 @@ func _do_redo() -> void:
 func _open_esc_menu() -> void:
 	if _esc_menu == null:
 		return
-	_esc_menu.popup_centered(Vector2i(340, 520))
+	if _esc_menu.has_method("sync_policy"):
+		_esc_menu.sync_policy(_save_policy)
+	if _esc_menu.has_method("open_centered"):
+		_esc_menu.open_centered()
+	else:
+		_esc_menu.popup_centered(Vector2i(340, 520))
 
 ## Crée la carte d'un lieu. La carte courante est enregistrée d'abord : elle
 ## doit contenir le lieu pour que MapData puisse y écrire le lien retour.
@@ -1797,6 +1866,8 @@ func _sync_engine(reset_view: bool = false) -> void:
 	var tokens: Array = defaults.get("tokens", [])
 	_ensure_token_portraits(tokens)
 	_engine.set_snap_to_grid(_snap_mode == "cell")
+	# Vue joueur : is_gm=false → brouillard joueur + présentation contrainte.
+	var as_gm := not _player_view
 	_engine.configure(
 		snapshot,
 		tokens,
@@ -1805,7 +1876,7 @@ func _sync_engine(reset_view: bool = false) -> void:
 		defaults.get("zones", []),
 		defaults.get("fogRevealed", []),
 		not _editable,
-		true,
+		as_gm,
 		{"mode": "select"},
 		view_state,
 	)
@@ -1815,6 +1886,7 @@ func _sync_engine(reset_view: bool = false) -> void:
 		else:
 			_engine.call_deferred("reset_zoom")
 	call_deferred("_update_zoom_label")
+	_apply_player_view_overlay()
 	_refresh_overlay()
 
 func _ensure_token_portraits(tokens: Array) -> void:
@@ -1895,16 +1967,32 @@ func _refresh_ghost() -> void:
 			"x": snapped.x, "y": snapped.y,
 			"w": maxf(0.25, _prop_size * ratio), "h": maxf(0.25, _prop_size),
 			"icon": "",
-			"texture": AssetLibraryScript.load_thumbnail(_prop_asset),
+			"texture": AssetLibraryScript.load_texture(_prop_asset),
+			"rotation": _prop_rotation,
+			"standing": _prop_standing and not MapRenderStyleScript.prefer_flat_props(doc.map_data),
+			"kind": "prop",
 		}
 	elif ToolsScript.is_pose_tool(_tool):
 		var size := _ghost_size()
-		_overlay.ghost = {
-			"x": _snap(_overlay.hover_grid).x,
-			"y": _snap(_overlay.hover_grid).y,
+		var snapped := _snap(_overlay.hover_grid)
+		var ghost := {
+			"x": snapped.x,
+			"y": snapped.y,
 			"w": size.x, "h": size.y,
-			"icon": ToolsScript.icon(_tool),
+			"icon": _ghost_icon_for_tool(),
+			"kind": _tool,
 		}
+		if _tool == ToolsScript.TOKEN:
+			ghost["color"] = MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]
+		elif _tool == ToolsScript.EFFECT:
+			var preset := MapEffectPresetsScript.get_preset(_effect_preset)
+			ghost["color"] = preset.get("color", Color(1, 0.6, 0.2, 0.8))
+		elif _tool == ToolsScript.MARKER:
+			ghost["color"] = Color(0.95, 0.75, 0.35, 0.9)
+		elif _tool == ToolsScript.LIGHT:
+			ghost["color"] = Color(1.0, 0.72, 0.35, 0.9)
+			ghost["radius"] = _light_place_radius
+		_overlay.ghost = ghost
 	elif _tool == ToolsScript.TEMPLATE and not _selected_template.is_empty():
 		var footprint: Vector2 = TemplatesScript.footprint(_selected_template, _template_rotation)
 		_overlay.ghost = {
@@ -1912,6 +2000,8 @@ func _refresh_ghost() -> void:
 			"y": _snap(_overlay.hover_grid).y,
 			"w": footprint.x, "h": footprint.y,
 			"icon": "🧩",
+			"kind": "template",
+			"rotation": float(_template_rotation * 90),
 		}
 	elif ToolsScript.is_paint_tool(_tool):
 		var brush := float(_brush_size if _tool == ToolsScript.PAINT else _fog_brush) * 2.0 + 1.0
@@ -1920,10 +2010,19 @@ func _refresh_ghost() -> void:
 			"y": roundf(_overlay.hover_grid.y),
 			"w": brush, "h": brush,
 			"icon": ToolsScript.icon(_tool),
+			"kind": _tool,
 		}
 	else:
 		_overlay.ghost.clear()
 
+func _ghost_icon_for_tool() -> String:
+	if _tool == ToolsScript.TOKEN:
+		return str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[_member_index % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()])
+	if _tool == ToolsScript.MARKER:
+		return MapData.get_marker_emoji(_marker_type)
+	if _tool == ToolsScript.EFFECT:
+		return str(MapEffectPresetsScript.get_preset(_effect_preset).get("emoji", "✨"))
+	return ToolsScript.icon(_tool)
 func _ghost_size() -> Vector2:
 	if _tool == ToolsScript.TOKEN:
 		return Vector2(_token_size, _token_size)
@@ -1931,6 +2030,8 @@ func _ghost_size() -> Vector2:
 		return Vector2(_effect_radius * 2.0, _effect_radius * 2.0)
 	if _tool == ToolsScript.ZONE:
 		return Vector2(_zone_radius * 2.0, _zone_radius * 2.0)
+	if _tool == ToolsScript.LIGHT:
+		return Vector2(_light_place_radius * 2.0, _light_place_radius * 2.0)
 	return Vector2.ONE
 
 ## Fil d'Ariane : village → place du marché → taverne. Chaque échelon ramène
@@ -1976,6 +2077,8 @@ func _refresh_panels() -> void:
 		_minimap.set_context(_engine, doc)
 	_refresh_breadcrumb()
 	_refresh_history()
+	_refresh_effect_list()
+	_refresh_status_badges()
 
 func _refresh_history() -> void:
 	if _history_list == null:
@@ -2001,8 +2104,10 @@ func _on_doc_changed(reason: String) -> void:
 	if reason in ["undo", "redo", "meta", "load"]:
 		_sync_settings_ui()
 	if reason in ["add", "remove", "undo", "redo", "order", "modify", "commit"]:
-		_refresh_panels()
-	if reason in ["undo", "redo", "meta", "fog", "tiles", "order"]:
+		# Pas de rebuild panneaux pendant un drag live (positions changeantes).
+		if _press_mode not in ["move", "resize", "rotate"]:
+			_refresh_panels()
+	if reason in ["undo", "redo", "meta", "fog", "tiles", "order", "light_reveal", "modify", "commit", "add", "remove"]:
 		_sync_engine()
 	_refresh_overlay()
 	if _save_policy == SAVE_ON_CHANGE and doc.is_dirty() and reason != "load":
@@ -2012,10 +2117,12 @@ func _on_doc_changed(reason: String) -> void:
 func _on_selection_changed(_ids: Array) -> void:
 	if _overlay and _overlay.show_vision:
 		call_deferred("_refresh_vision_preview")
-	if _inspector:
-		_inspector.call_deferred("rebuild")
-	if _outliner:
-		_outliner.call_deferred("rebuild")
+	# Pendant un drag live, ne pas reconstruire l'inspecteur (SpinBox qui se battent).
+	if _press_mode not in ["move", "resize", "rotate"]:
+		if _inspector:
+			_inspector.call_deferred("rebuild")
+		if _outliner:
+			_outliner.call_deferred("rebuild")
 	_update_status_selection()
 	_refresh_overlay()
 
@@ -2026,12 +2133,14 @@ func _on_history_changed() -> void:
 	if _redo_btn:
 		_redo_btn.disabled = not doc.can_redo()
 	_refresh_history()
+	_refresh_status_badges()
 
 func _on_dirty_changed(is_dirty: bool) -> void:
 	if _dirty_lbl:
-		_dirty_lbl.text = "● modifications non enregistrées" if is_dirty else "✓ enregistré"
+		_dirty_lbl.text = "● non enregistré" if is_dirty else "✓ enregistré"
 		_dirty_lbl.add_theme_color_override("font_color",
 			ThemeColors.GOLD_LIGHT if is_dirty else ThemeColors.TEXT_MUTED)
+	_refresh_status_badges()
 
 func _on_engine_token_moved(token_id: String, gx: float, gy: float) -> void:
 	if not doc.has_element(token_id):
@@ -2066,6 +2175,8 @@ func _sync_settings_ui() -> void:
 	var light: Dictionary = MapData.get_lighting_config(doc.map_data)
 	_set_check("light_enabled", bool(light.get("enabled", false)))
 	_set_spin("light_intensity", float(light.get("intensity", 0.35)))
+	_set_check("night_mode", bool(light.get("nightMode", false)))
+	_set_spin("night_ambient", float(light.get("nightAmbient", 0.22)))
 	_select_metadata("light_dir", str(light.get("direction", "nw")))
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "diorama")))
@@ -2113,11 +2224,11 @@ func _on_render_style_changed() -> void:
 		return
 	var style := str(option.get_item_metadata(option.selected))
 	var patch := {"renderStyle": style}
-	# Diorama : grille masquée + perspective inclinable ; VTT : grille visible.
+	# VTT : grille visible ; diorama / DD2 : grille masquée par défaut.
 	var grid: Dictionary = MapData.get_grid_config(doc.map_data).duplicate(true)
 	grid["show"] = style == "vtt"
 	patch["grid"] = grid
-	if style == "diorama":
+	if style == "diorama" or style == "dd2_hybrid":
 		patch["perspective"] = MapData.PERSPECTIVE_TILT
 	doc.set_meta_values(patch, "Style de rendu")
 	_sync_settings_ui()
@@ -2144,8 +2255,66 @@ func _on_lighting_changed() -> void:
 	var option: OptionButton = _settings_widgets.get("light_dir")
 	if option and option.selected >= 0:
 		light["direction"] = str(option.get_item_metadata(option.selected))
+	# Preserve night fields when editing directional lighting.
+	light["nightMode"] = _get_check("night_mode") if _settings_widgets.has("night_mode") else bool(light.get("nightMode", false))
+	light["nightAmbient"] = _get_spin("night_ambient") if _settings_widgets.has("night_ambient") else float(light.get("nightAmbient", 0.22))
 	doc.set_meta_values({"lighting": light}, "Éclairage")
 	_sync_engine()
+
+func _on_night_mode_changed() -> void:
+	if _syncing:
+		return
+	var light: Dictionary = MapData.get_lighting_config(doc.map_data)
+	light["nightMode"] = _get_check("night_mode")
+	light["nightAmbient"] = _get_spin("night_ambient")
+	doc.set_meta_values({"lighting": light}, "Mode nuit")
+	_sync_engine()
+	if bool(light.get("nightMode", false)):
+		_set_status("Mode nuit — les lumières révèlent le jour")
+	else:
+		_set_status("Mode jour")
+
+func _on_player_view_toggled(on: bool) -> void:
+	_player_view = on
+	if _player_view_btn:
+		_player_view_btn.text = "👁 Vue joueur ●" if on else "👁 Vue joueur"
+	_apply_player_view_overlay()
+	_sync_engine()
+	if on:
+		_set_status("Vue joueur — ce que voit le groupe")
+	else:
+		_set_status("Vue MJ — édition complète")
+
+func _apply_player_view_overlay() -> void:
+	if _overlay == null:
+		return
+	_overlay.player_preview = _player_view
+	# Chrome éditeur masqué / atténué en aperçu joueur ; lumières restent visibles.
+	if _player_view:
+		_overlay.show_links = false
+		_overlay.show_ids = false
+		_overlay.show_vision = false
+	_refresh_overlay()
+
+func _stamp_moved_lights(ids: Array) -> void:
+	_rebuild_lights_illumination(ids)
+
+func _rebuild_lights_illumination(ids: Array = []) -> void:
+	var touch := ids.is_empty()
+	for id_variant in ids:
+		if str(doc.get_element(str(id_variant)).get("kind", "")) == DocumentScript.KIND_LIGHT:
+			touch = true
+			break
+	if not touch and not ids.is_empty():
+		return
+	doc.rebuild_light_reveal_from_lights("Déplacement lumière")
+	_refresh_light_mask_live()
+
+func _refresh_light_mask_live() -> void:
+	if _engine == null or not MapData.is_night_mode(doc.map_data):
+		return
+	# Masque = lumières live (positions actuelles). Pas d'ancien stamp résiduel.
+	_engine.refresh_night_light_mask(doc.collect_light_sources(), [])
 
 func _on_los_changed() -> void:
 	if _syncing:
@@ -2168,10 +2337,16 @@ func _refresh_bg_status() -> void:
 		lbl.text = "Aucune image — le sol est généré depuis les tuiles de terrain."
 		return
 	var px := MapData.get_image_pixel_size(path)
+	var night_path := MapData.resolve_night_image_path(doc.map_data)
+	var night_note := ""
+	if MapData.night_image_exists(doc.map_data):
+		night_note = " · nuit : %s" % night_path.get_file()
+	elif not path.is_empty():
+		night_note = " · nuit procédurale (pas de *_night.png)"
 	if px != Vector2i.ZERO:
-		lbl.text = "Fond : %s (%d×%d px)" % [path.get_file(), px.x, px.y]
+		lbl.text = "Fond : %s (%d×%d px)%s" % [path.get_file(), px.x, px.y, night_note]
 	else:
-		lbl.text = "Fond : %s" % path.get_file()
+		lbl.text = "Fond : %s%s" % [path.get_file(), night_note]
 
 func _on_background_imported(path: String) -> void:
 	var map_id := str(doc.map_data.get("id", ""))
@@ -2261,6 +2436,100 @@ func _trigger_all_effects() -> void:
 		doc.modify_element(str(elem.get("id", "")), {"triggered": true}, "Déclenchement")
 	doc.commit_transaction()
 	_sync_engine()
+	_refresh_effect_list()
+
+func _trigger_effect(effect_id: String) -> void:
+	if effect_id.is_empty() or not doc.has_element(effect_id):
+		return
+	doc.modify_element(effect_id, {"triggered": true}, "Déclenchement")
+	_sync_engine()
+	_refresh_effect_list()
+
+func _refresh_effect_list() -> void:
+	if _effect_list == null:
+		return
+	for child in _effect_list.get_children():
+		child.queue_free()
+	var effects: Array = doc.elements_of_kind(DocumentScript.KIND_EFFECT)
+	if effects.is_empty():
+		var empty := Label.new()
+		empty.text = "Aucun effet sur la carte."
+		empty.add_theme_font_size_override("font_size", 11)
+		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		_effect_list.add_child(empty)
+		return
+	for elem_variant in effects:
+		var elem: Dictionary = elem_variant
+		var eid := str(elem.get("id", ""))
+		var preset := MapEffectPresetsScript.get_preset(str(elem.get("preset", "fire")))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		_effect_list.add_child(row)
+		var lbl := Label.new()
+		var active := "●" if bool(elem.get("triggered", false)) else "○"
+		lbl.text = "%s %s %s" % [active, preset.get("emoji", "✨"), elem.get("label", preset.get("label", "Effet"))]
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.clip_text = true
+		row.add_child(lbl)
+		var trig := Button.new()
+		trig.text = "▶"
+		trig.tooltip_text = "Déclencher cet effet"
+		trig.custom_minimum_size = Vector2(28, 24)
+		trig.pressed.connect(func(): _trigger_effect(eid))
+		row.add_child(trig)
+		var sel := Button.new()
+		sel.text = "◎"
+		sel.tooltip_text = "Sélectionner"
+		sel.custom_minimum_size = Vector2(28, 24)
+		sel.pressed.connect(func():
+			doc.select_only(eid)
+			_set_tool(ToolsScript.SELECT)
+		)
+		row.add_child(sel)
+
+func _make_status_chip(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	return lbl
+
+func _save_policy_label() -> String:
+	match _save_policy:
+		SAVE_ON_CHANGE:
+			return "À chaque modif"
+		SAVE_INTERVAL:
+			return "Toutes les 30 s"
+		_:
+			return "Manuelle"
+
+func _refresh_status_badges() -> void:
+	if _policy_chip:
+		_policy_chip.text = "💾 %s" % _save_policy_label()
+	if _saved_ago_lbl:
+		if _last_saved_at <= 0.0:
+			_saved_ago_lbl.text = "jamais sauvé"
+		else:
+			var ago := int(Time.get_unix_time_from_system() - _last_saved_at)
+			if ago < 5:
+				_saved_ago_lbl.text = "sauvé à l'instant"
+			elif ago < 60:
+				_saved_ago_lbl.text = "sauvé il y a %ds" % ago
+			elif ago < 3600:
+				_saved_ago_lbl.text = "sauvé il y a %d min" % int(ago / 60.0)
+			else:
+				_saved_ago_lbl.text = "sauvé il y a %d h" % int(ago / 3600.0)
+	if _autosave_lbl:
+		if _save_policy == SAVE_INTERVAL and _autosave_timer and not _autosave_timer.is_stopped():
+			_autosave_lbl.visible = true
+			_autosave_lbl.text = "⏱ %ds" % maxi(0, int(ceil(_autosave_timer.time_left)))
+		else:
+			_autosave_lbl.visible = false
+	if _undo_depth_lbl:
+		var depth := doc.undo_depth() if doc.has_method("undo_depth") else 0
+		_undo_depth_lbl.text = "↶ %d" % depth
+		_undo_depth_lbl.tooltip_text = "%d action(s) annulable(s)" % depth
 
 # ===========================================================================
 # Palettes contextuelles
@@ -2328,8 +2597,15 @@ func _rebuild_tool_options() -> void:
 			_option_note("Aucun décor sélectionné. Ouvrez l'onglet Biblio pour en choisir un.")
 		else:
 			_option_note("Décor : %s" % _prop_asset.get_file())
-		_spin(_hbox(_tool_options), "Taille (cases)", 0.25, 40.0, _prop_size, 0.25, func(v): _prop_size = v)
-		_checkbox(_tool_options, "Dressé face caméra", _prop_standing, func(on): _prop_standing = on)
+		_spin(_hbox(_tool_options), "Taille (cases)", 0.25, 40.0, _prop_size, 0.25, func(v):
+			_prop_size = v
+			_refresh_ghost()
+		)
+		_checkbox(_tool_options, "Dressé face caméra", _prop_standing, func(on):
+			_prop_standing = on
+			_refresh_ghost()
+		)
+		_option_note("Rotation : %d° (R pour pivoter)" % int(_prop_rotation))
 	elif _tool == ToolsScript.AREA:
 		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)
 		var cat := OptionButton.new()

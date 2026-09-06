@@ -32,6 +32,8 @@ var show_vision: bool = false
 var vision_cells: Dictionary = {}
 var vision_origin: Vector2 = Vector2.ZERO
 var has_vision_origin: bool = false
+## Aperçu « vue joueur » : chrome éditeur atténué, lumières + sélection conservés.
+var player_preview: bool = false
 
 const COL_SELECT := Color(1.0, 0.82, 0.28, 0.95)
 const COL_SELECT_FILL := Color(1.0, 0.82, 0.28, 0.10)
@@ -112,19 +114,23 @@ static func _closed(points: PackedVector2Array) -> PackedVector2Array:
 func _draw() -> void:
 	if engine == null or doc == null:
 		return
-	if show_vision:
+	if show_vision and not player_preview:
 		_draw_vision()
-	_draw_hover()
-	if show_links:
+	if not player_preview:
+		_draw_hover()
+	if show_links and not player_preview:
 		_draw_links()
 	_draw_flat_elements()
-	_draw_areas()
+	if not player_preview:
+		_draw_areas()
 	_draw_selection()
 	_draw_ghost()
 	_draw_drag_preview()
 	_draw_polygon()
-	_draw_band()
+	if not player_preview:
+		_draw_band()
 	_draw_measure()
+	_draw_light_radii()
 
 ## Aperçu du champ de vision : les cases atteintes sont éclaircies, la source
 ## est marquée. Ce que le calque ne peint pas est dans l'ombre d'un mur.
@@ -183,17 +189,45 @@ func _draw_flat_elements() -> void:
 			else:
 				draw_polyline(_closed(_footprint(elem)), Color(0.85, 0.78, 0.66, 0.55), 1.5, true)
 		elif kind in [DocumentScript.KIND_NOTE, DocumentScript.KIND_LIGHT, DocumentScript.KIND_LINK, DocumentScript.KIND_MARKER]:
+			# Vue joueur : masquer notes MJ / liens ; garder les lumières pour ajuster.
+			if player_preview and kind != DocumentScript.KIND_LIGHT:
+				continue
 			var pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.3)
 			var icon := str(DocumentScript.KIND_ICONS.get(kind, "•"))
 			if kind == DocumentScript.KIND_MARKER:
 				icon = MapData.get_marker_emoji(str(elem.get("markerType", "npc")))
 			if font:
-				draw_string(font, pos + Vector2(-8, 6), icon, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size + 4)
+				var alpha := 0.55 if player_preview and kind == DocumentScript.KIND_LIGHT else 1.0
+				draw_string(font, pos + Vector2(-8, 6), icon, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size + 4, Color(1, 1, 1, alpha))
 		elif kind in [DocumentScript.KIND_PLATFORM, DocumentScript.KIND_OVERLAY]:
+			if player_preview:
+				continue
 			draw_polyline(_closed(_footprint(elem)), Color(0.72, 0.62, 0.45, 0.35), 1.0, true)
-		if show_ids and font:
+		if show_ids and font and not player_preview:
 			var label_pos := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)), 0.6)
 			draw_string(font, label_pos + Vector2(8, -4), str(elem.get("label", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.7))
+
+## Rayons de lumière (diffusion douce façon pinceau brouillard).
+func _draw_light_radii() -> void:
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_LIGHT:
+			continue
+		if not doc.is_element_visible(elem):
+			continue
+		if bool(elem.get("hidden", false)):
+			continue
+		var cx := float(elem.get("x", 0.0))
+		var cy := float(elem.get("y", 0.0))
+		var radius := maxf(0.35, float(elem.get("radius", 3.0)))
+		var center := _p(cx, cy)
+		var edge := _p(cx + radius, cy)
+		var px_r := maxf(6.0, center.distance_to(edge))
+		var col := Color.html(str(elem.get("color", "#ffb35c")))
+		var a := 0.12 if player_preview else 0.18
+		draw_circle(center, px_r, Color(col.r, col.g, col.b, a))
+		draw_arc(center, px_r, 0.0, TAU, 48, Color(col.r, col.g, col.b, 0.55 if not player_preview else 0.35), 1.5, true)
+		draw_arc(center, px_r * 0.55, 0.0, TAU, 32, Color(col.r, col.g, col.b, 0.25), 1.0, true)
 
 ## Lieux : emprise + cartouche de nom relié par un trait, à la manière des
 ## cartes de village illustrées. Un lieu qui ouvre sa propre carte est souligné
@@ -292,16 +326,26 @@ func _draw_ghost() -> void:
 	var h := float(ghost.get("h", 1.0))
 	var cx := float(ghost.get("x", hover_grid.x))
 	var cy := float(ghost.get("y", hover_grid.y))
-	var pts := PackedVector2Array([
-		_p(cx - w * 0.5, cy - h * 0.5),
-		_p(cx + w * 0.5, cy - h * 0.5),
-		_p(cx + w * 0.5, cy + h * 0.5),
-		_p(cx - w * 0.5, cy + h * 0.5),
-	])
-	# Un décor s'aperçoit avec sa vraie image : on voit où tombe la maison
-	# avant de cliquer, pas juste un rectangle.
+	var rotation_deg := float(ghost.get("rotation", 0.0))
+	var standing := bool(ghost.get("standing", false))
+	var kind := str(ghost.get("kind", ""))
+	var angle := deg_to_rad(rotation_deg)
+	var hw := w * 0.5
+	var hh := h * 0.5
+	var pts := PackedVector2Array()
+	for offset in [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)]:
+		var rotated := (offset as Vector2).rotated(angle)
+		pts.append(_p(cx + rotated.x, cy + rotated.y))
+
+	# Un décor s'aperçoit avec sa vraie image (pleine résolution) + rotation.
 	var texture = ghost.get("texture")
 	if texture is Texture2D:
+		var center := _p(cx, cy)
+		if standing:
+			# Ombre au sol pour distinguer un décor dressé d'un sol à plat.
+			draw_colored_polygon(pts, Color(0.05, 0.05, 0.08, 0.28))
+		var tint := Color(1, 1, 1, 0.72 if standing else 0.55)
+		draw_set_transform(center, angle, Vector2.ONE)
 		var min_p := pts[0]
 		var max_p := pts[0]
 		for point in pts:
@@ -309,15 +353,66 @@ func _draw_ghost() -> void:
 			min_p.y = minf(min_p.y, point.y)
 			max_p.x = maxf(max_p.x, point.x)
 			max_p.y = maxf(max_p.y, point.y)
-		draw_texture_rect(texture, Rect2(min_p, max_p - min_p), false, Color(1, 1, 1, 0.65))
+		var box := max_p - min_p
+		draw_texture_rect(texture, Rect2(-box * 0.5, box), false, tint)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
+		if standing:
+			var tip := center + Vector2(0, -box.y * 0.55)
+			draw_line(center, tip, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.55), 1.0, true)
+			draw_circle(tip, 3.0, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.8))
 		return
-	draw_colored_polygon(pts, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.14))
-	draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
+
+	var accent := _ghost_accent_color()
+	match kind:
+		"token":
+			var center := _p(cx, cy)
+			var radius := maxf(10.0, pts[0].distance_to(pts[2]) * 0.28)
+			draw_circle(center, radius + 3.0, Color(accent.r, accent.g, accent.b, 0.22))
+			draw_arc(center, radius, 0.0, TAU, 36, accent, 2.5, true)
+			draw_circle(center, radius * 0.55, Color(accent.r, accent.g, accent.b, 0.35))
+		"effect":
+			var center := _p(cx, cy)
+			var radius := maxf(12.0, pts[0].distance_to(pts[2]) * 0.35)
+			draw_arc(center, radius, 0.0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.85), 2.0, true)
+			draw_circle(center, radius * 0.7, Color(accent.r, accent.g, accent.b, 0.18))
+			draw_arc(center, radius * 0.45, 0.0, TAU, 24, Color(accent.r, accent.g, accent.b, 0.55), 1.5, true)
+		"light":
+			var center := _p(cx, cy)
+			var light_r := float(ghost.get("radius", maxf(w, h) * 0.5))
+			var edge := _p(cx + light_r, cy)
+			var px_r := maxf(10.0, center.distance_to(edge))
+			draw_circle(center, px_r, Color(accent.r, accent.g, accent.b, 0.16))
+			draw_arc(center, px_r, 0.0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.85), 2.0, true)
+			draw_arc(center, px_r * 0.55, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.4), 1.2, true)
+			draw_circle(center, 4.0, Color(accent.r, accent.g, accent.b, 0.9))
+		"marker":
+			var center := _p(cx, cy)
+			var pin := PackedVector2Array([
+				center + Vector2(0, -16),
+				center + Vector2(10, -4),
+				center + Vector2(0, 14),
+				center + Vector2(-10, -4),
+			])
+			draw_colored_polygon(pin, Color(accent.r, accent.g, accent.b, 0.35))
+			draw_polyline(_closed(pin), accent, 2.0, true)
+		_:
+			draw_colored_polygon(pts, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.14))
+			draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
+
 	var font := get_theme_default_font()
 	var icon := str(ghost.get("icon", ""))
 	if font and not icon.is_empty():
-		draw_string(font, _p(cx, cy) + Vector2(-8, 6), icon, HORIZONTAL_ALIGNMENT_LEFT, -1, 18)
+		var icon_pos := _p(cx, cy) + Vector2(-10, 7)
+		draw_string(font, icon_pos, icon, HORIZONTAL_ALIGNMENT_LEFT, -1, 20)
+
+func _ghost_accent_color() -> Color:
+	var raw = ghost.get("color")
+	if raw is Color:
+		return raw
+	if raw is String and not str(raw).is_empty():
+		return Color.html(str(raw))
+	return COL_GHOST
 
 ## Aperçu du tracé en cours (zone rectangle, mur, plateforme).
 func _draw_drag_preview() -> void:
@@ -476,20 +571,48 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 	return {}
 
 ## Élément le plus « au-dessus » sous un point écran (ordre de calque inversé).
+## Préfère l'empreinte polygonale ; le voisinage du centre ne sert qu'en secours
+## (petits tokens) pour ne pas voler un hit polygone plus bas dans la pile.
 func element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
+	return _pick_at_screen(pos, tolerance, false, false)
+
+## Comme `element_at_screen`, mais uniquement parmi la sélection courante
+## (visibles, y compris verrouillés — pour le drag « collant » façon GIMP).
+func selected_element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
+	return _pick_at_screen(pos, tolerance, true, true)
+
+## Élément verrouillé sous le curseur (feedback quand le picking normal est vide).
+func blocked_element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
+	return _pick_at_screen(pos, tolerance, false, true)
+
+func _pick_at_screen(pos: Vector2, tolerance: float, selected_only: bool, locked_only: bool) -> String:
 	if doc == null:
 		return ""
+	var selected: Array = doc.selection() if selected_only else []
 	var sorted: Array = doc.elements_sorted()
+	var center_hit := ""
 	for i in range(sorted.size() - 1, -1, -1):
 		var elem: Dictionary = sorted[i]
-		if not doc.is_element_selectable(elem):
+		var id := str(elem.get("id", ""))
+		if selected_only and not selected.has(id):
+			continue
+		if not doc.is_element_visible(elem):
+			continue
+		var selectable: bool = doc.is_element_selectable(elem)
+		if selected_only:
+			pass  # sélection visible = hit sticky (même verrouillée)
+		elif locked_only:
+			if selectable:
+				continue
+		elif not selectable:
 			continue
 		var pts := _footprint(elem)
 		if pts.is_empty():
 			continue
 		if Geometry2D.is_point_in_polygon(pos, pts):
-			return str(elem.get("id", ""))
-		var center := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
-		if center.distance_to(pos) <= tolerance + 8.0:
-			return str(elem.get("id", ""))
-	return ""
+			return id
+		if center_hit.is_empty():
+			var center := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+			if center.distance_to(pos) <= tolerance + 8.0:
+				center_hit = id
+	return center_hit

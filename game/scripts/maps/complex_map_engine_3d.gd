@@ -351,8 +351,27 @@ func _load_ground() -> void:
 	var w: int = map_data.get("width", 16)
 	var h: int = map_data.get("height", 12)
 	var unshaded := MapRenderStyleScript.is_diorama(map_data)
+	var night_mode := MapData.is_night_mode(map_data)
+	var night_tex: Texture2D = null
+	var sources: Array = []
+	var light_revealed: Array = []
+	var night_ambient := 0.22
+	if night_mode and not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
+		night_tex = MapData.load_night_texture(map_data)
+		var light_cfg: Dictionary = _lighting_config
+		night_ambient = float(light_cfg.get("nightAmbient", 0.22))
+		sources = light_cfg.get("sources", []) if light_cfg.get("sources") is Array else []
+		var pd = map_data.get("playDefaults", {})
+		if pd is Dictionary and pd.get("lightRevealed") is Array:
+			light_revealed = pd["lightRevealed"]
 	if _ground.has_method("configure"):
-		_ground.configure(tex, w, h, _cell_size, unshaded)
+		_ground.configure(
+			tex, w, h, _cell_size, unshaded,
+			night_tex, night_mode and night_tex != null,
+			sources if sources is Array else [],
+			light_revealed,
+			night_ambient
+		)
 	if _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
 	else:
@@ -375,8 +394,9 @@ func _apply_camera_perspective() -> void:
 		_base_camera_height = _camera.position.y
 		_update_ortho_size()
 		return
-	# VTT : vue tactique orthographique. On ignore le tilt historique (beaucoup
-	# de cartes l'ont reçu par défaut à la création) pour que VTT ≠ diorama.
+	# VTT / ortho : tilt depuis le style (défaut ~-72) pour voir les props
+	# dressés. Isométrique reste un angle fixe. Fond illustré diorama force
+	# -90 via MapRenderStyle.config (preferFlatProps).
 	var persp := MapData.get_perspective(map_data)
 	if persp == MapData.PERSPECTIVE_ISOMETRIC:
 		_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -384,7 +404,7 @@ func _apply_camera_perspective() -> void:
 		_camera.position.y = CAM_HEIGHT
 	else:
 		_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-		_camera.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+		_camera.rotation_degrees = Vector3(float(cfg.get("tilt", -72.0)), 0.0, 0.0)
 		_camera.position.y = CAM_HEIGHT
 	_update_ortho_size()
 
@@ -512,7 +532,9 @@ func _rebuild_layers() -> void:
 				if str((m_variant as Dictionary).get("id", "")) == mid:
 					has_image = not str((m_variant as Dictionary).get("portrait", (m_variant as Dictionary).get("image", ""))).strip_edges().is_empty()
 					break
-		var use_cutout := has_image or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
+		var use_cutout := has_image \
+			or MapRenderStyleScript.is_dd2(map_data) \
+			or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
 		node.setup(tok, _cell_size, _party, readonly, use_cutout)
 		if use_cutout and node.has_method("set_overlay_height"):
 			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
@@ -882,12 +904,28 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 	if node == null:
 		if _props_layer and _props_layer.has_method("set_prop_position"):
 			_props_layer.set_prop_position(element_id, gx, gy)
+		if _lights_layer and _lights_layer.has_method("set_light_position"):
+			_lights_layer.set_light_position(element_id, gx, gy)
 		return
 	node.position.x = gx * _cell_size + _cell_size * 0.5
 	node.position.z = gy * _cell_size + _cell_size * 0.5
 	if node.has_method("get_token_id"):
 		node.token_data["x"] = gx
 		node.token_data["y"] = gy
+
+func set_element_light_radius(element_id: String, radius_cells: float) -> void:
+	if _lights_layer and _lights_layer.has_method("set_light_radius"):
+		_lights_layer.set_light_radius(element_id, radius_cells)
+
+## Met à jour le masque nuit/jour sans recharger le sol (déplacement de lumières).
+func refresh_night_light_mask(light_sources: Array, light_revealed: Array = []) -> void:
+	if _ground == null or not _ground.has_method("update_light_mask"):
+		return
+	if _ground.has_method("is_night_active") and not _ground.is_night_active():
+		return
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	_ground.update_light_mask(w, h, light_sources, light_revealed)
 
 func has_element_node(element_id: String) -> bool:
 	if _props_layer and _props_layer.has_method("has_prop") and _props_layer.has_prop(element_id):

@@ -23,6 +23,7 @@ const D_ELEM_MOD := "elem_mod"
 const D_META := "meta"
 const D_TILES := "tiles"
 const D_FOG := "fog"
+const D_LIGHT_REVEAL := "light_reveal"
 const D_ORDER := "order"
 
 # --- Types d'éléments -------------------------------------------------------
@@ -75,7 +76,8 @@ const DEFAULT_DISPLAY := {
 const META_KEYS := [
 	"title", "description", "width", "height", "grid", "fogEnabled",
 	"perspective", "lighting", "atmosphere", "backgroundImage",
-	"backgroundTransform", "scenarioId", "roster", "mapKind", "measure",
+	"backgroundImageNight", "backgroundTransform", "scenarioId", "roster",
+	"mapKind", "measure", "renderStyle",
 ]
 
 # --- État -------------------------------------------------------------------
@@ -352,6 +354,8 @@ func to_map_data() -> Dictionary:
 	pd["zones"] = zones
 	if not pd.has("fogRevealed") or typeof(pd["fogRevealed"]) != TYPE_ARRAY:
 		pd["fogRevealed"] = []
+	if not pd.has("lightRevealed") or typeof(pd["lightRevealed"]) != TYPE_ARRAY:
+		pd["lightRevealed"] = []
 	if not pd.has("viewState") or typeof(pd["viewState"]) != TYPE_DICTIONARY:
 		pd["viewState"] = {}
 	out["playDefaults"] = pd
@@ -386,12 +390,21 @@ func elements() -> Array:
 		out.append(_elements[id])
 	return out
 
-## Éléments triés pour l'affichage (calque puis ordre de création).
+## Rang d'empilement d'un calque dans `map_data.layers` (0 = bas de pile).
+func layer_stack_index(layer_id: int) -> int:
+	var layers: Array = map_data.get("layers", [])
+	for i in range(layers.size()):
+		if int((layers[i] as Dictionary).get("id", -1)) == layer_id:
+			return i
+	return layer_id
+
+## Éléments triés pour l'affichage / le picking (arrière-plan → premier plan).
+## Le dernier calque de la liste est au-dessus (Tokens au-dessus du Terrain).
 func elements_sorted() -> Array:
 	var out: Array = elements()
 	out.sort_custom(func(a, b):
-		var la := int(a.get("layer", 0))
-		var lb := int(b.get("layer", 0))
+		var la := layer_stack_index(int(a.get("layer", 0)))
+		var lb := layer_stack_index(int(b.get("layer", 0)))
 		if la != lb:
 			return la < lb
 		return float(a.get("zOrder", 0.0)) < float(b.get("zOrder", 0.0))
@@ -484,6 +497,9 @@ func can_undo() -> bool:
 
 func can_redo() -> bool:
 	return not _redo_stack.is_empty()
+
+func undo_depth() -> int:
+	return _undo_stack.size()
 
 func undo_label() -> String:
 	if _undo_stack.is_empty():
@@ -598,6 +614,10 @@ func _apply_delta(delta: Dictionary, use_before: bool) -> void:
 			var fog = delta.get("before" if use_before else "after", [])
 			if fog is Array:
 				play_defaults["fogRevealed"] = (fog as Array).duplicate()
+		D_LIGHT_REVEAL:
+			var lit = delta.get("before" if use_before else "after", [])
+			if lit is Array:
+				play_defaults["lightRevealed"] = (lit as Array).duplicate()
 		D_ORDER:
 			var order = delta.get("before" if use_before else "after", [])
 			if order is Array:
@@ -686,20 +706,32 @@ func remove_element(id: String) -> void:
 		return
 	var index := _order.find(id)
 	var before: Dictionary = (_elements[id] as Dictionary).duplicate(true)
+	var was_light := str(before.get("kind", "")) == KIND_LIGHT
 	_unlink_all(id)
 	_raw_remove(id)
 	_push_delta({"type": D_ELEM_DEL, "id": id, "index": index, "before": before})
 	_selected.erase(id)
 	selection_changed.emit(_selected.duplicate())
 	changed.emit("remove")
+	# Hors transaction batch : recalculer le halo (pas d'ancien éclairage fantôme).
+	if was_light and _transaction_depth <= 0:
+		rebuild_light_reveal_from_lights("Suppression lumière")
 
 func remove_elements(ids: Array) -> void:
 	if ids.is_empty():
 		return
+	var had_light := false
+	for id_variant in ids:
+		var id := str(id_variant)
+		if _elements.has(id) and str((_elements[id] as Dictionary).get("kind", "")) == KIND_LIGHT:
+			had_light = true
+			break
 	begin_transaction()
 	for id in ids.duplicate():
 		remove_element(str(id))
 	commit_transaction()
+	if had_light:
+		rebuild_light_reveal_from_lights("Suppression lumière")
 
 ## Applique des modifications à un élément et enregistre le delta.
 func modify_element(id: String, mutations: Dictionary, note: String = "Modification") -> void:
@@ -792,10 +824,22 @@ func move_elements_by(ids: Array, dx: float, dy: float, note: String = "Déplace
 	for id_variant in ids:
 		var id := str(id_variant)
 		var elem: Dictionary = _elements.get(id, {})
-		if elem.is_empty() or bool(elem.get("locked", false)):
+		if elem.is_empty() or not is_element_selectable(elem):
 			continue
 		modify_element(id, {"x": float(elem.get("x", 0.0)) + dx, "y": float(elem.get("y", 0.0)) + dy}, note)
 	commit_transaction()
+
+## Identifiants de la sélection qui peuvent encore être déplacés.
+func movable_selection_ids() -> Array:
+	var out: Array = []
+	for id_variant in _selected:
+		var id := str(id_variant)
+		var elem: Dictionary = _elements.get(id, {})
+		if elem.is_empty():
+			continue
+		if is_element_selectable(elem):
+			out.append(id)
+	return out
 
 # --- Métadonnées ------------------------------------------------------------
 
@@ -950,6 +994,76 @@ func reveal_all_fog() -> void:
 		for x in range(w):
 			cells.append("%d,%d" % [x, y])
 	set_fog_cells(cells, "Tout révéler")
+
+# --- Révélation lumière (nuit → jour, miroir du brouillard) -----------------
+
+func light_revealed_cells() -> Array:
+	var lit = play_defaults.get("lightRevealed", [])
+	return lit if lit is Array else []
+
+func set_light_revealed_cells(cells: Array, note: String = "Zones éclairées") -> void:
+	var before: Array = light_revealed_cells().duplicate()
+	var after: Array = cells.duplicate()
+	if JSON.stringify(before) == JSON.stringify(after):
+		return
+	play_defaults["lightRevealed"] = after
+	_push_delta({"type": D_LIGHT_REVEAL, "before": before, "after": after, "note": note})
+	changed.emit("light_reveal")
+
+func reveal_light_cells(cells: Array) -> void:
+	var lit: Array = light_revealed_cells().duplicate()
+	var touched := false
+	for key in cells:
+		var k := str(key)
+		if not lit.has(k):
+			lit.append(k)
+			touched = true
+	if touched:
+		set_light_revealed_cells(lit, "Révélation lumière")
+
+func hide_light_cells(cells: Array) -> void:
+	var lit: Array = light_revealed_cells().duplicate()
+	var touched := false
+	for key in cells:
+		var k := str(key)
+		if lit.has(k):
+			lit.erase(k)
+			touched = true
+	if touched:
+		set_light_revealed_cells(lit, "Masquage lumière")
+
+func clear_light_reveal() -> void:
+	set_light_revealed_cells([], "Effacer zones éclairées")
+
+## Recalcule lightRevealed depuis la position actuelle de toutes les lumières
+## (pas d'accumulation : déplacer une lumière déplace aussi son halo).
+func rebuild_light_reveal_from_lights(note: String = "Éclairage") -> void:
+	var w: int = int(map_data.get("width", 0))
+	var h: int = int(map_data.get("height", 0))
+	var cells: Dictionary = {}
+	for elem_variant in elements_of_kind(KIND_LIGHT):
+		var elem: Dictionary = elem_variant
+		if bool(elem.get("hidden", false)):
+			continue
+		for key in MapData.light_reveal_cells(elem, w, h):
+			cells[str(key)] = true
+	var out: Array = cells.keys()
+	out.sort()
+	set_light_revealed_cells(out, note)
+
+## Sources pour le masque nuit (éléments lumière du document, positions live).
+func collect_light_sources() -> Array:
+	var out: Array = []
+	for elem_variant in elements_of_kind(KIND_LIGHT):
+		var elem: Dictionary = elem_variant
+		if bool(elem.get("hidden", false)):
+			continue
+		out.append(elem)
+	return out
+
+## Pose / met à jour : rebuild depuis toutes les lumières (suit les déplacements).
+func stamp_light_reveal(_source: Dictionary = {}) -> void:
+	rebuild_light_reveal_from_lights("Révélation lumière")
 
 # ===========================================================================
 # Liens entre éléments (bidirectionnels, façon SnapableElementConnections)
@@ -1253,18 +1367,45 @@ func _reorder_selection(forward: bool, extreme: bool) -> void:
 	if _selected.is_empty():
 		return
 	var before := _order.duplicate()
+	# Empilement respectant les calques : on ne croise pas un autre calque.
 	for id_variant in _selected:
 		var id := str(id_variant)
 		var idx := _order.find(id)
-		if idx < 0:
+		if idx < 0 or not _elements.has(id):
 			continue
-		_order.remove_at(idx)
-		var target := idx
+		var layer := int(_elements[id].get("layer", 0))
+		var peers: Array = []
+		for oid_variant in _order:
+			var oid := str(oid_variant)
+			if _elements.has(oid) and int(_elements[oid].get("layer", 0)) == layer:
+				peers.append(oid)
+		var peer_idx := peers.find(id)
+		if peer_idx < 0:
+			continue
+		peers.remove_at(peer_idx)
+		var target_peer := peer_idx
 		if extreme:
-			target = _order.size() if forward else 0
+			target_peer = peers.size() if forward else 0
 		else:
-			target = clampi(idx + (1 if forward else -1), 0, _order.size())
-		_order.insert(target, id)
+			target_peer = clampi(peer_idx + (1 if forward else -1), 0, peers.size())
+		peers.insert(target_peer, id)
+		# Réinjecte les peers dans _order en conservant les autres ids.
+		var peer_set: Dictionary = {}
+		for p in peers:
+			peer_set[str(p)] = true
+		var rebuilt: Array = []
+		var peers_placed := false
+		for oid_variant in _order:
+			var oid := str(oid_variant)
+			if peer_set.has(oid):
+				if not peers_placed:
+					rebuilt.append_array(peers)
+					peers_placed = true
+				continue
+			rebuilt.append(oid)
+		if not peers_placed:
+			rebuilt.append_array(peers)
+		_order = rebuilt
 	if JSON.stringify(before) == JSON.stringify(_order):
 		return
 	_push_delta({"type": D_ORDER, "before": before, "after": _order.duplicate()})
@@ -1296,6 +1437,78 @@ func rename_layer(layer_index: int, name: String) -> void:
 		if int(layer_def.get("id", -1)) == layer_index:
 			layer_def["name"] = name
 	set_meta_values({"layers": layers}, "Nom calque")
+
+## Crée un calque auteur. Renvoie son id, ou -1 en cas d'échec.
+func add_layer(display_name: String = "") -> int:
+	var layers: Array = (map_data.get("layers", []) as Array).duplicate(true)
+	var max_id := -1
+	for layer_def in layers:
+		max_id = maxi(max_id, int(layer_def.get("id", -1)))
+	var new_id := max_id + 1
+	var label := display_name.strip_edges()
+	if label.is_empty():
+		label = "Calque %d" % (layers.size() + 1)
+	layers.append({"id": new_id, "name": label, "visible": true, "locked": false})
+	set_meta_values({"layers": layers}, "Nouveau calque")
+	return new_id
+
+## Supprime un calque. Les éléments sont migrés vers `migrate_to` (ou le premier
+## calque restant). Refuse de supprimer le dernier calque.
+func remove_layer(layer_id: int, migrate_to: int = -1) -> bool:
+	var layers: Array = (map_data.get("layers", []) as Array).duplicate(true)
+	if layers.size() <= 1:
+		return false
+	var found := false
+	var kept: Array = []
+	for layer_def in layers:
+		if int(layer_def.get("id", -1)) == layer_id:
+			found = true
+			continue
+		kept.append(layer_def)
+	if not found:
+		return false
+	var target := migrate_to
+	if target < 0 or not _layer_exists_in(kept, target):
+		target = int((kept[0] as Dictionary).get("id", 0))
+	begin_transaction()
+	set_meta_values({"layers": kept}, "Supprimer calque")
+	for id_variant in _order:
+		var id := str(id_variant)
+		var elem: Dictionary = _elements[id]
+		if int(elem.get("layer", -1)) == layer_id:
+			modify_element(id, {"layer": target}, "Migration calque")
+	commit_transaction()
+	return true
+
+func _layer_exists_in(layers: Array, layer_id: int) -> bool:
+	for layer_def in layers:
+		if int((layer_def as Dictionary).get("id", -1)) == layer_id:
+			return true
+	return false
+
+func move_layer_up(layer_id: int) -> bool:
+	return _swap_layer(layer_id, -1)
+
+func move_layer_down(layer_id: int) -> bool:
+	return _swap_layer(layer_id, 1)
+
+func _swap_layer(layer_id: int, delta: int) -> bool:
+	var layers: Array = (map_data.get("layers", []) as Array).duplicate(true)
+	var idx := -1
+	for i in range(layers.size()):
+		if int((layers[i] as Dictionary).get("id", -1)) == layer_id:
+			idx = i
+			break
+	if idx < 0:
+		return false
+	var target := idx + delta
+	if target < 0 or target >= layers.size():
+		return false
+	var tmp = layers[idx]
+	layers[idx] = layers[target]
+	layers[target] = tmp
+	set_meta_values({"layers": layers}, "Ordre calques")
+	return true
 
 # ===========================================================================
 # Alignement & distribution

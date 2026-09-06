@@ -27,6 +27,10 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	tooltip_text = "Mini-carte — clic pour recadrer la vue"
 
+func set_preferred_height(h: float) -> void:
+	custom_minimum_size = Vector2(0, h)
+	queue_redraw()
+
 func set_context(p_engine: Control, p_doc) -> void:
 	engine = p_engine
 	doc = p_doc

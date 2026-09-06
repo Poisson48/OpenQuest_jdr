@@ -114,10 +114,11 @@ acteur.
 
 Chaque carte complexe a un **`renderStyle`** :
 
-| Style | Usage | Caméra | Ombres | Murs | Grille |
-|-------|--------|--------|--------|------|--------|
-| **Diorama 2.5D** (défaut) | Village illustré, exploration | Perspective ~52° | Non | Invisibles (LOS seulement) | Masquée par défaut |
-| **VTT 3D** | Combat tactique | Ortho / iso | Oui | Volumes | Visible |
+| Style | Usage | Caméra | Ombres | Murs | Grille | Props |
+|-------|--------|--------|--------|------|--------|-------|
+| **Diorama 2.5D** (défaut) | Village illustré, exploration | Sans fond : perspective ~52° · **Avec fond illustré** : ortho top + props **à plat** | Non | Invisibles (LOS seulement) | Masquée par défaut | Plat si fond illustré (sinon dressés) |
+| **VTT 3D** | Combat tactique | Ortho légèrement inclinée (~72°) / iso | Oui | Volumes | Visible | Dressés face caméra |
+| **DD2 hybrid** (roadmap) | Look Darkest Dungeon 2 | Inclinée + fond illustré + découpes | Non | LOS | Optionnel | Dressés — *non sélectionnable encore* |
 
 Réglage : onglet **Carte → Style de rendu**. Les données (décors, lieux, murs)
 sont communes ; seul le rendu change. En session, cliquer un **lieu** lié
@@ -309,6 +310,10 @@ Onglet **Carte** :
 - **Échelle** : distance réelle par case (défaut 1,5 m ≈ 5 pieds), unité libre —
   utilisée par l'outil de mesure.
 - **Brouillard** : activation, tout masquer, tout révéler.
+- **Nuit / lumières** : **Mode nuit** (base nocturne ; les 💡 lumières révèlent
+  le jour avec diffusion douce, comme le brouillard révèle la carte). Cases
+  explorées persistantes (`lightRevealed`). Images `*_night.png` à côté du fond,
+  ou fallback procédural ; HQ via `scripts/generate_map_night_gemini.py`.
 - **Perspective** : vue de dessus, isométrique, perspective inclinée (surtout
   utile en VTT ; le diorama force sa propre inclinaison).
 - **Atmosphère** : teinte d'ambiance, opacité, vignettage.
@@ -318,6 +323,36 @@ Onglet **Carte** :
 - **Sauvegarde** : politique **Manuelle**, **À chaque modification** ou
   **Périodique (30 s)**.
 - **Import / Export JSON** de la carte complète.
+
+Barre d'action : **👁 Vue joueur** bascule un aperçu session (non enregistré)
+de ce que voit le groupe — brouillard joueur + révélation nuit/jour, chrome
+éditeur atténué, lumières encore éditables.
+
+---
+
+## 8 bis. Nuit / jour (révélation façon brouillard)
+
+| Brouillard de guerre | Mode nuit |
+|----------------------|-----------|
+| Base = cases masquées | Base = texture **nuit** |
+| Peindre R/T révèle/masque | Poser une **lumière** révèle le **jour** |
+| `fogRevealed` persiste | `lightRevealed` + lumières live |
+| MJ voit tout (`is_gm`) | **Vue joueur** = même contrainte que les joueurs |
+
+1. Onglet **Carte → Mode nuit**.
+2. Outil **💡 Lumière** : le rayon (ghost + overlay) révèle le jour.
+3. **👁 Vue joueur** pour vérifier le rendu groupe.
+
+Régénérer les PNG nuit HQ (Gemini, clé en env seulement) :
+
+```powershell
+$env:GEMINI_API_KEY = "…"
+python scripts/generate_map_night_gemini.py
+# sans clé / hors ligne :
+python scripts/generate_map_night_gemini.py --procedural-only
+```
+
+Fichiers : `game/assets/maps/valbois_village_night.png`, `place_du_marche_night.png`.
 
 ---
 
@@ -473,6 +508,7 @@ godot --headless --path game --script scripts/tests/map_vision_test.gd
 godot --headless --path game --script scripts/tests/map_areas_test.gd
 godot --headless --path game --script scripts/tests/map_props_test.gd
 godot --headless --path game --script scripts/tests/map_render_style_test.gd
+godot --headless --path game --script scripts/tests/map_night_reveal_test.gd
 ```
 
 `map_editor_test.gd` couvre le document (aller-retour de sérialisation des dix

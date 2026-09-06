@@ -19,12 +19,17 @@ const DEFAULT_LIGHTING_CONFIG := {
 	"intensity": 0.35,
 	"ambient": "#121018",
 	"sources": [],
+	## Mode nuit façon brouillard : base = image nuit, lumières révèlent le jour.
+	"nightMode": false,
+	"nightAmbient": 0.22,
 }
 const DEFAULT_PLAY_DEFAULTS := {
 	"tokens": [],
 	"effects": [],
 	"zones": [],
 	"fogRevealed": [],
+	## Cases illuminées persistantes (comme fogRevealed, mais pour le jour sous la nuit).
+	"lightRevealed": [],
 	"viewState": {},
 }
 ## Catégories de lieux, reprises telles quelles dans la légende de la carte.
@@ -343,7 +348,92 @@ func get_lighting_config(map_data: Dictionary) -> Dictionary:
 	var cfg: Dictionary = DEFAULT_LIGHTING_CONFIG.duplicate(true)
 	if map_data.get("lighting") is Dictionary:
 		cfg.merge(map_data["lighting"], true)
+	if not cfg.has("sources") or typeof(cfg["sources"]) != TYPE_ARRAY:
+		cfg["sources"] = []
+	if not cfg.has("nightMode"):
+		cfg["nightMode"] = false
+	if not cfg.has("nightAmbient"):
+		cfg["nightAmbient"] = 0.22
 	return cfg
+
+func is_night_mode(map_data: Dictionary) -> bool:
+	return bool(get_lighting_config(map_data).get("nightMode", false))
+
+## Chemin nuit explicite, sinon `<stem>_night.png` à côté du fond jour.
+func resolve_night_image_path(map_data: Dictionary) -> String:
+	var explicit := str(map_data.get("backgroundImageNight", "")).strip_edges()
+	if not explicit.is_empty():
+		return explicit
+	var day := str(map_data.get("backgroundImage", "")).strip_edges()
+	if day.is_empty():
+		return ""
+	var dot := day.rfind(".")
+	if dot <= 0:
+		return day + "_night.png"
+	return day.substr(0, dot) + "_night" + day.substr(dot)
+
+func night_image_exists(map_data: Dictionary) -> bool:
+	var path := resolve_night_image_path(map_data)
+	if path.is_empty():
+		return false
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return FileAccess.file_exists(path) or FileAccess.file_exists(ProjectSettings.globalize_path(path))
+	return FileAccess.file_exists(path)
+
+## Texture nuit : fichier dédié, sinon assombrissement procédural du jour.
+func load_night_texture(map_data: Dictionary) -> Texture2D:
+	var night_path := resolve_night_image_path(map_data)
+	if not night_path.is_empty() and night_image_exists(map_data):
+		var night_img := _load_rgba_image(night_path)
+		if night_img != null:
+			return ImageTexture.create_from_image(night_img)
+	var day_path := str(map_data.get("backgroundImage", "")).strip_edges()
+	if day_path.is_empty():
+		return null
+	var day_img := _load_rgba_image(day_path)
+	if day_img == null:
+		return null
+	return ImageTexture.create_from_image(make_procedural_night_image(day_img))
+
+## Assombrit / désature une image jour (fallback offline sans Gemini).
+func make_procedural_night_image(day: Image) -> Image:
+	var img := day.duplicate()
+	img.convert(Image.FORMAT_RGBA8)
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	for y in range(h):
+		for x in range(w):
+			var c: Color = img.get_pixel(x, y)
+			var lum: float = c.r * 0.299 + c.g * 0.587 + c.b * 0.114
+			var desat := Color(lum, lum, lum, c.a).lerp(c, 0.42)
+			var cooled := Color(
+				desat.r * 0.32 + 0.04,
+				desat.g * 0.36 + 0.05,
+				desat.b * 0.48 + 0.10,
+				c.a
+			)
+			img.set_pixel(x, y, cooled)
+	return img
+
+## Cases dans le rayon d'une lumière (disque grille, pour stamp lightRevealed).
+func light_reveal_cells(source: Dictionary, map_w: int = 0, map_h: int = 0) -> Array:
+	var cx := int(roundf(float(source.get("x", 0.0))))
+	var cy := int(roundf(float(source.get("y", 0.0))))
+	var radius := maxf(0.5, float(source.get("radius", 3.0)))
+	var r_i := int(ceil(radius))
+	var cells: Array = []
+	for dy in range(-r_i, r_i + 1):
+		for dx in range(-r_i, r_i + 1):
+			if float(dx * dx + dy * dy) > radius * radius + 0.01:
+				continue
+			var x := cx + dx
+			var y := cy + dy
+			if map_w > 0 and (x < 0 or x >= map_w):
+				continue
+			if map_h > 0 and (y < 0 or y >= map_h):
+				continue
+			cells.append("%d,%d" % [x, y])
+	return cells
 
 func get_perspective(map_data: Dictionary) -> String:
 	var p := str(map_data.get("perspective", PERSPECTIVE_TOPDOWN))
@@ -370,6 +460,18 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["elevationLayers"] = []
 	if not map_data.has("lighting"):
 		map_data["lighting"] = DEFAULT_LIGHTING_CONFIG.duplicate(true)
+	else:
+		var light: Dictionary = map_data["lighting"]
+		if light is Dictionary:
+			if not light.has("nightMode"):
+				light["nightMode"] = false
+			if not light.has("nightAmbient"):
+				light["nightAmbient"] = 0.22
+			if not light.has("sources") or typeof(light["sources"]) != TYPE_ARRAY:
+				light["sources"] = []
+			map_data["lighting"] = light
+	if not map_data.has("backgroundImageNight"):
+		map_data["backgroundImageNight"] = ""
 	if not map_data.has("atmosphere"):
 		map_data["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.25, "vignette": 0.15}
 	if not map_data.has("playDefaults"):
@@ -414,7 +516,7 @@ func ensure_play_defaults(map_data: Dictionary) -> Dictionary:
 	if typeof(pd) != TYPE_DICTIONARY:
 		pd = DEFAULT_PLAY_DEFAULTS.duplicate(true)
 		m["playDefaults"] = pd
-	for key in ["tokens", "effects", "zones", "fogRevealed"]:
+	for key in ["tokens", "effects", "zones", "fogRevealed", "lightRevealed"]:
 		if not pd.has(key) or typeof(pd[key]) != TYPE_ARRAY:
 			pd[key] = []
 	if not pd.has("viewState") or typeof(pd["viewState"]) != TYPE_DICTIONARY:
@@ -444,6 +546,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"markers": [],
 		"locationLinks": [],
 		"backgroundImage": "",
+		"backgroundImageNight": "",
 		"fogEnabled": true,
 		"perspective": PERSPECTIVE_TOPDOWN,
 		"elevationLayers": [],
@@ -1038,6 +1141,8 @@ func _load_default_maps() -> Array:
 
 const VILLAGE_PNG := "res://assets/maps/valbois_village.png"
 const PLACE_PNG := "res://assets/maps/place_du_marche.png"
+const VILLAGE_NIGHT_PNG := "res://assets/maps/valbois_village_night.png"
+const PLACE_NIGHT_PNG := "res://assets/maps/place_du_marche_night.png"
 
 func _build_demo_catalog() -> Array:
 	var list: Array = []
@@ -1065,24 +1170,14 @@ func _build_demo_catalog() -> Array:
 		"roster": "general",
 		"mapKind": "local",
 		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "diorama",
+		"renderStyle": "dd2_hybrid",
 		"scenarioId": "demo-valbois",
 		"width": cells_v.x,
 		"height": cells_v.y,
 		"tiles": [],
 		"markers": [],
 		"locationLinks": [],
-		"areas": [{
-			"id": "area-place-marche",
-			"x": float(cells_v.x) * 0.50,
-			"y": float(cells_v.y) * 0.42,
-			"w": 4.2, "h": 3.2,
-			"label": "Place du Marché",
-			"category": "poi",
-			"icon": "⭐",
-			"showCallout": true,
-			"targetMapId": "demo-valbois-place",
-		}],
+		"areas": _valbois_village_areas(cells_v),
 		"fogEnabled": false,
 		"parentMapId": "",
 		"schemaVersion": SCHEMA_VERSION,
@@ -1096,6 +1191,11 @@ func _build_demo_catalog() -> Array:
 	village["grid"] = grid_v
 	village["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
 	village["backgroundImage"] = VILLAGE_PNG
+	village["backgroundImageNight"] = VILLAGE_NIGHT_PNG
+	var village_light: Dictionary = get_lighting_config(village).duplicate(true)
+	village_light["nightMode"] = false
+	village_light["nightAmbient"] = 0.22
+	village["lighting"] = village_light
 	village["playDefaults"] = {
 		"tokens": [{
 			"id": "tok-kael",
@@ -1106,7 +1206,7 @@ func _build_demo_catalog() -> Array:
 			"label": "Kael",
 			"scale": 1.0,
 		}],
-		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
+		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
 	}
 	list.append(village)
 
@@ -1117,13 +1217,14 @@ func _build_demo_catalog() -> Array:
 		"roster": "general",
 		"mapKind": "local",
 		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "diorama",
+		"renderStyle": "dd2_hybrid",
 		"scenarioId": "demo-valbois",
 		"width": cells_p.x,
 		"height": cells_p.y,
 		"tiles": [],
 		"markers": [],
 		"locationLinks": [],
+		"areas": _valbois_place_areas(cells_p),
 		"fogEnabled": false,
 		"parentMapId": "demo-valbois-village",
 		"schemaVersion": SCHEMA_VERSION,
@@ -1137,6 +1238,11 @@ func _build_demo_catalog() -> Array:
 	place["grid"] = grid_p
 	place["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
 	place["backgroundImage"] = PLACE_PNG
+	place["backgroundImageNight"] = PLACE_NIGHT_PNG
+	var place_light: Dictionary = get_lighting_config(place).duplicate(true)
+	place_light["nightMode"] = false
+	place_light["nightAmbient"] = 0.22
+	place["lighting"] = place_light
 	place["playDefaults"] = {
 		"tokens": [{
 			"id": "tok-kael-place",
@@ -1147,7 +1253,7 @@ func _build_demo_catalog() -> Array:
 			"label": "Kael",
 			"scale": 1.0,
 		}],
-		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
+		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
 	}
 	list.append(place)
 
@@ -1169,6 +1275,68 @@ func _build_demo_catalog() -> Array:
 	if FileAccess.file_exists(place_src):
 		import_background_image("demo-valbois-place", place_src)
 	return maps
+
+## Lieux légendés Valbois (callouts) + Place liée + sorties village (P3-B).
+func _valbois_village_areas(cells: Vector2i) -> Array:
+	var w := float(cells.x)
+	var h := float(cells.y)
+	return [
+		_valbois_area("area-place-marche", w * 0.50, h * 0.42, 4.2, 3.2,
+			"Place du Marché", "poi", "⭐", true, "demo-valbois-place"),
+		_valbois_area("area-moulin", w * 0.16, h * 0.22, 3.2, 2.8,
+			"Moulin", "poi", "🌬️", true, ""),
+		_valbois_area("area-temple", w * 0.34, h * 0.16, 3.4, 2.8,
+			"Temple d'Éliandre", "poi", "⛪", true, ""),
+		_valbois_area("area-forge", w * 0.20, h * 0.48, 3.0, 2.6,
+			"Forge", "poi", "🔨", true, ""),
+		_valbois_area("area-taverne", w * 0.38, h * 0.52, 3.2, 2.6,
+			"Taverne du Cerf", "poi", "🍺", true, ""),
+		_valbois_area("area-boulangerie", w * 0.44, h * 0.32, 2.8, 2.4,
+			"Boulangerie", "poi", "🥖", true, ""),
+		_valbois_area("area-librairie", w * 0.58, h * 0.26, 2.8, 2.4,
+			"Librairie", "poi", "📚", true, ""),
+		_valbois_area("area-maire", w * 0.68, h * 0.44, 3.4, 2.8,
+			"Maison du Maire", "poi", "🏛️", true, ""),
+		_valbois_area("area-ecuries", w * 0.74, h * 0.64, 3.2, 2.6,
+			"Écuries", "poi", "🐴", true, ""),
+		_valbois_area("area-epicerie", w * 0.56, h * 0.54, 2.6, 2.2,
+			"Épicerie", "poi", "🧺", true, ""),
+		_valbois_area("area-pharmacie", w * 0.48, h * 0.62, 2.6, 2.2,
+			"Pharmacie", "poi", "🌿", true, ""),
+		_valbois_area("area-exit-foret", w * 0.08, h * 0.72, 3.0, 2.2,
+			"Chemin de la Forêt", "exit", "🚪", true, ""),
+		_valbois_area("area-exit-capitale", w * 0.92, h * 0.52, 3.0, 2.2,
+			"Chemin de la Capitale", "exit", "🚪", true, ""),
+	]
+
+func _valbois_place_areas(cells: Vector2i) -> Array:
+	var w := float(cells.x)
+	var h := float(cells.y)
+	return [
+		_valbois_area("area-fontaine", w * 0.50, h * 0.48, 2.4, 2.4,
+			"Fontaine", "poi", "⛲", true, ""),
+		_valbois_area("area-etals", w * 0.38, h * 0.40, 3.0, 2.2,
+			"Étals", "poi", "🛒", true, ""),
+		_valbois_area("area-halle", w * 0.62, h * 0.42, 2.8, 2.2,
+			"Halle", "poi", "🏪", true, ""),
+	]
+
+func _valbois_area(
+	id: String, x: float, y: float, aw: float, ah: float,
+	label: String, category: String, icon: String,
+	show_callout: bool, target_map_id: String
+) -> Dictionary:
+	return {
+		"id": id,
+		"x": x, "y": y,
+		"w": aw, "h": ah,
+		"label": label,
+		"category": category,
+		"icon": icon,
+		"showCallout": show_callout,
+		"targetMapId": target_map_id,
+		"labelOffset": {"x": 0.0, "y": -(ah * 0.5 + 0.7)},
+	}
 
 func _load_json(path: String) -> Variant:
 	if not FileAccess.file_exists(path):

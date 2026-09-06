@@ -69,6 +69,18 @@ static func save_index(entries: Array) -> void:
 		return
 	file.store_string(JSON.stringify(entries, "\t"))
 
+static func _path_exists(path: String) -> bool:
+	if path.strip_edges().is_empty():
+		return false
+	# `FileAccess.file_exists` est peu fiable sur `res://` (packé / importé) :
+	# ResourceLoader couvre les textures importées ; on tombe aussi sur le
+	# fichier brut (placeholders PNG avant import éditeur).
+	if path.begins_with("res://"):
+		if ResourceLoader.exists(path) or FileAccess.file_exists(path):
+			return true
+		return FileAccess.file_exists(ProjectSettings.globalize_path(path))
+	return FileAccess.file_exists(path)
+
 ## Tous les assets connus, index et fichiers livrés confondus.
 static func list_assets(category_id: String = "") -> Array:
 	var entries: Array = load_index()
@@ -90,7 +102,7 @@ static func list_assets(category_id: String = "") -> Array:
 	var out: Array = []
 	for entry_variant in entries:
 		var entry: Dictionary = entry_variant
-		if not FileAccess.file_exists(str(entry.get("path", ""))):
+		if not _path_exists(str(entry.get("path", ""))):
 			continue
 		if not category_id.is_empty() and str(entry.get("category", "")) != category_id:
 			continue
@@ -233,9 +245,13 @@ static func image_size(path: String) -> Vector2i:
 		return Vector2i.ZERO
 	var img := Image.new()
 	if path.begins_with("res://"):
-		var res := load(path)
-		if res is Texture2D:
-			return Vector2i((res as Texture2D).get_width(), (res as Texture2D).get_height())
+		if ResourceLoader.exists(path):
+			var res := load(path)
+			if res is Texture2D:
+				return Vector2i((res as Texture2D).get_width(), (res as Texture2D).get_height())
+		var abs_path := ProjectSettings.globalize_path(path)
+		if FileAccess.file_exists(abs_path) and img.load(abs_path) == OK:
+			return Vector2i(img.get_width(), img.get_height())
 		return Vector2i.ZERO
 	if not FileAccess.file_exists(path) or img.load(path) != OK:
 		return Vector2i.ZERO
@@ -252,8 +268,16 @@ static func load_texture(path: String) -> Texture2D:
 			return cached
 	var texture: Texture2D = null
 	if path.begins_with("res://"):
-		var res := load(path)
-		texture = res as Texture2D
+		if ResourceLoader.exists(path):
+			var res := load(path)
+			texture = res as Texture2D
+		if texture == null:
+			# PNG shippé pas encore importé : lecture image brute.
+			var abs_path := ProjectSettings.globalize_path(path)
+			if FileAccess.file_exists(abs_path):
+				var img := Image.new()
+				if img.load(abs_path) == OK:
+					texture = ImageTexture.create_from_image(img)
 	else:
 		if not FileAccess.file_exists(path):
 			return null

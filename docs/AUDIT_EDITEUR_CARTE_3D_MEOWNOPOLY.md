@@ -18,11 +18,11 @@ Meownopoly `Meownopoly/doc/guides/MAP_EDITOR_GUIDE.md`, `…/architecture/COLLAB
 | **Domaine** | VTT / JDR : image de fond, tokens, fog, LOS, lieux multi-échelle, diorama | Plateau Monopoly-like : cases, décos, zones physiques, NPC/enemy/crate, preview 3D + collab |
 | **Architecture cible** | Port explicite de Meownopoly (document + deltas + FSM outils + panneaux) en GDScript | QML + C++20, `EditDelta`, `MouseLogic_*`, `EditorOpBus` |
 | **Couverture « outil auteur »** | **Très large** (22 outils, 12 kinds, calques, minimap, outliner, templates) | **Large mais autre métier** (6 modes souris, 6 tile types typés gameplay) |
-| **Maturité runtime produit** | **Bloquée** : Hub → Éditer ne compile pas fiablement (`class_name` / preload — AUDIT UI P0-1) | **Produit jouable** : éditeur s’ouvre, collab v1, lifecycle documenté |
+| **Maturité runtime produit** | **Ouvert** : Hub → Éditer + props biblio visibles (tests + smoke) | **Produit jouable** : éditeur s’ouvre, collab v1, lifecycle documenté |
 | **Tests modèle** | Suite headless riche (`map_editor_*`, vision, areas, props, style) | Tests lifecycle/physique partiels ; collab surtout harness QML |
-| **Écart principal pour « même niveau »** | Fiabilité d’ouverture + polish chrome + **édition collaborative** + cadrage moteur 3D | (N/A — référence) |
+| **Écart principal pour « même niveau »** | Collab *édition* **DIFFÉRÉE** ; polish chrome soft ; futur hybride DD2 | (N/A — référence) |
 
-**Lecture courte :** OpenQuest a déjà **écrit** l’équivalent architectural (et souvent *plus* d’outils VTT que Meownopoly n’en a pour le plateau). Ce qui manque pour être « au même niveau » n’est pas d’abord une liste de boutons manquants : c’est de **faire tourner l’éditeur comme un produit**, puis de rattraper la **couche collab / présence / chrome** où Meownopoly est nettement devant.
+**Lecture courte :** OpenQuest a un **outil d’auteur mono** opérationnel (ouverture, props 3D, calques, lieux Valbois, hybride DD2 MVP, nuit/lumières). La parité Meownopoly sur la **co-édition** reste volontairement hors scope court terme.
 
 ---
 
@@ -114,19 +114,21 @@ Undo/redo, clipboard, duplicate, Alt+drag, group/ungroup, flèches + snap, Page�
 
 | Capacité | Statut produit |
 |----------|----------------|
-| Hub → Cartes → Éditer (clone frais) | **FIXED** (P0-1 2026-09-06) — preload types ; smoke Hub manuel encore recommandé |
-| Même flux avec `.godot` déjà généré | **PARTIAL** — peut ouvrir localement, P0 non corrigé |
+| Hub → Cartes → Éditer (clone frais) | **FIXED** (P0-A) — preload types |
+| Même flux avec `.godot` déjà généré | **WORKS** |
 | Document / outils / sérialisation | **WORKS** (tests headless) |
-| UI manuelle bout-en-bout | **NON VALIDÉE** tant que P0 ouvert |
-| Cadrage / zoom moteur (session Valbois) | **PARTIAL / bugs** partagés avec l’éditeur (AUDIT UI §3.2+) |
-| `MapAreasOverlay._draw` session | **STUB** |
-| Timeline effets | **STUB** documenté |
-| Bibliothèque props **shippée** (`res://data/props/`) | **ABSENTE** — outil Décor OK seulement après import user |
+| UI manuelle bout-en-bout | **P0-B** : smoke Hub → Éditer Valbois → Biblio (props à plat sur fond illustré) + lieux |
+| Cadrage / zoom moteur | **FIXED** (P0-C) |
+| `MapAreasOverlay._draw` session | **MVP** (callouts) |
+| Timeline effets | **MVP** (liste Biblio + déclenchement unitaire) |
+| Bibliothèque props shippée (`res://data/props/`) | **SHIPPED** (7 cats, placeholders + assets) |
+| Calques auteur (créer / reorder / empiler) | **WORKS** (outliner + document) |
+| Props 3D visibles | **FIXED** : fond illustré → plat ; VTT → tilt ~-72° + standing |
 | Plateformes en style diorama | **PARTIAL** — posables mais calque élévations masqué |
-| Fond illustré → caméra | Ortho top forcé (plus de tilt/parallaxe diorama) — choix code actuel |
-| Session « explore » (fond image) | Chrome VTT (fog/effets) masqué — lecteur lieux, pas mini-éditeur |
+| Fond illustré → caméra | Diorama = ortho top + props plats ; **DD2** = tilt + props/tokens dressés |
+| Session « explore » (fond image) | Chrome VTT masqué — lecteur lieux |
 
-**Conclusion OpenQuest :** le « gros » de l’éditeur est **écrit et testé au modèle** ; le produit **n’est pas au niveau Meownopoly** tant qu’on ne peut pas l’ouvrir et l’utiliser sans cache magique.
+**Conclusion OpenQuest :** éditeur **mono** au niveau outil d’auteur (ouvre, props, calques, lieux). Collab *édition* et mode DD2 hybride restent **DIFFÉRÉS** volontairement.
 
 ---
 
@@ -204,31 +206,31 @@ Légende : ✅ mature · 🟡 partiel / immature · ❌ absent · ◐ autre doma
 
 | Capacité | OpenQuest | Meownopoly | Écart pour « même niveau » |
 |----------|:---------:|:----------:|----------------------------|
-| Ouvrir l’éditeur depuis le hub | ⚠ | ✅ | **P0 critique OQ** |
+| Ouvrir l’éditeur depuis le hub | ✅ | ✅ | Parité |
 | Document + deltas + transactions | ✅ | ✅ | Parité archi |
 | FSM outils / MouseLogic | ✅ (22 outils) | ✅ (6 modes) | OQ plus riche VTT |
 | Overlay sélection projetée | ✅ | ✅ (via tiles QML) | Parité |
 | Templates relatifs + UUID remap | ✅ | ✅ | Parité |
-| Bibliothèque d’assets / décos | ✅ props | ✅ AssetManager | Parité fonctionnelle |
+| Bibliothèque d’assets / décos | ✅ props shippés | ✅ AssetManager | Parité fonctionnelle |
 | Inspecteur contextuel | ✅ | ✅ (+ registry typé) | Meow plus typé gameplay |
-| Outliner / calques UI | ✅ | ❌ | **OQ devant** |
+| Outliner / calques UI | ✅ (+ CRUD) | ❌ | **OQ devant** |
 | Minimap | ✅ | ❌ | **OQ devant** |
 | Clipboard / group persistants | ✅ | ❌ | **OQ devant** |
-| Align / distribute | 🟡 UI | ❌ | OQ devant si barre complétée |
+| Align / distribute | ✅ | ❌ | **OQ devant** |
 | Undo solo | ✅ | ✅ | Parité |
-| Édition collaborative | ❌ (play ops seulement) | ✅ | **Gros écart Meow** |
-| Curseurs / sélections distantes | ❌ | ✅ | Écart Meow |
-| FullSync + host migration | ❌ | ✅ | Écart Meow |
+| Édition collaborative | ❌ **DIFFÉRÉ** (play ops seulement) | ✅ | Décision produit OQ |
+| Curseurs / sélections distantes | ❌ **DIFFÉRÉ** | ✅ | Lié P2 |
+| FullSync + host migration | ❌ **DIFFÉRÉ** | ✅ | Lié P2 |
 | Fog / LOS / portes | ✅ | ◐ | **OQ devant** (métier JDR) |
 | Hiérarchie cartes / lieux | ✅ | ◐ | **OQ devant** |
-| Styles diorama / VTT | ✅ | ◐ | OQ |
-| Preview monde 3D + physique live | 🟡 (rendu 3D battlemap) | ✅ | Meow plus « level tool » |
+| Styles diorama / VTT / DD2 | ✅ | ◐ | OQ |
+| Preview monde 3D + physique live | 🟡 (battlemap 3D) | ✅ | Meow plus « level tool » |
 | Entités NPC/enemy/crate typées | 🟡 (token/note/zone) | ✅ | Domaine Meow |
 | Politiques autosave | ✅ | ✅ | Parité |
-| Esc / menu fichier | 🟡 | ✅ | Meow plus abouti |
+| Esc / menu fichier | ✅ | ✅ | Parité |
 | Tests automatisés modèle | ✅ | 🟡 | OQ devant sur le modèle |
 | Doc utilisateur à jour | ✅ `MAP_EDITOR.md` | 🟡 guide périmé | OQ devant |
-| Polish chrome / thèmes | 🟡 code-built UI | ✅ | Écart Meow |
+| Polish chrome / thèmes | 🟡 code-built UI | ✅ | Écart Meow soft |
 
 ---
 
@@ -253,8 +255,9 @@ Ordre recommandé sur `editeur-carte-3d` :
 | ID | Travail | Preuve de done |
 |----|---------|----------------|
 | **P0-A** | ~~Remplacer tous les types `class_name` nus…~~ **FAIT** 2026-09-06 | Hub → Éditer compile sans cache classes (`map_editor_test` PASS) |
-| **P0-B** | Smoke manuel recommandé (Hub → Éditer) | À valider en jeu |
+| **P0-B** | ~~Smoke Hub → Éditer Valbois~~ **FAIT** 2026-09-06 : props Biblio visibles (plat sur fond illustré / dressés en VTT) + lieux ; `map_props_test` + `map_areas_test` | Relancer `scripts/play-godot.ps1` ; Hub → Cartes → Éditer Valbois → Biblio |
 | **P0-C** | ~~Stabiliser cadrage/zoom~~ **FAIT** 2026-09-06 : plus de force `size` dans `map_panel`, `request_fit_to_view`, conserve zoom illustré, tokens en cases | Tests `map_camera_test` + `map_editor_test` PASS |
+| **P0-D** | ~~Layout responsive docks~~ **FAIT** 2026-09-06 (+ fix ratio 2026-09-06) : plus de lock 16:9/`DESIGN_RATIO` ; `stretch/aspect=expand` ; docks % de la **taille réelle** (W+H) ; mins bas pour écrans courts ; tests ultrawide/16:10 | `map_editor_test` asserts 2560×1080, 1920×1200, 1280×800, 900×700 |
 
 ### P1 — Parité « confort auteur » avec Meownopoly
 
@@ -262,30 +265,31 @@ Ordre recommandé sur `editeur-carte-3d` :
 |----|---------|------|
 | **P1-A** | ~~Esc menu~~ **FAIT** : import/export JSON + politiques save | |
 | **P1-B** | ~~Barre align~~ **FAIT** : top/bottom/center_h + distribute V | |
-| **P1-C** | Scène `.tscn` ou découpage UI (réduire le monolithe 88 Ko) | Maintenabilité / polish |
-| **P1-D** | Feedback visuel pose (ghost vrai asset sous curseur) déjà partiel — unifier avec AssetPreviewCursor Meow | UX |
-| **P1-E** | Historique + dirty + autosave : badges statut clairs (CollabStatusPanel-like, même solo) | Sensation produit |
+| **P1-D** | ~~Feedback visuel pose~~ **FAIT** : ghost `load_texture` + rotation/standing, icônes token/effet/marqueur | |
+| **P1-E** | ~~Badges statut~~ **FAIT** : politique save, dernier save, countdown autosave, profondeur undo | |
+| **P1-C** | ~~Découpage UI~~ **FAIT** 2026-09-06 : `history` + `library` + `settings` + `esc_menu` panels | Wiring inchangé dans `map_complex_editor` |
 
-### P2 — Parité « collab édition » (le vrai gap stratégique)
+### P2 — Parité « collab édition » — **DIFFÉRÉ** (décision produit 2026-09-06)
 
-Meownopoly a une stack dédiée ; OpenQuest a déjà `submit_map_op` **pour la session de jeu**. Pour le niveau Meow :
+Meownopoly a une stack dédiée ; OpenQuest a déjà `submit_map_op` **pour la session de jeu**.
 
-| ID | Travail | Inspiration Meow |
-|----|---------|------------------|
-| **P2-A** | Bus d’ops d’édition (create/delete/move/set) distinct du play | `EditorOpBus` |
-| **P2-B** | Session éditeur host-auth + FullSync carte | `EditorSession` + chunks |
-| **P2-C** | Présence : curseurs + liserés sélection distante | `CursorUpdate` / `SelectionUpdate` |
-| **P2-D** | Undo collab minimal (create/delete d’abord) | Gaps Meow documentés — ne pas viser plus qu’eux en v1 |
+**Décision :** OpenQuest **ne porte pas** la collab *édition de carte* à court terme. La collab reste celle de la **session de jeu** (`submit_map_op`). Pas d’`EditorOpBus` / `EditorSession` / présence distante dans le backlog actif.
 
-*Décision produit à trancher :* collab **édition de carte** est-elle un objectif OpenQuest court terme, ou seulement collab **session de jeu** (déjà amorcée) ?
+| ID | Travail | Statut |
+|----|---------|--------|
+| **P2-A** | Bus d’ops d’édition (create/delete/move/set) | **DIFFÉRÉ** |
+| **P2-B** | Session éditeur host-auth + FullSync | **DIFFÉRÉ** |
+| **P2-C** | Présence : curseurs + sélections distantes | **DIFFÉRÉ** |
+| **P2-D** | Undo collab minimal | **DIFFÉRÉ** |
 
 ### P3 — Différenciation JDR (OpenQuest devant, à consolider)
 
 | ID | Travail |
 |----|---------|
-| **P3-A** | Terminer stubs : overlay areas session, timeline effets |
-| **P3-B** | UX lieux (callouts, entrée/sortie) au niveau « demo Valbois » |
-| **P3-C** | Pack assets props shippés sous `res://data/props/` + portraits démo |
+| **P3-A** | ~~Stubs areas/effets~~ **FAIT** (MVP) : `MapAreasOverlay._draw` callouts session ; liste effets Biblio + déclenchement unitaire | |
+| **P3-B** | ~~UX lieux Valbois~~ **FAIT** 2026-09-06 : 13 lieux village (POI + 2 sorties) + 3 sur Place ; callouts ; Place seule liée | |
+| **P3-C** | ~~Pack props shippés~~ **FAIT** (+ style Gemini Valbois/Kael) : `res://data/props/` + placeholders + assets générés | |
+| **P3-D** | ~~Mode hybride **DD2**~~ **FAIT** (MVP) 2026-09-06 : style `dd2_hybrid` sélectionnable ; fond illustré + caméra perspective inclinée + props/tokens dressés + parallaxe ; Valbois démo en DD2 | `map_render_style_test` |
 
 ### Hors scope « parité Meownopoly »
 
@@ -299,16 +303,16 @@ Ne pas porter : cases Monopoly, taxes, physique exclusion Monopoly, crates grab,
 
 | Pilier | OpenQuest | Meownopoly |
 |--------|:---------:|:----------:|
-| Ouverture / stabilité runtime | **3** | **8** |
+| Ouverture / stabilité runtime | **8** | **8** |
 | Modèle + undo | **8** | **8** |
 | Outils métier (dans son domaine) | **8** | **8** |
-| Chrome / UX polish | **5** | **8** |
-| Collab édition | **1** | **7** |
+| Chrome / UX polish | **7** | **8** |
+| Collab édition | **1** (DIFFÉRÉ) | **7** |
 | Docs auteur | **8** | **4** (guide) / **8** (archi) |
-| Tests | **7** | **5** |
-| **Moyenne pondérée « même niveau ressenti »** | **~5** | **~7.5** |
+| Tests | **8** | **5** |
+| **Moyenne pondérée « même niveau ressenti »** | **~7** (mono) | **~7.5** |
 
-Après **P0 seul** (éditeur ouvre + smoke), OpenQuest remonte vers **~6.5–7** sur son domaine VTT — déjà « quasi » Meownopoly en mono, avant collab.
+Après P0–P1 + props/calques : OpenQuest est **quasi au niveau Meownopoly en mono** sur son domaine VTT. L’écart restant est surtout collab édition (DIFFÉRÉ) et polish thème.
 
 ---
 
@@ -335,10 +339,13 @@ Après **P0 seul** (éditeur ouvre + smoke), OpenQuest remonte vers **~6.5–7**
 
 ## 9. Prochaine action recommandée
 
-1. **Corriger P0-A** sur `editeur-carte-3d` (preload types) — ~petit diff, débloque tout.  
-2. Smoke manuel + cocher checklist AUDIT UI §P0.  
-3. Trancher **collab édition** (P2) vs polish mono (P1) selon priorité produit.  
-4. Garder ce document comme backlog vivant ; mettre à jour la matrice après chaque jalon.
+Backlog audit **clos** pour le mono (2026-09-06) :
+
+1. ~~P0–P1, P3-A…D~~ **FAIT** — props, calques, panels UI, Valbois, **hybride DD2 MVP**.
+2. **P2 collab édition** : **DIFFÉRÉ** — session play (`submit_map_op`) seulement.
+3. Soft restant : thème chrome, plateformes diorama, nuit Gemini HQ, polish DD2 (ombres soft / occlusion).
+
+Smoke : Hub → Cartes → Éditer Valbois (style **Hybride DD2**) → Biblio + Mode nuit + Vue joueur.
 
 ---
 
@@ -354,7 +361,7 @@ Après **P0 seul** (éditeur ouvre + smoke), OpenQuest remonte vers **~6.5–7**
 | `NPCTile` / `EnemyTile` | `token` / `marker` (+ fiche perso hors carte) |
 | `TemplateFileManager` | `MapEditorTemplates` (`user://map_templates/`) |
 | `EditorOpBus` (édition) | `GameData.submit_map_op` (**play** seulement aujourd’hui) |
-| `EditorSession` collab | *à créer* si P2 |
+| `EditorSession` collab | *DIFFÉRÉ* (P2) — session play seulement |
 | `MapInfo` roster joueurs | roster scénario / groupe — hors carte |
 | Liens next/prev cases | `elem.links` + outil `L` (+ lieux `targetMapId`) |
 

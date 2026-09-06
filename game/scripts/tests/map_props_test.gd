@@ -53,14 +53,26 @@ func _make_png(name: String, width: int, height: int) -> String:
 
 func _reset_library() -> void:
 	for entry_variant in LibraryScript.list_assets():
-		LibraryScript.remove_asset(str((entry_variant as Dictionary).get("path", "")))
+		var path := str((entry_variant as Dictionary).get("path", ""))
+		# Ne pas supprimer les props shippés res:// — seulement l'index user.
+		if path.begins_with("user://"):
+			LibraryScript.remove_asset(path)
 	LibraryScript.clear_caches()
 
 func _cleanup() -> void:
 	for entry_variant in LibraryScript.list_assets():
-		LibraryScript.remove_asset(str((entry_variant as Dictionary).get("path", "")))
+		var path := str((entry_variant as Dictionary).get("path", ""))
+		if path.begins_with("user://"):
+			LibraryScript.remove_asset(path)
 	for path in _sources:
 		DirAccess.remove_absolute(path)
+
+func _user_assets(category_id: String = "") -> Array:
+	var out: Array = []
+	for entry_variant in LibraryScript.list_assets(category_id):
+		if str((entry_variant as Dictionary).get("path", "")).begins_with("user://"):
+			out.append(entry_variant)
+	return out
 
 func _test_categories() -> void:
 	_assert("cat_count", LibraryScript.CATEGORIES.size() >= 6)
@@ -84,15 +96,15 @@ func _test_import() -> void:
 	# Les proportions de l'image sont mémorisées : 256/384.
 	_assert("import_ratio", absf(float(entry.get("ratio", 0.0)) - (256.0 / 384.0)) < 0.01)
 
-	var listed: Array = LibraryScript.list_assets("buildings")
+	var listed: Array = _user_assets("buildings")
 	_assert("list_category", listed.size() == 1)
-	_assert("list_other_category", (LibraryScript.list_assets("vehicles") as Array).is_empty())
-	_assert("list_all", (LibraryScript.list_assets() as Array).size() == 1)
+	_assert("list_other_category", _user_assets("vehicles").is_empty())
+	_assert("list_all", _user_assets().size() == 1)
 
 	var cart := _make_png("charrette", 200, 100)
 	LibraryScript.import_asset(cart, "vehicles", "Charrette")
-	_assert("list_after_second", (LibraryScript.list_assets() as Array).size() == 2)
-	_assert("list_vehicles", (LibraryScript.list_assets("vehicles") as Array).size() == 1)
+	_assert("list_after_second", _user_assets().size() == 2)
+	_assert("list_vehicles", _user_assets("vehicles").size() == 1)
 
 	# Renommage puis suppression.
 	var path := str(entry.get("path", ""))
@@ -111,7 +123,7 @@ func _test_import() -> void:
 	_assert("import_bad_extension", (LibraryScript.import_asset(bad, "objects") as Dictionary).is_empty())
 
 func _test_textures() -> void:
-	var assets: Array = LibraryScript.list_assets("buildings")
+	var assets: Array = _user_assets("buildings")
 	if assets.is_empty():
 		_assert("tex_has_asset", false)
 		return
@@ -143,7 +155,7 @@ func _test_document_props(md) -> void:
 	var doc: Variant = DocScript.new()
 	doc.load_map(map)
 
-	var assets: Array = LibraryScript.list_assets("buildings")
+	var assets: Array = _user_assets("buildings")
 	var asset_path := str((assets[0] as Dictionary).get("path", "")) if not assets.is_empty() else ""
 
 	var id: String = doc.add_element({
@@ -243,6 +255,26 @@ func _test_diorama_depth_sort() -> void:
 		_assert("depth_prepass", far_mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS)
 		_assert("foot_snap", (far_node.get_child(0) as MeshInstance3D).position.y > 1.0)
 	_assert("depth_near_higher", near_pri > far_pri)
+	layer.queue_free()
+
+	# Fond illustré top-down : props forcés à plat (visibles, pas en tranche).
+	var illustrated := {
+		"height": 20,
+		"renderStyle": "diorama",
+		"backgroundImage": "res://assets/maps/valbois_village.png",
+	}
+	layer = Props3DScript.new()
+	get_root().add_child(layer)
+	layer.configure([
+		{"id": "house", "x": 3.0, "y": 4.0, "w": 4.0, "h": 5.0, "asset": asset_path, "standing": true, "layer": 1},
+	], 1.0, illustrated)
+	_assert("illustrated_prop_exists", layer.has_prop("house"))
+	var house: Node3D = layer._nodes.get("house")
+	if house:
+		var mesh := house.get_child(0) as MeshInstance3D
+		_assert("illustrated_forced_flat", bool(house.get_meta("flat", false)))
+		_assert("illustrated_flat_rot", is_equal_approx(mesh.rotation_degrees.x, -90.0))
+		_assert("illustrated_above_ground", mesh.position.y > 0.01)
 	layer.queue_free()
 
 func _test_editor_prop_tool(md) -> void:

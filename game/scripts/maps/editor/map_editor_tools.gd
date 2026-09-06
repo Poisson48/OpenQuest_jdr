@@ -41,7 +41,7 @@ const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
 const DEFS := [
 	{
 		"id": SELECT, "icon": "👆", "label": "Sélection", "shortcut": "V", "group": "base",
-		"hint": "Clic : sélectionner · glisser dans le vide : rectangle de sélection · glisser un élément : déplacer · Ctrl+clic : ajouter/retirer.",
+		"hint": "Clic : sélectionner (dessus) · glisser la sélection : déplacer même sous d'autres éléments · vide : rectangle · Ctrl/Maj : multi-sélection · Alt : dupliquer.",
 	},
 	{
 		"id": PAN, "icon": "✋", "label": "Navigation", "shortcut": "H", "group": "base",
