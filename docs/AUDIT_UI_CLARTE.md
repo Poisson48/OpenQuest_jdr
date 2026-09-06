@@ -652,11 +652,11 @@ Consignés pour éviter de les re-traiter.
 | # | Correction | Cibles | Réf. |
 |---|---|---|---|
 | P0-1 | ~~Remplacer les six identifiants de classe globale par des `const … := preload(...)`~~ **FAIT** (2026-09-06) : `map_complex_editor.gd` + panneaux `editor/*` + `MapVision` / `MapEffectPresets` / `MapAssetLibrary` | `scripts/maps/map_complex_editor.gd` ; `scripts/maps/editor/map_editor_{overlay,inspector,outliner,minimap}.gd` | §3.1 |
-| P0-2 | Rendre le cadrage de carte déterministe : un seul point d'entrée de recadrage, exécuté après la passe de layout (`await get_tree().process_frame` ou signal `resized` débouncé), lisant `_map_frame.size` et non un `size` écrit à la main | `complex_map_engine_3d.gd:_fit_to_view()`, `_load_ground()`, `_notification()` ; `map_panel.gd:_sync_map_viewport_size()` | §3.2, §3.14 |
-| P0-3 | Supprimer l'effet de cliquet : ne plus écrire `custom_minimum_size` ni `size` sur `_complex_engine`, laisser le `PanelContainer` dimensionner son enfant | `map_panel.gd:701-715` | §3.4 |
+| P0-2 | ~~Cadrage déterministe~~ **FAIT** (2026-09-06) : `request_fit_to_view` après layout ; plus d'écriture manuelle de `size` | `complex_map_engine_3d.gd` ; `map_panel.gd:_sync_map_viewport_size` | §3.2, §3.14 |
+| P0-3 | ~~Cliquet size~~ **FAIT** : `map_panel` ne force plus `custom_minimum_size`/`size` sur le moteur | `map_panel.gd` | §3.4 |
 | P0-4 | Garantir un journal lisible : plancher d'environ 160 px, ratios revus (par ex. carte 3,0 / journal 1,0), et suppression du `\n\n` final du gabarit d'entrée | `session.gd:74-82`, `:710` | §3.4 |
 | P0-5 | Réparer la mise en page de l'éditeur de personnages : vérifier le dimensionnement de `ContentArea` et de `FormPanel`, et rétablir les deux `OptionButton` de la barre supérieure | `scenes/character_editor.tscn:67-71, 161-190` ; `scripts/character_editor.gd` | §3.3 |
-| P0-6 | Recadrer la carte au-dessus du HUD joueur : rendre `set_view_inset()` effectif, ou réduire la zone de rendu à la place | `map_panel.gd:61-70` ; `complex_map_engine_3d.gd:_usable_viewport_size()`, `_fit_to_view()` | §3.5 |
+| P0-6 | ~~View inset~~ **FAIT** : insets + fit différé ; resize conserve zoom/pan | `set_view_inset` / `_usable_viewport_size` / `_update_fit_base` | §3.5 |
 
 ### P1 — Fort impact sur la clarté
 

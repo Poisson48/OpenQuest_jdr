@@ -253,15 +253,15 @@ Ordre recommandé sur `editeur-carte-3d` :
 | ID | Travail | Preuve de done |
 |----|---------|----------------|
 | **P0-A** | ~~Remplacer tous les types `class_name` nus…~~ **FAIT** 2026-09-06 | Hub → Éditer compile sans cache classes (`map_editor_test` PASS) |
-| **P0-B** | Smoke manuel : poser token/mur/prop/lieu, undo, save, recharger | Note dans ce doc ou checklist CI |
-| **P0-C** | Stabiliser cadrage/zoom moteur partagé (AUDIT UI P0-2/3/6) | Fond Valbois non tronqué en edit + session |
+| **P0-B** | Smoke manuel recommandé (Hub → Éditer) | À valider en jeu |
+| **P0-C** | ~~Stabiliser cadrage/zoom~~ **FAIT** 2026-09-06 : plus de force `size` dans `map_panel`, `request_fit_to_view`, conserve zoom illustré, tokens en cases | Tests `map_camera_test` + `map_editor_test` PASS |
 
 ### P1 — Parité « confort auteur » avec Meownopoly
 
 | ID | Travail | Note |
 |----|---------|------|
-| **P1-A** | Esc menu éditeur complet (charger carte, politiques save, quitter) calqué Esc Meow | OQ a déjà les politiques ; manque le chrome |
-| **P1-B** | Compléter barre align (top/bottom/center_h + distribute V) | API déjà là |
+| **P1-A** | ~~Esc menu~~ **FAIT** : import/export JSON + politiques save | |
+| **P1-B** | ~~Barre align~~ **FAIT** : top/bottom/center_h + distribute V | |
 | **P1-C** | Scène `.tscn` ou découpage UI (réduire le monolithe 88 Ko) | Maintenabilité / polish |
 | **P1-D** | Feedback visuel pose (ghost vrai asset sous curseur) déjà partiel — unifier avec AssetPreviewCursor Meow | UX |
 | **P1-E** | Historique + dirty + autosave : badges statut clairs (CollabStatusPanel-like, même solo) | Sensation produit |

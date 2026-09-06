@@ -51,6 +51,9 @@ var _toolbar_scroll: ScrollContainer
 var _complex_scroll: ScrollContainer
 var _explore_mode: bool = false  # carte illustrée : chrome minimal
 var _immersive: bool = false
+## Dernière taille utile du cadre carte (pour ne recadrer qu'au premier layout).
+var _last_frame_size: Vector2 = Vector2.ZERO
+var _synced_display_map_id: String = ""
 
 func _ready() -> void:
 	_build_ui()
@@ -67,7 +70,9 @@ func set_immersive(on: bool) -> void:
 			_complex_engine.set_view_inset(8.0, 56.0, 8.0, 128.0)
 		else:
 			_complex_engine.set_view_inset(0.0, 0.0, 0.0, 0.0)
-	call_deferred("_sync_map_viewport_size")
+	# Inset changé : un seul fit, sans réécrire size.
+	if _complex_engine and _complex_engine.has_method("request_fit_to_view"):
+		_complex_engine.call_deferred("request_fit_to_view")
 
 func _apply_immersive_chrome() -> void:
 	if not _immersive:
@@ -634,6 +639,9 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 	if display_map.is_empty():
 		return
 	var map_id: String = display_map.get("id", "")
+	if map_id != _synced_display_map_id:
+		_synced_display_map_id = map_id
+		_last_frame_size = Vector2.ZERO
 	var party: Array = state.get("party", [])
 	var is_gm := GameData.is_gm_view_for_map(map_id)
 
@@ -704,16 +712,20 @@ func _complex_tool_dict() -> Dictionary:
 func _sync_map_viewport_size() -> void:
 	if _map_frame == null:
 		return
-	var frame_h := int(_map_frame.size.y)
-	var frame_w := int(_map_frame.size.x)
-	if frame_h > 32 and frame_w > 32:
-		var sz := Vector2(maxi(64, frame_w - 4), maxi(64, frame_h - 4))
-		_simple_map.custom_minimum_size = sz
-		_complex_engine.custom_minimum_size = sz
-		_simple_map.size = sz
-		_complex_engine.size = sz
-		# Après layout : recadrer (sinon la caméra garde un cadrage calculé à size≈0).
-		if _current_mode == MapModeScript.COMPLEX and _complex_engine and _complex_engine.has_method("reset_zoom"):
+	var frame_sz := _map_frame.size
+	if frame_sz.x <= 32.0 or frame_sz.y <= 32.0:
+		return
+	# Ne plus écrire size / custom_minimum_size : le PanelContainer dimensionne
+	# déjà les enfants SIZE_EXPAND_FILL. Forcer size provoquait courses + cadrage
+	# calculé trop tôt (carte tronquée, zoom remis à 1 à chaque refresh).
+	var first_layout := _last_frame_size.x < 32.0 or _last_frame_size.y < 32.0
+	_last_frame_size = frame_sz
+	if not first_layout:
+		return
+	if _current_mode == MapModeScript.COMPLEX and _complex_engine:
+		if _complex_engine.has_method("request_fit_to_view"):
+			_complex_engine.call_deferred("request_fit_to_view")
+		elif _complex_engine.has_method("reset_zoom"):
 			_complex_engine.call_deferred("reset_zoom")
 
 func _get_active_map_id(map_ids: Array) -> String:

@@ -1104,7 +1104,7 @@ func _build_demo_catalog() -> Array:
 			"kind": "member",
 			"memberId": "char-kael",
 			"label": "Kael",
-			"scale": 0.07,
+			"scale": 1.0,
 		}],
 		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
 	}
@@ -1145,7 +1145,7 @@ func _build_demo_catalog() -> Array:
 			"kind": "member",
 			"memberId": "char-kael",
 			"label": "Kael",
-			"scale": 0.14,
+			"scale": 1.0,
 		}],
 		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
 	}

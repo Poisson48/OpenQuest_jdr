@@ -102,6 +102,8 @@ var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
 var _style_cfg: Dictionary = {}
 var _hovered_area_id: String = ""
+var _fit_pending: bool = false
+var _fit_retries: int = 0
 
 func _ready() -> void:
 	clip_contents = true
@@ -297,14 +299,37 @@ func configure(
 			_areas_overlay.configure(null, {})
 		else:
 			_areas_overlay.configure(self, map_data)
-	var illustrated := not str(p_map.get("backgroundImage", "")).strip_edges().is_empty()
-	# Carte illustrée : toujours le PNG entier, jamais un zoom/pan sauvegardé.
-	if not illustrated:
+	# Même carte : conserver zoom/pan (y compris cartes illustrées).
+	# Nouvelle carte : cadrer le PNG ou la grille entière.
+	if same_map and not p_view_state.is_empty():
+		_update_fit_base()
 		_apply_view_state(p_view_state)
+	elif same_map and _camera != null:
+		var keep := get_view_state()
+		_update_fit_base()
+		_apply_view_state(keep)
+	else:
+		request_fit_to_view()
 	_rebuild_layers()
 
-	if illustrated or not same_map or p_view_state.is_empty():
-		call_deferred("_fit_to_view")
+func request_fit_to_view() -> void:
+	_fit_pending = true
+	_fit_retries = 0
+	call_deferred("_fit_to_view_when_ready")
+
+func _fit_to_view_when_ready() -> void:
+	if not _fit_pending:
+		return
+	var vp := _effective_viewport_size()
+	if vp.x < 32.0 or vp.y < 32.0:
+		_fit_retries += 1
+		if _fit_retries < 30:
+			call_deferred("_fit_to_view_when_ready")
+		else:
+			_fit_pending = false
+		return
+	_fit_pending = false
+	_fit_to_view()
 
 func set_session_tool(tool: Dictionary) -> void:
 	session_tool = tool
@@ -317,7 +342,7 @@ func set_snap_to_grid(on: bool) -> void:
 func set_view_inset(left: float, top: float, right: float, bottom: float) -> void:
 	_view_inset = Vector4(maxf(left, 0.0), maxf(top, 0.0), maxf(right, 0.0), maxf(bottom, 0.0))
 	if _camera != null and _map_extent != Vector2.ZERO:
-		_fit_to_view()
+		request_fit_to_view()
 
 func _load_ground() -> void:
 	var tex := MapData.load_background_texture(map_data)
@@ -490,10 +515,15 @@ func _rebuild_layers() -> void:
 		var use_cutout := has_image or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
 		node.setup(tok, _cell_size, _party, readonly, use_cutout)
 		if use_cutout and node.has_method("set_overlay_height"):
-			var frac := float(tok.get("scale", 0.0))
-			if frac <= 0.001:
-				frac = 0.08
-			node.set_overlay_height(_map_extent.y * frac)
+			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
+			# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
+			var scale_val := float(tok.get("scale", 1.0))
+			var height_cells := scale_val
+			if scale_val <= 0.001:
+				height_cells = 1.0
+			elif scale_val < 0.5:
+				height_cells = maxf(1.0, scale_val * float(map_data.get("height", 12)))
+			node.set_overlay_height(_cell_size * height_cells)
 		node.snap_to_grid = snap_to_grid
 		node.set_selected(str(tok.get("id", "")) == _selected_token_id)
 		node.drag_finished.connect(_on_token_drag_finished)
@@ -533,8 +563,10 @@ func _viewport_aspect() -> float:
 	return vp.x / maxf(vp.y, 1.0)
 
 func _effective_viewport_size() -> Vector2:
-	if size.x > 16 and size.y > 16:
+	if size.x > 16.0 and size.y > 16.0:
 		return size
+	if _viewport_container != null and _viewport_container.size.x > 16.0 and _viewport_container.size.y > 16.0:
+		return _viewport_container.size
 	return Vector2(_viewport.size)
 
 func _usable_viewport_size() -> Vector2:
@@ -639,13 +671,15 @@ func _center_focus_on(target: Vector2) -> void:
 	_camera.position.x += target.x - focus.x
 	_camera.position.z += target.y - focus.y
 
-func _fit_to_view() -> void:
+## Met à jour `_base_ortho_size` / `_base_camera_height` pour que zoom=1
+## montre toute la carte dans la zone utile (hors insets HUD).
+func _update_fit_base() -> void:
 	if _map_extent == Vector2.ZERO or _camera == null:
 		return
-	zoom = 1.0
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
-		# Hauteur ∝ étendue de carte : une carte 96×96 doit être plus haute
-		# qu'une 20×14. On part d'une hauteur de style, on mesure, on scale.
+		var saved_zoom := zoom
+		var saved_pos := _camera.position
+		zoom = 1.0
 		_camera.position.y = maxf(_style_camera_height(), 1.0)
 		_center_focus_on(_map_extent * 0.5)
 		var visible := _visible_ground_size()
@@ -653,7 +687,6 @@ func _fit_to_view() -> void:
 			var needed := maxf(_map_extent.x / visible.x, _map_extent.y / visible.y)
 			_camera.position.y *= maxf(needed, 0.01) * 1.08
 		else:
-			# Viewport pas prêt : estimation FOV directe.
 			var aspect := maxf(_viewport_aspect(), 0.1)
 			var target_h := maxf(_map_extent.y, _map_extent.x / aspect) * 1.08
 			var half := tan(deg_to_rad(_camera.fov * 0.5))
@@ -661,16 +694,30 @@ func _fit_to_view() -> void:
 			var denom := half * maxf(sin(deg_to_rad(tilt_abs)), 0.35)
 			_camera.position.y = target_h / maxf(denom * 2.0, 0.01)
 		_base_camera_height = _camera.position.y
+		zoom = saved_zoom
+		_camera.position = saved_pos
+		_update_ortho_size()
 	else:
-		# Camera3D.size (ortho) = hauteur complète du frustum, pas un demi-axe.
-		# On cadré sur la zone utile (HUD haut/bas) pour que tout le village reste visible.
 		var vp := _effective_viewport_size()
 		var usable := _usable_viewport_size()
-		var aspect := maxf(usable.x / usable.y, 0.1)
+		var aspect := maxf(usable.x / maxf(usable.y, 1.0), 0.1)
 		var needed_h := maxf(_map_extent.y, _map_extent.x / aspect)
-		_base_ortho_size = needed_h * (vp.y / maxf(usable.y, 1.0)) * 1.12
+		# Marge légère pour cartouche / légende hors bord.
+		_base_ortho_size = needed_h * (vp.y / maxf(usable.y, 1.0)) * 1.06
+
+func _fit_to_view() -> void:
+	if _map_extent == Vector2.ZERO or _camera == null:
+		return
+	var vp := _effective_viewport_size()
+	if vp.x < 32.0 or vp.y < 32.0:
+		request_fit_to_view()
+		return
+	zoom = 1.0
+	_update_fit_base()
+	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
+		_camera.position.y = _base_camera_height
+	else:
 		_camera.size = _base_ortho_size
-		zoom = 1.0
 	_center_focus_on(_map_extent * 0.5)
 	_clamp_camera()
 	zoom_changed.emit(zoom)
@@ -1262,8 +1309,9 @@ func _sync_viewport_pixel_size() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		_sync_viewport_pixel_size()
-		if not map_data.is_empty():
-			if not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
-				_fit_to_view()
-			else:
-				_clamp_camera()
+		if map_data.is_empty() or _camera == null or _map_extent == Vector2.ZERO:
+			return
+		var keep := get_view_state()
+		_update_fit_base()
+		_apply_view_state(keep)
+		_clamp_camera()

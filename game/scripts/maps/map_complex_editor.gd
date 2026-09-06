@@ -340,8 +340,12 @@ func _build_action_bar() -> HBoxContainer:
 	_icon_button(bar, "⬇", "Arrière-plan", func(): doc.send_to_back())
 	_icon_button(bar, "⇤", "Aligner à gauche", func(): doc.align_selection("left"))
 	_icon_button(bar, "⇥", "Aligner à droite", func(): doc.align_selection("right"))
+	_icon_button(bar, "⤒", "Aligner en haut", func(): doc.align_selection("top"))
+	_icon_button(bar, "⤓", "Aligner en bas", func(): doc.align_selection("bottom"))
+	_icon_button(bar, "⇔", "Centrer horizontalement", func(): doc.align_selection("center_h"))
 	_icon_button(bar, "⇕", "Centrer verticalement", func(): doc.align_selection("center_v"))
 	_icon_button(bar, "↔", "Distribuer horizontalement", func(): doc.distribute_selection(true))
+	_icon_button(bar, "↕", "Distribuer verticalement", func(): doc.distribute_selection(false))
 
 	bar.add_child(VSeparator.new())
 	_breadcrumb = HBoxContainer.new()
@@ -361,7 +365,12 @@ func _build_action_bar() -> HBoxContainer:
 	_zoom_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 	bar.add_child(_zoom_lbl)
 	_icon_button(bar, "+", "Zoomer", func(): _engine.zoom_in())
-	_icon_button(bar, "⟲", "Recadrer sur la carte", func(): _engine.reset_zoom())
+	_icon_button(bar, "⟲", "Recadrer sur la carte", func():
+		if _engine.has_method("request_fit_to_view"):
+			_engine.request_fit_to_view()
+		else:
+			_engine.reset_zoom()
+	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
 	return bar
@@ -748,7 +757,7 @@ func _build_dialogs() -> void:
 	_esc_menu = PopupPanel.new()
 	var menu_box := VBoxContainer.new()
 	menu_box.add_theme_constant_override("separation", 4)
-	menu_box.custom_minimum_size = Vector2(280, 0)
+	menu_box.custom_minimum_size = Vector2(300, 0)
 	_esc_menu.add_child(menu_box)
 	_section(menu_box, "☰ Menu éditeur")
 	_text_button(menu_box, "💾 Enregistrer", func():
@@ -758,21 +767,50 @@ func _build_dialogs() -> void:
 	_text_button(menu_box, "↶ Annuler", func(): _do_undo())
 	_text_button(menu_box, "↷ Rétablir", func(): _do_redo())
 	_text_button(menu_box, "🎯 Recadrer sur la carte", func():
-		_engine.reset_zoom()
+		if _engine and _engine.has_method("request_fit_to_view"):
+			_engine.request_fit_to_view()
+		elif _engine:
+			_engine.reset_zoom()
 		_esc_menu.hide()
 	)
 	_text_button(menu_box, "🧹 Vider la sélection", func():
 		doc.clear_selection()
 		_esc_menu.hide()
 	)
-	_text_button(menu_box, "⬆ Exporter JSON", func():
+	_section(menu_box, "Fichier")
+	_text_button(menu_box, "⬇ Importer JSON…", func():
+		_esc_menu.hide()
+		_import_dialog.popup_centered(Vector2i(760, 500))
+	)
+	_text_button(menu_box, "⬆ Exporter JSON…", func():
 		_esc_menu.hide()
 		_export_dialog.popup_centered(Vector2i(760, 500))
 	)
+	_section(menu_box, "Sauvegarde auto")
+	var save_row := HBoxContainer.new()
+	save_row.add_theme_constant_override("separation", 6)
+	menu_box.add_child(save_row)
+	for entry in [
+		[SAVE_MANUAL, "Manuelle"],
+		[SAVE_ON_CHANGE, "À chaque modif"],
+		[SAVE_INTERVAL, "Toutes les 30 s"],
+	]:
+		var policy := str(entry[0])
+		var btn := Button.new()
+		btn.text = str(entry[1])
+		btn.toggle_mode = true
+		btn.button_pressed = (_save_policy == policy)
+		btn.pressed.connect(func():
+			_save_policy = policy
+			_esc_menu.hide()
+			_set_status("Sauvegarde : %s" % entry[1])
+		)
+		save_row.add_child(btn)
 	var help := Label.new()
 	help.text = ToolsScript.shortcuts_text()
 	help.add_theme_font_size_override("font_size", 10)
 	help.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	menu_box.add_child(help)
 	add_child(_esc_menu)
 
@@ -1667,7 +1705,7 @@ func _do_redo() -> void:
 func _open_esc_menu() -> void:
 	if _esc_menu == null:
 		return
-	_esc_menu.popup_centered(Vector2i(320, 380))
+	_esc_menu.popup_centered(Vector2i(340, 520))
 
 ## Crée la carte d'un lieu. La carte courante est enregistrée d'abord : elle
 ## doit contenir le lieu pour que MapData puisse y écrire le lien retour.
@@ -1730,7 +1768,10 @@ func _sync_engine(reset_view: bool = false) -> void:
 		view_state,
 	)
 	if reset_view and view_state.is_empty():
-		_engine.call_deferred("reset_zoom")
+		if _engine.has_method("request_fit_to_view"):
+			_engine.call_deferred("request_fit_to_view")
+		else:
+			_engine.call_deferred("reset_zoom")
 	call_deferred("_update_zoom_label")
 	_refresh_overlay()
 
