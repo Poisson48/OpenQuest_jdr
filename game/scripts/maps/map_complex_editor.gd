@@ -81,7 +81,7 @@ var _outliner
 var _left_panel: VBoxContainer
 var _left_scroll: ScrollContainer
 var _right_tabs: TabContainer
-var _right_scroll: ScrollContainer
+var _right_scroll: ScrollContainer = null
 var _tool_options: VBoxContainer
 var _history_list: VBoxContainer
 var _template_list: VBoxContainer
@@ -128,16 +128,20 @@ func set_editable(on: bool) -> void:
 	_editable = on
 	if _left_scroll:
 		_left_scroll.visible = on
-	if _right_scroll:
+	if _right_tabs:
+		_right_tabs.visible = on
+	elif _right_scroll:
 		_right_scroll.visible = on
 	if _split_outer:
 		_split_outer.split_offset = 250 if on else 0
 	if _split_inner:
-		_split_inner.split_offset = 0 if on else 0
+		_split_inner.split_offset = 900 if on else 0
 	if _engine and _engine.has_method("set_editor_mode"):
 		_engine.set_editor_mode(on)
 	_sync_engine()
 	_update_hint()
+	if on:
+		call_deferred("_ensure_right_panel_width")
 
 func load_map(map_data: Dictionary) -> void:
 	doc.load_map(map_data)
@@ -185,7 +189,8 @@ func _build_ui() -> void:
 	_split_inner = HSplitContainer.new()
 	_split_inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_split_inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_split_inner.split_offset = -320
+	# Offset positif : largeur du centre. On fixe après le 1er layout.
+	_split_inner.split_offset = 900
 	_split_outer.add_child(_split_inner)
 
 	_build_center_column()
@@ -202,6 +207,7 @@ func _build_ui() -> void:
 	add_child(_autosave_timer)
 
 	_set_tool(ToolsScript.SELECT)
+	call_deferred("_ensure_right_panel_width")
 
 # --- Colonne gauche : outils --------------------------------------------------
 
@@ -378,17 +384,14 @@ func _build_action_bar() -> HBoxContainer:
 # --- Colonne droite : panneaux -------------------------------------------------
 
 func _build_right_column() -> void:
-	_right_scroll = ScrollContainer.new()
-	_right_scroll.custom_minimum_size = Vector2(310, 0)
-	_right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_split_inner.add_child(_right_scroll)
-
+	# Pas de ScrollContainer externe : il écrasait la largeur utile du dock.
 	_right_tabs = TabContainer.new()
+	_right_tabs.custom_minimum_size = Vector2(300, 0)
 	_right_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_tabs.custom_minimum_size = Vector2(300, 520)
-	_right_scroll.add_child(_right_tabs)
+	_right_tabs.size_flags_stretch_ratio = 0.0
+	_split_inner.add_child(_right_tabs)
+	_right_scroll = null
 
 	_inspector = InspectorScript.new()
 	_inspector.name = "Inspecteur"
@@ -413,6 +416,16 @@ func _build_right_column() -> void:
 	_right_tabs.add_child(_build_map_settings_tab())
 	_right_tabs.add_child(_build_library_tab())
 	_right_tabs.add_child(_build_history_tab())
+
+func _ensure_right_panel_width() -> void:
+	if _split_inner == null or _right_tabs == null:
+		return
+	var total := _split_inner.size.x
+	if total < 200.0:
+		call_deferred("_ensure_right_panel_width")
+		return
+	var right_w := 320.0
+	_split_inner.split_offset = int(maxi(200, int(total - right_w)))
 
 func _wrap_scroll(content: Control, tab_name: String) -> ScrollContainer:
 	var scroll := ScrollContainer.new()
@@ -835,6 +848,10 @@ func _set_tool(tool_id: String) -> void:
 		_link_source = ""
 	if tool_id != ToolsScript.ZONE_POLY:
 		_overlay.polygon_points.clear()
+	if tool_id != ToolsScript.MEASURE and _overlay:
+		_overlay.measure_active = false
+		_overlay.measure_from = Vector2.ZERO
+		_overlay.measure_to = Vector2.ZERO
 	_rebuild_tool_options()
 	_update_hint()
 	_refresh_overlay()
@@ -1105,13 +1122,19 @@ func _finish_draw(to: Vector2) -> void:
 	elif _tool == ToolsScript.WALL:
 		_create_wall(from, to)
 	elif _tool == ToolsScript.MEASURE:
+		var cells := from.distance_to(to)
+		if cells < 0.15:
+			_overlay.measure_active = false
+			_set_status("Mesure trop courte.")
+			_refresh_overlay()
+			return
 		_overlay.measure_active = true
 		_overlay.measure_from = from
 		_overlay.measure_to = to
-		var cells := from.distance_to(to)
 		var measure: Dictionary = doc.map_data.get("measure", {}) if doc.map_data.get("measure") is Dictionary else {}
 		_set_status("Distance : %.2f cases · %.2f %s" % [
 			cells, cells * float(measure.get("perCell", 1.5)), measure.get("unit", "m")])
+		_refresh_overlay()
 		return
 	_sync_engine()
 
@@ -1152,6 +1175,7 @@ func _create_token(grid: Vector2) -> void:
 		label = "Token %d" % (doc.count_of_kind(DocumentScript.KIND_TOKEN) + 1)
 	var color: String = str(MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()])
 	var emoji: String = str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[_member_index % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()])
+	var portrait := _default_token_portrait()
 	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": _token_size, "h": _token_size,
@@ -1161,9 +1185,21 @@ func _create_token(grid: Vector2) -> void:
 		"label": label,
 		"emoji": emoji,
 		"color": color,
+		"image": portrait,
+		"scale": maxf(_token_size, 1.0),
 		"layer": 4,
 	}, DocumentScript.KIND_TOKEN, "Token")
 	doc.select_only(id)
+
+func _default_token_portrait() -> String:
+	var known: Array = MapData.list_token_images()
+	if not known.is_empty():
+		return str(known[0])
+	var shipped := "res://assets/portraits/voleur_kael.png"
+	if ResourceLoader.exists(shipped) or FileAccess.file_exists(ProjectSettings.globalize_path(shipped)):
+		var imported := MapData.import_token_image(ProjectSettings.globalize_path(shipped))
+		return imported if not imported.is_empty() else shipped
+	return ""
 
 func _create_marker(grid: Vector2) -> void:
 	var id: String = doc.add_element({
@@ -1640,7 +1676,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			doc.remove_elements(doc.selection())
 			_sync_engine()
 		KEY_ESCAPE:
-			if _press_mode != "none" or not _overlay.polygon_points.is_empty() or not _link_source.is_empty():
+			if _overlay and _overlay.measure_active:
+				_overlay.measure_active = false
+				_refresh_overlay()
+				_set_status("Mesure effacée.")
+			elif _press_mode != "none" or not _overlay.polygon_points.is_empty() or not _link_source.is_empty():
 				_cancel_action()
 			else:
 				_open_esc_menu()
@@ -1754,10 +1794,12 @@ func _sync_engine(reset_view: bool = false) -> void:
 	var snapshot: Dictionary = doc.to_map_data()
 	var defaults: Dictionary = snapshot.get("playDefaults", {})
 	var view_state: Dictionary = defaults.get("viewState", {}) if defaults.get("viewState") is Dictionary else {}
+	var tokens: Array = defaults.get("tokens", [])
+	_ensure_token_portraits(tokens)
 	_engine.set_snap_to_grid(_snap_mode == "cell")
 	_engine.configure(
 		snapshot,
-		defaults.get("tokens", []),
+		tokens,
 		_mock_party(),
 		defaults.get("effects", []),
 		defaults.get("zones", []),
@@ -1775,13 +1817,36 @@ func _sync_engine(reset_view: bool = false) -> void:
 	call_deferred("_update_zoom_label")
 	_refresh_overlay()
 
+func _ensure_token_portraits(tokens: Array) -> void:
+	var portrait := _default_token_portrait()
+	if portrait.is_empty():
+		return
+	for tok_variant in tokens:
+		if not (tok_variant is Dictionary):
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("image", "")).strip_edges().is_empty():
+			tok["image"] = portrait
+
 func _mock_party() -> Array:
+	var portrait := _default_token_portrait()
 	var party: Array = []
 	for i in range(MapData.MEMBER_COLOR_HEX.size()):
 		party.append({
 			"id": "editor-mock-%d" % i,
 			"name": "Token %d" % (i + 1),
 			"isPlayer": true,
+			"portrait": portrait,
+			"image": portrait,
+		})
+	# Alias Kael démo → même portrait (tokens playDefaults memberId=char-kael).
+	if not portrait.is_empty():
+		party.append({
+			"id": "char-kael",
+			"name": "Kael",
+			"isPlayer": true,
+			"portrait": portrait,
+			"image": portrait,
 		})
 	return party
 

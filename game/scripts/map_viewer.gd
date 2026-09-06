@@ -180,7 +180,7 @@ func _build_mode_row() -> void:
 	_btn_mode_complex.text = "⚙️ Complexe"
 	_btn_mode_complex.toggle_mode = true
 	_btn_mode_complex.button_group = _mode_group
-	_btn_mode_complex.tooltip_text = "Battlemap VTT — tokens, brouillard, effets, zones"
+	_btn_mode_complex.tooltip_text = "Battlemap 3D — diorama illustré ou VTT tactique"
 	_btn_mode_complex.pressed.connect(func(): _set_render_mode(MapModeScript.COMPLEX))
 	_mode_row.add_child(_btn_mode_complex)
 
@@ -202,7 +202,11 @@ func _sync_render_mode_ui() -> void:
 	_btn_mode_complex.disabled = not editable
 	if editable:
 		if mode == MapModeScript.COMPLEX:
-			_mode_hint_lbl.text = "VTT : grille, tokens déplaçables, brouillard de guerre, effets et zones."
+			var style := str(_map_data.get("renderStyle", "diorama"))
+			if style == "vtt":
+				_mode_hint_lbl.text = "VTT 3D : grille, murs volumétriques, ombres, fog et tokens."
+			else:
+				_mode_hint_lbl.text = "Diorama 2.5D : fond illustré, lieux cliquables, décors et tokens."
 		else:
 			_mode_hint_lbl.text = "Exploration classique — peignez tuiles et marqueurs sur la grille."
 	else:
@@ -693,7 +697,11 @@ func _update_hint() -> void:
 			_hint_lbl.text = "Molette ou boutons ± pour zoomer · clic-glisser pour déplacer la vue.%s" % mode_note
 		return
 	if MapData.is_complex_map(_map_data):
-		_hint_lbl.text = "Éditeur VTT 3D — importez un PNG, placez tokens/effets/zones, révélez le brouillard. Enregistrez pour persister."
+		var style := str(_map_data.get("renderStyle", "diorama"))
+		if style == "vtt":
+			_hint_lbl.text = "Éditeur VTT 3D — murs, fog, tokens, effets. Enregistrez pour persister."
+		else:
+			_hint_lbl.text = "Éditeur diorama — importez un PNG, placez lieux/décors/tokens. Enregistrez pour persister."
 		return
 	match _tool:
 		"tile":
