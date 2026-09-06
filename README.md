@@ -145,7 +145,7 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 ### En cours / WIP récent
 
 - [ ] **Qualité cartes Valbois HD** — fond parfois soft / cache `user://map_assets` + import Godot (`*.import`, compression 3D) ; recharger les PNG `res://assets/maps/` proprement
-- [ ] **Clarté UI / bugs visuels** — audit dédié : [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) *(à créer / en rédaction)* ; s’appuyer aussi sur [docs/UI_UX.md](docs/UI_UX.md)
+- [ ] **Clarté UI / bugs visuels** — audit dédié : [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) *(disponible — base de travail pour AslanUsko)* ; s’appuyer aussi sur [docs/UI_UX.md](docs/UI_UX.md)
 - [ ] **HUD joueur vs session MJ** — divergences de layout, marges carte sous le HUD, messages d’échelle / tooltips lieux
 - [ ] **Token Kael** — échelle découpe (`scale` village / place), un seul token (dédoublonnage party ↔ `playDefaults` encore fragile)
 - [ ] Correctifs caméra perspective / VTT orthographique restants ([AUDIT_CARTES](docs/AUDIT_CARTES.md) P1 — partie déjà traitée dans le moteur)
@@ -169,7 +169,7 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 | Fichier | Contenu |
 |---------|---------|
 | [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 |
-| [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) | Audit clarté UI *(prévu)* |
+| [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) | Audit clarté UI *(disponible)* |
 | [docs/MAP_DIORAMA_PLAN.md](docs/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D (appliqué) |
 | [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md) | Dual-mode simple / complexe |
 | [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur battlemap 3D |
