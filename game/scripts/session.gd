@@ -26,10 +26,17 @@ const PlayerSessionHudScript = preload("res://scripts/ui/player_session_hud.gd")
 @onready var btn_gm_complete_scenario: Button = %BtnGmCompleteScenario
 @onready var lbl_turn_indicator: Label = %LblTurnIndicator
 @onready var lbl_action_hint: Label = %LblActionHint
-@onready var dice_section: PanelContainer = $MainLayout/ContentSplit/MainGameArea/DiceSection
-@onready var action_section: PanelContainer = $MainLayout/ContentSplit/MainGameArea/ActionSection
+@onready var dice_section: PanelContainer = %DiceSection
+@onready var action_section: PanelContainer = %ActionSection
+@onready var suggestions_scroll: ScrollContainer = %SuggestionsScroll
+@onready var action_input_row: HBoxContainer = %ActionInputHBox
+@onready var chk_secret_dice: CheckBox = %ChkSecretDice
 @onready var net_status_lbl: Label = %NetStatusLabel
 @onready var map_panel: PanelContainer = %MapPanel
+@onready var main_layout: VBoxContainer = %MainLayout
+@onready var header_bar: PanelContainer = %HeaderBar
+@onready var top_band: HBoxContainer = %TopBand
+@onready var log_panel: PanelContainer = %LogPanel
 @onready var btn_back_hub: Button = %BtnBackHub
 @onready var btn_advance_scene: Button = %BtnAdvanceScene
 @onready var btn_roll_custom: Button = %BtnRollCustom
@@ -46,157 +53,96 @@ const PlayerSessionHudScript = preload("res://scripts/ui/player_session_hud.gd")
 @onready var btn_sugg_inspect: Button = %BtnSuggInspect
 @onready var btn_sugg_combat: Button = %BtnSuggCombat
 
+const MAP_PANEL_MIN_HEIGHT := 220.0
+
 var session_seconds: int = 0
 var timer_active: bool = true
+var _session_start_msec: int = 0
 var _character_sheet: Control = null
 var _player_hud: Control = null
 var _immersive_player: bool = false
-var _layout_nodes: Dictionary = {}
+var _cached_log_len: int = -1
+var _log_stick_bottom: bool = true
+var _confirm_dialog: ConfirmationDialog = null
+
+# La structure de la page vit dans session.tscn — le script ne fait que styler
+# et brancher, il ne crée aucun conteneur à l'exécution :
+#
+#   MainLayout (VBox, plein écran)
+#     ├─ HeaderBar                     hauteur du contenu
+#     ├─ TopBand (HBox, expand)        bande haute : les deux colonnes partagent
+#     │    │                           forcément la même hauteur
+#     │    ├─ Sidebar    : PartyPanel (hauteur fixe, scroll) + GmPanel (remplit
+#     │    │               le reste, clippé, sans ScrollContainer)
+#     │    └─ MainGameArea : LogPanel (expand, scroll interne du RichTextLabel)
+#     │                      + DiceSection + ActionSection (hauteur du contenu)
+#     └─ MapPanel (expand)             carte pleine largeur
+#
+# Toutes les hauteurs sont pilotées par des tailles minimales constantes : aucune
+# saisie, aucun jet de dés et aucun clic carte ne peut faire bouger la bande.
 
 func _configure_layout() -> void:
-	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
-	var log_panel: PanelContainer = main_area.get_node("LogPanel") as PanelContainer
-	var dice_sec: Control = main_area.get_node("DiceSection")
-	var action_sec: Control = main_area.get_node("ActionSection")
-
-	_remove_legacy_middle_scroll(main_area, log_panel)
-	_unwrap_session_scroll(main_area, [map_panel, log_panel, dice_sec, action_sec])
-
-	_layout_nodes = {
-		"header": $MainLayout/HeaderBar,
-		"content_split": $MainLayout/ContentSplit,
-		"main_area": main_area,
-		"log_panel": log_panel,
-		"dice": dice_sec,
-		"action": action_sec,
-	}
-
-	main_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_panel.size_flags_stretch_ratio = 4.2
-	map_panel.custom_minimum_size = Vector2(0, 360)
-	log_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_panel.size_flags_stretch_ratio = 0.45
-	log_panel.custom_minimum_size = Vector2(0, 80)
-	dice_sec.size_flags_vertical = Control.SIZE_SHRINK_END
-	action_sec.size_flags_vertical = Control.SIZE_SHRINK_END
-
-	var content_split: HSplitContainer = $MainLayout/ContentSplit
-	content_split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_split.split_offset = 220
-
-	var party_scroll: ScrollContainer = $MainLayout/ContentSplit/Sidebar/PartyPanel/PartyScroll
-	party_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	party_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	_configure_sidebar_scroll()
 	_configure_log_readability()
-	_layout_nodes["sidebar"] = content_split.get_child(0)
-	var sidebar_host: Control = _layout_nodes["sidebar"] as Control
-	if sidebar_host:
-		sidebar_host.custom_minimum_size = Vector2(200, 0)
-		sidebar_host.size_flags_stretch_ratio = 0.55
-	var main_host: Control = content_split.get_child(1) as Control if content_split.get_child_count() > 1 else null
-	if main_host:
-		main_host.size_flags_stretch_ratio = 2.4
+	_bind_gm_shortcuts()
 
-func _configure_sidebar_scroll() -> void:
-	var split: HSplitContainer = $MainLayout/ContentSplit
-	if split.has_node("SidebarScroll"):
-		return
-	var sidebar: VBoxContainer = split.get_node("Sidebar")
-	split.remove_child(sidebar)
-	var scroll := ScrollContainer.new()
-	scroll.name = "SidebarScroll"
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.add_child(sidebar)
-	split.add_child(scroll)
-	split.move_child(scroll, 0)
+func _bind_gm_shortcuts() -> void:
+	if gm_input and not gm_input.gui_input.is_connected(_on_gm_input_gui):
+		gm_input.gui_input.connect(_on_gm_input_gui)
+	if gm_npc_input and not gm_npc_input.gui_input.is_connected(_on_gm_npc_input_gui):
+		gm_npc_input.gui_input.connect(_on_gm_npc_input_gui)
 
-func _unwrap_session_scroll(main_area: VBoxContainer, ordered: Array) -> void:
-	if main_area.has_node("PlayScroll"):
-		var play_scroll: ScrollContainer = main_area.get_node("PlayScroll")
-		var play_vbox: VBoxContainer = play_scroll.get_node("PlayVBox")
-		while play_vbox.get_child_count() > 0:
-			var child: Node = play_vbox.get_child(0)
-			play_vbox.remove_child(child)
-			main_area.add_child(child)
-		play_scroll.queue_free()
+func _on_gm_input_gui(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.ctrl_pressed and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER):
+			_on_gm_send_pressed()
+			gm_input.accept_event()
 
-	if not main_area.has_node("SessionScroll"):
-		return
-
-	var session_scroll: ScrollContainer = main_area.get_node("SessionScroll")
-	var session_vbox: VBoxContainer = session_scroll.get_node("SessionVBox")
-	for node in ordered:
-		var control_node: Control = node as Control
-		if control_node.get_parent() == session_vbox:
-			session_vbox.remove_child(control_node)
-			main_area.add_child(control_node)
-	for i in range(ordered.size()):
-		var control_node: Control = ordered[i] as Control
-		main_area.move_child(control_node, i)
-	session_scroll.queue_free()
-
-func _remove_legacy_middle_scroll(main_area: VBoxContainer, log_panel: PanelContainer) -> void:
-	if not main_area.has_node("MiddleScroll"):
-		return
-	var scroll: ScrollContainer = main_area.get_node("MiddleScroll")
-	var middle: VBoxContainer = scroll.get_node("MiddleVBox")
-	if map_panel.get_parent() == middle:
-		middle.remove_child(map_panel)
-	if log_panel.get_parent() == middle:
-		middle.remove_child(log_panel)
-	scroll.queue_free()
+func _on_gm_npc_input_gui(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.ctrl_pressed and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER):
+			_on_gm_npc_send_pressed()
+			gm_npc_input.accept_event()
 
 func _configure_log_readability() -> void:
-	var log_vbox := log_label.get_parent().get_parent() as VBoxContainer
-	if log_vbox:
-		log_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	var log_scroll := log_label.get_parent() as ScrollContainer
-	if log_scroll:
-		log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Le journal scrolle en interne (fit_content off) : le cadre garde sa hauteur
+	# quelle que soit la longueur de l'histoire.
+	log_label.fit_content = false
+	log_label.scroll_active = true
+	log_label.scroll_following = true
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.scroll_active = false
-	log_label.fit_content = true
 	log_label.add_theme_font_size_override("normal_font_size", 15)
 	log_label.add_theme_color_override("default_color", ThemeColors.TEXT)
 	log_label.add_theme_constant_override("line_separation", 6)
 
-	var log_panel_node: PanelContainer = log_vbox.get_parent() as PanelContainer if log_vbox else null
-	if log_panel_node:
-		var style := StyleBoxFlat.new()
-		style.bg_color = ThemeColors.BG_INPUT
-		style.border_color = ThemeColors.BORDER
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(4)
-		style.content_margin_left = 14
-		style.content_margin_right = 14
-		style.content_margin_top = 10
-		style.content_margin_bottom = 12
-		log_panel_node.add_theme_stylebox_override("panel", style)
-
-	if log_vbox:
-		var title_lbl := log_vbox.get_node_or_null("LblHistoire") as Label
-		if title_lbl:
-			title_lbl.add_theme_font_size_override("font_size", 15)
+	var style := StyleBoxFlat.new()
+	style.bg_color = ThemeColors.BG_INPUT
+	style.border_color = ThemeColors.BORDER
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 12
+	log_panel.add_theme_stylebox_override("panel", style)
 
 func _sync_log_layout() -> void:
 	await get_tree().process_frame
-	var log_scroll := log_label.get_parent()
-	if log_scroll is ScrollContainer:
-		var bar := (log_scroll as ScrollContainer).get_v_scroll_bar()
-		if bar:
-			bar.value = bar.max_value
+	if not _log_stick_bottom or log_label == null:
+		return
+	var lines := log_label.get_line_count()
+	if lines > 0:
+		log_label.scroll_to_line(maxi(0, lines - 1))
+
+func _is_log_at_bottom() -> bool:
+	if log_label == null or not log_label.scroll_active:
+		return true
+	var bar := log_label.get_v_scroll_bar()
+	if bar == null:
+		return true
+	return bar.value >= bar.max_value - 24.0
 
 func _ready() -> void:
+	_session_start_msec = Time.get_ticks_msec()
 	if not GameData.has_active_game():
 		_create_fallback_game()
 	_configure_layout()
@@ -218,8 +164,9 @@ func _ready() -> void:
 	btn_gm_advance_scene.pressed.connect(_on_advance_scene_pressed)
 	btn_gm_go_to_scene.pressed.connect(_on_gm_go_to_scene_pressed)
 	btn_gm_complete_scenario.pressed.connect(_on_gm_complete_scenario_pressed)
+	btn_gm_complete_scenario.add_theme_color_override("font_color", ThemeColors.DANGER)
+	btn_back_hub.add_theme_color_override("font_color", ThemeColors.DANGER)
 
-	_configure_log_readability()
 	_setup_quick_dice_buttons()
 	_setup_suggestion_buttons()
 	_connect_network_signals()
@@ -228,7 +175,11 @@ func _ready() -> void:
 	_refresh_session_ui()
 	_update_net_status()
 	_apply_role_ui()
-	_print_session_debug()
+	if OS.is_debug_build():
+		_print_session_debug()
+		print("[SESSION DEBUG] role human_gm=%s mj=%s player_view=%s action_vis=%s" % [
+			_is_human_gm_mode(), _is_mj_controller(), _is_player_view(), action_section.visible
+		])
 
 func _print_session_debug() -> void:
 	var state := GameData.active_game
@@ -297,65 +248,33 @@ func _ensure_player_hud() -> void:
 	)
 
 func _apply_immersive_player_layout(on: bool) -> void:
+	# Vue joueur : on masque l'en-tête et toute la bande haute, la carte prend
+	# alors la totalité de MainLayout. Aucun nœud n'est déplacé.
 	_immersive_player = on
 	_ensure_player_hud()
 	_player_hud.visible = on
 
-	var header: Control = _layout_nodes.get("header") as Control
-	var sidebar: Control = _layout_nodes.get("sidebar") as Control
-	var log_panel: Control = _layout_nodes.get("log_panel") as Control
-	var dice_sec: Control = _layout_nodes.get("dice") as Control
-	var action_sec: Control = _layout_nodes.get("action") as Control
-	var split: HSplitContainer = _layout_nodes.get("content_split") as HSplitContainer
+	header_bar.visible = not on
+	top_band.visible = not on
 
-	if header == null:
-		header = get_node_or_null("MainLayout/HeaderBar") as Control
-	if split == null:
-		split = get_node_or_null("MainLayout/ContentSplit") as HSplitContainer
-	if sidebar == null and split and split.get_child_count() > 0:
-		sidebar = split.get_child(0) as Control
-	if log_panel == null:
-		log_panel = get_node_or_null("MainLayout/ContentSplit/MainGameArea/LogPanel") as Control
-	if dice_sec == null:
-		dice_sec = dice_section
-	if action_sec == null:
-		action_sec = action_section
-
-	if header:
-		header.visible = not on
-	if sidebar:
-		sidebar.visible = not on
-	if log_panel:
-		log_panel.visible = not on
-	if dice_sec:
-		dice_sec.visible = not on
-	if action_sec:
-		action_sec.visible = not on
-	if split:
-		split.dragger_visibility = SplitContainer.DRAGGER_HIDDEN if on else SplitContainer.DRAGGER_VISIBLE
-		if on:
-			split.split_offset = 0
-
-	# Carte : plein espace restant, sans chrome session.
-	if map_panel:
-		map_panel.size_flags_stretch_ratio = 10.0 if on else 4.2
-		map_panel.custom_minimum_size = Vector2(0, 0) if on else Vector2(0, 360)
-		if on:
-			var flat := StyleBoxFlat.new()
-			flat.bg_color = Color(0.02, 0.02, 0.02, 1.0)
-			flat.set_border_width_all(0)
-			flat.set_corner_radius_all(0)
-			flat.content_margin_left = 0
-			flat.content_margin_right = 0
-			flat.content_margin_top = 0
-			flat.content_margin_bottom = 0
-			map_panel.add_theme_stylebox_override("panel", flat)
-		if map_panel.has_method("set_immersive"):
-			map_panel.set_immersive(on)
-		if map_panel.has_method("_sync_map_viewport_size"):
-			map_panel.call_deferred("_sync_map_viewport_size")
-		if map_panel.has_method("refresh"):
-			map_panel.call_deferred("refresh")
+	map_panel.custom_minimum_size = Vector2.ZERO if on else Vector2(0, MAP_PANEL_MIN_HEIGHT)
+	if on:
+		var flat := StyleBoxFlat.new()
+		flat.bg_color = Color(0.02, 0.02, 0.02, 1.0)
+		flat.set_border_width_all(0)
+		flat.set_corner_radius_all(0)
+		flat.content_margin_left = 0
+		flat.content_margin_right = 0
+		flat.content_margin_top = 0
+		flat.content_margin_bottom = 0
+		map_panel.add_theme_stylebox_override("panel", flat)
+	else:
+		map_panel.remove_theme_stylebox_override("panel")
+	if map_panel.has_method("set_immersive"):
+		map_panel.set_immersive(on)
+	# Un seul refresh : éviter le double configure qui reset le cadrage.
+	if on and map_panel.has_method("refresh"):
+		map_panel.call_deferred("refresh")
 
 	if on:
 		_player_hud.set_title(GameData.get_scenario_display_title())
@@ -370,12 +289,18 @@ func _apply_role_ui() -> void:
 	var mj: bool = _is_mj_controller()
 	var completed: bool = str(GameData.active_game.get("status", "")) == "completed"
 	var player_view := _is_player_view() and not completed
+	var gm_view := human_gm and mj and not player_view
 
-	gm_panel.visible = human_gm and mj and not completed and not player_view
-	action_section.visible = (not mj or not human_gm) and not player_view
-	btn_advance_scene.visible = (not human_gm or not mj) and not player_view
+	gm_panel.visible = gm_view and not completed
+	# Cadre « action joueur » toujours visible hors immersif (maquette) : le MJ
+	# garde les libellés de tour, seules les commandes joueur disparaissent.
+	action_section.visible = not player_view and not completed
+	suggestions_scroll.visible = not gm_view
+	action_input_row.visible = not gm_view
+	btn_advance_scene.visible = not player_view and not (human_gm and mj)
+	chk_secret_dice.visible = gm_view and not completed
 
-	if human_gm and mj and not player_view:
+	if gm_view:
 		_populate_gm_npcs()
 		_update_gm_wait_label()
 		_refresh_scene_navigation_ui()
@@ -403,9 +328,25 @@ func _update_gm_wait_label() -> void:
 	if GameData.is_waiting_for_gm():
 		lbl_gm_wait.text = "⚡ Action reçue — répondez (narration ou PNJ) pour relancer le tour."
 		lbl_gm_wait.add_theme_color_override("font_color", ThemeColors.GOLD)
+		_style_gm_panel_waiting(true)
 	else:
 		lbl_gm_wait.text = "En attente d'une action joueur..."
 		lbl_gm_wait.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		_style_gm_panel_waiting(false)
+
+func _style_gm_panel_waiting(waiting: bool) -> void:
+	if gm_panel == null:
+		return
+	var style := StyleBoxFlat.new()
+	style.bg_color = ThemeColors.BG_CARD
+	style.border_color = ThemeColors.GOLD if waiting else ThemeColors.BORDER
+	style.set_border_width_all(2 if waiting else 1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	gm_panel.add_theme_stylebox_override("panel", style)
 
 func _render_turn_ui() -> void:
 	var state := GameData.active_game
@@ -497,9 +438,9 @@ func _connect_network_signals() -> void:
 	MultiplayerManager.dice_result_received.connect(_on_net_dice_result)
 	MultiplayerManager.log_entry_received.connect(_on_p2p_log_entry)
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if timer_active:
-		session_seconds = int(Time.get_ticks_msec() / 1000.0)
+		session_seconds = int((Time.get_ticks_msec() - _session_start_msec) / 1000.0)
 		var mins := session_seconds / 60
 		var secs := session_seconds % 60
 		timer_lbl.text = "⏱️ %02d:%02d" % [mins, secs]
@@ -532,10 +473,17 @@ func _refresh_session_ui() -> void:
 	scenario_title_lbl.text = "🗺️ " + GameData.get_scenario_display_title()
 	
 	var scenario := GameData.get_scenario_by_id(state.get("scenarioId", ""))
-	scene_progress_lbl.text = QuestNavigation.format_progress_label(scenario, state)
+	var progress_text := QuestNavigation.format_progress_label(scenario, state)
+	scene_progress_lbl.text = progress_text
+	scene_progress_lbl.tooltip_text = progress_text
 
 	_render_party_list()
-	_render_log()
+	# Ne reconstruit le journal que s'il a changé (un clic carte ne doit rien toucher).
+	var log_entries: Array = state.get("log", [])
+	var log_len := log_entries.size()
+	if log_len != _cached_log_len:
+		_render_log()
+		_cached_log_len = log_len
 	_refresh_scene_navigation_ui()
 	if map_panel and map_panel.has_method("refresh"):
 		map_panel.refresh()
@@ -565,10 +513,10 @@ func _render_party_list() -> void:
 		style.border_color = ThemeColors.GOLD if is_active_turn else ThemeColors.BORDER
 		style.set_border_width_all(2 if is_active_turn else 1)
 		style.set_corner_radius_all(4)
-		style.content_margin_left = 8
-		style.content_margin_right = 8
-		style.content_margin_top = 6
-		style.content_margin_bottom = 6
+		style.content_margin_left = 6
+		style.content_margin_right = 6
+		style.content_margin_top = 4
+		style.content_margin_bottom = 4
 		panel.add_theme_stylebox_override("panel", style)
 		panel.mouse_filter = Control.MOUSE_FILTER_STOP
 		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -580,38 +528,48 @@ func _render_party_list() -> void:
 		)
 
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", 6)
 		panel.add_child(row)
 
-		# Mini silhouette si portrait dispo.
-		var thumb := TextureRect.new()
-		thumb.custom_minimum_size = Vector2(40, 52)
-		thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var ppath := str(member.get("portrait", member.get("image", ""))).strip_edges()
+		var cut: Texture2D = null
 		if not ppath.is_empty():
-			var cut := MapData.load_token_cutout(ppath, 96)
-			if cut != null:
-				thumb.texture = cut
-		row.add_child(thumb)
+			cut = MapData.load_token_cutout(ppath, 64)
+		if cut != null:
+			var thumb := TextureRect.new()
+			thumb.custom_minimum_size = Vector2(24, 24)
+			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			thumb.texture = cut
+			row.add_child(thumb)
+		else:
+			var initial := Label.new()
+			initial.text = str(member.get("name", "?")).substr(0, 1).to_upper()
+			initial.custom_minimum_size = Vector2(24, 24)
+			initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			initial.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+			initial.add_theme_font_size_override("font_size", 12)
+			initial.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(initial)
 
-		var vbox := VBoxContainer.new()
-		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(vbox)
-
-		var name_row := HBoxContainer.new()
-		name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var name_lbl := Label.new()
-		name_lbl.text = member.get("name", "Aventurier")
+		name_lbl.text = "%s · PV %d · CA %d" % [
+			member.get("name", "Aventurier"),
+			member.get("hp", 10),
+			member.get("ac", 10)
+		]
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		name_lbl.add_theme_font_size_override("font_size", 12)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		name_row.add_child(name_lbl)
+		name_lbl.clip_text = true
+		row.add_child(name_lbl)
 
 		var badge := Label.new()
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.add_theme_font_size_override("font_size", 11)
 		if is_active_turn and _is_human_gm_mode():
 			badge.text = "TOUR"
 			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
@@ -622,21 +580,9 @@ func _render_party_list() -> void:
 			badge.text = "BOT"
 			badge.add_theme_color_override("font_color", ThemeColors.BOT_ACCENT)
 		else:
-			badge.text = "JOUEUR"
+			badge.text = "J"
 			badge.add_theme_color_override("font_color", ThemeColors.SUCCESS)
-		name_row.add_child(badge)
-		vbox.add_child(name_row)
-
-		var stats_lbl := Label.new()
-		stats_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stats_lbl.text = "%s · PV %d · CA %d" % [
-			member.get("class", ""),
-			member.get("hp", 10),
-			member.get("ac", 10)
-		]
-		stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		stats_lbl.add_theme_font_size_override("font_size", 12)
-		vbox.add_child(stats_lbl)
+		row.add_child(badge)
 
 		party_container.add_child(panel)
 
@@ -647,44 +593,17 @@ func _open_character_sheet(member: Dictionary) -> void:
 	_character_sheet.open(member)
 
 func _render_log() -> void:
-	var saved_scroll := _get_session_scroll()
+	_log_stick_bottom = _is_log_at_bottom()
 	var log_entries: Array = GameData.active_game.get("log", [])
-	var last_is_dice: bool = not log_entries.is_empty() and str(log_entries[-1].get("type", "")) == "dice"
 
 	log_label.text = ""
 	for entry in log_entries:
 		_append_log_entry_bbcode(entry, false)
 	call_deferred("_sync_log_layout")
-	if last_is_dice:
-		call_deferred("_restore_session_scroll", saved_scroll)
-	else:
-		call_deferred("_scroll_session_to_bottom")
 
 	if _immersive_player and _player_hud != null and not log_entries.is_empty():
 		var last: Dictionary = log_entries[-1]
 		_player_hud.show_toast("%s — %s" % [last.get("speaker", last.get("author", "")), last.get("text", "")])
-
-func _get_session_scroll() -> float:
-	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
-	if not main_area.has_node("SessionScroll"):
-		return 0.0
-	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
-	var bar := scroll.get_v_scroll_bar()
-	return bar.value if bar else 0.0
-
-func _scroll_session_to_bottom() -> void:
-	call_deferred("_sync_log_layout")
-
-func _restore_session_scroll(saved: float) -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	var main_area: VBoxContainer = $MainLayout/ContentSplit/MainGameArea
-	if not main_area.has_node("SessionScroll"):
-		return
-	var scroll: ScrollContainer = main_area.get_node("SessionScroll")
-	var bar := scroll.get_v_scroll_bar()
-	if bar:
-		bar.value = clampf(saved, 0.0, bar.max_value)
 
 func _append_log_entry_bbcode(entry: Dictionary, auto_scroll: bool = true) -> void:
 	var author: String = entry.get("author", "Inconnu")
@@ -707,19 +626,13 @@ func _append_log_entry_bbcode(entry: Dictionary, auto_scroll: bool = true) -> vo
 		"dice":
 			author_color = ThemeColors.get_bbcode_color(ThemeColors.GOLD_LIGHT)
 			
-	var formatted := "[color=#%s][font_size=15][b]%s[/b][/font_size][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n[font_size=15]%s[/font_size]\n\n" % [
+	var formatted := "[color=#%s][font_size=15][b]%s[/b][/font_size][/color] [color=#9a8870][font_size=12]%s[/font_size][/color]\n[font_size=15]%s[/font_size]\n" % [
 		author_color, author, time, text
 	]
-	var is_dice := type == "dice"
-	var saved_scroll := _get_session_scroll() if (auto_scroll and is_dice) else -1.0
 	log_label.append_text(formatted)
-	call_deferred("_sync_log_layout")
-	if not auto_scroll:
-		return
-	if is_dice:
-		call_deferred("_restore_session_scroll", saved_scroll)
-	else:
-		call_deferred("_scroll_session_to_bottom")
+	if auto_scroll:
+		_log_stick_bottom = true
+		call_deferred("_sync_log_layout")
 
 func _on_send_action_pressed() -> void:
 	var action_text := input_action.text.strip_edges()
@@ -738,12 +651,6 @@ func _process_local_player_action(action_text: String) -> void:
 	var actor := GameData.get_active_member()
 	var player_name: String = str(actor.get("name", "Joueur")) if not actor.is_empty() else "Joueur"
 	GameData.add_log_entry(player_name, action_text, "player")
-	_append_log_entry_bbcode({
-		"author": player_name,
-		"type": "player",
-		"text": action_text,
-		"time": Time.get_time_string_from_system()
-	})
 	if GameData.try_auto_move_from_action(action_text):
 		map_panel.refresh()
 	GameData.maybe_reveal_investigation_from_action(action_text)
@@ -767,12 +674,6 @@ func _simulate_ai_response(player_action: String) -> void:
 	var gm_text: String = str(gm_replies[randi() % gm_replies.size()]) + "\n[i]« %s »[/i]" % player_action
 	
 	GameData.add_log_entry("MJ (IA)", gm_text, "gm")
-	_append_log_entry_bbcode({
-		"author": "MJ (IA)",
-		"type": "gm",
-		"text": gm_text,
-		"time": Time.get_time_string_from_system()
-	})
 	
 	# Réaction d'un bot s'il y en a dans le groupe
 	var party: Array = GameData.active_game.get("party", [])
@@ -792,36 +693,25 @@ func _simulate_ai_response(player_action: String) -> void:
 		]
 		var b_text: String = "%s %s" % [bot.get("name", "Bot"), bot_replies[randi() % bot_replies.size()]]
 		GameData.add_log_entry(bot.get("name", "Bot"), b_text, "bot")
-		_append_log_entry_bbcode({
-			"author": bot.get("name", "Bot"),
-			"type": "bot",
-			"text": b_text,
-			"time": Time.get_time_string_from_system()
-		})
 
 func _roll_dice_formula(formula: String) -> void:
-	var saved_scroll := _get_session_scroll()
 	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
 		MultiplayerManager.client_request_dice_roll(formula)
-		call_deferred("_restore_session_scroll", saved_scroll)
 		return
 
 	var res := GameData.roll_dice(formula)
 	if res.has("error"):
 		dice_result_lbl.text = str(res["error"])
-		call_deferred("_restore_session_scroll", saved_scroll)
 		return
 	var formatted := GameData.format_dice_result(res)
-	dice_result_lbl.text = formatted
-	
+	# Le bandeau dés est un Label : on retire le BBCode du texte partagé.
+	var plain := formatted.replace("[b]", "").replace("[/b]", "")
+	dice_result_lbl.text = plain
+	# Jet secret MJ : visible localement uniquement.
+	if chk_secret_dice.button_pressed and _is_mj_controller():
+		dice_result_lbl.text = "🤫 %s" % plain
+		return
 	GameData.add_log_entry("Dé", formatted, "dice")
-	_append_log_entry_bbcode({
-		"author": "Dé",
-		"type": "dice",
-		"text": formatted,
-		"time": Time.get_time_string_from_system()
-	}, false)
-	call_deferred("_restore_session_scroll", saved_scroll)
 
 func _on_roll_custom_dice() -> void:
 	var f := custom_dice_input.text.strip_edges()
@@ -861,14 +751,9 @@ func _broadcast_gm_message(author: String, text: String, log_type: String) -> vo
 	if MultiplayerManager.is_p2p_active() and GameData.has_active_game():
 		MultiplayerManager.client_gm_broadcast(author, text, log_type)
 		return
+	# add_log_entry → save → active_game_updated → _render_log : une seule fois.
 	GameData.add_log_entry(author, text, log_type)
 	GameData.set_waiting_for_gm(false)
-	_append_log_entry_bbcode({
-		"author": author,
-		"type": log_type,
-		"text": text,
-		"time": Time.get_time_string_from_system()
-	})
 	_apply_role_ui()
 
 func _refresh_scene_navigation_ui() -> void:
@@ -933,11 +818,29 @@ func _on_gm_transition_pressed(to_id: String, label: String) -> void:
 	_execute_scene_navigation(to_id, label)
 
 func _on_gm_complete_scenario_pressed() -> void:
-	if MultiplayerManager.is_p2p_active():
-		MultiplayerManager.client_complete_scenario("Clôture par le MJ")
-	else:
-		GameData.complete_scenario("Clôture par le MJ")
-	_refresh_session_ui()
+	_ask_confirm(
+		"Clore l'aventure ?",
+		"Cette action est définitive. La session passera en statut terminé.",
+		func():
+			if MultiplayerManager.is_p2p_active():
+				MultiplayerManager.client_complete_scenario("Clôture par le MJ")
+			else:
+				GameData.complete_scenario("Clôture par le MJ")
+			_refresh_session_ui()
+	)
+
+func _ask_confirm(title: String, body: String, on_ok: Callable) -> void:
+	if _confirm_dialog == null:
+		_confirm_dialog = ConfirmationDialog.new()
+		_confirm_dialog.ok_button_text = "Confirmer"
+		_confirm_dialog.cancel_button_text = "Annuler"
+		add_child(_confirm_dialog)
+	for c in _confirm_dialog.confirmed.get_connections():
+		_confirm_dialog.confirmed.disconnect(c.callable)
+	_confirm_dialog.title = title
+	_confirm_dialog.dialog_text = body
+	_confirm_dialog.confirmed.connect(on_ok, CONNECT_ONE_SHOT)
+	_confirm_dialog.popup_centered()
 
 func _execute_scene_navigation(scene_id: String, reason: String) -> void:
 	if MultiplayerManager.is_p2p_active():
@@ -961,15 +864,20 @@ func _on_net_game_state(state: Dictionary) -> void:
 	_refresh_session_ui()
 
 func _on_p2p_log_entry(entry: Dictionary) -> void:
-	_append_log_entry_bbcode(entry)
+	# Le state réseau peut aussi rafraîchir le journal ; on évite un doublon local.
+	_log_stick_bottom = _is_log_at_bottom()
+	_append_log_entry_bbcode(entry, _log_stick_bottom)
 	_apply_role_ui()
 
 func _on_net_dice_result(_res: Dictionary, formatted: String) -> void:
-	if not formatted.is_empty():
-		dice_result_lbl.text = formatted
-	else:
-		dice_result_lbl.text = GameData.format_dice_result(_res)
+	var text := formatted if not formatted.is_empty() else GameData.format_dice_result(_res)
+	dice_result_lbl.text = text.replace("[b]", "").replace("[/b]", "")
 
 
 func _on_leave_session_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	_ask_confirm(
+		"Quitter la session ?",
+		"Vous quittez la table et retournez au hub.",
+		func():
+			get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	)

@@ -30,7 +30,8 @@ var _toolbar_container: HBoxContainer
 var _complex_toolbar: HBoxContainer
 var _tabs_container: HBoxContainer
 var _nav_bar: HBoxContainer
-var _map_frame: PanelContainer
+var _map_frame: Control
+var _map_host: Control
 var _simple_map: Control
 var _complex_engine: Control
 var _title_lbl: Label
@@ -69,34 +70,40 @@ func set_immersive(on: bool) -> void:
 			_complex_engine.set_view_inset(0.0, 0.0, 0.0, 0.0)
 	call_deferred("_sync_map_viewport_size")
 
+func _toolbar_should_show(mode: String) -> bool:
+	# Une seule barre d'outils à la fois, et aucune en immersif / exploration.
+	return not _immersive and not _readonly and not _explore_mode and _current_mode == mode
+
 func _apply_immersive_chrome() -> void:
-	if not _immersive:
-		return
+	var show_chrome := not _immersive
 	if _title_lbl and _title_lbl.get_parent():
-		_title_lbl.get_parent().visible = false
-	if _mode_row:
-		_mode_row.visible = false
+		_title_lbl.get_parent().visible = show_chrome
 	if _toolbar_scroll:
-		_toolbar_scroll.visible = false
+		_toolbar_scroll.visible = _toolbar_should_show(MapModeScript.SIMPLE)
 	if _complex_scroll:
-		_complex_scroll.visible = false
+		_complex_scroll.visible = _toolbar_should_show(MapModeScript.COMPLEX)
 	if _hint_lbl:
-		_hint_lbl.visible = false
-	# Cadre sans bordure : la carte colle aux bords.
+		_hint_lbl.visible = show_chrome and not _base_hint.is_empty()
+	# Mode row visibility is owned by refresh()/role — only force-hide in immersive.
+	if _immersive and _mode_row:
+		_mode_row.visible = false
 	if _map_frame:
-		var st := StyleBoxFlat.new()
-		st.bg_color = Color(0.02, 0.02, 0.02, 1.0)
-		st.set_border_width_all(0)
-		st.set_corner_radius_all(0)
-		st.content_margin_left = 0
-		st.content_margin_right = 0
-		st.content_margin_top = 0
-		st.content_margin_bottom = 0
-		_map_frame.add_theme_stylebox_override("panel", st)
+		if _immersive:
+			var st := StyleBoxFlat.new()
+			st.bg_color = Color(0.02, 0.02, 0.02, 1.0)
+			st.set_border_width_all(0)
+			st.set_corner_radius_all(0)
+			st.content_margin_left = 0
+			st.content_margin_right = 0
+			st.content_margin_top = 0
+			st.content_margin_bottom = 0
+			_map_frame.add_theme_stylebox_override("panel", st)
+		else:
+			_map_frame.remove_theme_stylebox_override("panel")
 
 func _build_ui() -> void:
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 4)
+	outer.add_theme_constant_override("separation", 2)
 	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(outer)
@@ -115,13 +122,13 @@ func _build_ui() -> void:
 	header.add_child(_title_lbl)
 
 	_build_zoom_controls(header)
+	_build_mode_row(header)
 
 	_tabs_container = HBoxContainer.new()
 	_tabs_container.add_theme_constant_override("separation", 4)
 	_tabs_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tabs_container.visible = false
 	outer.add_child(_tabs_container)
-
-	_build_mode_row(outer)
 
 	_nav_bar = HBoxContainer.new()
 	_nav_bar.add_theme_constant_override("separation", 8)
@@ -132,7 +139,7 @@ func _build_ui() -> void:
 	_toolbar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_toolbar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_toolbar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_toolbar_scroll.custom_minimum_size = Vector2(0, 44)
+	_toolbar_scroll.custom_minimum_size = Vector2(0, 36)
 	outer.add_child(_toolbar_scroll)
 
 	_toolbar_container = HBoxContainer.new()
@@ -144,7 +151,7 @@ func _build_ui() -> void:
 	_complex_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_complex_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_complex_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_complex_scroll.custom_minimum_size = Vector2(0, 44)
+	_complex_scroll.custom_minimum_size = Vector2(0, 36)
 	_complex_scroll.visible = false
 	outer.add_child(_complex_scroll)
 
@@ -159,28 +166,23 @@ func _build_ui() -> void:
 	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_hint_lbl.clip_text = true
 	_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hint_lbl.custom_minimum_size = Vector2(0, 0)
 	outer.add_child(_hint_lbl)
 
-	var map_frame := PanelContainer.new()
+	var map_frame := Panel.new()
 	_map_frame = map_frame
 	var map_style := StyleBoxFlat.new()
 	map_style.bg_color = Color(0.06, 0.05, 0.04, 1.0)
 	map_style.border_color = ThemeColors.BORDER
 	map_style.set_border_width_all(1)
 	map_style.set_corner_radius_all(2)
-	map_style.content_margin_left = 0
-	map_style.content_margin_right = 0
-	map_style.content_margin_top = 0
-	map_style.content_margin_bottom = 0
 	map_frame.add_theme_stylebox_override("panel", map_style)
 	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_frame.custom_minimum_size = Vector2(0, 140)
+	map_frame.clip_contents = true
 	outer.add_child(map_frame)
 
 	_simple_map = SimpleMapRendererScript.new()
-	_simple_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_simple_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_simple_map.cell_clicked.connect(_on_cell_clicked)
 	_simple_map.navigation_requested.connect(_on_navigation_requested)
 	_simple_map.zoom_changed.connect(func(_z): _update_zoom_label())
@@ -188,8 +190,7 @@ func _build_ui() -> void:
 
 	_complex_engine = ComplexMapEngineScript.new()
 	_complex_engine.visible = false
-	_complex_engine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_complex_engine.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_complex_engine.set_process(false)
 	_complex_engine.map_clicked.connect(_on_complex_map_clicked)
 	_complex_engine.token_moved.connect(_on_complex_token_moved)
 	_complex_engine.fog_revealed.connect(_on_fog_revealed)
@@ -200,12 +201,14 @@ func _build_ui() -> void:
 	_complex_engine.area_hovered.connect(_on_area_hovered)
 	_complex_engine.zoom_changed.connect(func(_z): _update_zoom_label())
 	map_frame.add_child(_complex_engine)
+	_map_host = map_frame
 
-func _build_mode_row(parent: VBoxContainer) -> void:
+func _build_mode_row(parent: Control) -> void:
 	_mode_row = HBoxContainer.new()
 	_mode_row.add_theme_constant_override("separation", 6)
 	parent.add_child(_mode_row)
-	parent.move_child(_mode_row, 1)
+	if parent is VBoxContainer:
+		parent.move_child(_mode_row, mini(1, parent.get_child_count() - 1))
 
 	_mode_label = Label.new()
 	_mode_label.text = "Mode carte :"
@@ -354,7 +357,9 @@ func _render_tabs(map_ids: Array) -> void:
 		child.queue_free()
 	# En exploration, une seule carte affichée à la fois — pas d'onglets bruyants.
 	if _explore_mode or map_ids.size() <= 1:
+		_tabs_container.visible = false
 		return
+	_tabs_container.visible = true
 	for map_id in map_ids:
 		var m := MapData.get_by_id(map_id)
 		if m.is_empty():
@@ -378,9 +383,8 @@ func _render_tabs(map_ids: Array) -> void:
 func _render_toolbar(state: Dictionary) -> void:
 	for child in _toolbar_container.get_children():
 		child.queue_free()
-	var show_simple := _current_mode == MapModeScript.SIMPLE and not _explore_mode
-	_toolbar_scroll.visible = show_simple and not _readonly
-	if not show_simple or _readonly:
+	_toolbar_scroll.visible = _toolbar_should_show(MapModeScript.SIMPLE)
+	if not _toolbar_scroll.visible:
 		return
 
 	var party: Array = state.get("party", [])
@@ -427,7 +431,7 @@ func _render_complex_toolbar(state: Dictionary) -> void:
 	for child in _complex_toolbar.get_children():
 		child.queue_free()
 	# Exploration illustrée : pas de barre VTT (brouillard, effets, grille…).
-	_complex_scroll.visible = _current_mode == MapModeScript.COMPLEX and not _readonly and not _explore_mode
+	_complex_scroll.visible = _toolbar_should_show(MapModeScript.COMPLEX)
 	if not _complex_scroll.visible:
 		return
 
@@ -549,15 +553,15 @@ func _render_active_map(state: Dictionary) -> void:
 	_sync_mode_selector()
 
 	if nav_ctx.get("mode") == "area":
-		_hint_lbl.text = "Molette pour zoomer · glisser pour déplacer · ← Remonter"
+		_hint_lbl.text = "Ctrl+molette pour zoomer · glisser pour déplacer · ← Remonter"
 	elif _explore_mode:
-		_hint_lbl.text = "Cliquez un lieu du plan pour y entrer · glisser · molette"
+		_hint_lbl.text = "Cliquez un lieu du plan pour y entrer · glisser · Ctrl+molette"
 	elif _current_mode == MapModeScript.COMPLEX:
-		_hint_lbl.text = "Tokens · glisser · molette"
+		_hint_lbl.text = "Tokens · glisser · Ctrl+molette"
 	elif MapData.is_world_map(display_map):
 		_hint_lbl.text = "Cliquez un lieu pour voyager"
 	else:
-		_hint_lbl.text = "Glisser · molette · ⟲ recadrer"
+		_hint_lbl.text = "Glisser · Ctrl+molette · ⟲ recadrer"
 	_base_hint = _hint_lbl.text
 	_hint_lbl.visible = not _base_hint.is_empty() and not _immersive
 
@@ -640,6 +644,9 @@ func _apply_map_config(state: Dictionary, active_id: String, ctx: Dictionary) ->
 	var use_complex := _current_mode == MapModeScript.COMPLEX
 	_simple_map.visible = not use_complex
 	_complex_engine.visible = use_complex
+	if _complex_engine.has_method("set_process"):
+		_complex_engine.set_process(use_complex)
+	call_deferred("_sync_map_viewport_size")
 
 	if use_complex:
 		var tool := _complex_tool_dict()
@@ -702,19 +709,28 @@ func _complex_tool_dict() -> Dictionary:
 	return tool
 
 func _sync_map_viewport_size() -> void:
+	# Forcer la taille des moteurs sur le cadre (ancres seules = pastille sous Panel).
 	if _map_frame == null:
 		return
-	var frame_h := int(_map_frame.size.y)
-	var frame_w := int(_map_frame.size.x)
-	if frame_h > 32 and frame_w > 32:
-		var sz := Vector2(maxi(64, frame_w - 4), maxi(64, frame_h - 4))
-		_simple_map.custom_minimum_size = sz
-		_complex_engine.custom_minimum_size = sz
-		_simple_map.size = sz
-		_complex_engine.size = sz
-		# Après layout : recadrer (sinon la caméra garde un cadrage calculé à size≈0).
-		if _current_mode == MapModeScript.COMPLEX and _complex_engine and _complex_engine.has_method("reset_zoom"):
-			_complex_engine.call_deferred("reset_zoom")
+	await get_tree().process_frame
+	var sz := _map_frame.size
+	if sz.x < 32.0 or sz.y < 32.0:
+		return
+	for eng in [_simple_map, _complex_engine]:
+		if eng == null:
+			continue
+		eng.set_anchor(SIDE_LEFT, 0.0)
+		eng.set_anchor(SIDE_TOP, 0.0)
+		eng.set_anchor(SIDE_RIGHT, 0.0)
+		eng.set_anchor(SIDE_BOTTOM, 0.0)
+		eng.position = Vector2.ZERO
+		eng.size = sz
+		eng.custom_minimum_size = Vector2.ZERO
+	if _complex_engine:
+		_complex_engine.set_process(_complex_engine.visible)
+	var engine: Control = _complex_engine if (_complex_engine and _complex_engine.visible) else _simple_map
+	if engine and engine.visible and engine.has_method("_fit_to_view"):
+		engine.call("_fit_to_view")
 
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():
