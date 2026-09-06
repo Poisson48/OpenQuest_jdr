@@ -61,6 +61,12 @@ func _ready() -> void:
 func set_immersive(on: bool) -> void:
 	_immersive = on
 	_apply_immersive_chrome()
+	if _complex_engine and _complex_engine.has_method("set_view_inset"):
+		# Laisse le village entier au-dessus de la barre d'action HUD.
+		if on:
+			_complex_engine.set_view_inset(8.0, 56.0, 8.0, 128.0)
+		else:
+			_complex_engine.set_view_inset(0.0, 0.0, 0.0, 0.0)
 	call_deferred("_sync_map_viewport_size")
 
 func _apply_immersive_chrome() -> void:
@@ -352,6 +358,8 @@ func _render_tabs(map_ids: Array) -> void:
 	for map_id in map_ids:
 		var m := MapData.get_by_id(map_id)
 		if m.is_empty():
+			continue
+		if not str(m.get("parentMapId", "")).is_empty():
 			continue
 		var btn := Button.new()
 		btn.text = str(m.get("title", map_id))
@@ -711,9 +719,22 @@ func _sync_map_viewport_size() -> void:
 func _get_active_map_id(map_ids: Array) -> String:
 	if map_ids.is_empty():
 		return ""
+	var play_id := GameData.get_active_play_map_id()
+	if not play_id.is_empty() and map_ids.has(play_id):
+		_active_map_id = play_id
+		return play_id
 	if not _active_map_id.is_empty() and map_ids.has(_active_map_id):
-		return _active_map_id
-	_active_map_id = map_ids[0]
+		var cached := MapData.get_by_id(_active_map_id)
+		if str(cached.get("parentMapId", "")).is_empty():
+			return _active_map_id
+	for map_id in map_ids:
+		var m := MapData.get_by_id(str(map_id))
+		if m.is_empty():
+			continue
+		if str(m.get("parentMapId", "")).is_empty():
+			_active_map_id = str(map_id)
+			return _active_map_id
+	_active_map_id = str(map_ids[0])
 	return _active_map_id
 
 func _on_cell_clicked(x: int, y: int) -> void:

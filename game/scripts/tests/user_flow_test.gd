@@ -29,7 +29,7 @@ func _run() -> void:
 		await _wait_scene("GameSetup")
 		var setup := current_scene
 		var opt: OptionButton = setup.get_node("%OptScenario")
-		var target_idx := _find_scenario_index(opt, "demo-couronne-fracturee")
+		var target_idx := _find_scenario_index(opt, "demo-crypte")
 		if target_idx < 0:
 			target_idx = 0
 		opt.select(target_idx)

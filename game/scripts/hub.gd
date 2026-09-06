@@ -53,7 +53,12 @@ func _ready() -> void:
 	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
 	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
 	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
-	_add_vtt_map_button()
+	btn_new_map_world.visible = false
+	btn_new_map_adv.visible = false
+	btn_new_map_inv.visible = false
+	for i in range(tab_container.get_tab_count()):
+		if tab_container.get_tab_title(i) == "Enquête":
+			tab_container.set_tab_hidden(i, true)
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
@@ -127,23 +132,25 @@ func _render_maps_tab() -> void:
 	for child in maps_sections_root.get_children():
 		child.queue_free()
 	var sort_mode := _current_maps_sort_mode()
+	var adventure := MapData.sort_maps(MapData.get_maps_by_category("adventure"), sort_mode)
+	var simple_maps: Array = []
+	var valbois_maps: Array = []
+	for m in adventure:
+		if str(m.get("renderMode", "simple")) == MapModeScript.COMPLEX:
+			valbois_maps.append(m)
+		else:
+			simple_maps.append(m)
 	_add_maps_section(
-		"🌍 Cartes du monde",
-		"Continents, royaumes et villes pour les campagnes longues.",
-		MapData.sort_maps(MapData.get_maps_by_category("world"), sort_mode),
-		"world"
-	)
-	_add_maps_section(
-		"⚔️ Scènes aventure",
-		"Donjons, tavernes et zones d'exploration locales.",
-		MapData.sort_maps(MapData.get_maps_by_category("adventure"), sort_mode),
+		"▦ Quête simple",
+		"La Crypte Oubliée — carte tuilée classique.",
+		simple_maps,
 		"adventure"
 	)
 	_add_maps_section(
-		"🔍 Scènes enquête",
-		"Quartiers, commissariats et lieux de crime.",
-		MapData.sort_maps(MapData.get_maps_by_category("investigation"), sort_mode),
-		"investigation"
+		"⚙️ Valbois",
+		"Village illustré, Place du Marché et token Kael. Cliquez le lieu ⭐ pour zoomer.",
+		valbois_maps,
+		"adventure"
 	)
 
 func _add_maps_section(title: String, hint: String, map_list: Array, category: String) -> void:
@@ -266,6 +273,13 @@ func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 	btn_preview.pressed.connect(func(): _preview_map(map_id))
 	actions.add_child(btn_preview)
 
+	if str(map_data.get("scenarioId", "")) == "demo-valbois":
+		var btn_demo := Button.new()
+		btn_demo.text = "Jouer avec Kael"
+		btn_demo.tooltip_text = "Lance la démo Valbois : Kael, portrait, token, Place du Marché."
+		btn_demo.pressed.connect(_play_valbois_demo)
+		actions.add_child(btn_demo)
+
 	var btn_edit := Button.new()
 	btn_edit.text = "Modifier"
 	btn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -281,6 +295,11 @@ func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 	vbox.add_child(actions)
 	card.add_child(vbox)
 	return card
+
+func _play_valbois_demo() -> void:
+	if not GameData.start_valbois_demo_session():
+		return
+	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
 
 func _preview_map(map_id: String) -> void:
 	MapData.preview_map_id = map_id

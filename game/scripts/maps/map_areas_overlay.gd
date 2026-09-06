@@ -1,8 +1,8 @@
 extends Control
 class_name MapAreasOverlay
 
-## Pas de dessin en session : les lieux sont implicites (plan illustré).
-## Le feedback passe par le curseur (moteur) et le bandeau d'aide (MapPanel).
+## Pas de dessin en session : les lieux sont déjà sur le plan illustré.
+## Feedback = curseur + bandeau d'aide (MapPanel).
 
 var engine: Control = null
 var map_data: Dictionary = {}
@@ -20,4 +20,6 @@ func configure(p_engine: Control, p_map: Dictionary) -> void:
 
 func set_hovered(area_id: String) -> void:
 	hovered_id = area_id
-	# Pas de redraw : overlay volontairement vide.
+
+func _draw() -> void:
+	pass

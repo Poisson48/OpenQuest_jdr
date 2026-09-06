@@ -66,7 +66,7 @@ var _drag_start: Vector2 = Vector2.ZERO
 var _pan_start: Vector3 = Vector3.ZERO
 var _pan_velocity: Vector2 = Vector2.ZERO
 var _last_pan_pos: Vector2 = Vector2.ZERO
-var _dragging_token: MapToken3D = null
+var _dragging_token = null
 var _token_nodes: Dictionary = {}
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
@@ -295,7 +295,7 @@ func _rebuild_layers() -> void:
 	_clear_children(_tokens_root, _token_nodes)
 	_token_nodes.clear()
 	for tok in _tokens:
-		var node: MapToken3D = MapToken3DScript.new()
+		var node = MapToken3DScript.new()
 		node.setup(tok, _cell_size, _party, readonly)
 		node.snap_to_grid = snap_to_grid
 		node.set_selected(str(tok.get("id", "")) == _selected_token_id)
@@ -425,7 +425,7 @@ func _screen_to_grid(screen_pos: Vector2) -> Vector2:
 		world.z / _cell_size - 0.5
 	)
 
-func _raycast_token(screen_pos: Vector2) -> MapToken3D:
+func _raycast_token(screen_pos: Vector2):
 	var space := _viewport.world_3d.direct_space_state
 	var vp_pos := _to_viewport_pos(screen_pos)
 	var from := _camera.project_ray_origin(vp_pos)
@@ -437,10 +437,10 @@ func _raycast_token(screen_pos: Vector2) -> MapToken3D:
 	if hit.is_empty():
 		return null
 	var collider: Object = hit.get("collider")
-	if collider is MapToken3D:
-		return collider as MapToken3D
-	if collider is CollisionShape3D and collider.get_parent() is MapToken3D:
-		return collider.get_parent() as MapToken3D
+	if collider != null and collider.get_script() == MapToken3DScript:
+		return collider
+	if collider is CollisionShape3D and collider.get_parent() != null and collider.get_parent().get_script() == MapToken3DScript:
+		return collider.get_parent()
 	return null
 
 func _process(delta: float) -> void:

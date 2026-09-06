@@ -12,6 +12,8 @@ const BOTS_PATH = "user://bots.json"
 const BOTS_REMOVED_PATH = "user://bots_removed.json"
 const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
+const DEMO_SCENARIO_FILES := ["demo-valbois.json", "demo-crypte.json"]
+const DEMO_SCENARIO_IDS := ["demo-valbois", "demo-crypte"]
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
@@ -77,6 +79,7 @@ func load_characters() -> void:
 	else:
 		characters = _create_seed_characters()
 		save_characters()
+	_ensure_kael_character()
 	characters_updated.emit()
 
 func save_characters() -> void:
@@ -132,6 +135,8 @@ func get_scenarios_for_quest_format(quest_format: String) -> Array:
 	for s in scenarios:
 		var scn_id: String = s.get("id", "")
 		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
+			continue
+		if not DEMO_SCENARIO_IDS.has(scn_id):
 			continue
 		if is_scenario_valid_for_format(s, quest_format):
 			result.append(s)
@@ -310,8 +315,88 @@ func create_blank_character(
 		blank["traits"] = []
 	return normalize_character(blank)
 
+func _ensure_kael_character() -> void:
+	var fresh := _make_kael_character()
+	for i in range(characters.size()):
+		if str(characters[i].get("id", "")) == "char-kael":
+			var merged: Dictionary = characters[i].duplicate(true)
+			for key in fresh.keys():
+				merged[key] = fresh[key]
+			characters[i] = normalize_character(merged)
+			save_characters()
+			return
+	characters.append(fresh)
+	save_characters()
+
+func resolve_kael_portrait() -> String:
+	var portrait_res := "res://assets/portraits/voleur_kael.png"
+	var src := ProjectSettings.globalize_path(portrait_res)
+	if FileAccess.file_exists(src):
+		var dest: String = MapData.import_token_image(src)
+		if not dest.is_empty():
+			return dest
+	return portrait_res
+
+func make_kael_party_member() -> Dictionary:
+	_ensure_kael_character()
+	var portrait := resolve_kael_portrait()
+	var member := _make_kael_character()
+	member["portrait"] = portrait
+	member["image"] = portrait
+	member["isPlayer"] = true
+	member["isHuman"] = true
+	member["isBot"] = false
+	member["clientId"] = "joueur-demo"
+	return member
+
+func start_valbois_demo_session() -> bool:
+	if MapData.get_by_id("demo-valbois-village").is_empty():
+		push_error("[VALBOIS] Carte complexe introuvable.")
+		return false
+	var kael := make_kael_party_member()
+	create_new_game("demo-valbois", "solo", "human", "oneshot", [kael], ["demo-valbois-village", "demo-valbois-place"])
+	active_game["forcePlayerView"] = true
+	active_game["gmName"] = "MJ Distant"
+	if MultiplayerManager != null:
+		MultiplayerManager.player_role = "player"
+		MultiplayerManager.player_name = "Kael"
+		MultiplayerManager.is_gm = false
+	save_active_game()
+	return true
+
+func _make_kael_character() -> Dictionary:
+	var portrait := "res://assets/portraits/voleur_kael.png"
+	return normalize_character({
+		"id": "char-kael",
+		"name": "Kael",
+		"race": "Humain",
+		"class": "Voleur",
+		"roster": "general",
+		"hp": 11,
+		"ac": 14,
+		"isPlayer": true,
+		"portrait": portrait,
+		"image": portrait,
+		"stats": {"str": 10, "dex": 16, "con": 12, "int": 11, "wis": 13, "cha": 9},
+		"temperament": "Méfiant · Silencieux · Opportuniste",
+		"stress": "Tendu",
+		"quirk": "Compte les sorties d'une pièce avant d'y entrer.",
+		"backstory": "Fils d'une couturière de Valbois, Kael a appris tôt que les riches paient mal et que les serrures parlent à qui sait les écouter. Chassé après un vol de bijoux au manoir du maire — un coup qu'il jure n'avoir jamais mené à terme — il a survécu dans les ruelles de la capitale, vendant secrets et silences. Aujourd'hui il revient à Valbois : non pour se racheter, mais parce qu'une dette ancienne y a laissé une piste. Il sourit rarement. Quand il le fait, quelqu'un perd quelque chose.",
+		"barks": [
+			"Les ombres mentent rarement. Les hommes, toujours.",
+			"Un regard de trop… je disparais.",
+			"La fortune favorise les doigts agiles.",
+			"J'ai déjà vu cette serrure. Elle cédera.",
+			"Trop de lumière ici. Ça sent le piège.",
+			"Garde ton or. Garde surtout ta langue.",
+			"Le bruit attire les dettes… et les lames.",
+			"Je n'ai pas peur du noir. Le noir a peur de moi.",
+		],
+	})
+
 func _create_seed_characters() -> Array:
 	return [
+		_make_kael_character(),
 		{
 			"id": "char-aria",
 			"name": "Aria Sombrelame",
@@ -360,16 +445,13 @@ func reload_builtin_scenarios() -> void:
 	scenarios_updated.emit()
 
 func load_scenarios() -> void:
-	var data = _load_json_file(SCENARIOS_PATH)
-	if data is Array and not data.is_empty():
-		scenarios = data
-	else:
-		scenarios = _load_default_scenarios()
-		save_scenarios()
+	# Catalogue démo : uniquement la quête simple et Valbois.
+	scenarios = _load_default_scenarios()
 	for i in range(scenarios.size()):
 		if scenarios[i] is Dictionary:
 			scenarios[i] = QuestNavigation.normalize_scenario(scenarios[i])
-	_load_removed_scenarios()
+	removed_scenario_ids = []
+	save_scenarios()
 	scenarios_updated.emit()
 
 func _load_removed_scenarios() -> void:
@@ -391,6 +473,8 @@ func get_scenarios(quest_format: String = "", roster: String = "") -> Array:
 	for s in scenarios:
 		var scn_id: String = s.get("id", "")
 		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
+			continue
+		if not DEMO_SCENARIO_IDS.has(scn_id):
 			continue
 		if not quest_format.is_empty() and s.get("questFormat", "") != quest_format:
 			continue
@@ -535,39 +619,17 @@ func _load_default_scenarios() -> Array:
 	var list := []
 	var dirs_to_check := ["res://data/scenarios/", "res://../data/scenarios/"]
 	for dir_path in dirs_to_check:
-		var dir := DirAccess.open(dir_path)
-		if dir:
-			dir.list_dir_begin()
-			var file_name := dir.get_next()
-			while not file_name.is_empty():
-				if not dir.current_is_dir() and file_name.ends_with(".json"):
-					var s_data = _load_json_file(dir_path + file_name)
-					if s_data is Dictionary and s_data.has("id"):
-						if not s_data.has("roster"):
-							s_data["roster"] = "investigation" if file_name.begins_with("inv-") else "general"
-						list.append(s_data)
-				file_name = dir.get_next()
-			if not list.is_empty():
-				return list
+		for file_name in DEMO_SCENARIO_FILES:
+			var s_data = _load_json_file(dir_path + file_name)
+			if s_data is Dictionary and s_data.has("id"):
+				if not s_data.has("roster"):
+					s_data["roster"] = "general"
+				list.append(s_data)
+		if not list.is_empty():
+			return list
 
 	# Fallback si aucun fichier n'a pu être chargé
 	return [
-		{
-			"id": "demo-kharak",
-			"questFormat": "long",
-			"roster": "general",
-			"title": "Les Sables de Kharak",
-			"synopsis": "Une caravane a disparu dans le désert de Kharak. Les aventuriers doivent traverser dunes et ruines oubliées.",
-			"setting": "Désert brûlant, ruines antiques enfouies.",
-			"scenes": [
-				{ "title": "L'oasis de Selim", "content": "La dernière étape avant le désert profond. Les nomades parlent d'une cité engloutie." },
-				{ "title": "La tempête de sable", "content": "Visibilité nulle. Le groupe doit se lier pour ne pas se perdre." },
-				{ "title": "Les ruines de Zhar-Rim", "content": "Des colonnes de pierre émergent des sables. Un puits mène aux catacombes." }
-			],
-			"npcs": [
-				{ "name": "Yasmina", "role": "Survivante", "description": "Marchande de la caravane." }
-			]
-		},
 		{
 			"id": "demo-crypte",
 			"questFormat": "oneshot",
@@ -969,6 +1031,7 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 	init_all_world_map_fog()
 	init_investigation_clues_for_game()
 	_ensure_party_tokens_on_world_maps()
+	_apply_valbois_demo()
 	save_active_game()
 	return active_game
 
@@ -1295,13 +1358,33 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 	if not entry.has("visibleNow") or typeof(entry["visibleNow"]) != TYPE_ARRAY:
 		entry["visibleNow"] = []
 	_seed_play_defaults_from_map(map_id, entry)
+	_dedupe_member_tokens(entry)
 	return entry
 
+func _dedupe_member_tokens(entry: Dictionary) -> void:
+	var seen: Dictionary = {}
+	var kept: Array = []
+	for tok_variant in entry.get("tokens", []):
+		if not tok_variant is Dictionary:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("kind", "")) == "member":
+			var mid := str(tok.get("memberId", ""))
+			if not mid.is_empty():
+				if seen.has(mid):
+					continue
+				seen[mid] = true
+		kept.append(tok)
+	entry["tokens"] = kept
+
 func _seed_play_defaults_from_map(map_id: String, entry: Dictionary) -> void:
+	if bool(entry.get("playDefaultsSeeded", false)):
+		return
 	var map_def := MapData.get_by_id(map_id)
 	if map_def.is_empty():
 		return
 	var pd := MapData.ensure_play_defaults(map_def)
+	entry["playDefaultsSeeded"] = true
 	if entry["tokens"].is_empty() and pd.get("tokens", []).size() > 0:
 		entry["tokens"] = pd["tokens"].duplicate(true)
 	if entry["effects"].is_empty() and pd.get("effects", []).size() > 0:
@@ -1312,6 +1395,69 @@ func _seed_play_defaults_from_map(map_id: String, entry: Dictionary) -> void:
 		entry["fogRevealed"] = pd["fogRevealed"].duplicate(true)
 	if entry["viewState"].is_empty() and not pd.get("viewState", {}).is_empty():
 		entry["viewState"] = pd["viewState"].duplicate(true)
+	_enrich_member_token_portraits(entry)
+
+func _enrich_member_token_portraits(entry: Dictionary) -> void:
+	for tok_variant in entry.get("tokens", []):
+		if not tok_variant is Dictionary:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("kind", "")) != "member":
+			continue
+		var mid := str(tok.get("memberId", ""))
+		var member := _find_party_member(mid)
+		if member.is_empty():
+			member = get_character_by_id(mid)
+		var portrait := str(member.get("portrait", member.get("image", ""))).strip_edges()
+		if portrait.is_empty():
+			continue
+		tok["image"] = portrait
+		if str(tok.get("label", "")).is_empty():
+			tok["label"] = str(member.get("name", "Héros"))
+
+func _apply_valbois_demo() -> void:
+	if active_game.is_empty() or str(active_game.get("scenarioId", "")) != "demo-valbois":
+		return
+	var kael := make_kael_party_member()
+	var party: Array = active_game.get("party", [])
+	var found := false
+	for i in range(party.size()):
+		if str(party[i].get("id", "")) == "char-kael" or str(party[i].get("name", "")) == "Kael":
+			party[i] = kael
+			found = true
+			break
+	if not found:
+		party.insert(0, kael)
+	active_game["party"] = party
+
+	var village_id := "demo-valbois-village"
+	var place_id := "demo-valbois-place"
+	var ids: Array = active_game.get("mapIds", [])
+	for extra in [village_id, place_id]:
+		if not extra.is_empty() and not ids.has(extra) and not MapData.get_by_id(extra).is_empty():
+			ids.append(extra)
+	active_game["mapIds"] = ids
+
+	var overrides: Dictionary = active_game.get("mapModeOverrides", {})
+	if not MapData.get_by_id(village_id).is_empty():
+		overrides[village_id] = MapData.RENDER_MODE_COMPLEX
+	if not MapData.get_by_id(place_id).is_empty():
+		overrides[place_id] = MapData.RENDER_MODE_COMPLEX
+	active_game["mapModeOverrides"] = overrides
+	active_game["waitingForGm"] = false
+	if str(active_game.get("gmName", "")) == "MJ":
+		active_game["gmName"] = "MJ Démo Valbois"
+	active_game["mapNavigation"] = {
+		"view": "local",
+		"localMapId": village_id,
+		"worldMapId": null,
+		"worldCell": null,
+		"areaStack": [],
+	}
+
+	# Un seul token Kael : celui de playDefaults (évite un doublon au re-seed).
+	add_log_entry("Système", "Démo Valbois — vous êtes au village. Cliquez la Place du Marché pour y entrer.", "system")
+	add_log_entry("Kael", "Les étals font trop de bruit… parfait pour se fondre.", "player")
 
 func get_fog_revealed_cells(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["fogRevealed"]
@@ -2007,10 +2153,16 @@ func expand_map_ids_with_linked_locals(map_ids: Array) -> Array:
 			expanded.append(id)
 	for id in map_ids:
 		var m := MapData.get_by_id(id)
-		if not m.is_empty() and MapData.is_world_map(m):
+		if m.is_empty():
+			continue
+		if MapData.is_world_map(m):
 			for linked in MapData.get_linked_local_map_ids(m):
 				if not expanded.has(linked):
 					expanded.append(linked)
+		for child in MapData.get_child_maps(id):
+			var cid := str(child.get("id", ""))
+			if not cid.is_empty() and not expanded.has(cid):
+				expanded.append(cid)
 	return expanded
 
 func enter_local_map(world_map_id: String, x: int, y: int, target_map_id: String) -> void:

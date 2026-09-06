@@ -519,7 +519,7 @@ func _update_net_status() -> void:
 
 func _create_fallback_game() -> void:
 	var scns: Array = GameData.get_scenarios()
-	var scn_id: String = scns[0].get("id", "demo-kharak") if not scns.is_empty() else "demo-kharak"
+	var scn_id: String = scns[0].get("id", "demo-crypte") if not scns.is_empty() else "demo-crypte"
 	var default_party: Array = [
 		{ "id": "char-fallback-1", "name": "Aria", "race": "Elfe", "class": "Rôdeuse", "hp": 12, "ac": 14, "isPlayer": true, "isBot": false },
 		{ "id": "bot-fallback-1", "name": "Kael", "race": "Nain", "class": "Guerrier", "hp": 14, "ac": 16, "isPlayer": false, "isBot": true }

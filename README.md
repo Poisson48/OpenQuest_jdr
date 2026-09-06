@@ -1,59 +1,66 @@
 # OpenQuest JDR
 
-> Créateur et session de jeu de rôle — client **Godot 4** + serveur **Node.js** (multijoueur WebSocket).
+Client **Godot 4.7** + serveur **Node.js** (pooling WebSocket / matchmaking P2P).
 
-**OpenQuest** permet de créer des personnages, scénarios et cartes, puis de jouer en solo ou à plusieurs avec un MJ humain ou une **MJ IA**. Les données sont persistées localement (Godot `user://`).
+Création de personnages, scénarios et cartes, puis session solo ou à plusieurs (MJ humain ou MJ IA). Persistance locale Godot (`user://`).
 
-| Composant | Statut | Lancement |
-|-----------|--------|-----------|
-| **Client Godot** | ✅ Jouable | `./scripts/play-godot.sh` (ou ouvrir `game/` dans Godot 4, F5) |
-| **Serveur Node (pooling)** | ✅ Opérationnel | `./scripts/dev-server.sh` ou `cd server && npm run dev` |
+| Composant | Statut | Lancement (Windows) |
+|-----------|--------|---------------------|
+| **Client Godot** | Jouable (démos Valbois + Crypte) | `.\scripts\play-godot.ps1` |
+| **Serveur Node (pooling)** | Opérationnel (LAN) | `.\scripts\dev-server.sh` ou `cd server && npm run dev` |
 
----
-
-## Fonctionnalités
-
-### Modes de jeu
-- **One-shot** — aventure courte
-- **Campagne longue** — scénarios étendus + carte du monde
-- **Enquête** — investigation avec roster et cartes dédiées
-
-### Création de contenu
-- **Personnages** — fiches aventure / enquête (tiers simple → complet), PC ou bots
-- **Scénarios non linéaires** — éditeur de **graphe de scènes** (branches, retours MJ, auto-layout, validation)
-- **Bots compagnons** — archétypes IA pour compléter le groupe
-- **Cartes dual-mode** :
-  - **Simple** — grilles de tuiles, cartes du monde, brouillard cellulaire, liens monde → lieu
-  - **Complexe (3D)** — battlemap PNG, tokens 3D, fog, effets, zones, murs, lumières
-
-### Éditeur de battlemap 3D
-Hub → Cartes → carte en mode **Complexe** → **✏️ Modifier** :
-- Outils : tokens, marqueurs, effets, zones, plateformes, murs, notes MJ, lumières, terrain, fog, liens, mesure, templates
-- Undo/redo par deltas, calques, mini-carte, aimantation, raccourcis
-- Import PNG (Dungeon Alchemist / Dungeondraft…), perspectives top-down / iso / perspective
-
-### Session de jeu
-- Groupe jusqu'à 10 participants (humains + bots)
-- **MJ IA** adaptatif ou **MJ humain**
-- **Navigation narrative** — saut libre entre scènes, branches, clôture manuelle
-- Journal de partie, dés intégrés, timer de session
-- Cartes interactives en partie (placement, zoom, pan, fog)
-- **PNJ IA** — génération et gestion de personnages improvisés
+> **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Audits détaillés dans `docs/`.
 
 ---
 
-## Structure du projet
+## Ce qui marche aujourd’hui
+
+- **Menus / hub / setup / session** — parcours solo et MJ humain
+- **Deux démos catalogue** uniquement : `demo-valbois`, `demo-crypte` (autres JSON sous `game/data/scenarios/` existent mais ne sont plus proposés)
+- **Cartes dual-mode** — simple (tuiles) + complexe 3D (`ComplexMapEngine3D`)
+  - Style **diorama** (défaut) : fond illustré, tokens découpes, navigation lieux
+  - Style **VTT** : battlemap tactique (murs, ombres, tokens cylindriques)
+- **Valbois** — cartes illustrées HD (`valbois_village.png`, `place_du_marche.png`), zoom lieu → Place du Marché, personnage **Kael** (voleur + portrait)
+- **HUD joueur immersif** — carte plein écran + overlay (`PlayerSessionHud`) ; vue MJ = panneau de session classique
+- **Éditeur battlemap 3D** — Hub → Cartes → carte complexe → Modifier
+- **Scénarios non linéaires** — graphe de scènes, navigation MJ
+- **Serveur pooling** — salons + signalisation ; jeu P2P ENet en LAN (pas Internet)
+
+---
+
+## Démos
+
+| Id | Titre | Carte |
+|----|-------|-------|
+| `demo-valbois` | Retour à Valbois | Complexe / diorama — village + Place du Marché, token Kael |
+| `demo-crypte` | La Crypte Oubliée | Simple / tuiles — Brumeval |
+
+Raccourcis de lancement :
+
+```powershell
+.\scripts\play-godot.ps1                                              # menu, profil MJ
+.\scripts\play-godot-player.ps1                                       # 2e instance, profil joueur
+.\scripts\play-godot-mj-demo.ps1                                      # boot session MJ
+.\scripts\play-godot.ps1 res://scenes/debug/valbois_demo_boot.tscn    # Valbois direct
+.\scripts\play-godot.ps1 res://scenes/debug/valbois_player_demo_boot.tscn  # Valbois HUD joueur
+```
+
+---
+
+## Structure
 
 ```
 OpenQuest_jdr/
-├── game/                   # Client Godot 4
-│   ├── scenes/             # Menus, hub, session, éditeurs
-│   ├── scripts/maps/       # Moteur 3D + éditeur battlemap
-│   └── scripts/tests/      # Tests headless
-├── server/                 # Serveur WebSocket Node.js
-├── data/                   # Données JSON partagées (scénarios, bots, tuiles)
-├── docs/                   # Documentation
-└── scripts/                # Setup & lancement
+├── game/                 # Client Godot 4.7 (Forward+)
+│   ├── assets/maps/      # Illustrations Valbois HD
+│   ├── assets/portraits/ # Portrait Kael
+│   ├── data/scenarios/   # JSON scénarios (catalogue filtré à 2 démos)
+│   ├── scenes/           # Menus, hub, session, boots debug
+│   └── scripts/          # Autoloads, maps 3D, UI, tests headless
+├── server/               # Pooling WebSocket (TypeScript)
+├── data/                 # Jeu de données partagé (scénarios historiques, bots, tiles)
+├── docs/                 # Audits, architecture, cartes, multijoueur
+└── scripts/              # play-godot*.ps1 / .sh, setup, captures
 ```
 
 ---
@@ -64,44 +71,113 @@ OpenQuest_jdr/
 
 | Outil | Version |
 |-------|---------|
-| Node.js | ≥ 20 |
-| Godot | 4.4+ (Flatpak `org.godotengine.Godot` recommandé) |
+| Godot | **4.7.x** (pas .NET) — `project.godot` → `config/features` = `4.7` |
+| Node.js | ≥ 20 (serveur / MCP) |
 
-Setup initial après clone :
+### Client (Windows)
 
-```bash
-git clone https://github.com/Poisson48/OpenQuest_jdr.git
-cd OpenQuest_jdr
-./scripts/setup.sh
+```powershell
+cd D:\git\OpenQuest_jdr
+.\scripts\play-godot.ps1
 ```
 
-### Serveur
+Le script cherche Godot (PATH / WinGet / Downloads) et utilise le profil utilisateur **`OpenQuest_MJ`** (`%APPDATA%\Godot\app_userdata\OpenQuest_MJ`).
+
+Linux / Flatpak : `./scripts/play-godot.sh`  
+Ou ouvrir `game/` dans l’éditeur Godot → F5 (`scenes/main_menu.tscn`).
+
+### Serveur (multijoueur LAN)
 
 ```bash
 ./scripts/dev-server.sh
-# équivalent : cd server && cp -n .env.example .env && npm install && npm run dev
+# ou : cd server && cp -n .env.example .env && npm install && npm run dev
 ```
 
-Écoute sur `ws://0.0.0.0:8080`.
+Écoute `ws://0.0.0.0:8080`. Salon depuis le menu → **Salon multijoueur (P2P)**.
 
-### Client Godot
+### Tests headless
 
 ```bash
-./scripts/play-godot.sh
+# Exemples (Godot dans le PATH ou Flatpak)
+godot --headless --path game -s res://scripts/tests/map_camera_test.gd
+godot --headless --path game -s res://scripts/tests/map_mode_test.gd
+godot --headless --path game -s res://scripts/tests/quest_navigation_test.gd
+godot --headless --path game -s res://scripts/tests/valbois_player_hud_test.gd
 ```
 
-Ou : ouvrir `game/` dans Godot 4 → scène principale `scenes/main_menu.tscn` (F5).
+Suites utiles : `map_*`, `quest_navigation_test`, `scenario_editor_test`, `valbois_*`.  
+`user_flow_test` est connu pour échouer (cherche encore une carte simple là où Valbois est complexe).
 
-Multijoueur LAN : panneau **Salon multijoueur (P2P)** du menu (`ws://IP:8080`).
+---
 
-### Tests headless (Godot)
+## Architecture (bref)
 
-```bash
-flatpak run org.godotengine.Godot --headless --path game -s res://scripts/tests/map_editor_test.gd
-flatpak run org.godotengine.Godot --headless --path game -s res://scripts/tests/quest_navigation_test.gd
-flatpak run org.godotengine.Godot --headless --path game -s res://scripts/tests/scenario_editor_test.gd
-flatpak run org.godotengine.Godot --headless --path game -s res://scripts/tests/map_mode_test.gd
 ```
+Client Godot 4.7                    Serveur Node (pooling)
+├── GameData / MapData (user://)    ├── Salons + codes
+├── Session MJ | HUD joueur         └── Signalisation P2P
+├── ComplexMapEngine3D / Simple
+└── ENet (hôte = MJ)  ◄──────────►  clients (LAN)
+```
+
+Détails : [docs/STACK.md](docs/STACK.md), [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md), [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md).  
+Note : `STACK.md` décrit encore en partie l’ancien modèle « serveur autoritaire » ; le runtime actuel est **P2P + pooling** (voir `MULTIPLAYER.md`).
+
+---
+
+## TODO / état des lieux
+
+Priorisé. Le README reste la source de vérité ; les audits détaillent le « pourquoi ».
+
+### Fait
+
+- [x] Client Godot — menus, hub, persos, setup, session MJ / joueur
+- [x] Catalogue réduit à **2 démos** (`demo-valbois`, `demo-crypte`)
+- [x] Moteur carte complexe 3D + style diorama / VTT
+- [x] Éditeur battlemap 3D (outils, calques, undo, templates)
+- [x] Cartes Valbois illustrées + navigation village → Place du Marché
+- [x] Portrait / fiche Kael + boot démo Valbois
+- [x] HUD joueur immersif (`player_session_hud.gd`)
+- [x] Navigation narrative non linéaire (graphe + tests)
+- [x] Serveur pooling + docs multijoueur LAN
+- [x] Suite de tests cartes (dont `map_camera_test`) — voir aussi [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md)
+
+### En cours / WIP récent
+
+- [ ] **Qualité cartes Valbois HD** — fond parfois soft / cache `user://map_assets` + import Godot (`*.import`, compression 3D) ; recharger les PNG `res://assets/maps/` proprement
+- [ ] **Clarté UI / bugs visuels** — audit dédié : [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) *(à créer / en rédaction)* ; s’appuyer aussi sur [docs/UI_UX.md](docs/UI_UX.md)
+- [ ] **HUD joueur vs session MJ** — divergences de layout, marges carte sous le HUD, messages d’échelle / tooltips lieux
+- [ ] **Token Kael** — échelle découpe (`scale` village / place), un seul token (dédoublonnage party ↔ `playDefaults` encore fragile)
+- [ ] Correctifs caméra perspective / VTT orthographique restants ([AUDIT_CARTES](docs/AUDIT_CARTES.md) P1 — partie déjà traitée dans le moteur)
+
+### À faire (priorité)
+
+1. **Stabiliser le rendu Valbois** (qualité PNG, pas de cache périmé, cadrage village entier hors HUD)
+2. **Passer l’audit clarté UI** et corriger les bugs bloquants listés dedans
+3. **Calibrer Kael** — taille lisible, un token, portrait net en diorama
+4. **Navigation joueur** — clic lieu en lecture seule / messages d’échelle (P2 audit cartes)
+5. **Multijoueur** — test bout-en-bout 2 PC ; sync deltas carte / fog filtré joueur encore incomplet
+6. **Tests & captures** — réparer `user_flow_test` ; valider Valbois via `valbois_screenshot_test` / `valbois_player_hud_test`
+7. LOS / occlusion fog par vision token + portes
+8. Import UVTT / bibliothèque de décors livrée avec assets
+9. WebRTC (hors LAN) / sauvegardes cloud — plus tard
+
+---
+
+## Documentation
+
+| Fichier | Contenu |
+|---------|---------|
+| [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 |
+| [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) | Audit clarté UI *(prévu)* |
+| [docs/MAP_DIORAMA_PLAN.md](docs/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D (appliqué) |
+| [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md) | Dual-mode simple / complexe |
+| [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur battlemap 3D |
+| [docs/QUEST_NAVIGATION.md](docs/QUEST_NAVIGATION.md) | Scénarios non linéaires |
+| [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) | P2P + pooling, limites LAN |
+| [docs/UI_UX.md](docs/UI_UX.md) | Parcours et conventions UI |
+| [docs/COLLABORATION.md](docs/COLLABORATION.md) | Git à deux |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution |
 
 ---
 
@@ -112,55 +188,10 @@ flatpak run org.godotengine.Godot --headless --path game -s res://scripts/tests/
 | **Poisson** | [@Poisson48](https://github.com/Poisson48) | Godot, serveur Node, infra |
 | **AslanUsko** | [@AslanUsko](https://github.com/AslanUsko) | UI Godot, règles JDR, design, cartes |
 
-### Workflow Git
-
 ```bash
-git clone https://github.com/Poisson48/OpenQuest_jdr.git
-cd OpenQuest_jdr
 git checkout -b game/ma-fonctionnalite   # ou server/..., docs/...
-# … modifications …
-git commit -m "Description claire"
-git push origin game/ma-fonctionnalite
-# → Pull Request sur main
+# … puis PR vers main
 ```
-
-| Zone | Fichiers | Qui |
-|------|----------|-----|
-| Jeu Godot | `game/` | Les deux |
-| Serveur réseau | `server/` | Poisson |
-| Documentation | `docs/` | Les deux |
-
----
-
-## Documentation
-
-| Fichier | Contenu |
-|---------|---------|
-| [docs/COLLABORATION.md](docs/COLLABORATION.md) | Git, branches, conflits, routine à deux |
-| [docs/STACK.md](docs/STACK.md) | Architecture technique |
-| [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) | Multijoueur P2P + pooling |
-| [docs/QUEST_NAVIGATION.md](docs/QUEST_NAVIGATION.md) | Scénarios non linéaires (graphe de scènes) |
-| [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md) | Moteur cartes dual-mode (simple / 3D) |
-| [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur battlemap 3D (outils, undo, templates) |
-| [docs/INTERACTIVE_MAPS_STRATEGY.md](docs/INTERACTIVE_MAPS_STRATEGY.md) | Analyse concurrentielle VTT et feuille de route |
-| [docs/UI_UX.md](docs/UI_UX.md) | Parcours utilisateur et conventions UI |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Résumé contribution |
-
----
-
-## Feuille de route
-
-- [x] Client Godot — menus, hub, persos, setup, session
-- [x] Serveur Node — MJ IA (`ai-gm.ts`), bots, dés, sessions JSON
-- [x] Serveur MCP — outils GM pour agents (`npm run mcp`)
-- [x] Données JSON — `data/scenarios/`, `data/bots/`, `data/tiles.json`
-- [x] Éditeur de scénarios non linéaires (graphe + validation + tests)
-- [x] Éditeur de battlemap 3D (outils, calques, murs, lumières, templates)
-- [ ] LOS / occlusion fog par vision token + portes
-- [ ] Sync carte réseau (deltas, autorité MJ, fog filtré joueur)
-- [ ] Tokens image (avatars PNG) + import UVTT
-- [ ] Multijoueur réseau à 2 PC testé bout en bout
-- [ ] Synchronisation sauvegardes cloud
 
 ---
 

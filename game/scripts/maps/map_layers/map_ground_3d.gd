@@ -14,6 +14,11 @@ func _ready() -> void:
 func configure(texture: Texture2D, map_width: int, map_height: int, cell_size: float, unshaded: bool = false) -> void:
 	var w := float(map_width) * cell_size
 	var h := float(map_height) * cell_size
+	# Le quad a le même ratio que le PNG : l'illustration n'est ni croppée ni étirée.
+	if texture != null and texture.get_height() > 0:
+		var img_aspect := float(texture.get_width()) / float(texture.get_height())
+		if img_aspect > 0.01:
+			h = w / img_aspect
 	_extent = Vector2(w, h)
 	_mesh_instance.mesh = _make_ground_quad(w, h)
 	_mesh_instance.position = Vector3.ZERO
@@ -25,9 +30,12 @@ func configure(texture: Texture2D, map_width: int, map_height: int, cell_size: f
 	mat.roughness = 0.92
 	mat.metallic = 0.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	# LINEAR sans mipmaps : net pour les battlemaps illustrées (pas de flou mip).
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	mat.texture_repeat = false
 	if unshaded:
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	_mesh_instance.material_override = mat
 	_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if unshaded else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 

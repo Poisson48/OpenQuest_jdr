@@ -126,7 +126,7 @@ func _run() -> void:
 		"id": "hero-valbois-1", "name": "Aria", "race": "Elfe", "class": "Rôdeuse",
 		"hp": 12, "ac": 14, "isPlayer": true, "isHuman": true, "isBot": false,
 	}]
-	var game: Dictionary = gd.create_new_game("demo-couronne-fracturee", "solo", "human", "long", party, [village_id])
+	var game: Dictionary = gd.create_new_game("demo-valbois", "solo", "human", "oneshot", party, [village_id])
 	gd.active_game = game
 	gd.active_game["mapModeOverrides"] = {village_id: "complex", place_id: "complex"}
 	gd.active_game["mapNavigation"] = {"view": "local", "localMapId": village_id}

@@ -36,5 +36,10 @@ function Find-GodotExe {
 $godot = Find-GodotExe
 Write-Host "Godot: $godot"
 Write-Host "Projet: $GamePath"
+$passthrough = @($args)
+if ($UserDataDir.StartsWith("res://")) {
+    $passthrough = @($UserDataDir) + $passthrough
+    $UserDataDir = Join-Path $env:APPDATA "Godot\app_userdata\OpenQuest_MJ"
+}
 Write-Host "Profil utilisateur: $UserDataDir"
-& $godot --path $GamePath --user-data-dir $UserDataDir @args
+& $godot --path $GamePath --user-data-dir $UserDataDir @passthrough

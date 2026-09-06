@@ -1,0 +1,67 @@
+{
+  "id": "demo-valbois",
+  "questFormat": "oneshot",
+  "roster": "general",
+  "startSceneId": "retour-a-valbois",
+  "title": "Retour à Valbois",
+  "synopsis": "Kael, voleur originaire de Valbois, revient au village. Sur la Place du Marché, une dette ancienne et un bijou disparu au manoir du maire l'attendent — ainsi que trop de regards.",
+  "setting": "Village de Valbois, Place du Marché animée, étals, fontaine, ruelles étroites au crépuscule.",
+  "scenes": [
+    {
+      "id": "retour-a-valbois",
+      "title": "Le chemin du village",
+      "tags": ["debut", "village"],
+      "content": "Les toits de Valbois apparaissent entre les peupliers. Kael reconnaît chaque chemin, chaque porte. Une charrette de foin bloque l'entrée nord. Des gamins crient près de la fontaine. Quelqu'un murmure son nom — ou celui d'un voleur qu'on n'a jamais oublié.",
+      "transitions": [
+        {
+          "to": "place-du-marche",
+          "label": "Descendre vers la Place du Marché",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "place-du-marche",
+      "title": "La Place du Marché",
+      "tags": ["marche", "indice"],
+      "content": "Étals de fruits, draps, ferraille. La fontaine crachote. Une marchande fixe Kael trop longtemps. Sous un banc, un chiffon brodé aux armes du maire. Un garde de la milice passe, main sur la garde. Le bijou volé — ou jamais volé — n'est pas loin.",
+      "transitions": [
+        {
+          "to": "la-dette",
+          "label": "Suivre la piste de la dette",
+          "default": true
+        },
+        {
+          "to": "retour-a-valbois",
+          "label": "Revenir vers l'entrée du village",
+          "gmOnly": true
+        }
+      ]
+    },
+    {
+      "id": "la-dette",
+      "title": "La dette ancienne",
+      "tags": ["fin"],
+      "content": "Un contact dans l'ombre de la halle : la dette n'était pas de l'or, mais un nom. Rendre le bijou, le garder, ou le vendre — chaque choix ferme une porte à Valbois. Kael sourit rarement. Ce soir, quelqu'un va perdre quelque chose.",
+      "transitions": [
+        {
+          "to": "place-du-marche",
+          "label": "Repasser par la Place du Marché",
+          "gmOnly": true
+        }
+      ]
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Kael",
+      "role": "Voleur — héros de la démo",
+      "description": "Fils d'une couturière de Valbois. Silencieux, méfiant, doigts agiles. Il compte les sorties d'une pièce avant d'y entrer."
+    },
+    {
+      "name": "Marta l'étalière",
+      "role": "Marchande",
+      "description": "Vend des draps et des rumeurs. Elle a vu le chiffon brodé avant Kael."
+    }
+  ]
+}

@@ -39,6 +39,10 @@ window/stretch/aspect="keep"
 window/size/min_width=800
 window/size/min_height=500
 
+[dotnet]
+
+project/assembly_name="OpenQuest JDR"
+
 [gui]
 
 theme/custom="res://theme/openquest_theme.tres"

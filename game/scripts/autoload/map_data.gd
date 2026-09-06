@@ -84,14 +84,8 @@ func _load_tile_defs() -> void:
 		_tile_defs = data
 
 func load_maps() -> void:
-	var data = _load_json(MAPS_PATH)
-	if data is Array and not data.is_empty():
-		maps = data
-	else:
-		maps = _load_default_maps()
-		save_maps()
-	for i in range(maps.size()):
-		maps[i] = ensure_map_schema(maps[i])
+	maps = _build_demo_catalog()
+	save_maps()
 	maps_updated.emit()
 
 func save_maps() -> void:
@@ -119,21 +113,35 @@ func get_map_ids_for_scenario(scenario_id: String, quest_format: String = "") ->
 		if m.get("scenarioId") == scenario_id:
 			ids.append(m.get("id"))
 	if ids.is_empty():
-		if quest_format == "investigation" or scenario_id.begins_with("inv-"):
+		if scenario_id == "demo-valbois":
+			if get_by_id("demo-valbois-village").has("id"):
+				ids.append("demo-valbois-village")
+		elif scenario_id == "demo-crypte":
+			if get_by_id("demo-crypte-brumeval").has("id"):
+				ids.append("demo-crypte-brumeval")
+		elif quest_format == "investigation" or scenario_id.begins_with("inv-"):
 			if get_by_id("demo-quartier-serpent").has("id"):
 				ids.append("demo-quartier-serpent")
-		elif scenario_id == "demo-couronne-fracturee":
-			ids.append("demo-monde-couronne")
-			ids.append("demo-taverne")
 		else:
-			if get_by_id("demo-taverne").has("id"):
-				ids.append("demo-taverne")
-	return ids
+			if get_by_id("demo-crypte-brumeval").has("id"):
+				ids.append("demo-crypte-brumeval")
+	# Les cartes enfants (Place du Marché) se jouent via les lieux, pas la liste.
+	var filtered: Array = []
+	for mid in ids:
+		var m := get_by_id(str(mid))
+		if m.is_empty():
+			continue
+		if not str(m.get("parentMapId", "")).is_empty():
+			continue
+		filtered.append(mid)
+	return filtered
 
 func get_setup_map_pool(scenario_id: String, quest_format: String) -> Array:
 	var pool: Array = []
 	var is_investigation := quest_format == "investigation" or scenario_id.begins_with("inv-")
 	for m in maps:
+		if not str(m.get("parentMapId", "")).is_empty():
+			continue
 		if is_investigation:
 			if m.get("roster", "general") != "investigation":
 				continue
@@ -145,7 +153,7 @@ func get_setup_map_pool(scenario_id: String, quest_format: String) -> Array:
 			if quest_format == "oneshot" and is_world_map(m):
 				continue
 		var linked_id: String = str(m.get("scenarioId", ""))
-		if not linked_id.is_empty() and linked_id != scenario_id:
+		if not scenario_id.is_empty() and linked_id != scenario_id:
 			continue
 		pool.append(m)
 	pool.sort_custom(func(a, b):
@@ -272,6 +280,8 @@ func get_marker_label(marker_type: String) -> String:
 func get_maps_by_category(category: String) -> Array:
 	var result: Array = []
 	for m in maps:
+		if not str(m.get("parentMapId", "")).is_empty():
+			continue
 		match category:
 			"world":
 				if is_world_map(m):
@@ -804,14 +814,10 @@ func _load_rgba_image(path: String) -> Image:
 		resolved = ProjectSettings.globalize_path(raw)
 	var img := Image.new()
 	if img.load(resolved) != OK:
-		# Fallback : texture importée Godot.
-		if raw.begins_with("res://") and ResourceLoader.exists(raw):
-			var tex = load(raw)
-			if tex is Texture2D:
-				img = (tex as Texture2D).get_image()
-				if img == null:
-					return null
-			else:
+		# Dernier recours : fichier res:// via FileAccess (évite CompressedTexture2D).
+		if raw.begins_with("res://") and FileAccess.file_exists(raw):
+			var bytes := FileAccess.get_file_as_bytes(raw)
+			if bytes.is_empty() or img.load_png_from_buffer(bytes) != OK:
 				return null
 		else:
 			return null
@@ -880,13 +886,12 @@ func load_background_texture(map_data: Dictionary) -> Texture2D:
 	var path: String = str(map_data.get("backgroundImage", "")).strip_edges()
 	if path.is_empty():
 		return null
-	if not FileAccess.file_exists(path) and path.begins_with("res://"):
-		if not ResourceLoader.exists(path):
-			return null
-	var img := Image.new()
-	var err := img.load(path)
-	if err != OK:
+	# Toujours le PNG source (user:// ou res://), jamais la CompressedTexture2D
+	# importée — sinon detect_3d/compress peut dégrader l'illustration.
+	var img := _load_rgba_image(path)
+	if img == null:
 		return null
+	# Pas de mipmaps : un fond illustré upscalé devient flou avec les mips.
 	return ImageTexture.create_from_image(img)
 
 func generate_tile_texture(map_data: Dictionary, grid_cfg: Dictionary = {}) -> Texture2D:
@@ -1029,12 +1034,141 @@ func get_location_link_at(map_data: Dictionary, x: int, y: int) -> Dictionary:
 	return {}
 
 func _load_default_maps() -> Array:
+	return _build_demo_catalog()
+
+const VILLAGE_PNG := "res://assets/maps/valbois_village.png"
+const PLACE_PNG := "res://assets/maps/place_du_marche.png"
+
+func _build_demo_catalog() -> Array:
 	var list: Array = []
-	for path in ["res://data/maps/demo-taverne.json", "res://data/maps/demo-monde-couronne.json", "res://data/maps/demo-quartier-serpent.json"]:
-		var m = _load_json(path)
-		if m is Dictionary and m.has("id"):
-			list.append(m)
-	return list
+	var simple = _load_json("res://data/maps/demo-taverne.json")
+	if simple is Dictionary and simple.has("id"):
+		simple["id"] = "demo-crypte-brumeval"
+		simple["title"] = "Brumeval — Cimetière"
+		simple["description"] = "Carte simple de la quête « La Crypte Oubliée »."
+		simple["scenarioId"] = "demo-crypte"
+		simple["renderMode"] = RENDER_MODE_SIMPLE
+		simple["mapKind"] = "local"
+		simple["roster"] = "general"
+		simple["parentMapId"] = ""
+		list.append(ensure_map_schema(simple))
+
+	var village_src := ProjectSettings.globalize_path(VILLAGE_PNG)
+	var place_src := ProjectSettings.globalize_path(PLACE_PNG)
+	var cells_v := suggest_cells_from_image(village_src, 70) if FileAccess.file_exists(village_src) else Vector2i(24, 16)
+	var cells_p := suggest_cells_from_image(place_src, 70) if FileAccess.file_exists(place_src) else Vector2i(20, 14)
+
+	var village := ensure_map_schema({
+		"id": "demo-valbois-village",
+		"title": "Valbois — Village de l'Ouest",
+		"description": "Carte complexe illustrée — cliquez la Place du Marché pour zoomer.",
+		"roster": "general",
+		"mapKind": "local",
+		"renderMode": RENDER_MODE_COMPLEX,
+		"renderStyle": "diorama",
+		"scenarioId": "demo-valbois",
+		"width": cells_v.x,
+		"height": cells_v.y,
+		"tiles": [],
+		"markers": [],
+		"locationLinks": [],
+		"areas": [{
+			"id": "area-place-marche",
+			"x": float(cells_v.x) * 0.50,
+			"y": float(cells_v.y) * 0.42,
+			"w": 4.2, "h": 3.2,
+			"label": "Place du Marché",
+			"category": "poi",
+			"icon": "⭐",
+			"showCallout": true,
+			"targetMapId": "demo-valbois-place",
+		}],
+		"fogEnabled": false,
+		"parentMapId": "",
+		"schemaVersion": SCHEMA_VERSION,
+	})
+	var tiles_v: Array = []
+	tiles_v.resize(cells_v.x * cells_v.y)
+	tiles_v.fill("grass")
+	village["tiles"] = tiles_v
+	var grid_v: Dictionary = get_grid_config(village).duplicate(true)
+	grid_v["show"] = false
+	village["grid"] = grid_v
+	village["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
+	village["backgroundImage"] = VILLAGE_PNG
+	village["playDefaults"] = {
+		"tokens": [{
+			"id": "tok-kael",
+			"x": float(cells_v.x) * 0.28,
+			"y": float(cells_v.y) * 0.38,
+			"kind": "member",
+			"memberId": "char-kael",
+			"label": "Kael",
+			"scale": 0.07,
+		}],
+		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
+	}
+	list.append(village)
+
+	var place := ensure_map_schema({
+		"id": "demo-valbois-place",
+		"title": "Place du Marché",
+		"description": "Détail de la Place du Marché — tokens, lieux, Kael.",
+		"roster": "general",
+		"mapKind": "local",
+		"renderMode": RENDER_MODE_COMPLEX,
+		"renderStyle": "diorama",
+		"scenarioId": "demo-valbois",
+		"width": cells_p.x,
+		"height": cells_p.y,
+		"tiles": [],
+		"markers": [],
+		"locationLinks": [],
+		"fogEnabled": false,
+		"parentMapId": "demo-valbois-village",
+		"schemaVersion": SCHEMA_VERSION,
+	})
+	var tiles_p: Array = []
+	tiles_p.resize(cells_p.x * cells_p.y)
+	tiles_p.fill("floor")
+	place["tiles"] = tiles_p
+	var grid_p: Dictionary = get_grid_config(place).duplicate(true)
+	grid_p["show"] = false
+	place["grid"] = grid_p
+	place["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
+	place["backgroundImage"] = PLACE_PNG
+	place["playDefaults"] = {
+		"tokens": [{
+			"id": "tok-kael-place",
+			"x": float(cells_p.x) * 0.50,
+			"y": float(cells_p.y) * 0.55,
+			"kind": "member",
+			"memberId": "char-kael",
+			"label": "Kael",
+			"scale": 0.14,
+		}],
+		"effects": [], "zones": [], "fogRevealed": [], "viewState": {},
+	}
+	list.append(place)
+
+	maps = list
+	var portrait_src := ProjectSettings.globalize_path("res://assets/portraits/voleur_kael.png")
+	var portrait_dest := import_token_image(portrait_src) if FileAccess.file_exists(portrait_src) else ""
+	if portrait_dest.is_empty():
+		portrait_dest = "res://assets/portraits/voleur_kael.png"
+	for m in maps:
+		var pd: Dictionary = m.get("playDefaults", {})
+		for tok_variant in pd.get("tokens", []):
+			if tok_variant is Dictionary and str(tok_variant.get("memberId", "")) == "char-kael":
+				tok_variant["image"] = portrait_dest
+				tok_variant["label"] = "Kael"
+	# Ré-importe systématiquement les PNG HD du projet → user:// (écrase un
+	# vieux cache JPEG/basse résidu).
+	if FileAccess.file_exists(village_src):
+		import_background_image("demo-valbois-village", village_src)
+	if FileAccess.file_exists(place_src):
+		import_background_image("demo-valbois-place", place_src)
+	return maps
 
 func _load_json(path: String) -> Variant:
 	if not FileAccess.file_exists(path):

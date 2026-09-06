@@ -221,6 +221,16 @@ func _refresh_char_options() -> void:
 			break
 	opt_main_char.selected = selected_idx
 	opt_joiner_char.selected = selected_idx
+	_select_kael_if_valbois()
+
+func _select_kael_if_valbois() -> void:
+	if _current_scenario_id != "demo-valbois":
+		return
+	for i in range(opt_main_char.item_count):
+		if str(opt_main_char.get_item_metadata(i)) == "char-kael":
+			opt_main_char.selected = i
+			opt_joiner_char.selected = i
+			return
 
 
 func _apply_host_joiner_ui() -> void:
@@ -303,6 +313,7 @@ func _on_scenario_selected(idx: int) -> void:
 	]
 	scenario_preview_lbl.text = text
 	_refresh_maps_picker(reset_maps)
+	_select_kael_if_valbois()
 
 func _refresh_maps_picker(reset_selection: bool = false) -> void:
 	for child in maps_container.get_children():
@@ -467,6 +478,15 @@ func _on_start_game_pressed() -> void:
 				party.append(member)
 	if party.is_empty() and _host_plays_character():
 		party.append(_build_character_from_option(opt_main_char))
+	if scn_id == "demo-valbois":
+		var kael := GameData.make_kael_party_member()
+		var has_kael := false
+		for member in party:
+			if str(member.get("id", "")) == "char-kael" or str(member.get("name", "")) == "Kael":
+				has_kael = true
+				break
+		if not has_kael:
+			party.insert(0, kael)
 
 	for bot_id in selected_bot_ids:
 		if not valid_bot_ids.has(bot_id):

@@ -89,6 +89,9 @@ func get_overlay_texture() -> Texture2D:
 func get_overlay_height() -> float:
 	return _overlay_height
 
+func set_overlay_height(h: float) -> void:
+	_overlay_height = maxf(h, 0.05)
+
 func get_overlay_anchor_world() -> Vector3:
 	# Pied du perso (ombre au sol).
 	return global_position + Vector3(0.0, 0.02, 0.0)

@@ -64,6 +64,8 @@ var _map_extent: Vector2 = Vector2.ZERO
 var _cell_size: float = 1.0
 var _base_ortho_size: float = 10.0
 var _base_camera_height: float = CAM_HEIGHT
+## Marges écran (gauche, haut, droite, bas) pour cadrer la carte hors HUD.
+var _view_inset: Vector4 = Vector4.ZERO
 
 var _viewport_container: SubViewportContainer
 var _viewport: SubViewport
@@ -93,6 +95,7 @@ var _pan_start: Vector3 = Vector3.ZERO
 var _pan_velocity: Vector2 = Vector2.ZERO
 var _last_pan_pos: Vector2 = Vector2.ZERO
 var _token_drag: Node = null
+var _token_press_candidate: Node = null
 var _token_nodes: Dictionary = {}
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
@@ -125,6 +128,8 @@ func _build_viewport_tree() -> void:
 	# `_gui_input` (pan, pose, drag tokens, pointeur éditeur). Le picking 3D
 	# est fait ici par raycast, pas via physics picking du SubViewport.
 	_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Filtre neutre : le SubViewport est déjà rendu à la résolution écran.
+	_viewport_container.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(_viewport_container)
 
 	_viewport = SubViewport.new()
@@ -133,7 +138,12 @@ func _build_viewport_tree() -> void:
 	_viewport.handle_input_locally = false
 	_viewport.physics_object_picking = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_viewport.size = Vector2i(1024, 768)
+	_viewport.msaa_3d = Viewport.MSAA_DISABLED
+	_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	_viewport.scaling_3d_scale = 1.0
+	# Taille initiale ; `_sync_viewport_pixel_size` aligne sur les pixels écran
+	# (sinon canvas_items upscale un buffer ~1024px → carte floue).
+	_viewport.size = Vector2i(1280, 800)
 	_viewport_container.add_child(_viewport)
 
 	var env_node := WorldEnvironment.new()
@@ -143,7 +153,8 @@ func _build_viewport_tree() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.42, 0.38, 0.48)
 	env.ambient_light_energy = 0.55
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# LINEAR : préserve les couleurs du PNG illustré (FILMIC assombrit/adoucit).
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env_node.environment = env
 	_viewport.add_child(env_node)
 
@@ -154,6 +165,7 @@ func _build_viewport_tree() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	_camera.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	_camera.position = Vector3(0.0, CAM_HEIGHT, 0.0)
 	_camera.current = true
@@ -285,10 +297,13 @@ func configure(
 			_areas_overlay.configure(null, {})
 		else:
 			_areas_overlay.configure(self, map_data)
-	_apply_view_state(p_view_state)
+	var illustrated := not str(p_map.get("backgroundImage", "")).strip_edges().is_empty()
+	# Carte illustrée : toujours le PNG entier, jamais un zoom/pan sauvegardé.
+	if not illustrated:
+		_apply_view_state(p_view_state)
 	_rebuild_layers()
 
-	if not same_map:
+	if illustrated or not same_map or p_view_state.is_empty():
 		call_deferred("_fit_to_view")
 
 func set_session_tool(tool: Dictionary) -> void:
@@ -299,6 +314,11 @@ func set_snap_to_grid(on: bool) -> void:
 	for node in _token_nodes.values():
 		node.snap_to_grid = on
 
+func set_view_inset(left: float, top: float, right: float, bottom: float) -> void:
+	_view_inset = Vector4(maxf(left, 0.0), maxf(top, 0.0), maxf(right, 0.0), maxf(bottom, 0.0))
+	if _camera != null and _map_extent != Vector2.ZERO:
+		_fit_to_view()
+
 func _load_ground() -> void:
 	var tex := MapData.load_background_texture(map_data)
 	if tex == null:
@@ -308,8 +328,12 @@ func _load_ground() -> void:
 	var unshaded := MapRenderStyleScript.is_diorama(map_data)
 	if _ground.has_method("configure"):
 		_ground.configure(tex, w, h, _cell_size, unshaded)
-	_map_extent = Vector2(float(w) * _cell_size, float(h) * _cell_size)
-	_base_ortho_size = maxf(_map_extent.x, _map_extent.y) * 0.55
+	if _ground.has_method("get_map_extent"):
+		_map_extent = _ground.get_map_extent()
+	else:
+		_map_extent = Vector2(float(w) * _cell_size, float(h) * _cell_size)
+	var aspect := maxf(_viewport_aspect(), 0.1)
+	_base_ortho_size = maxf(_map_extent.y, _map_extent.x / aspect) * 1.06
 
 func _load_elevations() -> void:
 	if _elevations_layer and _elevations_layer.has_method("configure"):
@@ -386,7 +410,7 @@ func _apply_atmosphere() -> void:
 	elif illustrated:
 		# Fond peint : pas de voile — on lit l'image telle quelle.
 		_atmosphere.color = Color(0, 0, 0, 0.0)
-		_vignette.color = Color(0, 0, 0, 0.04)
+		_vignette.color = Color(0, 0, 0, 0.0)
 	elif is_diorama:
 		_atmosphere.color = Color(0.08, 0.06, 0.10, 0.06)
 		_vignette.color = Color(0, 0, 0, 0.12)
@@ -465,6 +489,11 @@ func _rebuild_layers() -> void:
 					break
 		var use_cutout := has_image or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
 		node.setup(tok, _cell_size, _party, readonly, use_cutout)
+		if use_cutout and node.has_method("set_overlay_height"):
+			var frac := float(tok.get("scale", 0.0))
+			if frac <= 0.001:
+				frac = 0.08
+			node.set_overlay_height(_map_extent.y * frac)
 		node.snap_to_grid = snap_to_grid
 		node.set_selected(str(tok.get("id", "")) == _selected_token_id)
 		node.drag_finished.connect(_on_token_drag_finished)
@@ -500,13 +529,25 @@ func _clear_children(layer: Node, registry: Dictionary) -> void:
 	registry.clear()
 
 func _viewport_aspect() -> float:
-	var vp := _effective_viewport_size()
+	var vp := _usable_viewport_size()
 	return vp.x / maxf(vp.y, 1.0)
 
 func _effective_viewport_size() -> Vector2:
 	if size.x > 16 and size.y > 16:
 		return size
 	return Vector2(_viewport.size)
+
+func _usable_viewport_size() -> Vector2:
+	var vp := _effective_viewport_size()
+	return Vector2(
+		maxf(vp.x - _view_inset.x - _view_inset.z, 8.0),
+		maxf(vp.y - _view_inset.y - _view_inset.w, 8.0)
+	)
+
+func _focus_screen_pos() -> Vector2:
+	var vp := _effective_viewport_size()
+	var usable := _usable_viewport_size()
+	return Vector2(_view_inset.x + usable.x * 0.5, _view_inset.y + usable.y * 0.5)
 
 func _update_ortho_size() -> void:
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
@@ -550,7 +591,7 @@ func _estimate_ground_span_per_pixel() -> Vector2:
 		if tilt_abs < 89.0:
 			world_h /= maxf(sin(deg_to_rad(tilt_abs)), 0.35)
 		return Vector2(world_h * (px_w / px_h) / px_w, world_h / px_h)
-	var ortho_h := (_camera.size if _camera else 1.0) * 2.0
+	var ortho_h := _camera.size if _camera else 1.0
 	return Vector2(ortho_h * (px_w / px_h) / px_w, ortho_h / px_h)
 
 ## Unités monde couvertes par un pixel écran, au niveau du sol (x, z).
@@ -577,18 +618,15 @@ func _ground_span_per_pixel() -> Vector2:
 
 ## Étendue de sol visible à l'écran, en unités monde.
 func _visible_ground_size() -> Vector2:
-	var vp := _effective_viewport_size()
+	var vp := _usable_viewport_size()
 	var span := _ground_span_per_pixel()
 	return Vector2(span.x * vp.x, span.y * vp.y)
 
-## Point du sol visé au centre de l'écran.
-##
-## Sous une caméra inclinée ce n'est **pas** la position de la caméra : c'est
-## ce point-là qu'il faut recentrer et borner, pas la caméra elle-même.
+## Point du sol visé au centre de la zone utile (hors HUD).
 func _ground_focus() -> Vector2:
 	if _camera == null:
 		return Vector2.ZERO
-	var world := _raycast_ground(_control_to_viewport(_effective_viewport_size() * 0.5))
+	var world := _raycast_ground(_control_to_viewport(_focus_screen_pos()))
 	if world == Vector3.INF:
 		return Vector2(_camera.position.x, _camera.position.z)
 	return Vector2(world.x, world.z)
@@ -624,9 +662,15 @@ func _fit_to_view() -> void:
 			_camera.position.y = target_h / maxf(denom * 2.0, 0.01)
 		_base_camera_height = _camera.position.y
 	else:
-		var aspect := _viewport_aspect()
-		_base_ortho_size = maxf(_map_extent.y * 0.5, _map_extent.x / (aspect * 2.0)) * 1.05
+		# Camera3D.size (ortho) = hauteur complète du frustum, pas un demi-axe.
+		# On cadré sur la zone utile (HUD haut/bas) pour que tout le village reste visible.
+		var vp := _effective_viewport_size()
+		var usable := _usable_viewport_size()
+		var aspect := maxf(usable.x / usable.y, 0.1)
+		var needed_h := maxf(_map_extent.y, _map_extent.x / aspect)
+		_base_ortho_size = needed_h * (vp.y / maxf(usable.y, 1.0)) * 1.12
 		_camera.size = _base_ortho_size
+		zoom = 1.0
 	_center_focus_on(_map_extent * 0.5)
 	_clamp_camera()
 	zoom_changed.emit(zoom)
@@ -771,7 +815,7 @@ func focus_grid_rect(rect: Rect2, margin: float = 1.6) -> void:
 			zoom = 1.0
 	else:
 		var aspect := maxf(_viewport_aspect(), 0.1)
-		var needed := maxf(extent.y * 0.5, extent.x / (aspect * 2.0))
+		var needed := maxf(extent.y, extent.x / aspect)
 		if needed > 0.0 and _base_ortho_size > 0.0:
 			zoom = clampf(_base_ortho_size / needed, MIN_ZOOM, MAX_ZOOM)
 			_update_ortho_size()
@@ -807,6 +851,7 @@ func set_editor_mode(on: bool) -> void:
 	editor_mode = on
 	if on:
 		_token_drag = null
+		_token_press_candidate = null
 		_pending_click = false
 	if _areas_overlay and _areas_overlay.has_method("configure"):
 		if on:
@@ -877,9 +922,12 @@ func _pick_token_from_overlay(screen_pos: Vector2) -> Node:
 	return best
 
 func _is_token_node(node: Node) -> bool:
-	return node is MapToken3D or node.get_script() == MapToken3DScript
+	return node != null and node.get_script() == MapToken3DScript
 
 func _process(delta: float) -> void:
+	# stretch=true du container écrase SubViewport.size : on le force ensuite
+	# à la résolution native pour éviter le flou d'upscale fenêtre.
+	_sync_viewport_pixel_size()
 	_sync_token_overlay_positions()
 	if _token_drag:
 		var world := _raycast_ground(_control_to_viewport(get_local_mouse_position()))
@@ -914,7 +962,7 @@ func _rebuild_token_overlay() -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon.modulate = Color(1, 1, 1, 1)
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		# Ombre/contour 2D derrière le perso pour le détacher du fond illustré.
 		var outline := TextureRect.new()
 		outline.texture = tex
@@ -922,7 +970,7 @@ func _rebuild_token_overlay() -> void:
 		outline.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		outline.modulate = Color(0, 0, 0, 0.9)
-		outline.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		outline.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		_token_overlay.add_child(outline)
 		_token_overlay.add_child(icon)
 		_overlay_icons[tid] = {"icon": icon, "outline": outline}
@@ -987,21 +1035,14 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				var picked: Node = _pick_token(mb.position)
-				if picked and not readonly:
-					_token_drag = picked
-					picked.begin_drag()
-					_pending_click = false
-					_pan_dragging = false
-					_pan_velocity = Vector2.ZERO
-					mouse_default_cursor_shape = Control.CURSOR_DRAG
-				else:
-					_pending_click = true
-					_pan_dragging = false
-					_pan_velocity = Vector2.ZERO
-					_drag_start = mb.position
-					_pan_start = _camera.position
-					_last_pan_pos = mb.position
+				_token_press_candidate = null if readonly else _pick_token(mb.position)
+				_token_drag = null
+				_pending_click = true
+				_pan_dragging = false
+				_pan_velocity = Vector2.ZERO
+				_drag_start = mb.position
+				_pan_start = _camera.position
+				_last_pan_pos = mb.position
 				accept_event()
 			else:
 				if _token_drag:
@@ -1010,6 +1051,7 @@ func _gui_input(event: InputEvent) -> void:
 					mouse_default_cursor_shape = Control.CURSOR_ARROW
 				elif _pending_click and not _pan_dragging:
 					_handle_map_click(mb.position)
+				_token_press_candidate = null
 				_pan_dragging = false
 				_pending_click = false
 				accept_event()
@@ -1025,6 +1067,14 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 	elif event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
+		if _token_press_candidate != null and _token_drag == null:
+			if _drag_start.distance_to(motion.position) >= DRAG_THRESHOLD:
+				_token_drag = _token_press_candidate
+				_token_drag.begin_drag()
+				_pending_click = false
+				_pan_dragging = false
+				_token_press_candidate = null
+				mouse_default_cursor_shape = Control.CURSOR_DRAG
 		if _token_drag:
 			var world := _raycast_ground(_control_to_viewport(motion.position))
 			if world != Vector3.INF:
@@ -1035,6 +1085,7 @@ func _gui_input(event: InputEvent) -> void:
 			if _drag_start.distance_to(motion.position) >= DRAG_THRESHOLD:
 				_pan_dragging = true
 				_pending_click = false
+				_token_press_candidate = null
 		if _pan_dragging:
 			_pan_from_motion(motion)
 			accept_event()
@@ -1115,6 +1166,12 @@ func _handle_map_click(screen_pos: Vector2) -> void:
 	var grid := _screen_to_grid(screen_pos)
 	var gx := grid.x
 	var gy := grid.y
+	# Navigation d'échelle : coords flottantes (le snap casserait le hit-test du lieu).
+	if not editor_mode:
+		var area := MapData.get_area_at(map_data, gx, gy)
+		if not area.is_empty() and not str(area.get("targetMapId", "")).is_empty():
+			area_clicked.emit(area)
+			return
 	if snap_to_grid:
 		gx = roundf(gx)
 		gy = roundf(gy)
@@ -1122,13 +1179,6 @@ func _handle_map_click(screen_pos: Vector2) -> void:
 	var h: int = map_data.get("height", 12)
 	if gx < 0 or gy < 0 or gx >= w or gy >= h:
 		return
-
-	# Navigation d'échelle : autorisée même en lecture seule (non destructif).
-	if not editor_mode:
-		var area := MapData.get_area_at(map_data, gx, gy)
-		if not area.is_empty() and not str(area.get("targetMapId", "")).is_empty():
-			area_clicked.emit(area)
-			return
 
 	if readonly and not is_gm:
 		return
@@ -1183,11 +1233,37 @@ func zoom_out() -> void:
 func reset_zoom() -> void:
 	_fit_to_view()
 
+func _sync_viewport_pixel_size() -> void:
+	if _viewport == null or _viewport_container == null:
+		return
+	var logical := _viewport_container.size
+	if logical.x < 2.0 or logical.y < 2.0:
+		logical = size
+	if logical.x < 2.0 or logical.y < 2.0:
+		return
+	var scale := Vector2.ONE
+	var root_vp := get_viewport()
+	if root_vp != null:
+		scale = root_vp.get_stretch_transform().get_scale()
+	var sx := maxf(absf(scale.x), 1.0)
+	var sy := maxf(absf(scale.y), 1.0)
+	var tw := int(ceil(logical.x * sx))
+	var th := int(ceil(logical.y * sy))
+	# Plafond 4K pour limiter le coût GPU.
+	var max_dim := 3840
+	if tw > max_dim or th > max_dim:
+		var f := float(max_dim) / float(maxi(tw, th))
+		tw = maxi(64, int(ceil(float(tw) * f)))
+		th = maxi(64, int(ceil(float(th) * f)))
+	var target := Vector2i(maxi(64, tw), maxi(64, th))
+	if _viewport.size != target:
+		_viewport.size = target
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		# `SubViewportContainer.stretch` redimensionne déjà le SubViewport :
-		# le faire à la main déclenche un avertissement et n'a aucun effet.
-		if _viewport and _viewport_container and not _viewport_container.stretch:
-			_viewport.size = Vector2i(maxi(64, int(size.x)), maxi(64, int(size.y)))
+		_sync_viewport_pixel_size()
 		if not map_data.is_empty():
-			_clamp_camera()
+			if not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
+				_fit_to_view()
+			else:
+				_clamp_camera()
