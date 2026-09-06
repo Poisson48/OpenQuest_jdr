@@ -1,0 +1,523 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/editor/map_editor_settings_panel.gd" id="1_script"]
+
+[node name="Carte" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 5
+script = ExtResource("1_script")
+
+[node name="LblBg" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🖼 Fond de carte"
+
+[node name="LblBgStatus" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+autowrap_mode = 3
+text = ""
+
+[node name="BgRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnImportBg" type="Button" parent="BgRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Importer PNG…"
+
+[node name="BtnImportOverlay" type="Button" parent="BgRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Calque +"
+
+[node name="BtnRemoveBg" type="Button" parent="BgRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DangerButton"
+text = "✕"
+
+[node name="LblSize" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📐 Dimensions (cases)"
+
+[node name="SizeRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WidthCol" type="VBoxContainer" parent="SizeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblWidth" type="Label" parent="SizeRow/WidthCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Largeur"
+
+[node name="SpinWidth" type="SpinBox" parent="SizeRow/WidthCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 4.0
+max_value = 128.0
+value = 16.0
+step = 1.0
+
+[node name="HeightCol" type="VBoxContainer" parent="SizeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblHeight" type="Label" parent="SizeRow/HeightCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Hauteur"
+
+[node name="SpinHeight" type="SpinBox" parent="SizeRow/HeightCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 4.0
+max_value = 128.0
+value = 12.0
+step = 1.0
+
+[node name="LblGrid" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "⊞ Grille"
+
+[node name="ChkGrid" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Afficher la grille"
+
+[node name="GridRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="GridSizeCol" type="VBoxContainer" parent="GridRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblGridSize" type="Label" parent="GridRow/GridSizeCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Taille px"
+
+[node name="SpinGridSize" type="SpinBox" parent="GridRow/GridSizeCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 20.0
+max_value = 160.0
+value = 70.0
+step = 1.0
+
+[node name="GridOpCol" type="VBoxContainer" parent="GridRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblGridOp" type="Label" parent="GridRow/GridOpCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Opacité"
+
+[node name="SpinGridOpacity" type="SpinBox" parent="GridRow/GridOpCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.22
+
+[node name="GridColorRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblGridColor" type="Label" parent="GridColorRow"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Couleur"
+
+[node name="ClrGrid" type="ColorPickerButton" parent="GridColorRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 26)
+layout_mode = 2
+edit_alpha = false
+color = Color(1, 1, 1, 1)
+
+[node name="LblMeasure" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📏 Échelle"
+
+[node name="MeasureRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="MeasureCol" type="VBoxContainer" parent="MeasureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblPerCell" type="Label" parent="MeasureRow/MeasureCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Par case"
+
+[node name="SpinMeasure" type="SpinBox" parent="MeasureRow/MeasureCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.1
+max_value = 100.0
+step = 0.1
+value = 1.5
+
+[node name="UnitCol" type="VBoxContainer" parent="MeasureRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblUnit" type="Label" parent="MeasureRow/UnitCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Unité"
+
+[node name="EditUnit" type="LineEdit" parent="MeasureRow/UnitCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "m"
+
+[node name="LblFog" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🌫 Brouillard de guerre"
+
+[node name="ChkFog" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Activer le brouillard"
+
+[node name="ChkLos" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ligne de vue (murs bloquants)"
+
+[node name="LblLosNote" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "En session, le brouillard se révèle automatiquement selon ce que voient les tokens, murs et portes compris."
+autowrap_mode = 3
+
+[node name="FogRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnFogHide" type="Button" parent="FogRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tout masquer"
+
+[node name="BtnFogReveal" type="Button" parent="FogRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tout révéler"
+
+[node name="LblStyle" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🎨 Style de rendu"
+
+[node name="OptRenderStyle" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 3
+popup/item_0/text = "Diorama 2.5D"
+popup/item_0/id = 0
+popup/item_1/text = "VTT 3D (tactique)"
+popup/item_1/id = 1
+popup/item_2/text = "Hybride DD2 (2D+3D)"
+popup/item_2/id = 2
+
+[node name="LblStyleHint" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Diorama + fond : vue dessus (props à plat). VTT : tactique 3D. Hybride DD2 : fond illustré + caméra inclinée + personnages dressés."
+autowrap_mode = 3
+
+[node name="LblPersp" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📷 Perspective"
+
+[node name="OptPerspective" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 3
+popup/item_0/text = "Vue de dessus"
+popup/item_0/id = 0
+popup/item_1/text = "Isométrique"
+popup/item_1/id = 1
+popup/item_2/text = "Perspective inclinée"
+popup/item_2/id = 2
+
+[node name="LblAtmo" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🌘 Atmosphère"
+
+[node name="ChkAtmo" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Teinte d'ambiance"
+
+[node name="AtmoTintRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblAtmoTint" type="Label" parent="AtmoTintRow"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Teinte"
+
+[node name="ClrAtmo" type="ColorPickerButton" parent="AtmoTintRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 26)
+layout_mode = 2
+edit_alpha = false
+color = Color(0.0784314, 0.0627451, 0.0941176, 1)
+
+[node name="AtmoRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AtmoOpCol" type="VBoxContainer" parent="AtmoRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblAtmoOp" type="Label" parent="AtmoRow/AtmoOpCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Opacité"
+
+[node name="SpinAtmoOpacity" type="SpinBox" parent="AtmoRow/AtmoOpCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.12
+
+[node name="AtmoVigCol" type="VBoxContainer" parent="AtmoRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblAtmoVig" type="Label" parent="AtmoRow/AtmoVigCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Vignettage"
+
+[node name="SpinAtmoVignette" type="SpinBox" parent="AtmoRow/AtmoVigCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 0.18
+
+[node name="LblLight" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "💡 Éclairage global"
+
+[node name="ChkLight" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Éclairage directionnel"
+
+[node name="OptLightDir" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 4
+popup/item_0/text = "Nord-Ouest"
+popup/item_0/id = 0
+popup/item_1/text = "Nord-Est"
+popup/item_1/id = 1
+popup/item_2/text = "Sud-Ouest"
+popup/item_2/id = 2
+popup/item_3/text = "Sud-Est"
+popup/item_3/id = 3
+
+[node name="LightIntRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LightIntCol" type="VBoxContainer" parent="LightIntRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblLightInt" type="Label" parent="LightIntRow/LightIntCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Intensité"
+
+[node name="SpinLightIntensity" type="SpinBox" parent="LightIntRow/LightIntCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 2.0
+step = 0.05
+value = 0.35
+
+[node name="LblNight" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🌙 Nuit / lumières"
+
+[node name="ChkNight" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mode nuit (révèle le jour)"
+
+[node name="NightAmbRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NightAmbCol" type="VBoxContainer" parent="NightAmbRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="LblNightAmb" type="Label" parent="NightAmbRow/NightAmbCol"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Ambiance nuit"
+
+[node name="SpinNightAmbient" type="SpinBox" parent="NightAmbRow/NightAmbCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 1.0
+step = 0.01
+value = 0.22
+
+[node name="LblNightHint" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Comme le brouillard : la carte est nocturne ; chaque lumière révèle le jour dans son rayon. Déplacer une lumière déplace son halo (mis à jour en direct)."
+autowrap_mode = 3
+
+[node name="NightRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnClearLight" type="Button" parent="NightRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Effacer zones éclairées"
+
+[node name="LblDisplay" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "👁 Affichage éditeur"
+
+[node name="ChkShowLinks" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Afficher les liens"
+
+[node name="ChkShowIds" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Afficher les noms"
+
+[node name="ChkShowVision" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Aperçu ligne de vue"
+
+[node name="LblSave" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "💾 Sauvegarde"
+
+[node name="OptSavePolicy" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 3
+popup/item_0/text = "Manuelle"
+popup/item_0/id = 0
+popup/item_1/text = "À chaque modification"
+popup/item_1/id = 1
+popup/item_2/text = "Périodique (30 s)"
+popup/item_2/id = 2
+
+[node name="IoRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnExportJson" type="Button" parent="IoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬆ Exporter JSON"
+
+[node name="BtnImportJson" type="Button" parent="IoRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬇ Importer JSON"

@@ -1,0 +1,50 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/party_dock.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/party_member_card.tscn" id="2_card"]
+
+[node name="PartyDock" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_type_variation = &"DockPanel"
+clip_contents = true
+script = ExtResource("1_script")
+card_scene = ExtResource("2_card")
+
+[node name="Col" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Head" type="HBoxContainer" parent="Col"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblTitle" type="Label" parent="Col/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeadingLabel"
+text = "Groupe"
+
+[node name="LblCount" type="Label" parent="Col/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"CaptionLabel"
+text = "0"
+
+[node name="Scroll" type="ScrollContainer" parent="Col"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MemberList" type="VBoxContainer" parent="Col/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

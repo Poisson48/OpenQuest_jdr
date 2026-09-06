@@ -2,11 +2,10 @@ extends Control
 
 const InteractiveMapScript := preload("res://scripts/interactive_map.gd")
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
-const MapComplexEditorScript := preload("res://scripts/maps/map_complex_editor.gd")
 
 @onready var top_bar: HBoxContainer = $VBox/TopBar
 @onready var title_lbl: Label = %MapTitle
-@onready var content_host: Control = $VBox/ContentHost
+@onready var content_host: Control = %EditorPanel
 
 var _interactive_map: Control
 var _map_data: Dictionary = {}
@@ -44,7 +43,8 @@ var _complex_editor: Control
 func _ready() -> void:
 	%BtnBack.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/hub.tscn"))
 	_edit_mode = MapData.editor_mode == "edit"
-	_build_ui()
+	_bind_ui()
+	_sync_chrome()
 	_load_map()
 	resized.connect(_on_viewer_resized)
 	var vp := get_viewport()
@@ -58,59 +58,58 @@ func _on_viewer_resized() -> void:
 	if _complex_editor.has_method("_on_viewport_size_changed"):
 		_complex_editor.call("_on_viewport_size_changed")
 
-func _build_ui() -> void:
-	_reset_top_bar()
-	for child in content_host.get_children():
-		child.queue_free()
+func _bind_ui() -> void:
+	_editor_panel = %EditorPanel
+	_title_input = %TitleInput
+	_hint_lbl = %LblHint
+	_mode_row = %ModeRow
+	# Unique names inside instanced child scenes belong to that instance, not MapViewer.
+	_btn_mode_simple = %ModeRow.get_node("%BtnModeSimple")
+	_btn_mode_complex = %ModeRow.get_node("%BtnModeComplex")
+	_mode_hint_lbl = %ModeRow.get_node("%LblModeHint")
+	_tool_row = %ToolRow
+	_palettes_root = %Palettes
+	_tile_palette = %Palettes.get_node("%TilePalette")
+	_marker_palette = %Palettes.get_node("%MarkerPalette")
+	_link_panel = %Palettes.get_node("%LinkPanel")
+	_link_target_select = %Palettes.get_node("%LinkTargetSelect")
+	_link_label_input = %Palettes.get_node("%LinkLabelInput")
+	_integration_panel = %Palettes.get_node("%IntegrationPanel")
+	_integration_status = %Palettes.get_node("%LblIntegrationStatus")
+	_world_map_select = %Palettes.get_node("%WorldMapSelect")
+	_map_header = %SimpleStage.get_node("%MapHeader")
+	_map_frame = %SimpleStage.get_node("%MapFrame")
+	_zoom_lbl = %SimpleStage.get_node("%LblZoom")
+	_complex_editor = %MapEditor
 
-	_editor_panel = VBoxContainer.new()
-	_editor_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_editor_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_editor_panel.add_theme_constant_override("separation", 8)
-	_editor_panel.clip_contents = true
-	content_host.clip_contents = true
-	content_host.add_child(_editor_panel)
+	%BtnSave.pressed.connect(_save_map)
+	%BtnEdit.pressed.connect(func():
+		_edit_mode = true
+		MapData.editor_mode = "edit"
+		_rebuild_for_mode()
+	)
+	%BottomBar.get_node("%BtnPreview").pressed.connect(func():
+		if MapData.is_complex_map(_map_data) and _complex_editor:
+			_map_data = _complex_editor.apply_to_map_data()
+		_edit_mode = false
+		MapData.editor_mode = "preview"
+		_rebuild_for_mode()
+	)
+	_btn_mode_simple.pressed.connect(func(): _set_render_mode(MapModeScript.SIMPLE))
+	_btn_mode_complex.pressed.connect(func(): _set_render_mode(MapModeScript.COMPLEX))
+	%Palettes.get_node("%BtnPlaceWorld").pressed.connect(_open_world_for_link_placement)
+	%SimpleStage.get_node("%BtnZoomOut").pressed.connect(func(): _interactive_map.zoom_out())
+	%SimpleStage.get_node("%BtnZoomIn").pressed.connect(func(): _interactive_map.zoom_in())
+	%SimpleStage.get_node("%BtnZoomReset").pressed.connect(func(): _interactive_map.reset_zoom())
 
-	if _edit_mode:
-		_build_edit_top_actions()
-		_build_mode_row()
-		_build_tool_row()
-		_build_palettes()
-	else:
-		_build_preview_actions()
-		_build_mode_row()
-
-	_hint_lbl = Label.new()
-	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_hint_lbl.add_theme_font_size_override("font_size", 12)
-	_editor_panel.add_child(_hint_lbl)
-
-	var map_header := HBoxContainer.new()
-	_map_header = map_header
-	map_header.add_theme_constant_override("separation", 8)
-	_editor_panel.add_child(map_header)
-
-	var map_title := Label.new()
-	map_title.text = "Grille"
-	map_title.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	map_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_header.add_child(map_title)
-	_build_zoom_controls(map_header)
-
-	var map_frame := PanelContainer.new()
-	_map_frame = map_frame
-	var map_style := StyleBoxFlat.new()
-	map_style.bg_color = ThemeColors.BG_INPUT
-	map_style.border_color = ThemeColors.BORDER
-	map_style.set_border_width_all(1)
-	map_style.set_corner_radius_all(4)
-	map_frame.add_theme_stylebox_override("panel", map_style)
-	map_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	map_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# Min bas : s'adapte aux écrans courts ; le fill vertical prend le reste.
-	map_frame.custom_minimum_size = Vector2(0, 120)
-	_editor_panel.add_child(map_frame)
+	_tool_buttons["tile"] = %ToolRow.get_node("%BtnToolTile")
+	_tool_buttons["marker"] = %ToolRow.get_node("%BtnToolMarker")
+	_tool_buttons["link"] = %ToolRow.get_node("%BtnToolLink")
+	_tool_buttons["erase"] = %ToolRow.get_node("%BtnToolErase")
+	_tool_buttons["tile"].pressed.connect(func(): _set_tool("tile"))
+	_tool_buttons["marker"].pressed.connect(func(): _set_tool("marker"))
+	_tool_buttons["link"].pressed.connect(func(): _set_tool("link"))
+	_tool_buttons["erase"].pressed.connect(func(): _set_tool("erase"))
 
 	_interactive_map = InteractiveMapScript.new()
 	_interactive_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -121,90 +120,18 @@ func _build_ui() -> void:
 	_interactive_map.cell_paint.connect(_on_cell_paint)
 	_interactive_map.paint_drag_finished.connect(_on_paint_drag_finished)
 	_interactive_map.zoom_changed.connect(func(_z): _update_zoom_label())
-	map_frame.add_child(_interactive_map)
+	%SimpleStage.get_node("%MapHost").add_child(_interactive_map)
 
-	_complex_editor = MapComplexEditorScript.new()
-	_complex_editor.visible = false
-	# Naviguer entre les échelles (village → place → taverne) recharge
-	# simplement l'éditeur sur la carte demandée.
 	_complex_editor.open_map_requested.connect(_on_editor_open_map)
-	_complex_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_complex_editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_complex_editor.size_flags_stretch_ratio = 1.0
-	_complex_editor.clip_contents = true
-	_editor_panel.add_child(_complex_editor)
 
-	if _edit_mode:
-		_build_bottom_bar()
-
-func _reset_top_bar() -> void:
-	for child in top_bar.get_children():
-		if child != %BtnBack and child != title_lbl:
-			child.queue_free()
+func _sync_chrome() -> void:
+	_title_input.visible = _edit_mode
 	title_lbl.visible = not _edit_mode
-	_title_input = null
-
-func _build_edit_top_actions() -> void:
-	_title_input = LineEdit.new()
-	_title_input.placeholder_text = "Titre de la carte"
-	_title_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title_input.add_theme_font_size_override("font_size", 16)
-	top_bar.add_child(_title_input)
-	top_bar.move_child(_title_input, 1)
-	title_lbl.visible = false
-
-	var btn_save := Button.new()
-	btn_save.text = "💾 Enregistrer"
-	btn_save.pressed.connect(_save_map)
-	top_bar.add_child(btn_save)
-
-func _build_preview_actions() -> void:
-	title_lbl.visible = true
-	if _title_input:
-		_title_input.visible = false
-	var btn_edit := Button.new()
-	btn_edit.text = "✏️ Modifier"
-	btn_edit.pressed.connect(func():
-		_edit_mode = true
-		MapData.editor_mode = "edit"
-		_rebuild_for_mode()
-	)
-	top_bar.add_child(btn_edit)
-
-func _build_mode_row() -> void:
-	_mode_row = HBoxContainer.new()
-	_mode_row.add_theme_constant_override("separation", 8)
-	_editor_panel.add_child(_mode_row)
-	_editor_panel.move_child(_mode_row, 0 if _edit_mode else 0)
-
-	var lbl := Label.new()
-	lbl.text = "Mode carte :"
-	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	_mode_row.add_child(lbl)
-
-	_mode_group = ButtonGroup.new()
-	_btn_mode_simple = Button.new()
-	_btn_mode_simple.text = "▦ Simple"
-	_btn_mode_simple.toggle_mode = true
-	_btn_mode_simple.button_group = _mode_group
-	_btn_mode_simple.tooltip_text = "Tuiles pixel — exploration, lieux, marqueurs"
-	_btn_mode_simple.pressed.connect(func(): _set_render_mode(MapModeScript.SIMPLE))
-	_mode_row.add_child(_btn_mode_simple)
-
-	_btn_mode_complex = Button.new()
-	_btn_mode_complex.text = "⚙️ Complexe"
-	_btn_mode_complex.toggle_mode = true
-	_btn_mode_complex.button_group = _mode_group
-	_btn_mode_complex.tooltip_text = "Battlemap 3D — diorama illustré ou VTT tactique"
-	_btn_mode_complex.pressed.connect(func(): _set_render_mode(MapModeScript.COMPLEX))
-	_mode_row.add_child(_btn_mode_complex)
-
-	_mode_hint_lbl = Label.new()
-	_mode_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_mode_hint_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_mode_hint_lbl.add_theme_font_size_override("font_size", 12)
-	_mode_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_mode_row.add_child(_mode_hint_lbl)
+	%BtnSave.visible = _edit_mode
+	%BtnEdit.visible = not _edit_mode
+	_tool_row.visible = _edit_mode
+	_palettes_root.visible = _edit_mode
+	%BottomBar.visible = _edit_mode
 
 func _sync_render_mode_ui() -> void:
 	if _btn_mode_simple == null or _map_data.is_empty():
@@ -256,6 +183,9 @@ func _sync_editor_mode() -> void:
 		_map_header.visible = show_simple
 	if _map_frame:
 		_map_frame.visible = show_simple
+	var simple_stage := get_node_or_null("%SimpleStage")
+	if simple_stage:
+		simple_stage.visible = show_simple
 	if _complex_editor:
 		_complex_editor.visible = is_complex
 		if is_complex:
@@ -263,177 +193,6 @@ func _sync_editor_mode() -> void:
 			_complex_editor.load_map(_map_data)
 	if _editor_panel and is_complex:
 		_hint_lbl.visible = not is_complex or not _edit_mode
-
-func _build_tool_row() -> void:
-	_tool_row = HBoxContainer.new()
-	_tool_row.add_theme_constant_override("separation", 6)
-	_editor_panel.add_child(_tool_row)
-	_editor_panel.move_child(_tool_row, 1 if _mode_row else 0)
-
-	for spec in [
-		["tile", "🖌 Tuile"],
-		["marker", "📍 Marqueur"],
-		["link", "🌀 Lien lieu"],
-		["erase", "🧹 Effacer"],
-	]:
-		var btn := Button.new()
-		btn.text = spec[1]
-		btn.toggle_mode = true
-		btn.button_pressed = spec[0] == "tile"
-		btn.pressed.connect(func(): _set_tool(spec[0]))
-		_tool_buttons[spec[0]] = btn
-		_tool_row.add_child(btn)
-
-func _build_palettes() -> void:
-	_palettes_root = VBoxContainer.new()
-	_palettes_root.add_theme_constant_override("separation", 6)
-	_editor_panel.add_child(_palettes_root)
-	_editor_panel.move_child(_palettes_root, 2 if _mode_row else 1)
-
-	var tile_scroll := ScrollContainer.new()
-	tile_scroll.name = "TileScroll"
-	tile_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	tile_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	tile_scroll.custom_minimum_size = Vector2(0, 44)
-	tile_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_palettes_root.add_child(tile_scroll)
-
-	_tile_palette = HBoxContainer.new()
-	_tile_palette.add_theme_constant_override("separation", 6)
-	tile_scroll.add_child(_tile_palette)
-
-	var marker_scroll := ScrollContainer.new()
-	marker_scroll.name = "MarkerScroll"
-	marker_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	marker_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	marker_scroll.custom_minimum_size = Vector2(0, 44)
-	marker_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_palettes_root.add_child(marker_scroll)
-
-	_marker_palette = HBoxContainer.new()
-	_marker_palette.add_theme_constant_override("separation", 6)
-	marker_scroll.add_child(_marker_palette)
-
-	_link_panel = VBoxContainer.new()
-	_link_panel.name = "LinkPanel"
-	_link_panel.add_theme_constant_override("separation", 6)
-	_link_panel.visible = false
-	_palettes_root.add_child(_link_panel)
-
-	var link_hint := Label.new()
-	link_hint.text = "Relie une case du monde à une scène locale (ex. taverne, donjon)."
-	link_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	link_hint.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	link_hint.add_theme_font_size_override("font_size", 12)
-	_link_panel.add_child(link_hint)
-
-	var link_row := HBoxContainer.new()
-	link_row.add_theme_constant_override("separation", 8)
-	_link_panel.add_child(link_row)
-
-	var scene_lbl := Label.new()
-	scene_lbl.text = "Scène locale :"
-	scene_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-	link_row.add_child(scene_lbl)
-
-	_link_target_select = OptionButton.new()
-	_link_target_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_link_target_select.custom_minimum_size = Vector2(180, 0)
-	link_row.add_child(_link_target_select)
-
-	var label_lbl := Label.new()
-	label_lbl.text = "Nom sur la carte :"
-	label_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-	link_row.add_child(label_lbl)
-
-	_link_label_input = LineEdit.new()
-	_link_label_input.placeholder_text = "Ex. Taverne du Vieux Port"
-	_link_label_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_link_label_input.custom_minimum_size = Vector2(160, 0)
-	link_row.add_child(_link_label_input)
-
-	_integration_panel = VBoxContainer.new()
-	_integration_panel.name = "IntegrationPanel"
-	_integration_panel.add_theme_constant_override("separation", 6)
-	_integration_panel.visible = false
-	_palettes_root.add_child(_integration_panel)
-
-	var int_title := Label.new()
-	int_title.text = "🌍 Intégration dans une carte monde"
-	int_title.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	int_title.add_theme_font_size_override("font_size", 14)
-	_integration_panel.add_child(int_title)
-
-	_integration_status = Label.new()
-	_integration_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_integration_status.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_integration_status.add_theme_font_size_override("font_size", 12)
-	_integration_panel.add_child(_integration_status)
-
-	var int_row := HBoxContainer.new()
-	int_row.add_theme_constant_override("separation", 8)
-	_integration_panel.add_child(int_row)
-
-	var world_lbl := Label.new()
-	world_lbl.text = "Carte monde :"
-	world_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-	int_row.add_child(world_lbl)
-
-	_world_map_select = OptionButton.new()
-	_world_map_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_world_map_select.custom_minimum_size = Vector2(180, 0)
-	int_row.add_child(_world_map_select)
-
-	var btn_place := Button.new()
-	btn_place.text = "Placer l'entrée sur le monde"
-	btn_place.pressed.connect(_open_world_for_link_placement)
-	int_row.add_child(btn_place)
-
-func _build_bottom_bar() -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	_editor_panel.add_child(row)
-
-	var btn_preview := Button.new()
-	btn_preview.text = "👁 Aperçu"
-	btn_preview.pressed.connect(func():
-		if MapData.is_complex_map(_map_data) and _complex_editor:
-			_map_data = _complex_editor.apply_to_map_data()
-		_edit_mode = false
-		MapData.editor_mode = "preview"
-		_rebuild_for_mode()
-	)
-	row.add_child(btn_preview)
-
-func _build_zoom_controls(parent: HBoxContainer) -> void:
-	_zoom_row = HBoxContainer.new()
-	_zoom_row.add_theme_constant_override("separation", 4)
-	parent.add_child(_zoom_row)
-
-	var btn_zoom_out := Button.new()
-	btn_zoom_out.text = "−"
-	btn_zoom_out.custom_minimum_size = Vector2(32, 30)
-	btn_zoom_out.pressed.connect(func(): _interactive_map.zoom_out())
-	_zoom_row.add_child(btn_zoom_out)
-
-	_zoom_lbl = Label.new()
-	_zoom_lbl.text = "100%"
-	_zoom_lbl.custom_minimum_size = Vector2(48, 0)
-	_zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_zoom_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	_zoom_row.add_child(_zoom_lbl)
-
-	var btn_zoom_in := Button.new()
-	btn_zoom_in.text = "+"
-	btn_zoom_in.custom_minimum_size = Vector2(32, 30)
-	btn_zoom_in.pressed.connect(func(): _interactive_map.zoom_in())
-	_zoom_row.add_child(btn_zoom_in)
-
-	var btn_reset := Button.new()
-	btn_reset.text = "⟲"
-	btn_reset.custom_minimum_size = Vector2(32, 30)
-	btn_reset.pressed.connect(func(): _interactive_map.reset_zoom())
-	_zoom_row.add_child(btn_reset)
 
 func _load_map() -> void:
 	_map_data = {}
@@ -831,7 +590,7 @@ func _update_zoom_label() -> void:
 		_zoom_lbl.text = "%d%%" % int(round(_interactive_map.zoom * 100.0))
 
 func _rebuild_for_mode() -> void:
-	_build_ui()
+	_sync_chrome()
 	_load_map()
 
 func _on_editor_open_map(map_id: String) -> void:

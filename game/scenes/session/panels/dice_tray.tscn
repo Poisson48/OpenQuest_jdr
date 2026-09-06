@@ -1,0 +1,117 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/dice_tray.gd" id="1_script"]
+
+[node name="DiceTray" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_type_variation = &"DockPanel"
+script = ExtResource("1_script")
+
+[node name="Col" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Head" type="HBoxContainer" parent="Col"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblTitle" type="Label" parent="Col/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeadingLabel"
+text = "Dés"
+
+[node name="ChkSecret" type="CheckBox" parent="Col/Head"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+tooltip_text = "Jet visible de vous seul, non publié dans le journal"
+text = "Secret"
+
+[node name="QuickRow" type="HBoxContainer" parent="Col"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnD4" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d4"
+
+[node name="BtnD6" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d6"
+
+[node name="BtnD8" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d8"
+
+[node name="BtnD10" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d10"
+
+[node name="BtnD12" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d12"
+
+[node name="BtnD20" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "d20"
+
+[node name="BtnD100" type="Button" parent="Col/QuickRow"]
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "d100"
+
+[node name="CustomRow" type="HBoxContainer" parent="Col"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FormulaInput" type="LineEdit" parent="Col/CustomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "2d6+3"
+
+[node name="BtnRoll" type="Button" parent="Col/CustomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Lancer la formule saisie"
+text = "Lancer"
+
+[node name="ResultFrame" type="PanelContainer" parent="Col"]
+layout_mode = 2
+theme_type_variation = &"InsetPanel"
+
+[node name="LblResult" type="Label" parent="Col/ResultFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "Prêt à lancer les dés"
+autowrap_mode = 3

@@ -1,0 +1,141 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/gm_console.gd" id="1_script"]
+
+[node name="GmConsole" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"DockPanel"
+clip_contents = true
+script = ExtResource("1_script")
+
+[node name="Col" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AlertBanner" type="PanelContainer" parent="Col"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"AlertPanel"
+
+[node name="LblAlert" type="Label" parent="Col/AlertBanner"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Action reçue — répondez pour relancer le tour."
+autowrap_mode = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Col"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Body" type="VBoxContainer" parent="Col/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="LblNarration" type="Label" parent="Col/Scroll/Body"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Narration"
+
+[node name="NarrationInput" type="TextEdit" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ce que voient et entendent les joueurs… (Ctrl+Entrée)"
+wrap_mode = 1
+
+[node name="BtnNarrate" type="Button" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Envoyer la narration à la table (Ctrl+Entrée)"
+text = "Diffuser"
+
+[node name="LblNpc" type="Label" parent="Col/Scroll/Body"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Personnage non-joueur"
+
+[node name="NpcPicker" type="OptionButton" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Choisir qui prend la parole"
+clip_text = true
+
+[node name="NpcInput" type="TextEdit" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Réplique… (Ctrl+Entrée)"
+wrap_mode = 1
+
+[node name="BtnNpc" type="Button" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Publier la réplique du PNJ sélectionné"
+text = "Faire parler"
+
+[node name="LblScene" type="Label" parent="Col/Scroll/Body"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Scène"
+
+[node name="SceneRow" type="HBoxContainer" parent="Col/Scroll/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ScenePicker" type="OptionButton" parent="Col/Scroll/Body/SceneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Sauter directement à une scène"
+clip_text = true
+
+[node name="BtnGoto" type="Button" parent="Col/Scroll/Body/SceneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Basculer sur la scène choisie"
+text = "Aller"
+
+[node name="TransitionList" type="VBoxContainer" parent="Col/Scroll/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EndRow" type="HBoxContainer" parent="Col"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnAdvance" type="Button" parent="Col/EndRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AccentButton"
+tooltip_text = "Avancer sur le chemin par défaut du scénario"
+text = "Scène suivante"
+
+[node name="BtnComplete" type="Button" parent="Col/EndRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_type_variation = &"DangerButton"
+tooltip_text = "Terminer définitivement l'aventure"
+text = "Clore"

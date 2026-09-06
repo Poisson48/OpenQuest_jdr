@@ -18,46 +18,19 @@ var _filter: String = ""
 var _collapsed: Dictionary = {}
 
 func _ready() -> void:
-	add_theme_constant_override("separation", 4)
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 4)
-	add_child(header)
-
-	_search = LineEdit.new()
-	_search.placeholder_text = "Rechercher un élément…"
-	_search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_search.clear_button_enabled = true
+	_search = %Search
+	_counter = %LblCounter
+	_tree_host = %TreeHost
 	_search.text_changed.connect(func(text):
 		_filter = text.strip_edges().to_lower()
 		rebuild()
 	)
-	header.add_child(_search)
-
-	_counter = Label.new()
-	_counter.add_theme_font_size_override("font_size", 11)
-	_counter.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	add_child(_counter)
-
-	var layer_actions := HBoxContainer.new()
-	layer_actions.add_theme_constant_override("separation", 4)
-	add_child(layer_actions)
-	var add_btn := Button.new()
-	add_btn.text = "＋ Calque"
-	add_btn.tooltip_text = "Créer un calque"
-	add_btn.pressed.connect(func():
+	%BtnAddLayer.pressed.connect(func():
 		if doc == null:
 			return
 		doc.add_layer()
 		rebuild()
 	)
-	layer_actions.add_child(add_btn)
-
-	_tree_host = VBoxContainer.new()
-	_tree_host.add_theme_constant_override("separation", 1)
-	_tree_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_child(_tree_host)
 
 func set_document(p_doc) -> void:
 	doc = p_doc

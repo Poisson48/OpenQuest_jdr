@@ -1,5 +1,7 @@
 extends Control
 
+const ScenarioCardScene := preload("res://scenes/hub/panels/scenario_card.tscn")
+
 @onready var scenario_sections_root: VBoxContainer = %ScenarioSectionsRoot
 @onready var list_scroll: ScrollContainer = %ListScroll
 @onready var mode_filter: OptionButton = %ModeFilter
@@ -224,95 +226,13 @@ func _add_scenario_section(title: String, scenarios: Array) -> void:
 	scenario_sections_root.add_child(section)
 
 func _create_scenario_card(scn: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	panel.add_theme_stylebox_override("panel", style)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-
-	var title_lbl := Label.new()
-	title_lbl.text = str(scn.get("title", "Sans titre"))
-	title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(title_lbl)
-
-	var badge := Label.new()
-	var mode := GameData.get_scenario_mode_label(scn)
-	match mode:
-		"investigation":
-			if scn.get("questFormat", "oneshot") == "long":
-				badge.text = "🔍 Enquête longue"
-			else:
-				badge.text = "🔍 Enquête courte"
-			badge.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
-		"long":
-			badge.text = "🏰 Campagne"
-			badge.add_theme_color_override("font_color", ThemeColors.GOLD)
-		_:
-			badge.text = "⚔️ One-shot"
-			badge.add_theme_color_override("font_color", ThemeColors.ONESHOT_ACCENT)
-	vbox.add_child(badge)
-
-	var syn_lbl := Label.new()
-	var synopsis := str(scn.get("synopsis", "Pas de synopsis."))
-	if synopsis.length() > 120:
-		synopsis = synopsis.substr(0, 117) + "..."
-	syn_lbl.text = synopsis
-	syn_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	syn_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	syn_lbl.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(syn_lbl)
-
-	var scenes: Array = scn.get("scenes", [])
-	var npcs: Array = scn.get("npcs", [])
-	var meta_lbl := Label.new()
-	meta_lbl.text = "📜 %d scènes · 👤 %d PNJ" % [scenes.size(), npcs.size()]
-	meta_lbl.add_theme_font_size_override("font_size", 11)
-	meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	vbox.add_child(meta_lbl)
-
-	var actions := VBoxContainer.new()
-	actions.add_theme_constant_override("separation", 4)
-
-	var btn_edit := Button.new()
-	btn_edit.text = "✏️ Modifier"
-	btn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_edit.pressed.connect(func(): GameData.go_to_scenario_editor(scn.get("id", "")))
-	actions.add_child(btn_edit)
-
-	var btn_view := Button.new()
-	btn_view.text = "Voir détails"
-	btn_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_view.pressed.connect(func(): _show_scenario_details(scn))
-	actions.add_child(btn_view)
-
-	var btn_play := Button.new()
-	btn_play.text = "🎮 Lancer"
-	btn_play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_play.pressed.connect(func(): _launch_game_with_scenario(scn.get("id", "")))
-	actions.add_child(btn_play)
-
-	var scn_id: String = scn.get("id", "")
-	var scn_title: String = scn.get("title", "Scénario")
-	var btn_delete := Button.new()
-	btn_delete.text = "Supprimer"
-	btn_delete.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_delete.pressed.connect(func(): _ask_delete_scenario(scn_id, scn_title))
-	actions.add_child(btn_delete)
-
-	vbox.add_child(actions)
-	panel.add_child(vbox)
-	return panel
+	var card := ScenarioCardScene.instantiate()
+	card.setup(scn)
+	card.edit_pressed.connect(func(id: String): GameData.go_to_scenario_editor(id))
+	card.view_pressed.connect(_show_scenario_details)
+	card.play_pressed.connect(_launch_game_with_scenario)
+	card.delete_pressed.connect(_ask_delete_scenario)
+	return card
 
 func _show_scenario_details(scn: Dictionary) -> void:
 	selected_scenario_id = scn.get("id", "")

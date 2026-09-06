@@ -18,3 +18,8 @@ Source : audit Claude session MJ (branche `interface`).
 - Confirmation Quitter / Clore ; libellés danger.
 - Debug session conditionné à `OS.is_debug_build()`.
 - Immersive chrome symétrique ; hints Ctrl+molette ; cases carte simple max 48 px.
+
+---
+
+> Obsolete depuis la reconstruction scene-first de la session (session.tscn + panels/*.tscn).
+> Voir docs/SESSION_UI.md : session.gd et map_panel.gd n'existent plus.

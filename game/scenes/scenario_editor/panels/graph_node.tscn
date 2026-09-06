@@ -1,0 +1,47 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/scenario_editor/panels/graph_node.gd" id="1_script"]
+
+[node name="SceneGraphNode" type="GraphNode"]
+custom_minimum_size = Vector2(220, 0)
+theme_type_variation = &"InsetPanel"
+title = "Scène"
+script = ExtResource("1_script")
+
+[node name="Body" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblTags" type="Label" parent="Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
+theme_override_font_sizes/font_size = 11
+text = ""
+autowrap_mode = 3
+
+[node name="LblPreview" type="Label" parent="Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 12
+text = "(contenu vide)"
+autowrap_mode = 3
+
+[node name="LblBranches" type="Label" parent="Body"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 11
+text = "⚑ Fin de branche"
+autowrap_mode = 0
+
+[node name="LblWarn" type="Label" parent="Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.266667, 0.266667, 1)
+theme_override_font_sizes/font_size = 11
+text = "⚠ Inatteignable"

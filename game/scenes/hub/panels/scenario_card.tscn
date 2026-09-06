@@ -1,0 +1,69 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/hub/panels/scenario_card.gd" id="1_script"]
+
+[node name="ScenarioCard" type="PanelContainer"]
+size_flags_horizontal = 3
+theme_type_variation = &"InsetPanel"
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblTitle" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Sans titre"
+autowrap_mode = 3
+
+[node name="LblBadge" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"BadgeLabel"
+text = "⚔️ One-shot"
+
+[node name="LblSynopsis" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 12
+text = "Pas de synopsis."
+autowrap_mode = 3
+
+[node name="LblMeta" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "📜 0 scènes · 👤 0 PNJ"
+
+[node name="Actions" type="VBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnEdit" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "✏️ Modifier"
+
+[node name="BtnView" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Voir détails"
+
+[node name="BtnPlay" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AccentButton"
+text = "🎮 Lancer"
+
+[node name="BtnDelete" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"DangerButton"
+text = "Supprimer"

@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/gm_notes.gd" id="1_script"]
+
+[node name="GmNotes" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"DockPanel"
+clip_contents = true
+script = ExtResource("1_script")
+
+[node name="Col" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Head" type="HBoxContainer" parent="Col"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblTitle" type="Label" parent="Col/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeadingLabel"
+text = "Notes de scène"
+
+[node name="LblStatus" type="Label" parent="Col/Head"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"CaptionLabel"
+text = ""
+
+[node name="LblPrivacy" type="Label" parent="Col"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Privé : rien de ce qui est écrit ici n'est envoyé aux joueurs."
+autowrap_mode = 3
+
+[node name="NotesInput" type="TextEdit" parent="Col"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+placeholder_text = "Indices à distiller, PNJ croisés, jets à préparer…"
+wrap_mode = 1
+
+[node name="SaveTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.8
+one_shot = true

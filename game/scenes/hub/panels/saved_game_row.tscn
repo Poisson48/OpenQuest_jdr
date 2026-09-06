@@ -1,0 +1,43 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/hub/panels/saved_game_row.gd" id="1_script"]
+
+[node name="SavedGameRow" type="PanelContainer"]
+size_flags_horizontal = 3
+theme_type_variation = &"InsetPanel"
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Info" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="LblTitle" type="Label" parent="Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "« Aventure »"
+
+[node name="LblMeta" type="Label" parent="Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 12
+text = "Groupe"
+
+[node name="BtnResume" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"AccentButton"
+text = "▶ Reprendre"
+
+[node name="BtnDelete" type="Button" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DangerButton"
+tooltip_text = "Effacer cette sauvegarde et toute sa progression"
+text = "🗑 Effacer la partie"

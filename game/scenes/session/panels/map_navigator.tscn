@@ -1,0 +1,72 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/map_navigator.gd" id="1_script"]
+
+[node name="MapNavigator" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_type_variation = &"ToolbarPanel"
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnBack" type="Button" parent="Row"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Revenir à l'échelle supérieure"
+text = "← Remonter"
+
+[node name="TabRow" type="HBoxContainer" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblCrumb" type="Label" parent="Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_type_variation = &"CaptionLabel"
+text = "Carte"
+clip_text = true
+
+[node name="BtnZoomOut" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Dézoomer"
+text = "−"
+
+[node name="LblScale" type="Label" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(78, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"CaptionLabel"
+text = "—"
+horizontal_alignment = 1
+
+[node name="BtnZoomIn" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Zoomer"
+text = "+"
+
+[node name="BtnFit" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Afficher toute la carte"
+text = "Cadrer"

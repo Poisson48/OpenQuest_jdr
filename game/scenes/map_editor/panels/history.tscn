@@ -1,0 +1,45 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/editor/map_editor_history_panel.gd" id="1_script"]
+
+[node name="Historique" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+script = ExtResource("1_script")
+
+[node name="LblHistory" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🕘 Historique"
+
+[node name="HistoryActions" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnUndo" type="Button" parent="HistoryActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↶ Annuler"
+
+[node name="BtnRedo" type="Button" parent="HistoryActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↷ Rétablir"
+
+[node name="HistoryList" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="LblShortcuts" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "⌨ Raccourcis"
+
+[node name="ShortcutsHost" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2

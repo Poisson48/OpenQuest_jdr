@@ -1,6 +1,9 @@
 extends Control
 
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
+const MapCardScene := preload("res://scenes/hub/panels/map_card.tscn")
+const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn")
+const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 
 @onready var tab_container: TabContainer = %TabContainer
 @onready var tab_nav: HBoxContainer = %TabNav
@@ -183,117 +186,18 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 		flow.add_theme_constant_override("v_separation", 12)
 		flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for map_data in map_list:
-			flow.add_child(_build_map_card(map_data, category))
+			flow.add_child(_make_map_card(map_data, category))
 		section.add_child(flow)
 
 	maps_sections_root.add_child(section)
 
-func _build_map_card(map_data: Dictionary, category: String) -> PanelContainer:
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(240, 0)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	card.add_theme_stylebox_override("panel", style)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-
-	var badge := Label.new()
-	var w: int = int(map_data.get("width", 0))
-	var h: int = int(map_data.get("height", 0))
-	var badge_icon := "🌍" if category == "world" else ("🔍" if category == "investigation" else "⚔️")
-	badge.text = "%s %d×%d · %d carrés" % [badge_icon, w, h, w * h]
-	badge.add_theme_font_size_override("font_size", 11)
-	badge.add_theme_color_override("font_color", ThemeColors.GOLD)
-	vbox.add_child(badge)
-
-	var title_lbl := Label.new()
-	title_lbl.text = map_data.get("title", "Sans titre")
-	title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	vbox.add_child(title_lbl)
-
-	var scenario_id: String = map_data.get("scenarioId", "")
-	if not scenario_id.is_empty():
-		var scn_lbl := Label.new()
-		scn_lbl.text = "Scénario : %s" % scenario_id
-		scn_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		scn_lbl.add_theme_font_size_override("font_size", 11)
-		scn_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		vbox.add_child(scn_lbl)
-
-	var desc_text: String = map_data.get("description", "")
-	if not desc_text.is_empty():
-		var desc_lbl := Label.new()
-		desc_lbl.text = desc_text
-		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc_lbl.add_theme_font_size_override("font_size", 12)
-		desc_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		vbox.add_child(desc_lbl)
-
-	var map_id: String = map_data.get("id", "")
-
-	var mode_lbl := Label.new()
-	mode_lbl.text = MapModeScript.badge(MapData.get_render_mode(map_data))
-	mode_lbl.add_theme_font_size_override("font_size", 11)
-	mode_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT if MapData.is_complex_map(map_data) else ThemeColors.TEXT_MUTED)
-	vbox.add_child(mode_lbl)
-
-	var meta := Label.new()
-	var link_count: int = map_data.get("locationLinks", []).size()
-	if category == "world" and link_count > 0:
-		meta.text = "%d marqueur(s) · %d scène(s) liée(s)" % [map_data.get("markers", []).size(), link_count]
-	elif category != "world":
-		var world_links: Array = MapData.get_world_links_to_map(map_id)
-		if world_links.is_empty():
-			meta.text = "%d marqueur(s) · non liée au monde" % map_data.get("markers", []).size()
-		else:
-			meta.text = "%d marqueur(s) · intégrée dans %d carte(s) monde" % [map_data.get("markers", []).size(), world_links.size()]
-	else:
-		meta.text = "%d marqueur(s)" % map_data.get("markers", []).size()
-	meta.add_theme_font_size_override("font_size", 11)
-	meta.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	vbox.add_child(meta)
-
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 8)
-	actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	var btn_preview := Button.new()
-	btn_preview.text = "Aperçu"
-	btn_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_preview.pressed.connect(func(): _preview_map(map_id))
-	actions.add_child(btn_preview)
-
-	if str(map_data.get("scenarioId", "")) == "demo-valbois":
-		var btn_demo := Button.new()
-		btn_demo.text = "Jouer avec Kael"
-		btn_demo.tooltip_text = "Lance la démo Valbois : Kael, portrait, token, Place du Marché."
-		btn_demo.pressed.connect(_play_valbois_demo)
-		actions.add_child(btn_demo)
-
-	var btn_edit := Button.new()
-	btn_edit.text = "Modifier"
-	btn_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_edit.pressed.connect(func(): _edit_map(map_id))
-	actions.add_child(btn_edit)
-
-	var btn_delete := Button.new()
-	btn_delete.text = "Supprimer"
-	btn_delete.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_delete.pressed.connect(func(): _ask_delete_map(map_id, map_data.get("title", "Sans titre")))
-	actions.add_child(btn_delete)
-
-	vbox.add_child(actions)
-	card.add_child(vbox)
+func _make_map_card(map_data: Dictionary, category: String) -> PanelContainer:
+	var card := MapCardScene.instantiate()
+	card.setup(map_data, category)
+	card.preview_pressed.connect(_preview_map)
+	card.edit_pressed.connect(_edit_map)
+	card.delete_pressed.connect(_ask_delete_map)
+	card.demo_pressed.connect(_play_valbois_demo)
 	return card
 
 func _play_valbois_demo() -> void:
@@ -369,55 +273,14 @@ func _render_saved_games() -> void:
 	
 	play_status_lbl.text = "%d partie(s) en cours" % games.size()
 	for game in games:
-		saved_games_list.add_child(_build_saved_game_row(game))
+		saved_games_list.add_child(_make_saved_game_row(game))
 
-func _build_saved_game_row(game: Dictionary) -> PanelContainer:
-	var card := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	card.add_theme_stylebox_override("panel", style)
-	
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 2)
-	
-	var title_lbl := Label.new()
-	title_lbl.text = "« %s »" % GameData.get_scenario_display_title(game.get("scenarioId", ""))
-	title_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	info.add_child(title_lbl)
-	
-	var meta_lbl := Label.new()
-	meta_lbl.text = GameData.get_game_party_summary(game)
-	meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	meta_lbl.add_theme_font_size_override("font_size", 12)
-	info.add_child(meta_lbl)
-	
-	row.add_child(info)
-	
-	var game_id: String = game.get("id", "")
-	
-	var btn_resume := Button.new()
-	btn_resume.text = "▶ Reprendre"
-	btn_resume.pressed.connect(func(): _resume_game(game_id))
-	row.add_child(btn_resume)
-	
-	var btn_delete := Button.new()
-	btn_delete.text = "🗑 Effacer la partie"
-	btn_delete.pressed.connect(func(): _ask_delete_game(game_id, game.get("scenarioTitle", "Aventure")))
-	row.add_child(btn_delete)
-	
-	card.add_child(row)
-	return card
+func _make_saved_game_row(game: Dictionary) -> PanelContainer:
+	var row := SavedGameRowScene.instantiate()
+	row.setup(game)
+	row.resume_pressed.connect(_resume_game)
+	row.delete_pressed.connect(_ask_delete_game)
+	return row
 
 func _resume_game(game_id: String) -> void:
 	if not GameData.load_game_by_id(game_id):
@@ -513,85 +376,15 @@ func _add_bot_section(title: String, bots: Array) -> void:
 	grid.add_theme_constant_override("h_separation", 10)
 	grid.add_theme_constant_override("v_separation", 10)
 	for b in bots:
-		grid.add_child(_build_bot_card(b))
+		grid.add_child(_make_bot_card(b))
 	section.add_child(grid)
 
 	bots_sections_root.add_child(section)
 
-func _build_bot_card(b: Dictionary) -> PanelContainer:
-	var card := PanelContainer.new()
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	card.add_theme_stylebox_override("panel", style)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-
-	var name_lbl := Label.new()
-	name_lbl.text = "🤖 " + b.get("name", "Bot")
-	name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vbox.add_child(name_lbl)
-
-	var mode_lbl := Label.new()
-	if GameData.is_investigation_bot(b):
-		mode_lbl.text = "🔍 Enquête"
-		mode_lbl.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
-	else:
-		mode_lbl.text = "⚔️ Aventure"
-		mode_lbl.add_theme_color_override("font_color", ThemeColors.ONESHOT_ACCENT)
-	vbox.add_child(mode_lbl)
-
-	var meta_lbl := Label.new()
-	meta_lbl.text = "%s · %s" % [b.get("race", ""), b.get("class", "")]
-	meta_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	meta_lbl.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(meta_lbl)
-
-	var bot_tag := Label.new()
-	bot_tag.text = str(b.get("personality", "")).to_upper()
-	bot_tag.add_theme_color_override("font_color", ThemeColors.BOT_ACCENT)
-	bot_tag.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(bot_tag)
-
-	var traits: Array = b.get("traits", [])
-	if not traits.is_empty():
-		var traits_lbl := Label.new()
-		traits_lbl.text = ", ".join(traits)
-		traits_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		traits_lbl.add_theme_font_size_override("font_size", 11)
-		traits_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-		vbox.add_child(traits_lbl)
-
-	var stats: Dictionary = b.get("stats", {})
-	var stats_lbl := Label.new()
-	stats_lbl.text = "PV %d · CA %d · FOR %d" % [b.get("hp", 10), b.get("ac", 10), stats.get("str", 10)]
-	stats_lbl.add_theme_font_size_override("font_size", 11)
-	stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	vbox.add_child(stats_lbl)
-
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 2)
-	vbox.add_child(spacer)
-
-	var bot_id: String = b.get("id", "")
-	var bot_name: String = b.get("name", "Bot")
-	var btn_delete := Button.new()
-	btn_delete.text = "Supprimer"
-	btn_delete.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_delete.pressed.connect(func(): _ask_delete_bot(bot_id, bot_name))
-	vbox.add_child(btn_delete)
-
-	card.add_child(vbox)
+func _make_bot_card(b: Dictionary) -> PanelContainer:
+	var card := BotCardScene.instantiate()
+	card.setup(b)
+	card.delete_pressed.connect(_ask_delete_bot)
 	return card
 
 func _ask_delete_bot(bot_id: String, name: String) -> void:

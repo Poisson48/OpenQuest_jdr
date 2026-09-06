@@ -1,0 +1,42 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/editor/map_editor_outliner.gd" id="1_script"]
+
+[node name="Calques" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+script = ExtResource("1_script")
+
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Search" type="LineEdit" parent="Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Rechercher un élément…"
+clear_button_enabled = true
+
+[node name="LblCounter" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = ""
+
+[node name="LayerActions" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnAddLayer" type="Button" parent="LayerActions"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Créer un calque"
+text = "＋ Calque"
+
+[node name="TreeHost" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1

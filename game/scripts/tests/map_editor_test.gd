@@ -20,7 +20,6 @@ const K_LIGHT := "light"
 # pas encore un identifiant global quand ce SceneTree est compile.
 var DocScript: GDScript
 var TemplatesScript: GDScript
-var ComplexEditorScript: GDScript
 
 var _failed: bool = false
 
@@ -31,7 +30,6 @@ func _run() -> void:
 	await process_frame
 	DocScript = load("res://scripts/maps/editor/map_edit_document.gd")
 	TemplatesScript = load("res://scripts/maps/editor/map_editor_templates.gd")
-	ComplexEditorScript = load("res://scripts/maps/map_complex_editor.gd")
 	var md = get_root().get_node("MapData")
 	var base: Dictionary = md.create_complex_map("Test éditeur", "general", "local", 20, 14)
 
@@ -420,7 +418,7 @@ func _test_tools() -> void:
 	_assert("shortcuts_text", ToolsScript.shortcuts_text().contains("Ctrl+Z"))
 
 func _test_editor_ui(base: Dictionary) -> void:
-	var editor: Control = ComplexEditorScript.new()
+	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()
 	get_root().add_child(editor)
 	editor.size = Vector2(1280, 800)
 	await process_frame

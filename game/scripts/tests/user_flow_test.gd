@@ -48,7 +48,7 @@ func _run() -> void:
 
 	await _step("04_session_carte", func():
 		var session := current_scene
-		var map_panel: PanelContainer = session.get_node("%MapPanel")
+		var map_panel: Control = session.get_panel("map")
 		await process_frame
 		await process_frame
 		map_panel.refresh()
@@ -63,7 +63,7 @@ func _run() -> void:
 
 	await _step("05_clic_carte_token", func():
 		var session := current_scene
-		var map_panel: PanelContainer = session.get_node("%MapPanel")
+		var map_panel: Control = session.get_panel("map")
 		if not map_panel.visible:
 			return { "skipped": true, "reason": "no maps" }
 		var imap: Control = _find_interactive_map(map_panel)
@@ -107,7 +107,7 @@ func _run() -> void:
 		_gd.enter_local_map(world_id, int(link.get("x", 0)), int(link.get("y", 0)), str(link.get("targetMapId", "")))
 		await process_frame
 		var session := current_scene
-		var map_panel: PanelContainer = session.get_node("%MapPanel")
+		var map_panel: Control = session.get_panel("map")
 		map_panel.refresh()
 		await process_frame
 		var nav: Dictionary = _gd.active_game.get("mapNavigation", {})
@@ -122,7 +122,7 @@ func _run() -> void:
 		_gd.exit_to_world_map()
 		await process_frame
 		var session := current_scene
-		session.get_node("%MapPanel").refresh()
+		session.get_panel("map").refresh()
 		await process_frame
 		var nav: Dictionary = _gd.active_game.get("mapNavigation", {})
 		return { "view": nav.get("view"), "back_to_world": nav.get("view") == "world" }
@@ -130,9 +130,9 @@ func _run() -> void:
 
 	await _step("08_action_joueur", func():
 		var session := current_scene
-		var input: LineEdit = session.get_node("%InputAction")
-		input.text = "J'explore la salle principale."
-		session.get_node("%BtnSendAction").pressed.emit()
+		var action_bar: Control = session.get_panel("action")
+		action_bar.fill("J'explore la salle principale.")
+		action_bar.get_node("%BtnSend").pressed.emit()
 		await process_frame
 		var log: Array = _gd.active_game.get("log", [])
 		var last_type := ""
@@ -196,7 +196,8 @@ func _find_scenario_index(opt: OptionButton, scenario_id: String) -> int:
 
 func _find_interactive_map(root: Node) -> Control:
 	for child in root.get_children():
-		if child.get_script() and str(child.get_script().resource_path).ends_with("interactive_map.gd"):
+		var script_path := str(child.get_script().resource_path) if child.get_script() else ""
+		if script_path.ends_with("interactive_map.gd") or script_path.ends_with("simple_map_renderer.gd"):
 			return child as Control
 		var found := _find_interactive_map(child)
 		if found:

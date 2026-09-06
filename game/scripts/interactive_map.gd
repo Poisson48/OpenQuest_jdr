@@ -97,25 +97,25 @@ func _recalc_base_cell() -> void:
 	var max_fit := 12 if MapData.is_world_map(map_data) else 48
 	_base_cell = maxi(MIN_CELL, mini(max_fit, mini(by_w, by_h)))
 
+## Borne le déplacement, axe par axe. Quand la carte tient dans le cadre elle
+## est centrée : la borner entre 0 et 0 la collerait au coin haut-gauche et
+## annulerait tout recadrage.
 func _clamp_pan() -> void:
-	var vp := _get_viewport_size()
-	var map_px := get_map_pixel_size()
-	var min_x := mini(0.0, vp.x - map_px.x)
-	var min_y := mini(0.0, vp.y - map_px.y)
-	pan_offset.x = clampf(pan_offset.x, min_x, 0.0)
-	pan_offset.y = clampf(pan_offset.y, min_y, 0.0)
-
-func _center_or_clamp_pan() -> void:
 	var vp := _get_viewport_size()
 	var map_px := get_map_pixel_size()
 	if map_px.x <= vp.x:
 		pan_offset.x = (vp.x - map_px.x) * 0.5
 	else:
-		pan_offset.x = 0.0
+		pan_offset.x = clampf(pan_offset.x, vp.x - map_px.x, 0.0)
 	if map_px.y <= vp.y:
 		pan_offset.y = (vp.y - map_px.y) * 0.5
 	else:
-		pan_offset.y = 0.0
+		pan_offset.y = clampf(pan_offset.y, vp.y - map_px.y, 0.0)
+
+## Cadrage complet : la carte trop grande part du coin haut-gauche, la carte
+## qui tient est centrée par `_clamp_pan()`.
+func _center_or_clamp_pan() -> void:
+	pan_offset = Vector2.ZERO
 	_clamp_pan()
 
 func _fit_to_view() -> void:
@@ -517,6 +517,10 @@ func _handle_cell_click(x: int, y: int) -> void:
 			return
 
 	cell_clicked.emit(x, y)
+
+## Échelle réellement affichée : pixels écran par case de grille.
+func get_effective_scale() -> float:
+	return float(get_cell_size())
 
 func zoom_in() -> void:
 	_apply_zoom(1.15, _get_viewport_size() * 0.5)

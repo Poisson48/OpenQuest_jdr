@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[node name="SimpleStage" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="MapHeader" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblGrid" type="Label" parent="MapHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeadingLabel"
+text = "Grille"
+
+[node name="ZoomRow" type="HBoxContainer" parent="MapHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnZoomOut" type="Button" parent="MapHeader/ZoomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+text = "−"
+
+[node name="LblZoom" type="Label" parent="MapHeader/ZoomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "100%"
+horizontal_alignment = 1
+
+[node name="BtnZoomIn" type="Button" parent="MapHeader/ZoomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+text = "+"
+
+[node name="BtnZoomReset" type="Button" parent="MapHeader/ZoomRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+text = "⟲"
+
+[node name="MapFrame" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"InsetPanel"
+
+[node name="MapHost" type="Control" parent="MapFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3

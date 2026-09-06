@@ -1,0 +1,11 @@
+---
+description: Prefer Grok when other model credits are exhausted
+alwaysApply: true
+---
+
+# Model preference
+
+When launching Task/subagents:
+- Prefer the strongest available model while credits allow.
+- If Claude / GPT / other premium credits are exhausted or the agent stalls on quota, use **`cursor-grok-4.6-high-fast`** (Grok).
+- Do not keep retrying a failed/quota-blocked model — switch to Grok and continue the same task.

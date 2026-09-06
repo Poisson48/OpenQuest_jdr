@@ -1,0 +1,104 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/editor/map_editor_esc_menu.gd" id="1_script"]
+
+[node name="EscMenu" type="PopupPanel"]
+size = Vector2i(340, 520)
+visible = false
+script = ExtResource("1_script")
+
+[node name="MenuBox" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblMenu" type="Label" parent="MenuBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "☰ Menu éditeur"
+
+[node name="BtnSave" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "💾 Enregistrer"
+
+[node name="BtnUndo" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "↶ Annuler"
+
+[node name="BtnRedo" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "↷ Rétablir"
+
+[node name="BtnFit" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🎯 Recadrer sur la carte"
+
+[node name="BtnClearSel" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🧹 Vider la sélection"
+
+[node name="LblFile" type="Label" parent="MenuBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "Fichier"
+
+[node name="BtnImportJson" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬇ Importer JSON…"
+
+[node name="BtnExportJson" type="Button" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⬆ Exporter JSON…"
+
+[node name="LblPolicy" type="Label" parent="MenuBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "Sauvegarde auto"
+
+[node name="PolicyRow" type="HBoxContainer" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnPolicyManual" type="Button" parent="MenuBox/PolicyRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Manuelle"
+
+[node name="BtnPolicyChange" type="Button" parent="MenuBox/PolicyRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "À chaque modif"
+
+[node name="BtnPolicyInterval" type="Button" parent="MenuBox/PolicyRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Toutes les 30 s"
+
+[node name="LblHelp" type="Label" parent="MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = ""
+autowrap_mode = 3

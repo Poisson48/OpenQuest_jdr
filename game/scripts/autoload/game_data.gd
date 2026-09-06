@@ -1214,6 +1214,36 @@ func get_current_scene() -> Dictionary:
 	var current_id := QuestNavigation.resolve_current_scene_id(active_game, scenario)
 	return QuestNavigation.get_scene_by_id(scenario, current_id)
 
+# ---------------------------------------------------------------------------
+# Notes du MJ (bloc-notes par scène)
+# ---------------------------------------------------------------------------
+
+func _current_scene_notes_key() -> String:
+	var scene := get_current_scene()
+	var scene_id := str(scene.get("id", ""))
+	return scene_id if not scene_id.is_empty() else "__session__"
+
+func get_scene_notes(scene_id: String = "") -> String:
+	if active_game.is_empty():
+		return ""
+	var key := scene_id if not scene_id.is_empty() else _current_scene_notes_key()
+	var notes: Dictionary = active_game.get("gmNotes", {})
+	return str(notes.get(key, ""))
+
+## Écrit le bloc-notes sans émettre `active_game_updated` : la frappe au clavier
+## ne doit pas déclencher un rafraîchissement complet de l'interface.
+func set_scene_notes(text: String, scene_id: String = "") -> void:
+	if active_game.is_empty():
+		return
+	var key := scene_id if not scene_id.is_empty() else _current_scene_notes_key()
+	var notes: Dictionary = active_game.get("gmNotes", {})
+	if str(notes.get(key, "")) == text:
+		return
+	notes[key] = text
+	active_game["gmNotes"] = notes
+	active_game["updatedAt"] = Time.get_unix_time_from_system()
+	_upsert_saved_game_entry(active_game.duplicate(true), false)
+
 func get_scene_navigation_summary() -> Dictionary:
 	if active_game.is_empty():
 		return {}

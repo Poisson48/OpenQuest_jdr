@@ -1,6 +1,9 @@
 extends Control
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
+const GraphNodeScene := preload("res://scenes/scenario_editor/panels/graph_node.tscn")
+const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
+const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
 
 @onready var status_lbl: Label = %LblStatus
 @onready var graph_edit: GraphEdit = %GraphEdit
@@ -226,109 +229,10 @@ func _rebuild_graph_deferred() -> void:
 	call_deferred("_finish_graph_connections")
 
 func _build_scene_graph_node(scene: Dictionary, sid: String, index: int, is_unreachable: bool) -> GraphNode:
-	var node := GraphNode.new()
+	var node := GraphNodeScene.instantiate()
 	node.name = _graph_node_name(index)
-	node.set_meta("scene_id", sid)
-	var is_start: bool = sid == str(_scenario.get("startSceneId", ""))
-	var transitions: Array = scene.get("transitions", [])
-	if typeof(transitions) != TYPE_ARRAY:
-		transitions = []
-	var is_terminal: bool = transitions.is_empty()
-	var is_selected: bool = sid == _selected_scene_id
-
-	var title := str(scene.get("title", sid))
-	if is_start:
-		title = "★ " + title
-	elif is_terminal:
-		title = "⚑ " + title
-	node.title = title
 	node.position_offset = _scene_graph_pos(scene, index)
-	node.custom_minimum_size = Vector2(QuestNavigation.NODE_WIDTH, 0)
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	style.set_border_width_all(2)
-	if is_selected:
-		style.border_color = ThemeColors.GOLD_LIGHT
-		style.bg_color = Color(ThemeColors.BG_CARD.r, ThemeColors.BG_CARD.g, ThemeColors.BG_CARD.b, 1.0).lightened(0.08)
-	elif is_start:
-		style.border_color = ThemeColors.GOLD
-	elif is_unreachable:
-		style.border_color = ThemeColors.DANGER
-	elif is_terminal:
-		style.border_color = ThemeColors.SUCCESS
-	else:
-		style.border_color = ThemeColors.BORDER
-	node.add_theme_stylebox_override("panel", style)
-	node.add_theme_stylebox_override("panel_selected", style)
-	node.add_theme_color_override("title_color", ThemeColors.GOLD_LIGHT if is_start else ThemeColors.TEXT)
-
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 4)
-
-	var tags: Array = scene.get("tags", [])
-	if tags is Array and not tags.is_empty():
-		var tags_lbl := Label.new()
-		var tag_parts: PackedStringArray = []
-		for tag in tags:
-			tag_parts.append("#%s" % str(tag))
-		tags_lbl.text = " ".join(tag_parts)
-		tags_lbl.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
-		tags_lbl.add_theme_font_size_override("font_size", 11)
-		tags_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.add_child(tags_lbl)
-
-	var content: String = str(scene.get("content", "")).strip_edges()
-	var preview := Label.new()
-	if content.is_empty():
-		preview.text = "(contenu vide)"
-		preview.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	else:
-		preview.text = content if content.length() <= 100 else content.substr(0, 97) + "…"
-		preview.add_theme_color_override("font_color", ThemeColors.TEXT)
-	preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	preview.custom_minimum_size = Vector2(190, 0)
-	preview.add_theme_font_size_override("font_size", 12)
-	body.add_child(preview)
-
-	var branches_lbl := Label.new()
-	if is_terminal:
-		branches_lbl.text = "⚑ Fin de branche"
-		branches_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
-	else:
-		var lines: PackedStringArray = []
-		for transition in transitions:
-			if typeof(transition) != TYPE_DICTIONARY:
-				continue
-			var mark := "★" if transition.get("default", false) else ("👁" if transition.get("gmOnly", false) else "→")
-			var label := str(transition.get("label", "Branche")).strip_edges()
-			if label.is_empty():
-				label = str(transition.get("to", "?"))
-			if label.length() > 28:
-				label = label.substr(0, 25) + "…"
-			lines.append("%s %s" % [mark, label])
-		branches_lbl.text = "\n".join(lines)
-		branches_lbl.add_theme_color_override("font_color", ThemeColors.GOLD)
-	branches_lbl.add_theme_font_size_override("font_size", 11)
-	branches_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	body.add_child(branches_lbl)
-
-	if is_unreachable and not is_start:
-		var warn := Label.new()
-		warn.text = "⚠ Inatteignable"
-		warn.add_theme_color_override("font_color", ThemeColors.DANGER)
-		warn.add_theme_font_size_override("font_size", 11)
-		body.add_child(warn)
-
-	node.add_child(body)
-
-	var slot_color := ThemeColors.GOLD if is_start else (ThemeColors.SUCCESS if is_terminal else ThemeColors.GOLD_LIGHT)
-	node.set_slot(0, true, 0, slot_color, true, 0, slot_color)
+	node.setup(scene, sid, index, is_unreachable, str(_scenario.get("startSceneId", "")), _selected_scene_id)
 	return node
 
 func _finish_graph_connections() -> void:
@@ -512,91 +416,40 @@ func _refresh_transitions_ui() -> void:
 		transitions_list.add_child(_create_transition_row(_selected_scene_id, t_idx, transition))
 
 func _create_transition_row(from_id: String, index: int, transition: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = ThemeColors.BG_INPUT
-	panel_style.set_corner_radius_all(6)
-	panel_style.content_margin_left = 8
-	panel_style.content_margin_right = 8
-	panel_style.content_margin_top = 6
-	panel_style.content_margin_bottom = 6
-	panel_style.set_border_width_all(1)
-	if transition.get("default", false):
-		panel_style.border_color = ThemeColors.GOLD
-	elif transition.get("gmOnly", false):
-		panel_style.border_color = ThemeColors.INVESTIGATION_ACCENT
-	else:
-		panel_style.border_color = ThemeColors.BORDER
-	panel.add_theme_stylebox_override("panel", panel_style)
-
-	var row := VBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 6)
-	var arrow := Label.new()
-	arrow.text = "★→" if transition.get("default", false) else ("👁→" if transition.get("gmOnly", false) else "→")
-	arrow.add_theme_color_override("font_color", ThemeColors.GOLD)
-	top.add_child(arrow)
-	var target_opt := OptionButton.new()
-	target_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_populate_target_options(target_opt, str(transition.get("to", "")), from_id)
+	var row := TransitionRowScene.instantiate()
+	row.setup(transition)
+	_populate_target_options(row.get_target_option(), str(transition.get("to", "")), from_id)
 	var captured_idx := index
-	target_opt.item_selected.connect(func(_i):
-		_update_transition_field(from_id, captured_idx, "to", str(target_opt.get_item_metadata(target_opt.selected)))
+	row.target_changed.connect(func(to_id: String):
+		_update_transition_field(from_id, captured_idx, "to", to_id)
 		_mark_dirty()
 		call_deferred("_rebuild_graph")
 	)
-	top.add_child(target_opt)
-	row.add_child(top)
-
-	var label_edit := LineEdit.new()
-	label_edit.placeholder_text = "Libellé de la branche (affiché au MJ)"
-	label_edit.text = str(transition.get("label", ""))
-	label_edit.text_changed.connect(func(t):
-		_update_transition_field(from_id, captured_idx, "label", t.strip_edges())
+	row.label_changed.connect(func(text: String):
+		_update_transition_field(from_id, captured_idx, "label", text)
 		_dirty = true
 	)
-	row.add_child(label_edit)
-
-	var flags := HBoxContainer.new()
-	flags.add_theme_constant_override("separation", 8)
-	var chk_default := CheckBox.new()
-	chk_default.text = "Défaut ★"
-	chk_default.button_pressed = transition.get("default", false)
-	chk_default.toggled.connect(func(v):
-		if v:
+	row.default_toggled.connect(func(on: bool):
+		if on:
 			_clear_default_transitions(from_id)
-		_update_transition_field(from_id, captured_idx, "default", v)
+		_update_transition_field(from_id, captured_idx, "default", on)
 		_mark_dirty()
 		call_deferred("_rebuild_graph")
 		call_deferred("_refresh_transitions_ui")
 	)
-	var chk_gm := CheckBox.new()
-	chk_gm.text = "MJ seul"
-	chk_gm.button_pressed = transition.get("gmOnly", false)
-	chk_gm.toggled.connect(func(v):
-		_update_transition_field(from_id, captured_idx, "gmOnly", v)
+	row.gm_only_toggled.connect(func(on: bool):
+		_update_transition_field(from_id, captured_idx, "gmOnly", on)
 		_mark_dirty()
 		call_deferred("_rebuild_graph")
 		call_deferred("_refresh_transitions_ui")
 	)
-	var btn_del := Button.new()
-	btn_del.text = "✕"
-	btn_del.tooltip_text = "Supprimer cette branche"
-	btn_del.pressed.connect(func():
+	row.delete_pressed.connect(func():
 		_remove_transition_at(from_id, captured_idx)
 		_mark_dirty("Branche supprimée")
 		_refresh_transitions_ui()
 		call_deferred("_rebuild_graph")
 	)
-	flags.add_child(chk_default)
-	flags.add_child(chk_gm)
-	flags.add_child(btn_del)
-	row.add_child(flags)
-
-	panel.add_child(row)
-	return panel
+	return row
 
 func _populate_target_options(opt: OptionButton, selected_id: String, exclude_id: String = "") -> void:
 	opt.clear()
@@ -829,54 +682,26 @@ func _refresh_npc_list() -> void:
 		npc_list.add_child(_create_npc_row(i, npc))
 
 func _create_npc_row(index: int, npc: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_INPUT
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
-	style.set_border_width_all(1)
-	style.border_color = ThemeColors.BORDER
-	panel.add_theme_stylebox_override("panel", style)
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	var name_edit := LineEdit.new()
-	name_edit.placeholder_text = "Nom du PNJ"
-	name_edit.text = str(npc.get("name", ""))
-	name_edit.text_changed.connect(func(t):
-		_scenario["npcs"][index]["name"] = t.strip_edges()
+	var row := NpcRowScene.instantiate()
+	row.setup(npc)
+	row.name_changed.connect(func(text: String):
+		_scenario["npcs"][index]["name"] = text
 		_dirty = true
 	)
-	var role_edit := LineEdit.new()
-	role_edit.placeholder_text = "Rôle"
-	role_edit.text = str(npc.get("role", ""))
-	role_edit.text_changed.connect(func(t):
-		_scenario["npcs"][index]["role"] = t.strip_edges()
+	row.role_changed.connect(func(text: String):
+		_scenario["npcs"][index]["role"] = text
 		_dirty = true
 	)
-	var desc_edit := TextEdit.new()
-	desc_edit.custom_minimum_size = Vector2(0, 48)
-	desc_edit.placeholder_text = "Description"
-	desc_edit.text = str(npc.get("description", ""))
-	desc_edit.text_changed.connect(func():
-		_scenario["npcs"][index]["description"] = desc_edit.text.strip_edges()
+	row.description_changed.connect(func(text: String):
+		_scenario["npcs"][index]["description"] = text
 		_dirty = true
 	)
-	var btn_del := Button.new()
-	btn_del.text = "Supprimer PNJ"
-	btn_del.pressed.connect(func():
+	row.delete_pressed.connect(func():
 		_scenario["npcs"].remove_at(index)
 		_dirty = true
 		_refresh_npc_list()
 	)
-	vbox.add_child(name_edit)
-	vbox.add_child(role_edit)
-	vbox.add_child(desc_edit)
-	vbox.add_child(btn_del)
-	panel.add_child(vbox)
-	return panel
+	return row
 
 func _on_add_npc_pressed() -> void:
 	var npcs: Array = _scenario.get("npcs", [])

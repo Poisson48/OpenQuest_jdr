@@ -770,9 +770,25 @@ func load_token_portrait(path: String, border: Color = Color(0.15, 0.12, 0.1), s
 				img.set_pixel(x, y, border)
 	return ImageTexture.create_from_image(img)
 
+## Détourages déjà calculés, indexés par « chemin@hauteur ». Le découpage est
+## une boucle par pixel : sans ce cache, chaque rendu de liste de groupe ou de
+## journal le refaisait pour tous les portraits.
+var _token_cutout_cache: Dictionary = {}
+
 ## Découpe en pied pour le diorama. Si le PNG a déjà de l'alpha, on le garde
 ## (évite de percer les habits sombres). Sinon détourage du fond depuis les bords.
 func load_token_cutout(path: String, max_height: int = 256) -> Texture2D:
+	var cache_key := "%s@%d" % [path, max_height]
+	if _token_cutout_cache.has(cache_key):
+		return _token_cutout_cache[cache_key]
+	var tex := _build_token_cutout(path, max_height)
+	_token_cutout_cache[cache_key] = tex
+	return tex
+
+func clear_token_cutout_cache() -> void:
+	_token_cutout_cache.clear()
+
+func _build_token_cutout(path: String, max_height: int) -> Texture2D:
 	var img := _load_rgba_image(path)
 	if img == null:
 		return null

@@ -1,0 +1,137 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/editor/map_editor_library_panel.gd" id="1_script"]
+
+[node name="Biblio" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 5
+script = ExtResource("1_script")
+
+[node name="LblAssets" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🏚 Décors à poser"
+
+[node name="LblAssetHint" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+autowrap_mode = 3
+text = ""
+
+[node name="AssetCatScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+vertical_scroll_mode = 0
+
+[node name="AssetCategoryRow" type="HBoxContainer" parent="AssetCatScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="AssetGrid" type="GridContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 3
+
+[node name="AssetActions" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnImportAssets" type="Button" parent="AssetActions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "＋ Importer des images…"
+
+[node name="BtnRefreshAssets" type="Button" parent="AssetActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟳"
+
+[node name="LblTokens" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🧍 Tokens"
+
+[node name="MemberGrid" type="GridContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 3
+columns = 6
+
+[node name="LblMarkers" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📍 Marqueurs"
+
+[node name="MarkerBox" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LblEffects" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "✨ Effets"
+
+[node name="EffectGrid" type="GridContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 3
+columns = 4
+
+[node name="BtnTriggerEffects" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "▶ Déclencher tous les effets"
+
+[node name="EffectList" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LblTerrain" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🎨 Terrain"
+
+[node name="TileBox" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="LblTemplates" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🧩 Templates"
+
+[node name="TplActions" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnSaveTemplate" type="Button" parent="TplActions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "＋ Depuis la sélection"
+
+[node name="BtnRefreshTemplates" type="Button" parent="TplActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟳"
+
+[node name="TemplateList" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2

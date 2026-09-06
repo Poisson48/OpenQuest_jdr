@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[node name="Palettes" type="VBoxContainer"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="TileScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_scroll_mode = 0
+
+[node name="TilePalette" type="HBoxContainer" parent="TileScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="MarkerScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_scroll_mode = 0
+
+[node name="MarkerPalette" type="HBoxContainer" parent="MarkerScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LinkPanel" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblLinkHint" type="Label" parent="LinkPanel"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 12
+text = "Relie une case du monde à une scène locale (ex. taverne, donjon)."
+autowrap_mode = 3
+
+[node name="LinkRow" type="HBoxContainer" parent="LinkPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblScene" type="Label" parent="LinkPanel/LinkRow"]
+layout_mode = 2
+text = "Scène locale :"
+
+[node name="LinkTargetSelect" type="OptionButton" parent="LinkPanel/LinkRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblName" type="Label" parent="LinkPanel/LinkRow"]
+layout_mode = 2
+text = "Nom sur la carte :"
+
+[node name="LinkLabelInput" type="LineEdit" parent="LinkPanel/LinkRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ex. Taverne du Vieux Port"
+
+[node name="IntegrationPanel" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblIntTitle" type="Label" parent="IntegrationPanel"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 14
+text = "🌍 Intégration dans une carte monde"
+
+[node name="LblIntegrationStatus" type="Label" parent="IntegrationPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 12
+text = ""
+autowrap_mode = 3
+
+[node name="IntRow" type="HBoxContainer" parent="IntegrationPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblWorld" type="Label" parent="IntegrationPanel/IntRow"]
+layout_mode = 2
+text = "Carte monde :"
+
+[node name="WorldMapSelect" type="OptionButton" parent="IntegrationPanel/IntRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnPlaceWorld" type="Button" parent="IntegrationPanel/IntRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Placer l'entrée sur le monde"

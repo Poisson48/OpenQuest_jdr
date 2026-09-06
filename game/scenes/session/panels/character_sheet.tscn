@@ -1,0 +1,243 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/character_sheet.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/stat_chip.tscn" id="3_chip"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/ability_block.tscn" id="4_ability"]
+
+[node name="CharacterSheet" type="Control"]
+visible = false
+z_index = 80
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Dim" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.04, 0.03, 0.02, 0.82)
+
+[node name="Frame" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 28
+
+[node name="Root" type="HBoxContainer" parent="Frame"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="Left" type="PanelContainer" parent="Frame/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.92
+theme_type_variation = &"DockPanel"
+
+[node name="LeftBody" type="VBoxContainer" parent="Frame/Root/Left"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="Top" type="HBoxContainer" parent="Frame/Root/Left/LeftBody"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Titles" type="VBoxContainer" parent="Frame/Root/Left/LeftBody/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="LblName" type="Label" parent="Frame/Root/Left/LeftBody/Top/Titles"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+theme_override_font_sizes/font_size = 28
+text = "AVENTURIER"
+
+[node name="LblSubtitle" type="Label" parent="Frame/Root/Left/LeftBody/Top/Titles"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 14
+text = "?  ·  ?"
+
+[node name="BtnClose" type="Button" parent="Frame/Root/Left/LeftBody/Top"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Fermer"
+text = "✕"
+
+[node name="Rule" type="ColorRect" parent="Frame/Root/Left/LeftBody"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.788235, 0.635294, 0.152941, 1)
+
+[node name="StatsPage" type="VBoxContainer" parent="Frame/Root/Left/LeftBody"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="Vitals" type="HBoxContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ChipHP" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ChipAC" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ChipMood" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityGrid" type="GridContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 10
+columns = 3
+
+[node name="AbilitySTR" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityDEX" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityCON" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityINT" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityWIS" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AbilityCHA" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblTraitsTitle" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "TEMPÉRAMENT"
+
+[node name="LblTraits" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+text = "Méfiant · Silencieux · Opportuniste"
+
+[node name="Spacer" type="Control" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BarkBox" type="PanelContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+theme_type_variation = &"InsetPanel"
+
+[node name="LblBark" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/BarkBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 15
+text = "« … »"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="StoryPage" type="VBoxContainer" parent="Frame/Root/Left/LeftBody"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="LblStoryTitle" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "HISTOIRE"
+
+[node name="LblStory" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+text = "Aucune histoire écrite."
+autowrap_mode = 3
+vertical_alignment = 0
+
+[node name="LblQuirkTitle" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "PARTICULARITÉ"
+
+[node name="LblQuirk" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 14
+text = "Surveille toujours les sorties."
+autowrap_mode = 3
+
+[node name="Footer" type="HBoxContainer" parent="Frame/Root/Left/LeftBody"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/separation = 10
+
+[node name="BtnStory" type="Button" parent="Frame/Root/Left/LeftBody/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Histoire ▸"
+
+[node name="ArtWrap" type="PanelContainer" parent="Frame/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.15
+theme_type_variation = &"InsetPanel"
+
+[node name="Art" type="TextureRect" parent="Frame/Root/ArtWrap"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5

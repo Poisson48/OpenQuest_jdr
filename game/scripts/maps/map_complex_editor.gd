@@ -147,7 +147,7 @@ func _ready() -> void:
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
 	doc.dirty_changed.connect(_on_dirty_changed)
-	_build_ui()
+	_bind_ui()
 	resized.connect(_on_editor_resized)
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_size_changed):
@@ -207,27 +207,33 @@ func save_now() -> void:
 # Construction de l'interface
 # ===========================================================================
 
-func _build_ui() -> void:
-	# MapComplexEditor est un Control nu (pas un Container) : le split
-	# doit remplir via anchors. Les size_flags seuls ne suffisent pas.
-	_split_outer = HSplitContainer.new()
-	_split_outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_split_outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_split_outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_split_outer.clip_contents = true
-	add_child(_split_outer)
+func _bind_ui() -> void:
+	_split_outer = %SplitOuter
+	_split_inner = %SplitInner
+	_left_scroll = %LeftScroll
+	_left_panel = %LeftPanel
+	_tool_options = %ToolOptions
+	_center_column = %CenterColumn
+	_viewport_frame = %ViewportFrame
+	_status_lbl = %LblStatus
+	_hint_lbl = %LblHint
+	_right_tabs = %RightTabs
+	_right_scroll = null
 
-	_build_left_column()
+	_populate_tools(%ToolHost)
+	_populate_snap(%SnapOption)
+	_minimap = MinimapScript.new()
+	_minimap.jump_requested.connect(func(grid_pos: Vector2):
+		if _engine and _engine.has_method("center_on_grid"):
+			_engine.center_on_grid(grid_pos.x - 0.5, grid_pos.y - 0.5)
+			_refresh_overlay()
+	)
+	%MinimapHost.add_child(_minimap)
+	_minimap.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	_split_inner = HSplitContainer.new()
-	_split_inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_split_inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_split_inner.size_flags_stretch_ratio = 1.0
-	_split_inner.clip_contents = true
-	_split_outer.add_child(_split_inner)
-
-	_build_center_column()
-	_build_right_column()
+	_build_action_bar()
+	_create_engine(%ViewportStack)
+	_bind_docks()
 	_build_dialogs()
 	_minimap.set_context(_engine, doc)
 
@@ -252,27 +258,14 @@ func _build_ui() -> void:
 
 # --- Colonne gauche : outils --------------------------------------------------
 
-func _build_left_column() -> void:
-	_left_scroll = ScrollContainer.new()
-	_left_scroll.custom_minimum_size = Vector2(160, 0)
-	_left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_left_scroll.size_flags_stretch_ratio = 0.0
-	_left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_split_outer.add_child(_left_scroll)
-
-	_left_panel = VBoxContainer.new()
-	_left_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_left_panel.add_theme_constant_override("separation", 6)
-	_left_scroll.add_child(_left_panel)
-
+func _populate_tools(host: VBoxContainer) -> void:
 	for group in ToolsScript.GROUP_ORDER:
-		_section(_left_panel, str(ToolsScript.GROUP_LABELS.get(group, group)))
+		_section(host, str(ToolsScript.GROUP_LABELS.get(group, group)))
 		var grid := GridContainer.new()
 		grid.columns = 4
 		grid.add_theme_constant_override("h_separation", 3)
 		grid.add_theme_constant_override("v_separation", 3)
-		_left_panel.add_child(grid)
+		host.add_child(grid)
 		for def in ToolsScript.defs_in_group(group):
 			var tool_id := str(def["id"])
 			var btn := Button.new()
@@ -284,13 +277,7 @@ func _build_left_column() -> void:
 			_tool_buttons[tool_id] = btn
 			grid.add_child(btn)
 
-	_section(_left_panel, "⚙️ Options de l'outil")
-	_tool_options = VBoxContainer.new()
-	_tool_options.add_theme_constant_override("separation", 4)
-	_left_panel.add_child(_tool_options)
-
-	_section(_left_panel, "🧲 Aimantation")
-	var snap_option := OptionButton.new()
+func _populate_snap(snap_option: OptionButton) -> void:
 	for i in range(ToolsScript.SNAP_MODES.size()):
 		var mode: Dictionary = ToolsScript.SNAP_MODES[i]
 		snap_option.add_item(str(mode["label"]), i)
@@ -301,51 +288,10 @@ func _build_left_column() -> void:
 		_snap_mode = str(snap_option.get_item_metadata(index))
 		_set_status("Aimantation : %s" % snap_option.get_item_text(index))
 	)
-	_left_panel.add_child(snap_option)
-
-	_section(_left_panel, "🗺 Mini-carte")
-	_minimap = MinimapScript.new()
-	_minimap.jump_requested.connect(func(grid_pos: Vector2):
-		if _engine and _engine.has_method("center_on_grid"):
-			_engine.center_on_grid(grid_pos.x - 0.5, grid_pos.y - 0.5)
-			_refresh_overlay()
-	)
-	_left_panel.add_child(_minimap)
 
 # --- Colonne centrale : vue 3D -------------------------------------------------
 
-func _build_center_column() -> void:
-	_center_column = VBoxContainer.new()
-	_center_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_center_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_center_column.size_flags_stretch_ratio = 1.0
-	_center_column.custom_minimum_size = Vector2(80, 0)
-	_center_column.clip_contents = true
-	_center_column.add_theme_constant_override("separation", 4)
-	_split_inner.add_child(_center_column)
-
-	_center_column.add_child(_build_action_bar())
-
-	var frame := PanelContainer.new()
-	_viewport_frame = frame
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_INPUT
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	frame.add_theme_stylebox_override("panel", style)
-	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# Min bas : s'adapte aux écrans courts (16:10, ultrawide bas) sans déborder.
-	frame.custom_minimum_size = Vector2(80, 80)
-	frame.clip_contents = true
-	_center_column.add_child(frame)
-
-	var stack := Control.new()
-	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	frame.add_child(stack)
-
+func _create_engine(stack: Control) -> void:
 	_engine = ComplexMapEngineScript.new()
 	_engine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_engine.editor_mode = true
@@ -362,37 +308,8 @@ func _build_center_column() -> void:
 	_overlay.set_context(_engine, doc)
 	stack.add_child(_overlay)
 
-	var status_row := HBoxContainer.new()
-	status_row.add_theme_constant_override("separation", 10)
-	_center_column.add_child(status_row)
-
-	_status_lbl = Label.new()
-	_status_lbl.add_theme_font_size_override("font_size", 11)
-	_status_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_status_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_status_lbl.clip_text = true
-	status_row.add_child(_status_lbl)
-
-	_hint_lbl = Label.new()
-	_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_lbl.add_theme_font_size_override("font_size", 11)
-	_hint_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_center_column.add_child(_hint_lbl)
-
-func _build_action_bar() -> Control:
-	# Scroll horizontal : la rangée de boutons (~900px) ne doit jamais
-	# définir la largeur minimum de la colonne centrale (sinon le dock droit disparaît).
-	var host := ScrollContainer.new()
-	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	host.custom_minimum_size = Vector2(0, 34)
-	host.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	host.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	host.clip_contents = true
-
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 4)
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	host.add_child(bar)
+func _build_action_bar() -> void:
+	var bar: HBoxContainer = %ActionBar
 
 	_undo_btn = _icon_button(bar, "↶", "Annuler (Ctrl+Z)", func(): _do_undo())
 	_redo_btn = _icon_button(bar, "↷", "Rétablir (Ctrl+Y)", func(): _do_redo())
@@ -460,23 +377,11 @@ func _build_action_bar() -> Control:
 	_player_view_btn.toggled.connect(_on_player_view_toggled)
 	bar.add_child(_player_view_btn)
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
-	return host
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
-func _build_right_column() -> void:
-	# Pas de ScrollContainer externe : il écrasait la largeur utile du dock.
-	_right_tabs = TabContainer.new()
-	_right_tabs.custom_minimum_size = Vector2(220, 0)
-	_right_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_right_tabs.size_flags_stretch_ratio = 0.0
-	_right_tabs.clip_contents = true
-	_split_inner.add_child(_right_tabs)
-	_right_scroll = null
-
-	_inspector = InspectorScript.new()
-	_inspector.name = "Inspecteur"
+func _bind_docks() -> void:
+	_inspector = %Inspector
 	_inspector.set_document(doc)
 	_inspector.focus_requested.connect(_focus_element)
 	_inspector.unlink_requested.connect(func(a, b): doc.unlink_elements(a, b))
@@ -487,17 +392,14 @@ func _build_right_column() -> void:
 		_set_tool(ToolsScript.LINK)
 		_set_status("Cliquez l'élément cible pour créer le lien.")
 	)
-	_right_tabs.add_child(_wrap_scroll(_inspector, "Inspecteur"))
 
-	_outliner = OutlinerScript.new()
-	_outliner.name = "Calques"
+	_outliner = %Outliner
 	_outliner.set_document(doc)
 	_outliner.focus_requested.connect(_focus_element)
-	_right_tabs.add_child(_wrap_scroll(_outliner, "Calques"))
 
-	_right_tabs.add_child(_build_map_settings_tab())
-	_right_tabs.add_child(_build_library_tab())
-	_right_tabs.add_child(_build_history_tab())
+	_bind_settings_tab()
+	_bind_library_tab()
+	_bind_history_tab()
 
 func _on_viewport_size_changed() -> void:
 	_layout_force = true
@@ -619,7 +521,12 @@ func _adapt_tool_chrome(total_w: float, total_h: float = 800.0) -> void:
 	for btn in _tool_buttons.values():
 		if btn is Button:
 			(btn as Button).custom_minimum_size = Vector2(btn_w, btn_h)
-	if _left_panel:
+	var tool_host := get_node_or_null("%ToolHost")
+	if tool_host:
+		for child in tool_host.get_children():
+			if child is GridContainer:
+				(child as GridContainer).columns = cols
+	elif _left_panel:
 		for child in _left_panel.get_children():
 			if child is GridContainer:
 				(child as GridContainer).columns = cols
@@ -652,9 +559,8 @@ func _wrap_scroll(content: Control, tab_name: String) -> ScrollContainer:
 # Onglet « Carte »
 # ===========================================================================
 
-func _build_map_settings_tab() -> ScrollContainer:
-	_settings_panel = SettingsPanelScript.new()
-	_settings_panel.name = "Carte"
+func _bind_settings_tab() -> void:
+	_settings_panel = %Settings
 	_settings_widgets = _settings_panel.widgets
 	_settings_panel.import_background_pressed.connect(func(): _file_dialog.popup_centered(Vector2i(760, 500)))
 	_settings_panel.import_overlay_pressed.connect(func(): _overlay_dialog.popup_centered(Vector2i(760, 500)))
@@ -701,16 +607,14 @@ func _build_map_settings_tab() -> ScrollContainer:
 	)
 	_settings_panel.export_json_pressed.connect(func(): _export_dialog.popup_centered(Vector2i(760, 500)))
 	_settings_panel.import_json_pressed.connect(func(): _import_dialog.popup_centered(Vector2i(760, 500)))
-	return _wrap_scroll(_settings_panel, "Carte")
 
 
 # ===========================================================================
 # Onglet « Bibliothèque »
 # ===========================================================================
 
-func _build_library_tab() -> ScrollContainer:
-	_library_panel = LibraryPanelScript.new()
-	_library_panel.name = "Biblio"
+func _bind_library_tab() -> void:
+	_library_panel = %Library
 	_asset_hint = _library_panel.asset_hint
 	_asset_category_row = _library_panel.asset_category_row
 	_asset_grid = _library_panel.asset_grid
@@ -732,20 +636,12 @@ func _build_library_tab() -> ScrollContainer:
 	_library_panel.trigger_all_effects_pressed.connect(_trigger_all_effects)
 	_library_panel.save_template_pressed.connect(_prompt_save_template)
 	_library_panel.refresh_templates_pressed.connect(_refresh_templates)
-	return _wrap_scroll(_library_panel, "Biblio")
 
-
-# ===========================================================================
-# Onglet « Historique »
-# ===========================================================================
-
-func _build_history_tab() -> ScrollContainer:
-	var panel = HistoryPanelScript.new()
-	panel.name = "Historique"
+func _bind_history_tab() -> void:
+	var panel = %History
 	panel.undo_pressed.connect(_do_undo)
 	panel.redo_pressed.connect(_do_redo)
 	_history_list = panel.history_list
-	return _wrap_scroll(panel, "Historique")
 
 # ===========================================================================
 # Dialogues
@@ -770,21 +666,11 @@ func _build_dialogs() -> void:
 		["*.png ; Images PNG (fond transparent)", "*.webp ; Images WebP", "*.jpg, *.jpeg ; Images JPEG"])
 	_asset_dialog.files_selected.connect(_on_assets_imported)
 
-	_template_name_dialog = AcceptDialog.new()
-	_template_name_dialog.title = "Nom du template"
-	_template_name_dialog.dialog_hide_on_ok = true
-	var name_box := VBoxContainer.new()
-	var name_lbl := Label.new()
-	name_lbl.text = "Nom du template à créer depuis la sélection :"
-	name_box.add_child(name_lbl)
-	_template_name_input = LineEdit.new()
-	_template_name_input.custom_minimum_size = Vector2(320, 0)
-	name_box.add_child(_template_name_input)
-	_template_name_dialog.add_child(name_box)
+	_template_name_dialog = %TemplateNameDialog
+	_template_name_input = %TemplateNameInput
 	_template_name_dialog.confirmed.connect(_on_template_name_confirmed)
-	add_child(_template_name_dialog)
 
-	_esc_menu = EscMenuScript.new()
+	_esc_menu = %EscMenu
 	_esc_menu.save_pressed.connect(save_now)
 	_esc_menu.undo_pressed.connect(_do_undo)
 	_esc_menu.redo_pressed.connect(_do_redo)
@@ -807,7 +693,6 @@ func _build_dialogs() -> void:
 		_refresh_status_badges()
 	)
 	_esc_menu.sync_policy(_save_policy)
-	add_child(_esc_menu)
 
 func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
 	var dialog := FileDialog.new()

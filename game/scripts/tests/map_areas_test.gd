@@ -9,7 +9,6 @@ const K_AREA := "area"
 const K_TOKEN := "token"
 
 var DocScript: GDScript
-var ComplexEditorScript: GDScript
 
 var _failed: bool = false
 
@@ -19,7 +18,6 @@ func _init() -> void:
 func _run() -> void:
 	await process_frame
 	DocScript = load("res://scripts/maps/editor/map_edit_document.gd")
-	ComplexEditorScript = load("res://scripts/maps/map_complex_editor.gd")
 	var md = get_root().get_node("MapData")
 	var gd = get_root().get_node("GameData")
 
@@ -210,7 +208,7 @@ func _test_session_navigation(md, gd) -> void:
 
 func _test_editor_area_tool(md) -> void:
 	var village: Dictionary = md.create_complex_map("Editeur Village", "general", "local", 40, 32)
-	var editor: Control = ComplexEditorScript.new()
+	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()
 	get_root().add_child(editor)
 	editor.size = Vector2(1280, 800)
 	await process_frame

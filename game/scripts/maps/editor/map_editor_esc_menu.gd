@@ -1,7 +1,7 @@
 extends PopupPanel
 class_name MapEditorEscMenu
 
-## Menu Échap de l'éditeur — extrait du monolithe map_complex_editor (P1-C).
+## Menu Échap. Structure dans `scenes/map_editor/panels/esc_menu.tscn`.
 
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 
@@ -20,64 +20,42 @@ const SAVE_INTERVAL := "interval"
 
 var _policy_buttons: Dictionary = {}
 
-func _init() -> void:
-	var menu_box := VBoxContainer.new()
-	menu_box.add_theme_constant_override("separation", 4)
-	menu_box.custom_minimum_size = Vector2(300, 0)
-	add_child(menu_box)
-
-	_section(menu_box, "☰ Menu éditeur")
-	_text_button(menu_box, "💾 Enregistrer", func():
+func _ready() -> void:
+	%BtnSave.pressed.connect(func():
 		save_pressed.emit()
 		hide()
 	)
-	_text_button(menu_box, "↶ Annuler", func(): undo_pressed.emit())
-	_text_button(menu_box, "↷ Rétablir", func(): redo_pressed.emit())
-	_text_button(menu_box, "🎯 Recadrer sur la carte", func():
+	%BtnUndo.pressed.connect(func(): undo_pressed.emit())
+	%BtnRedo.pressed.connect(func(): redo_pressed.emit())
+	%BtnFit.pressed.connect(func():
 		fit_view_pressed.emit()
 		hide()
 	)
-	_text_button(menu_box, "🧹 Vider la sélection", func():
+	%BtnClearSel.pressed.connect(func():
 		clear_selection_pressed.emit()
 		hide()
 	)
-	_section(menu_box, "Fichier")
-	_text_button(menu_box, "⬇ Importer JSON…", func():
+	%BtnImportJson.pressed.connect(func():
 		hide()
 		import_json_pressed.emit()
 	)
-	_text_button(menu_box, "⬆ Exporter JSON…", func():
+	%BtnExportJson.pressed.connect(func():
 		hide()
 		export_json_pressed.emit()
 	)
-	_section(menu_box, "Sauvegarde auto")
-	var save_row := HBoxContainer.new()
-	save_row.add_theme_constant_override("separation", 6)
-	menu_box.add_child(save_row)
-	for entry in [
-		[SAVE_MANUAL, "Manuelle"],
-		[SAVE_ON_CHANGE, "À chaque modif"],
-		[SAVE_INTERVAL, "Toutes les 30 s"],
-	]:
-		var policy := str(entry[0])
-		var label := str(entry[1])
-		var btn := Button.new()
-		btn.text = label
-		btn.toggle_mode = true
+	_policy_buttons[SAVE_MANUAL] = %BtnPolicyManual
+	_policy_buttons[SAVE_ON_CHANGE] = %BtnPolicyChange
+	_policy_buttons[SAVE_INTERVAL] = %BtnPolicyInterval
+	for policy in _policy_buttons.keys():
+		var key := str(policy)
+		var btn: Button = _policy_buttons[key]
+		var label := btn.text
 		btn.pressed.connect(func():
-			_set_policy_ui(policy)
-			save_policy_selected.emit(policy, label)
+			_set_policy_ui(key)
+			save_policy_selected.emit(key, label)
 			hide()
 		)
-		save_row.add_child(btn)
-		_policy_buttons[policy] = btn
-
-	var help := Label.new()
-	help.text = ToolsScript.shortcuts_text()
-	help.add_theme_font_size_override("font_size", 10)
-	help.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	menu_box.add_child(help)
+	%LblHelp.text = ToolsScript.shortcuts_text()
 
 func sync_policy(policy: String) -> void:
 	_set_policy_ui(policy)
@@ -88,18 +66,3 @@ func open_centered() -> void:
 func _set_policy_ui(policy: String) -> void:
 	for key in _policy_buttons:
 		(_policy_buttons[key] as Button).button_pressed = (str(key) == policy)
-
-func _section(parent: Node, title: String) -> void:
-	var lbl := Label.new()
-	lbl.text = title
-	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	lbl.add_theme_font_size_override("font_size", 12)
-	parent.add_child(lbl)
-
-func _text_button(parent: Node, text: String, cb: Callable) -> Button:
-	var btn := Button.new()
-	btn.text = text
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.pressed.connect(cb)
-	parent.add_child(btn)
-	return btn

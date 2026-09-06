@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/session/panels/map_workspace.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/map_navigator.tscn" id="2_navigator"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/map_stage.tscn" id="3_stage"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/map_toolbar.tscn" id="4_toolbar"]
+
+[node name="MapWorkspace" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+script = ExtResource("1_script")
+
+[node name="MapNavigator" parent="." instance=ExtResource("2_navigator")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MapStage" parent="." instance=ExtResource("3_stage")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MapToolbar" parent="." instance=ExtResource("4_toolbar")]
+unique_name_in_owner = true
+layout_mode = 2

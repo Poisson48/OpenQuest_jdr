@@ -1,0 +1,131 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/player_session_hud.gd" id="1_script"]
+
+[node name="PlayerSessionHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+z_index = 40
+script = ExtResource("1_script")
+
+[node name="TopBar" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 56.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+
+[node name="Row" type="HBoxContainer" parent="TopBar"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="BtnLeave" type="Button" parent="TopBar/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "← Quitter"
+
+[node name="LblTitle" type="Label" parent="TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.78)
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Spacer" type="Control" parent="TopBar/Row"]
+custom_minimum_size = Vector2(88, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="LblToast" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.15
+anchor_right = 0.85
+offset_top = 58.0
+offset_bottom = 110.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.78, 0.95)
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="BottomBar" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -122.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="Bar" type="PanelContainer" parent="BottomBar"]
+layout_mode = 2
+size_flags_vertical = 8
+theme_type_variation = &"DockPanel"
+
+[node name="Col" type="VBoxContainer" parent="BottomBar/Bar"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PartyRow" type="HBoxContainer" parent="BottomBar/Bar/Col"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ActionRow" type="HBoxContainer" parent="BottomBar/Bar/Col"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ActionInput" type="LineEdit" parent="BottomBar/Bar/Col/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Que faites-vous ?"
+
+[node name="BtnSend" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_type_variation = &"AccentButton"
+text = "Envoyer"
+
+[node name="BtnD6" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 36)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+text = "d6"
+
+[node name="BtnD20" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 36)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+text = "d20"

@@ -10,7 +10,6 @@ const Props3DScript := preload("res://scripts/maps/map_layers/map_props_3d.gd")
 const K_PROP := "prop"
 
 var DocScript: GDScript
-var ComplexEditorScript: GDScript
 
 var _failed: bool = false
 var _sources: Array = []
@@ -21,7 +20,6 @@ func _init() -> void:
 func _run() -> void:
 	await process_frame
 	DocScript = load("res://scripts/maps/editor/map_edit_document.gd")
-	ComplexEditorScript = load("res://scripts/maps/map_complex_editor.gd")
 	var md = get_root().get_node("MapData")
 
 	_reset_library()
@@ -279,7 +277,7 @@ func _test_diorama_depth_sort() -> void:
 
 func _test_editor_prop_tool(md) -> void:
 	var map: Dictionary = md.create_complex_map("Props editeur", "general", "local", 40, 30)
-	var editor: Control = ComplexEditorScript.new()
+	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()
 	get_root().add_child(editor)
 	editor.size = Vector2(1280, 800)
 	await process_frame

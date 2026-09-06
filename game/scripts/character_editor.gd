@@ -1,5 +1,7 @@
 extends Control
 
+const CharacterCardScene := preload("res://scenes/hub/panels/character_card.tscn")
+
 @onready var char_list_container: VBoxContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
 @onready var tier_picker_panel: PanelContainer = %TierPickerPanel
@@ -269,70 +271,11 @@ func refresh_list() -> void:
 		char_list_container.add_child(_create_character_card(entry))
 
 func _create_character_card(c: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = ThemeColors.BG_CARD
-	style.border_color = ThemeColors.BORDER
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.content_margin_bottom = 8
-	style.content_margin_top = 8
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	panel.add_theme_stylebox_override("panel", style)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-
-	var header := HBoxContainer.new()
-	var name_lbl := Label.new()
-	var is_bot: bool = c.get("_entityKind", "") == "bot"
-	name_lbl.text = ("🤖 " if is_bot else "🧙 ") + str(c.get("name", "Sans nom"))
-	name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(name_lbl)
-
-	var tier_badge := Label.new()
-	var tier: String = GameData.get_ruleset_tier(c)
-	tier_badge.text = {"simple": "Simple", "medium": "Classique", "complete": "Complet"}.get(tier, "Classique")
-	tier_badge.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	header.add_child(tier_badge)
-
-	var roster_badge := Label.new()
-	var r: String = c.get("roster", "general")
-	roster_badge.text = "Enquête" if r == "investigation" else "Aventure"
-	roster_badge.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT if r == "investigation" else ThemeColors.GOLD)
-	header.add_child(roster_badge)
-	vbox.add_child(header)
-
-	var meta_lbl := Label.new()
-	meta_lbl.text = "%s · %s" % [c.get("race", "?"), c.get("class", "?")]
-	meta_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	vbox.add_child(meta_lbl)
-
-	var stats_lbl := Label.new()
-	stats_lbl.text = GameData.format_character_summary(c)
-	stats_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	stats_lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-	vbox.add_child(stats_lbl)
-
-	var actions := HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_END
-
-	var btn_edit := Button.new()
-	btn_edit.text = "Modifier"
-	btn_edit.pressed.connect(func(): _open_form_for_edit(c, is_bot))
-	actions.add_child(btn_edit)
-
-	var btn_del := Button.new()
-	btn_del.text = "Supprimer"
-	btn_del.add_theme_color_override("font_color", ThemeColors.DANGER)
-	btn_del.pressed.connect(func(): _delete_entry(c.get("id", ""), is_bot))
-	actions.add_child(btn_del)
-
-	vbox.add_child(actions)
-	panel.add_child(vbox)
-	return panel
+	var card := CharacterCardScene.instantiate()
+	card.setup(c)
+	card.edit_pressed.connect(_open_form_for_edit)
+	card.delete_pressed.connect(_delete_entry)
+	return card
 
 func _set_tier_picker_visible(show_picker: bool) -> void:
 	tier_overlay.visible = show_picker

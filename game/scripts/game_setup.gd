@@ -1,6 +1,7 @@
 extends Control
 
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
+const SetupToggleRowScene := preload("res://scenes/hub/panels/setup_toggle_row.tscn")
 
 @onready var opt_quest_format: OptionButton = %OptQuestFormat
 @onready var opt_scenario: OptionButton = %OptScenario
@@ -364,11 +365,10 @@ func _add_map_group(title: String, map_list: Array, scenario_id: String) -> void
 
 	for m in map_list:
 		var map_id: String = m.get("id", "")
-		var check := CheckBox.new()
 		var tag := "🌍" if MapData.is_world_map(m) else ("🔍" if m.get("roster") == "investigation" else "⚔️")
 		var linked := " · liée au scénario" if m.get("scenarioId", "") == scenario_id else ""
 		var mode_tag := MapModeScript.badge(MapData.get_render_mode(m))
-		check.text = "%s %s (%d×%d) · %s%s" % [
+		var label := "%s %s (%d×%d) · %s%s" % [
 			tag,
 			m.get("title", map_id),
 			int(m.get("width", 0)),
@@ -376,14 +376,22 @@ func _add_map_group(title: String, map_list: Array, scenario_id: String) -> void
 			mode_tag,
 			linked,
 		]
-		check.button_pressed = selected_map_ids.has(map_id)
-		check.toggled.connect(func(toggled: bool):
-			if toggled and not selected_map_ids.has(map_id):
-				selected_map_ids.append(map_id)
-			elif not toggled and selected_map_ids.has(map_id):
-				selected_map_ids.erase(map_id)
-		)
-		maps_container.add_child(check)
+		var row := SetupToggleRowScene.instantiate()
+		row.setup(map_id, label, selected_map_ids.has(map_id))
+		row.toggled_id.connect(_on_map_toggled)
+		maps_container.add_child(row)
+
+func _on_map_toggled(map_id: String, on: bool) -> void:
+	if on and not selected_map_ids.has(map_id):
+		selected_map_ids.append(map_id)
+	elif not on and selected_map_ids.has(map_id):
+		selected_map_ids.erase(map_id)
+
+func _on_bot_toggled(bot_id: String, on: bool) -> void:
+	if on and not selected_bot_ids.has(bot_id):
+		selected_bot_ids.append(bot_id)
+	elif not on and selected_bot_ids.has(bot_id):
+		selected_bot_ids.erase(bot_id)
 
 func _get_selected_map_ids() -> Array:
 	return selected_map_ids.duplicate()
@@ -396,18 +404,12 @@ func _refresh_bots_checkboxes() -> void:
 	selected_bot_ids = selected_bot_ids.filter(func(id): return valid_bot_ids.has(id))
 
 	for b in available_bots:
-		var check := CheckBox.new()
 		var prefix := "🔍🤖 " if _current_quest_format == "investigation" else "🤖 "
-		check.text = "%s%s" % [prefix, GameData.format_character_summary(b)]
 		var bot_id: String = b.get("id", "")
-		check.button_pressed = selected_bot_ids.has(bot_id)
-		check.toggled.connect(func(toggled: bool):
-			if toggled and not selected_bot_ids.has(bot_id):
-				selected_bot_ids.append(bot_id)
-			elif not toggled and selected_bot_ids.has(bot_id):
-				selected_bot_ids.erase(bot_id)
-		)
-		bots_container.add_child(check)
+		var row := SetupToggleRowScene.instantiate()
+		row.setup(bot_id, "%s%s" % [prefix, GameData.format_character_summary(b)], selected_bot_ids.has(bot_id))
+		row.toggled_id.connect(_on_bot_toggled)
+		bots_container.add_child(row)
 
 func _on_party_size_changed(_val: float) -> void:
 	pass

@@ -1,8 +1,17 @@
-[gd_scene load_steps=4 format=3 uid="uid://session_scene_001"]
+[gd_scene load_steps=13 format=3 uid="uid://session_scene_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
-[ext_resource type="Script" path="res://scripts/session.gd" id="2_script"]
-[ext_resource type="Script" path="res://scripts/map_panel.gd" id="3_map_panel"]
+[ext_resource type="Script" path="res://scripts/session/session_shell.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/session_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/party_dock.tscn" id="4_party"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/gm_console.tscn" id="5_gm"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/gm_notes.tscn" id="6_notes"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/map_workspace.tscn" id="7_map"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/story_log.tscn" id="8_log"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/dice_tray.tscn" id="9_dice"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/action_bar.tscn" id="10_action"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/player_hud.tscn" id="11_hud"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/character_sheet.tscn" id="12_sheet"]
 
 [node name="Session" type="Control"]
 layout_mode = 3
@@ -21,436 +30,106 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+mouse_filter = 2
+color = Color(0.0784314, 0.0588235, 0.0431373, 1)
 
-[node name="MainLayout" type="VBoxContainer" parent="."]
+[node name="Margins" type="MarginContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = -16.0
-offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Root" type="VBoxContainer" parent="Margins"]
+unique_name_in_owner = true
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="HeaderBar" type="PanelContainer" parent="MainLayout"]
+[node name="SessionHeader" parent="Margins/Root" instance=ExtResource("3_header")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 0
 
-[node name="HBox" type="HBoxContainer" parent="MainLayout/HeaderBar"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnBackHub" type="Button" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "← Quitter la session"
-
-[node name="ScenarioTitle" type="Label" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
-text = "🗺️ Partie en cours"
-clip_text = true
-
-[node name="SceneProgress" type="Label" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-text = "Scène 1/6 : L'oasis"
-clip_text = true
-
-[node name="TimerLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 0)
-layout_mode = 2
-text = "⏱️ 00:00"
-clip_text = true
-
-[node name="NetStatusLabel" type="Label" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 0)
-layout_mode = 2
-text = "○ Mode Local"
-clip_text = true
-
-[node name="BtnAdvanceScene" type="Button" parent="MainLayout/HeaderBar/HBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Scène Suivante ⏭️"
-
-[node name="TopBand" type="HBoxContainer" parent="MainLayout"]
+[node name="Body" type="HSplitContainer" parent="Margins/Root"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.15
+
+[node name="LeftDock" type="VBoxContainer" parent="Margins/Root/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(232, 0)
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="Sidebar" type="VBoxContainer" parent="MainLayout/TopBand"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
-theme_override_constants/separation = 8
-
-[node name="PartyPanel" type="PanelContainer" parent="MainLayout/TopBand/Sidebar"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 100)
-layout_mode = 2
-size_flags_vertical = 0
-
-[node name="PartyScroll" type="ScrollContainer" parent="MainLayout/TopBand/Sidebar/PartyPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-
-[node name="PartyVBox" type="VBoxContainer" parent="MainLayout/TopBand/Sidebar/PartyPanel/PartyScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="LblParty" type="Label" parent="MainLayout/TopBand/Sidebar/PartyPanel/PartyScroll/PartyVBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "👥 Membres du Groupe"
-
-[node name="PartyContainer" type="VBoxContainer" parent="MainLayout/TopBand/Sidebar/PartyPanel/PartyScroll/PartyVBox"]
+[node name="PartyDock" parent="Margins/Root/Body/LeftDock" instance=ExtResource("4_party")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
 
-[node name="GmPanel" type="PanelContainer" parent="MainLayout/TopBand/Sidebar"]
-unique_name_in_owner = true
-clip_contents = true
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="GmBody" type="VBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 4
-
-[node name="GmClip" type="Control" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody"]
-clip_contents = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
-
-[node name="GmVBox" type="VBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 0.0
-grow_horizontal = 2
-theme_override_constants/separation = 3
-
-[node name="LblGm" type="Label" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 14
-text = "👑 Panneau Maître du Jeu"
-clip_text = true
-
-[node name="GmInput" type="TextEdit" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 44)
-layout_mode = 2
-placeholder_text = "Narration pour les joueurs… (Ctrl+Entrée)"
-
-[node name="BtnGmSend" type="Button" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "📢 Diffuser la narration"
-
-[node name="LblGmWait" type="Label" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 12
-text = "En attente d'une action joueur..."
-clip_text = true
-
-[node name="NpcRow" type="HBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="OptGmNpc" type="OptionButton" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox/NpcRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Choisir le PNJ qui prend la parole"
-clip_text = true
-
-[node name="BtnGmNpcSend" type="Button" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox/NpcRow"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Faire parler le PNJ sélectionné"
-text = "🗣️ Parler"
-
-[node name="GmNpcInput" type="TextEdit" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 32)
-layout_mode = 2
-placeholder_text = "Réplique du PNJ… (Ctrl+Entrée)"
-
-[node name="SceneRow" type="HBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="OptGmScene" type="OptionButton" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox/SceneRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Navigation narrative : choisir la scène"
-clip_text = true
-
-[node name="BtnGmGoToScene" type="Button" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox/SceneRow"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Aller à la scène choisie"
-text = "📍 Aller"
-
-[node name="GmTransitionsVBox" type="VBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/GmClip/GmVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="EndRow" type="HBoxContainer" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="BtnGmAdvanceScene" type="Button" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/EndRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-tooltip_text = "Avancer sur le chemin par défaut du scénario"
-text = "⏭️ Suite"
-
-[node name="BtnGmCompleteScenario" type="Button" parent="MainLayout/TopBand/Sidebar/GmPanel/GmBody/EndRow"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Terminer l'aventure"
-text = "🏁 Clore"
-
-[node name="MainGameArea" type="VBoxContainer" parent="MainLayout/TopBand"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 2.4
-theme_override_constants/separation = 8
-
-[node name="LogPanel" type="PanelContainer" parent="MainLayout/TopBand/MainGameArea"]
-unique_name_in_owner = true
-clip_contents = true
-custom_minimum_size = Vector2(0, 140)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="LogVBox" type="VBoxContainer" parent="MainLayout/TopBand/MainGameArea/LogPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 4
-
-[node name="LblHistoire" type="Label" parent="MainLayout/TopBand/MainGameArea/LogPanel/LogVBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 15
-text = "📜 Histoire"
-
-[node name="GameLog" type="RichTextLabel" parent="MainLayout/TopBand/MainGameArea/LogPanel/LogVBox"]
+[node name="GmTabs" type="TabContainer" parent="Margins/Root/Body/LeftDock"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-bbcode_enabled = true
-scroll_following = true
-autowrap_mode = 3
-fit_content = false
+tab_alignment = 1
 
-[node name="DiceSection" type="PanelContainer" parent="MainLayout/TopBand/MainGameArea"]
+[node name="Console" parent="Margins/Root/Body/LeftDock/GmTabs" instance=ExtResource("5_gm")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 0
 
-[node name="DiceVBox" type="VBoxContainer" parent="MainLayout/TopBand/MainGameArea/DiceSection"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="QuickDiceHBox" type="HBoxContainer" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BtnD4" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d4"
-
-[node name="BtnD6" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d6"
-
-[node name="BtnD8" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d8"
-
-[node name="BtnD10" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d10"
-
-[node name="BtnD12" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d12"
-
-[node name="BtnD20" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "🎲 d20"
-
-[node name="BtnD100" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "d100"
-
-[node name="VSeparator" type="VSeparator" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-layout_mode = 2
-
-[node name="CustomDiceInput" type="LineEdit" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(90, 0)
-layout_mode = 2
-placeholder_text = "2d6+3"
-
-[node name="BtnRollCustom" type="Button" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Lancer"
-
-[node name="ChkSecretDice" type="CheckBox" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox/QuickDiceHBox"]
+[node name="Notes" parent="Margins/Root/Body/LeftDock/GmTabs" instance=ExtResource("6_notes")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-tooltip_text = "Jet MJ non publié dans le journal partagé"
-text = "Secret"
 
-[node name="DiceResultLabel" type="Label" parent="MainLayout/TopBand/MainGameArea/DiceSection/DiceVBox"]
+[node name="InnerSplit" type="HSplitContainer" parent="Margins/Root/Body"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 22)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 14
-text = "Prêt à lancer les dés"
-horizontal_alignment = 0
-clip_text = false
-text_overrun_behavior = 0
-
-[node name="ActionSection" type="PanelContainer" parent="MainLayout/TopBand/MainGameArea"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 0
-
-[node name="ActionVBox" type="VBoxContainer" parent="MainLayout/TopBand/MainGameArea/ActionSection"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="LblTurnIndicator" type="Label" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 14
-text = "🎯 Tour en cours..."
-clip_text = true
-
-[node name="LblActionHint" type="Label" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 12
-text = "Décrivez l'action de votre personnage."
-clip_text = true
-
-[node name="SuggestionsScroll" type="ScrollContainer" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-vertical_scroll_mode = 0
-
-[node name="SuggestionsHBox" type="HBoxContainer" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BtnSuggExplore" type="Button" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "🧭 Explorer"
-
-[node name="BtnSuggTalk" type="Button" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "💬 Discuter"
-
-[node name="BtnSuggInspect" type="Button" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "🔍 Examiner"
-
-[node name="BtnSuggCombat" type="Button" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/SuggestionsScroll/SuggestionsHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "⚔️ Combattre"
-
-[node name="ActionInputHBox" type="HBoxContainer" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="InputAction" type="LineEdit" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/ActionInputHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Décrivez votre action... (ex: J'avance prudemment vers la porte dérobée)"
-
-[node name="BtnSendAction" type="Button" parent="MainLayout/TopBand/MainGameArea/ActionSection/ActionVBox/ActionInputHBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-text = "Envoyer ↵"
-
-[node name="MapPanel" type="PanelContainer" parent="MainLayout"]
-unique_name_in_owner = true
-clip_contents = true
-custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
-script = ExtResource("3_map_panel")
+
+[node name="MapWorkspace" parent="Margins/Root/Body/InnerSplit" instance=ExtResource("7_map")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightDock" type="VBoxContainer" parent="Margins/Root/Body/InnerSplit"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(268, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="StoryLog" parent="Margins/Root/Body/InnerSplit/RightDock" instance=ExtResource("8_log")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DiceTray" parent="Margins/Root/Body/InnerSplit/RightDock" instance=ExtResource("9_dice")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ActionBar" parent="Margins/Root/Body/InnerSplit/RightDock" instance=ExtResource("10_action")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Confirmer"
+ok_button_text = "Confirmer"
+dialog_text = ""
+cancel_button_text = "Annuler"
+
+[node name="PlayerHud" parent="." instance=ExtResource("11_hud")]
+unique_name_in_owner = true
+visible = false
+
+[node name="CharacterSheet" parent="." instance=ExtResource("12_sheet")]
+unique_name_in_owner = true
+visible = false

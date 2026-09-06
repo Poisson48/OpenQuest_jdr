@@ -1317,6 +1317,19 @@ func trigger_effect(effect_id: String) -> void:
 		node.trigger()
 	effect_trigger_requested.emit(effect_id)
 
+## Échelle réellement affichée : pixels écran par case de grille.
+##
+## `zoom` est relatif au cadrage « carte entière » : l'afficher en pourcentage
+## ment (zoom=1 sur une carte de 60 cases n'a rien à voir avec zoom=1 sur une
+## carte de 10 cases). On mesure donc la projection au sol.
+func get_effective_scale() -> float:
+	if _camera == null or _cell_size <= 0.0:
+		return 0.0
+	var span := _ground_span_per_pixel()
+	if span.y < 0.000001:
+		return 0.0
+	return _cell_size / span.y
+
 func zoom_in() -> void:
 	_apply_zoom(1.15, size * 0.5)
 
