@@ -333,6 +333,7 @@ text = "🤖 Archétypes de Compagnons Bots"
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Bots/VBox/PanelHeader/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 14
 text = "Compagnons IA classés par mode de jeu — aventure, one-shot ou enquête."
 
 [node name="BotsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Bots/VBox"]
@@ -342,18 +343,21 @@ theme_override_constants/separation = 12
 [node name="LblBotsFilter" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
 text = "Afficher :"
 
 [node name="BotsFilter" type="OptionButton" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(220, 0)
+theme_override_font_sizes/font_size = 14
 
 [node name="BotsCountLabel" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 14
 text = "0 compagnon(s)"
 
 [node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]

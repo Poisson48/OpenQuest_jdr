@@ -339,6 +339,7 @@ func _add_bots_empty_state() -> void:
 	empty_lbl.text = tr("Aucun compagnon pour ce filtre.")
 	empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	empty_lbl.add_theme_font_size_override("font_size", 14)
 	bots_sections_root.add_child(empty_lbl)
 
 func _add_bot_section(title: String, bots: Array) -> void:
@@ -350,6 +351,7 @@ func _add_bot_section(title: String, bots: Array) -> void:
 	header.text = "%s (%d)" % [title, bots.size()]
 	header.add_theme_color_override("font_color", ThemeColors.GOLD)
 	header.theme_type_variation = "HeaderMedium"
+	header.add_theme_font_size_override("font_size", 16)
 	section.add_child(header)
 
 	var grid := GridContainer.new()
