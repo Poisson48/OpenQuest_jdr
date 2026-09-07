@@ -405,7 +405,10 @@ func _host_start_game(
 	if not is_p2p_host():
 		return
 	var final_party := _merge_party_with_room(party)
-	GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party, map_ids)
+	var created := GameData.create_new_game(scenario_id, mode, gm_type, quest_format, final_party, map_ids)
+	if created.is_empty():
+		p2p_error.emit("Impossible de lancer : une partie exige au moins une carte.")
+		return
 	if gm_type == "human":
 		GameData.active_game["gmName"] = player_name if not player_name.is_empty() else "MJ"
 		GameData.active_game["waitingForGm"] = false

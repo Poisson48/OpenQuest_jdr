@@ -978,10 +978,39 @@ func get_game_party_summary(game: Dictionary) -> String:
 		return ", ".join(names)
 	return "%s + %d autres" % [names[0], names.size() - 1]
 
+## Une partie jouable exige au moins une carte existante.
+## Si `map_ids` est vide et `allow_fallback` est vrai, reprend les cartes du scénario / démos liées.
+func resolve_start_map_ids(
+	scenario_id: String,
+	quest_format: String,
+	map_ids: Array = [],
+	allow_fallback: bool = true
+) -> Array:
+	var resolved: Array = []
+	if not map_ids.is_empty():
+		for mid in map_ids:
+			var id := str(mid).strip_edges()
+			if not id.is_empty():
+				resolved.append(id)
+	elif allow_fallback:
+		resolved = MapData.get_map_ids_for_scenario(scenario_id, quest_format)
+	resolved = expand_map_ids_with_linked_locals(resolved)
+	var valid: Array = []
+	for mid in resolved:
+		var id := str(mid)
+		if MapData.get_by_id(id).is_empty():
+			continue
+		if valid.has(id):
+			continue
+		valid.append(id)
+	return valid
+
 func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_format: String, party_members: Array, map_ids: Array = []) -> Dictionary:
 	var scenario := get_scenario_by_id(scenario_id)
-	var resolved_map_ids: Array = map_ids if not map_ids.is_empty() else MapData.get_map_ids_for_scenario(scenario_id, quest_format)
-	resolved_map_ids = expand_map_ids_with_linked_locals(resolved_map_ids)
+	var resolved_map_ids: Array = resolve_start_map_ids(scenario_id, quest_format, map_ids, true)
+	if resolved_map_ids.is_empty():
+		push_warning("Impossible de créer une partie sans carte (scénario « %s »)." % scenario_id)
+		return {}
 	var start_scene_id := str(scenario.get("startSceneId", ""))
 	if start_scene_id.is_empty():
 		start_scene_id = QuestNavigation.get_scene_id_at_index(scenario, 0)

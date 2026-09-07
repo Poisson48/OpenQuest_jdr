@@ -375,20 +375,34 @@ func _on_discover_pressed() -> void:
 	GameData.go_to_hub()
 
 func _on_discord_pressed() -> void:
-	# OS.shell_open bloque souvent le thread UI ; create_process ne bloque pas.
-	var pid := -1
+	# Navigateur par défaut uniquement (HTTPS). Pas de discord:// : sans client
+	# Discord, xdg-open reste bloqué et n'ouvre rien.
+	if not _open_url_detached(DISCORD_INVITE_URL):
+		push_warning("Impossible d'ouvrir l'invitation Discord.")
+
+func _open_url_detached(url: String) -> bool:
+	## Ouvre l'URL avec le gestionnaire système, sans bloquer l'UI.
 	match OS.get_name():
 		"Linux":
-			pid = OS.create_process("xdg-open", [DISCORD_INVITE_URL])
+			var quoted := "'%s'" % url.replace("'", "'\\''")
+			# Détaché : xdg-open / gio respectent le navigateur par défaut.
+			if FileAccess.file_exists("/usr/bin/gio"):
+				if OS.create_process("/bin/sh", [
+					"-c",
+					"gio open %s >/dev/null 2>&1 &" % quoted,
+				]) >= 0:
+					return true
+			return OS.create_process("/bin/sh", [
+				"-c",
+				"xdg-open %s >/dev/null 2>&1 &" % quoted,
+			]) >= 0
 		"macOS":
-			pid = OS.create_process("open", [DISCORD_INVITE_URL])
+			return OS.create_process("open", [url]) >= 0
 		"Windows":
-			pid = OS.create_process("cmd", ["/C", "start", "", DISCORD_INVITE_URL])
+			return OS.create_process("cmd", ["/C", "start", "", url]) >= 0
 		_:
-			OS.shell_open(DISCORD_INVITE_URL)
-			return
-	if pid < 0:
-		OS.shell_open(DISCORD_INVITE_URL)
+			OS.shell_open(url)
+			return true
 
 func _show_home_page() -> void:
 	home_page.visible = true

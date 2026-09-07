@@ -281,6 +281,7 @@ func _apply_host_joiner_ui() -> void:
 		spin_party_size.editable = true
 		for child in bots_container.get_children():
 			child.disabled = false
+	_update_start_button_for_maps()
 
 	var show_main_char := _host_plays_character()
 	%LblMainChar.visible = show_main_char
@@ -322,22 +323,30 @@ func _refresh_maps_picker(reset_selection: bool = false) -> void:
 
 	if opt_scenario.selected < 0 or available_scenarios.is_empty():
 		maps_hint_lbl.text = "Choisis d'abord un scénario."
+		selected_map_ids.clear()
+		_update_start_button_for_maps()
 		return
 
 	var scn_id: String = opt_scenario.get_item_metadata(opt_scenario.selected)
 	var quest_format: String = _get_effective_quest_format()
+	var pool: Array = MapData.get_setup_map_pool(scn_id, quest_format)
+	var valid_ids: Array = pool.map(func(m): return str(m.get("id", "")))
 
 	if reset_selection or selected_map_ids.is_empty():
 		selected_map_ids.clear()
-		for map_id in MapData.get_default_selected_map_ids(scn_id, quest_format):
-			selected_map_ids.append(str(map_id))
+		# Uniquement des cartes du scénario (pas de repli silencieux vers une démo hors pool).
+		for map_id in valid_ids:
+			if not str(map_id).is_empty():
+				selected_map_ids.append(str(map_id))
 
-	var pool: Array = MapData.get_setup_map_pool(scn_id, quest_format)
+	selected_map_ids = selected_map_ids.filter(func(id): return valid_ids.has(str(id)))
+
 	if pool.is_empty():
-		maps_hint_lbl.text = "Aucune carte pour ce mode et ce scénario — crée-en une dans le Hub (onglet Cartes)."
+		maps_hint_lbl.text = "Une partie exige au moins une carte. Aucune carte liée à ce scénario — crée-en une dans le Hub (onglet Cartes), puis reviens ici."
+		_update_start_button_for_maps()
 		return
 
-	maps_hint_lbl.text = "Cartes compatibles avec ce mode et ce scénario uniquement."
+	maps_hint_lbl.text = "Coche au moins une carte : une partie ne peut pas démarrer sans carte."
 
 	var world_maps: Array = []
 	var local_maps: Array = []
@@ -353,8 +362,26 @@ func _refresh_maps_picker(reset_selection: bool = false) -> void:
 		var group_title := "🔍 Scènes enquête" if quest_format == "investigation" else "⚔️ Scènes locales"
 		_add_map_group(group_title, local_maps, scn_id)
 
-	var valid_ids: Array = pool.map(func(m): return m.get("id", ""))
-	selected_map_ids = selected_map_ids.filter(func(id): return valid_ids.has(id))
+	_update_start_button_for_maps()
+
+func _update_start_button_for_maps() -> void:
+	if _is_joiner or not has_node("%BtnStartGame"):
+		return
+	var missing := selected_map_ids.is_empty()
+	%BtnStartGame.disabled = missing
+	%BtnStartGame.tooltip_text = (
+		"Impossible de lancer : ajoute au moins une carte (Hub → Cartes)." if missing else ""
+	)
+
+func _show_maps_required_dialog() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Carte requise"
+	dialog.dialog_text = "Une partie a besoin d’au moins une carte.\n\nCrée-en une dans le Hub (onglet Cartes), lie-la à ce scénario, puis coche-la ici avant de lancer."
+	dialog.ok_button_text = "Compris"
+	add_child(dialog)
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	dialog.popup_centered()
 
 func _add_map_group(title: String, map_list: Array, scenario_id: String) -> void:
 	var header := Label.new()
@@ -386,6 +413,7 @@ func _on_map_toggled(map_id: String, on: bool) -> void:
 		selected_map_ids.append(map_id)
 	elif not on and selected_map_ids.has(map_id):
 		selected_map_ids.erase(map_id)
+	_update_start_button_for_maps()
 
 func _on_bot_toggled(bot_id: String, on: bool) -> void:
 	if on and not selected_bot_ids.has(bot_id):
@@ -505,11 +533,14 @@ func _on_start_game_pressed() -> void:
 	var party_size := int(spin_party_size.value)
 
 	var map_ids: Array = _get_selected_map_ids()
-	var valid_map_pool: Array = MapData.get_setup_map_pool(scn_id, quest_format).map(func(m): return m.get("id", ""))
-	map_ids = map_ids.filter(func(id): return valid_map_pool.has(id))
+	var valid_map_pool: Array = MapData.get_setup_map_pool(scn_id, quest_format).map(func(m): return str(m.get("id", "")))
+	map_ids = map_ids.filter(func(id): return valid_map_pool.has(str(id)))
+	# Pas de repli vers une démo hors pool : la sélection setup est la source de vérité.
+	map_ids = GameData.resolve_start_map_ids(scn_id, quest_format, map_ids, false)
 	if map_ids.is_empty():
-		map_ids = MapData.get_default_selected_map_ids(scn_id, quest_format)
-	map_ids = GameData.expand_map_ids_with_linked_locals(map_ids)
+		_show_maps_required_dialog()
+		_update_start_button_for_maps()
+		return
 
 	if _is_pooling_host or (MultiplayerManager.is_p2p_host() and get_tree().has_meta("pooling_p2p_host")):
 		get_tree().remove_meta("pooling_p2p_host")
@@ -525,7 +556,10 @@ func _on_start_game_pressed() -> void:
 	_start_local_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
 
 func _start_local_game(scn_id: String, mode_val: String, gm_val: String, quest_format: String, party: Array, map_ids: Array = []) -> void:
-	GameData.create_new_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
+	var created := GameData.create_new_game(scn_id, mode_val, gm_val, quest_format, party, map_ids)
+	if created.is_empty():
+		_show_maps_required_dialog()
+		return
 	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
 
 func _update_net_panel() -> void:

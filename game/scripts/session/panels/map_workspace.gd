@@ -10,6 +10,7 @@ class_name MapWorkspacePanel
 @onready var navigator: MapNavigatorPanel = %MapNavigator
 @onready var stage: MapStagePanel = %MapStage
 @onready var toolbar: MapToolbarPanel = %MapToolbar
+@onready var _empty_state: PanelContainer = %EmptyState
 
 var _active_map_id: String = ""
 var _tool: Dictionary = {}
@@ -47,6 +48,9 @@ func _ready() -> void:
 	toolbar.snap_toggled.connect(_on_snap_toggled)
 	toolbar.trigger_requested.connect(_on_trigger_effects)
 
+	%BtnEmptyHub.pressed.connect(_on_empty_hub_pressed)
+	%BtnEmptyMaps.pressed.connect(_on_empty_maps_pressed)
+
 # ---------------------------------------------------------------------------
 # API
 # ---------------------------------------------------------------------------
@@ -78,15 +82,18 @@ func refresh() -> void:
 		await ready
 	var state: Dictionary = GameData.active_game
 	var map_ids: Array = state.get("mapIds", [])
-	visible = not map_ids.is_empty()
+	visible = true
 	if map_ids.is_empty():
+		_show_empty_state(true)
 		return
 
+	_show_empty_state(false)
 	_readonly = str(state.get("status", "")) == "completed"
 	var active_id := _resolve_active_map_id(map_ids)
 	var ctx := GameData.get_session_display_map(active_id)
 	var display_map: Dictionary = ctx.get("displayMap", {})
 	if display_map.is_empty():
+		_show_empty_state(true)
 		return
 	var map_id := str(display_map.get("id", ""))
 
@@ -101,15 +108,32 @@ func refresh() -> void:
 	_configure_stage(state, ctx, map_id)
 	_apply_chrome_visibility()
 
+func _show_empty_state(on: bool) -> void:
+	if _empty_state:
+		_empty_state.visible = on
+	navigator.visible = not on and not _immersive
+	stage.visible = not on
+	toolbar.visible = not on and not _immersive
+
+func _on_empty_hub_pressed() -> void:
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+
+func _on_empty_maps_pressed() -> void:
+	get_tree().set_meta("hub_tab", "Cartes")
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+
 ## La barre d'outils se rend visible en se reconstruisant : en vue immersive on
 ## la remasque après coup, sinon la carte perdrait sa pleine page au premier
 ## rafraîchissement.
 func _apply_chrome_visibility() -> void:
+	if _empty_state and _empty_state.visible:
+		return
 	if _immersive:
 		navigator.visible = false
 		toolbar.visible = false
 	else:
 		navigator.visible = true
+		toolbar.visible = true
 
 ## Décrit l'état carte — utilisé par les tests de mise en page.
 func describe() -> Dictionary:
