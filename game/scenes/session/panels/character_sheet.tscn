@@ -98,80 +98,87 @@ layout_mode = 2
 size_flags_horizontal = 3
 color = Color(0.788235, 0.635294, 0.152941, 1)
 
-[node name="StatsPage" type="VBoxContainer" parent="Frame/Root/Left/LeftBody"]
+[node name="StatsPage" type="ScrollContainer" parent="Frame/Root/Left/LeftBody"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="StatsInner" type="VBoxContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 14
 
-[node name="Vitals" type="HBoxContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="Vitals" type="HBoxContainer" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="ChipHP" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+[node name="ChipHP" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/Vitals" instance=ExtResource("3_chip")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ChipAC" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+[node name="ChipAC" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/Vitals" instance=ExtResource("3_chip")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ChipMood" parent="Frame/Root/Left/LeftBody/StatsPage/Vitals" instance=ExtResource("3_chip")]
+[node name="ChipMood" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/Vitals" instance=ExtResource("3_chip")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityGrid" type="GridContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="AbilityGrid" type="GridContainer" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 10
 columns = 3
 
-[node name="AbilitySTR" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilitySTR" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityDEX" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilityDEX" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityCON" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilityCON" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityINT" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilityINT" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityWIS" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilityWIS" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AbilityCHA" parent="Frame/Root/Left/LeftBody/StatsPage/AbilityGrid" instance=ExtResource("4_ability")]
+[node name="AbilityCHA" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/AbilityGrid" instance=ExtResource("4_ability")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="LblTraitsTitle" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="LblTraitsTitle" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 layout_mode = 2
 theme_type_variation = &"SectionLabel"
 text = "TEMPÉRAMENT"
 
-[node name="LblTraits" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="LblTraits" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 autowrap_mode = 3
 text = "Méfiant · Silencieux · Opportuniste"
 
-[node name="Spacer" type="Control" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="Spacer" type="Control" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
-size_flags_vertical = 3
 
-[node name="BarkBox" type="PanelContainer" parent="Frame/Root/Left/LeftBody/StatsPage"]
+[node name="BarkBox" type="PanelContainer" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 layout_mode = 2
 theme_type_variation = &"InsetPanel"
 
-[node name="LblBark" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/BarkBox"]
+[node name="LblBark" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner/BarkBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
@@ -186,29 +193,43 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 
 [node name="LblStoryTitle" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
 layout_mode = 2
 theme_type_variation = &"SectionLabel"
 text = "HISTOIRE"
 
-[node name="LblStory" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+[node name="StoryScroll" type="ScrollContainer" parent="Frame/Root/Left/LeftBody/StoryPage"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="StoryInner" type="VBoxContainer" parent="Frame/Root/Left/LeftBody/StoryPage/StoryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="LblStory" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage/StoryScroll/StoryInner"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Aucune histoire écrite."
 autowrap_mode = 3
 vertical_alignment = 0
 
-[node name="LblQuirkTitle" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+[node name="LblQuirkTitle" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage/StoryScroll/StoryInner"]
 layout_mode = 2
 theme_type_variation = &"SectionLabel"
 text = "PARTICULARITÉ"
 
-[node name="LblQuirk" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage"]
+[node name="LblQuirk" type="Label" parent="Frame/Root/Left/LeftBody/StoryPage/StoryScroll/StoryInner"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_type_variation = &"CaptionLabel"
 theme_override_font_sizes/font_size = 14
 text = "Surveille toujours les sorties."

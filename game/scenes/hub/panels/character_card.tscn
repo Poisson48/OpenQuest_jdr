@@ -26,18 +26,21 @@ text = "🧙 Sans nom"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 14
 text = "Classique"
 
 [node name="LblRoster" type="Label" parent="VBox/Header"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BadgeLabel"
+theme_override_font_sizes/font_size = 14
 text = "Aventure"
 
 [node name="LblMeta" type="Label" parent="VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 14
 text = "? · ?"
 
 [node name="LblStats" type="Label" parent="VBox"]

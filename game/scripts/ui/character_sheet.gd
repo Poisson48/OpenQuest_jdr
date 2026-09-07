@@ -1,9 +1,9 @@
 extends Control
 class_name CharacterSheet
 
-## Fiche personnage plein écran — pas de scroll.
+## Fiche personnage plein écran.
 ## Structure dans `scenes/session/panels/character_sheet.tscn`.
-## Gauche : stats / histoire · Droite : silhouette en pied.
+## Gauche : stats / histoire (scroll si besoin) · Droite : silhouette.
 
 signal closed
 
@@ -13,8 +13,9 @@ const BARK_INTERVAL := 7.5
 @onready var _art: TextureRect = %Art
 @onready var _name: Label = %LblName
 @onready var _subtitle: Label = %LblSubtitle
-@onready var _stats_page: VBoxContainer = %StatsPage
+@onready var _stats_page: ScrollContainer = %StatsPage
 @onready var _story_page: VBoxContainer = %StoryPage
+@onready var _story_scroll: ScrollContainer = %StoryScroll
 @onready var _chip_hp = %ChipHP
 @onready var _chip_ac = %ChipAC
 @onready var _chip_mood = %ChipMood
@@ -34,6 +35,8 @@ var _member: Dictionary = {}
 var _showing_story: bool = false
 var _bark_idx: int = 0
 var _bark_timer: float = 0.0
+var _last_story_wrap_w: float = -1.0
+var _last_stats_wrap_w: float = -1.0
 
 func _ready() -> void:
 	visible = false
@@ -49,17 +52,26 @@ func open(member: Dictionary) -> void:
 	_showing_story = false
 	_bark_idx = randi() % maxi(1, _barks().size())
 	_bark_timer = 0.0
+	_last_story_wrap_w = -1.0
+	_last_stats_wrap_w = -1.0
 	_fill()
 	_show_page()
 	_load_art()
 	visible = true
 	set_process(true)
 	move_to_front()
+	call_deferred("_fit_story_wrap_width")
+	call_deferred("_fit_stats_wrap_width")
 
 func close() -> void:
 	visible = false
 	set_process(false)
 	closed.emit()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and visible:
+		_fit_story_wrap_width()
+		_fit_stats_wrap_width()
 
 func _process(delta: float) -> void:
 	if not visible or _showing_story:
@@ -103,6 +115,36 @@ func _show_page() -> void:
 	_stats_page.visible = not _showing_story
 	_story_page.visible = _showing_story
 	_story_btn.text = "← Fiche" if _showing_story else "Histoire ▸"
+	# Remet le scroll en haut à chaque changement de page.
+	if _showing_story:
+		_story_scroll.scroll_vertical = 0
+		call_deferred("_fit_story_wrap_width")
+	else:
+		_stats_page.scroll_vertical = 0
+		call_deferred("_fit_stats_wrap_width")
+
+func _fit_story_wrap_width() -> void:
+	if _story_scroll == null or not is_instance_valid(_story_scroll):
+		return
+	var w := floorf(maxf(120.0, _story_scroll.size.x - 18.0))
+	if is_equal_approx(w, _last_story_wrap_w):
+		return
+	_last_story_wrap_w = w
+	_story.custom_minimum_size = Vector2(w, 0)
+	_quirk.custom_minimum_size = Vector2(w, 0)
+	var inner := _story_scroll.get_child(0) as Control
+	if inner:
+		inner.custom_minimum_size = Vector2(w, 0)
+
+func _fit_stats_wrap_width() -> void:
+	if _stats_page == null or not is_instance_valid(_stats_page):
+		return
+	var w := floorf(maxf(120.0, _stats_page.size.x - 18.0))
+	if is_equal_approx(w, _last_stats_wrap_w):
+		return
+	_last_stats_wrap_w = w
+	_traits.custom_minimum_size = Vector2(w, 0)
+	_bark.custom_minimum_size = Vector2(w, 0)
 
 func _toggle_story() -> void:
 	_showing_story = not _showing_story
@@ -113,7 +155,7 @@ func _load_art() -> void:
 	_art.texture = null
 	if path.is_empty():
 		return
-	var cut := MapData.load_token_cutout(path, 720)
+	var cut := MapData.load_token_cutout(path, 320)
 	if cut != null:
 		_art.texture = cut
 		_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
