@@ -2,7 +2,6 @@ extends Control
 
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 const MapCardScene := preload("res://scenes/hub/panels/map_card.tscn")
-const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn")
 const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 
 @onready var tab_container: TabContainer = %TabContainer
@@ -13,8 +12,6 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var bots_count_lbl: Label = %BotsCountLabel
 @onready var adv_summary_lbl: Label = %AdvSummaryLabel
 @onready var inv_summary_lbl: Label = %InvSummaryLabel
-@onready var play_status_lbl: Label = %PlayStatusLabel
-@onready var saved_games_list: VBoxContainer = %SavedGamesList
 @onready var maps_sections_root: VBoxContainer = %MapsSectionsRoot
 @onready var maps_sort: OptionButton = %MapsSort
 @onready var btn_home: Button = %BtnHome
@@ -24,15 +21,12 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var btn_inv_new_char: Button = %BtnInvNewChar
 @onready var btn_inv_scenarios: Button = %BtnInvScenarios
 @onready var btn_inv_play: Button = %BtnInvPlay
-@onready var btn_play_new: Button = %BtnPlayNew
 @onready var btn_new_map_world: Button = %BtnNewMapWorld
 @onready var btn_new_map_adv: Button = %BtnNewMapAdv
 @onready var btn_new_map_inv: Button = %BtnNewMapInv
-@onready var confirm_delete_session: ConfirmationDialog = %ConfirmDeleteSession
 @onready var confirm_delete_map: ConfirmationDialog = %ConfirmDeleteMap
 @onready var confirm_delete_bot: ConfirmationDialog = %ConfirmDeleteBot
 
-var _pending_delete_id: String = ""
 var _pending_delete_map_id: String = ""
 var _pending_delete_bot_id: String = ""
 var _last_bot_grid_cols: int = -1
@@ -50,29 +44,39 @@ func _ready() -> void:
 	btn_inv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
 	btn_inv_play.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
 
-	btn_play_new.pressed.connect(func(): GameData.go_to_game_setup())
-	confirm_delete_session.confirmed.connect(_on_confirm_delete_session)
-
 	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
 	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
 	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
 	btn_new_map_world.visible = false
 	btn_new_map_adv.visible = false
 	btn_new_map_inv.visible = false
-	for i in range(tab_container.get_tab_count()):
-		if tab_container.get_tab_title(i) == "Enquête":
-			tab_container.set_tab_hidden(i, true)
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
-	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Jouer", "Bots"])
+	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Bots"])
 	_setup_full_width_tabs()
+	_apply_pending_hub_tab()
 	MapData.maps_updated.connect(_render_maps_tab)
 	GameData.bots_updated.connect(_render_bots)
 	_setup_maps_sort()
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+
+func _apply_pending_hub_tab() -> void:
+	if not get_tree().has_meta("hub_tab"):
+		return
+	var wanted := str(get_tree().get_meta("hub_tab"))
+	get_tree().remove_meta("hub_tab")
+	if wanted.is_empty():
+		return
+	for i in tab_container.get_tab_count():
+		if tab_container.is_tab_hidden(i):
+			continue
+		if tab_container.get_tab_title(i) == wanted:
+			tab_container.current_tab = i
+			_sync_tab_nav(i)
+			return
 
 func _setup_bots_filter() -> void:
 	bots_filter.clear()
@@ -110,7 +114,6 @@ func _populate_hub_data() -> void:
 	var inv_scns := GameData.get_scenarios("", "investigation")
 	inv_summary_lbl.text = "🔍 %d enquêteurs · 📁 %d dossiers d'enquête disponibles" % [inv_chars.size(), inv_scns.size()]
 	
-	_render_saved_games()
 	_render_bots()
 	_render_maps_tab()
 
@@ -262,44 +265,6 @@ func _on_confirm_delete_map() -> void:
 	_pending_delete_map_id = ""
 	_render_maps_tab()
 
-func _render_saved_games() -> void:
-	for child in saved_games_list.get_children():
-		child.queue_free()
-	
-	var games: Array = GameData.get_playing_games()
-	if games.is_empty():
-		play_status_lbl.text = "Aucune partie en cours."
-		return
-	
-	play_status_lbl.text = "%d partie(s) en cours" % games.size()
-	for game in games:
-		saved_games_list.add_child(_make_saved_game_row(game))
-
-func _make_saved_game_row(game: Dictionary) -> PanelContainer:
-	var row := SavedGameRowScene.instantiate()
-	row.setup(game)
-	row.resume_pressed.connect(_resume_game)
-	row.delete_pressed.connect(_ask_delete_game)
-	return row
-
-func _resume_game(game_id: String) -> void:
-	if not GameData.load_game_by_id(game_id):
-		_render_saved_games()
-		return
-	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
-
-func _ask_delete_game(game_id: String, title: String) -> void:
-	_pending_delete_id = game_id
-	confirm_delete_session.dialog_text = "Effacer la partie « %s » ? Toute la progression sera perdue." % title
-	confirm_delete_session.popup_centered()
-
-func _on_confirm_delete_session() -> void:
-	if _pending_delete_id.is_empty():
-		return
-	GameData.delete_game(_pending_delete_id)
-	_pending_delete_id = ""
-	_populate_hub_data()
-
 func _render_bots() -> void:
 	for child in bots_sections_root.get_children():
 		child.queue_free()
@@ -411,6 +376,8 @@ func _setup_full_width_tabs() -> void:
 	var group := ButtonGroup.new()
 	group.allow_unpress = false
 	for i in tab_container.get_tab_count():
+		if tab_container.is_tab_hidden(i):
+			continue
 		var btn := Button.new()
 		btn.text = tab_container.get_tab_title(i)
 		btn.toggle_mode = true
@@ -418,6 +385,7 @@ func _setup_full_width_tabs() -> void:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.custom_minimum_size = Vector2(0, 44)
 		btn.button_pressed = i == tab_container.current_tab
+		btn.set_meta("tab_index", i)
 		var idx := i
 		btn.pressed.connect(func(): tab_container.current_tab = idx)
 		tab_nav.add_child(btn)
@@ -430,8 +398,9 @@ func _sync_tab_nav(idx: int) -> void:
 		var btn := tab_nav.get_child(i) as Button
 		if btn == null:
 			continue
-		btn.set_pressed_no_signal(i == idx)
-		if i == idx:
+		var tab_idx: int = int(btn.get_meta("tab_index", i))
+		btn.set_pressed_no_signal(tab_idx == idx)
+		if tab_idx == idx:
 			btn.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
 		else:
 			btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)

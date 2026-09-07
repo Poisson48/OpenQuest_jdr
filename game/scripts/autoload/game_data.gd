@@ -549,6 +549,11 @@ func go_to_scenario_list(mode: String = "") -> void:
 		get_tree().set_meta("preselected_scenario_mode", mode)
 	get_tree().change_scene_to_file("res://scenes/scenario_list.tscn")
 
+func go_to_hub(tab: String = "") -> void:
+	if not tab.is_empty():
+		get_tree().set_meta("hub_tab", tab)
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+
 func go_to_scenario_editor(scenario_id: String = "", roster: String = "", quest_format: String = "") -> void:
 	editor_scenario_id = scenario_id
 	if not roster.is_empty():
