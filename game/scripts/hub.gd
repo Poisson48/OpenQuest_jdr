@@ -58,10 +58,15 @@ func _ready() -> void:
 	_apply_pending_hub_tab()
 	MapData.maps_updated.connect(_render_maps_tab)
 	GameData.bots_updated.connect(_render_bots)
+	LocaleSettings.locale_changed.connect(_on_locale_changed)
 	_setup_maps_sort()
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+
+func _on_locale_changed(_locale: String) -> void:
+	_setup_bots_filter()
+	_render_bots()
 
 func _apply_pending_hub_tab() -> void:
 	if not get_tree().has_meta("hub_tab"):
@@ -79,16 +84,25 @@ func _apply_pending_hub_tab() -> void:
 			return
 
 func _setup_bots_filter() -> void:
+	var prev := _current_bots_filter_mode() if bots_filter.item_count > 0 else "all"
 	bots_filter.clear()
-	bots_filter.add_item("Tous les modes", 0)
+	bots_filter.add_item(tr("Tous les modes"), 0)
 	bots_filter.set_item_metadata(0, "all")
-	bots_filter.add_item("⚔️ Aventure & one-shots", 1)
+	bots_filter.add_item(tr("⚔️ Aventure & one-shots"), 1)
 	bots_filter.set_item_metadata(1, "adventure")
-	bots_filter.add_item("🔍 Enquête", 2)
+	bots_filter.add_item(tr("🔍 Enquête"), 2)
 	bots_filter.set_item_metadata(2, "investigation")
-	bots_filter.item_selected.connect(func(_idx): _render_bots())
+	if not bots_filter.item_selected.is_connected(_on_bots_filter_selected):
+		bots_filter.item_selected.connect(_on_bots_filter_selected)
+	for i in bots_filter.item_count:
+		if str(bots_filter.get_item_metadata(i)) == prev:
+			bots_filter.selected = i
+			break
 	if not bots_scroll.resized.is_connected(_on_bots_scroll_resized):
 		bots_scroll.resized.connect(_on_bots_scroll_resized)
+
+func _on_bots_filter_selected(_idx: int) -> void:
+	_render_bots()
 
 func _on_bots_scroll_resized() -> void:
 	if bots_sections_root.get_child_count() == 0:
@@ -279,19 +293,22 @@ func _render_bots() -> void:
 			_add_bots_empty_state()
 		else:
 			if not adv_bots.is_empty():
-				_add_bot_section("⚔️ Aventure & one-shots", adv_bots)
+				_add_bot_section(tr("⚔️ Aventure & one-shots"), adv_bots)
 			if not inv_bots.is_empty():
-				_add_bot_section("🔍 Enquête", inv_bots)
+				_add_bot_section(tr("🔍 Enquête"), inv_bots)
 	else:
 		var bots := _sorted_bots(_bots_for_mode(mode))
 		total = bots.size()
 		if bots.is_empty():
 			_add_bots_empty_state()
 		else:
-			var title := "🔍 Enquête" if mode == "investigation" else "⚔️ Aventure & one-shots"
+			var title := tr("🔍 Enquête") if mode == "investigation" else tr("⚔️ Aventure & one-shots")
 			_add_bot_section(title, bots)
 
-	bots_count_lbl.text = "%d compagnon%s" % [total, "s" if total != 1 else ""]
+	if total == 1:
+		bots_count_lbl.text = tr("%d compagnon") % total
+	else:
+		bots_count_lbl.text = tr("%d compagnons") % total
 	_last_bot_grid_cols = _bot_grid_columns()
 
 func _bots_for_mode(mode: String) -> Array:
@@ -319,7 +336,7 @@ func _bot_grid_columns() -> int:
 
 func _add_bots_empty_state() -> void:
 	var empty_lbl := Label.new()
-	empty_lbl.text = "Aucun compagnon bot pour ce mode."
+	empty_lbl.text = tr("Aucun compagnon pour ce filtre.")
 	empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 	bots_sections_root.add_child(empty_lbl)
