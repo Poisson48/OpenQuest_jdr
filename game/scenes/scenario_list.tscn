@@ -54,6 +54,7 @@ text = "📜 Bibliothèque de Scénarios"
 [node name="LblModeFilter" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
 text = "Mode :"
 
 [node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar"]
@@ -71,6 +72,7 @@ text = "+ Nouveau scénario"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 14
 text = "0 scénario(s)"
 
 [node name="ContentArea" type="Control" parent="MainLayout"]

@@ -174,7 +174,7 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 	desc.text = hint
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_font_size_override("font_size", 14)
 	section.add_child(desc)
 
 	if map_list.is_empty():

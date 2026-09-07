@@ -234,6 +234,7 @@ text = "🗺️ Cartes du Monde & Lieux tactiques"
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/PanelInfo/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 14
 autowrap_mode = 3
 text = "Crée et gère les cartes pour tes campagnes et enquêtes. Choisis le mode ▦ Simple ou ⚙️ Complexe (diorama / VTT) dans l'éditeur via « Modifier »."
 
@@ -245,6 +246,7 @@ theme_override_constants/separation = 8
 [node name="SortLabel" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 14
 text = "Trier :"
 
 [node name="MapsSort" type="OptionButton" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]

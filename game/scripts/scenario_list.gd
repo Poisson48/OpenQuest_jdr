@@ -201,6 +201,7 @@ func _add_empty_state() -> void:
 			lbl.text = "Aucun scénario ne correspond à ce mode."
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_font_size_override("font_size", 14)
 	scenario_sections_root.add_child(lbl)
 
 func _add_scenario_section(title: String, scenarios: Array) -> void:
@@ -212,6 +213,7 @@ func _add_scenario_section(title: String, scenarios: Array) -> void:
 	header.text = "%s (%d)" % [title, scenarios.size()]
 	header.add_theme_color_override("font_color", ThemeColors.GOLD)
 	header.theme_type_variation = "HeaderMedium"
+	header.add_theme_font_size_override("font_size", 16)
 	section.add_child(header)
 
 	var grid := GridContainer.new()
