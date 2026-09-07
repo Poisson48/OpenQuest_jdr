@@ -70,6 +70,21 @@ text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque 
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="LanguageRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HeaderBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="LblLanguage" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Langue :"
+
+[node name="OptLanguage" type="OptionButton" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+
 [node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3

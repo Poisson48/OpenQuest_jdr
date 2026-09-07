@@ -24,6 +24,7 @@ config/icon="res://icon.svg"
 
 ThemeColors="*res://scripts/autoload/theme_colors.gd"
 UiLayout="*res://scripts/autoload/ui_layout.gd"
+LocaleSettings="*res://scripts/autoload/locale_settings.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MapData="*res://scripts/autoload/map_data.gd"
 MultiplayerManager="*res://scripts/multiplayer/multiplayer_manager.gd"
@@ -46,3 +47,9 @@ project/assembly_name="OpenQuest JDR"
 [gui]
 
 theme/custom="res://theme/openquest_theme.tres"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/ui.en.translation")
+locale/fallback="fr"
+
