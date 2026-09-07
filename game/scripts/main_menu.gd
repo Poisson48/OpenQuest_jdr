@@ -2,7 +2,9 @@ extends Control
 
 const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn")
 
-@onready var saved_games_section: PanelContainer = %SavedGamesSection
+@onready var home_page: VBoxContainer = %HomePage
+@onready var ongoing_page: PanelContainer = %OngoingPage
+@onready var play_status_lbl: Label = %PlayStatusLabel
 @onready var saved_games_list: VBoxContainer = %SavedGamesList
 @onready var player_name_input: LineEdit = %PlayerNameInput
 
@@ -23,9 +25,15 @@ const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn"
 
 var _pending_delete_id: String = ""
 
+const DISCORD_INVITE_URL := "https://discord.gg/nqYfxpbNC"
+
 func _ready() -> void:
 	%BtnPlay.pressed.connect(_on_play_pressed)
+	%BtnOngoing.pressed.connect(_on_ongoing_pressed)
 	%BtnDiscover.pressed.connect(_on_discover_pressed)
+	%BtnDiscord.pressed.connect(_on_discord_pressed)
+	%BtnBackHome.pressed.connect(_on_back_home_pressed)
+	%BtnPlayNew.pressed.connect(_on_play_pressed)
 	%ConfirmDeleteResume.confirmed.connect(_on_confirm_delete_resume)
 	%BtnConnectPooling.pressed.connect(_on_connect_pooling_pressed)
 	%BtnCreateRoom.pressed.connect(_on_create_room_pressed)
@@ -55,7 +63,9 @@ func _ready() -> void:
 	_update_pooling_role_ui()
 	_refresh_pooling_players()
 	_update_pooling_launch_ui()
+	_show_home_page()
 	_render_saved_games()
+	_highlight_nav("home")
 
 func _get_pooling_role_from_ui() -> String:
 	if opt_pooling_role.item_count == 0:
@@ -67,7 +77,7 @@ func _sync_pooling_role_from_ui() -> void:
 	MultiplayerManager.set_player_role(_get_pooling_role_from_ui())
 
 func _configure_pooling_dropdown(dropdown: OptionButton) -> void:
-	# PopupWindow évite le clipping du menu dans ScrollContainer (surtout avec parties sauvegardées).
+	# PopupWindow évite le clipping du menu dans ScrollContainer.
 	dropdown.get_popup().popup_window = true
 
 func _role_index_for_saved_role() -> int:
@@ -306,15 +316,58 @@ func _refresh_pooling_players() -> void:
 		row.add_child(name_lbl)
 		pooling_players_vbox.add_child(row)
 
+func _on_play_pressed() -> void:
+	GameData.go_to_game_setup()
+
+func _on_ongoing_pressed() -> void:
+	_show_ongoing_page()
+	_highlight_nav("ongoing")
+
+func _on_back_home_pressed() -> void:
+	_show_home_page()
+	_highlight_nav("home")
+
+func _on_discover_pressed() -> void:
+	GameData.go_to_hub()
+
+func _on_discord_pressed() -> void:
+	# OS.shell_open bloque souvent le thread UI ; create_process ne bloque pas.
+	var pid := -1
+	match OS.get_name():
+		"Linux":
+			pid = OS.create_process("xdg-open", [DISCORD_INVITE_URL])
+		"macOS":
+			pid = OS.create_process("open", [DISCORD_INVITE_URL])
+		"Windows":
+			pid = OS.create_process("cmd", ["/C", "start", "", DISCORD_INVITE_URL])
+		_:
+			OS.shell_open(DISCORD_INVITE_URL)
+			return
+	if pid < 0:
+		OS.shell_open(DISCORD_INVITE_URL)
+
+func _show_home_page() -> void:
+	home_page.visible = true
+	ongoing_page.visible = false
+
+func _show_ongoing_page() -> void:
+	home_page.visible = false
+	ongoing_page.visible = true
+	_render_saved_games()
+
+func _highlight_nav(which: String) -> void:
+	var gold := ThemeColors.GOLD_LIGHT
+	var muted := ThemeColors.TEXT_MUTED
+	%BtnOngoing.add_theme_color_override("font_color", gold if which == "ongoing" else muted)
+
 func _render_saved_games() -> void:
 	for child in saved_games_list.get_children():
 		child.queue_free()
-	
 	var games: Array = GameData.get_playing_games()
-	saved_games_section.visible = not games.is_empty()
 	if games.is_empty():
+		play_status_lbl.text = "Aucune partie en cours"
 		return
-	
+	play_status_lbl.text = "%d partie(s) en cours" % games.size()
 	for game in games:
 		saved_games_list.add_child(_make_saved_game_row(game))
 
@@ -342,9 +395,3 @@ func _on_confirm_delete_resume() -> void:
 	GameData.delete_game(_pending_delete_id)
 	_pending_delete_id = ""
 	_render_saved_games()
-
-func _on_play_pressed() -> void:
-	GameData.go_to_game_setup()
-
-func _on_discover_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")

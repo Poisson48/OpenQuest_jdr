@@ -301,56 +301,6 @@ dialog_text = "Supprimer cette carte ?"
 ok_button_text = "Supprimer"
 cancel_button_text = "Annuler"
 
-[node name="Jouer" type="MarginContainer" parent="MainLayout/TabContainer"]
-visible = false
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
-metadata/_tab_index = 3
-
-[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Jouer"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 16
-
-[node name="SessionStatusCard" type="PanelContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox"]
-layout_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="PlayStatusLabel" type="Label" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
-text = "Parties en cours"
-
-[node name="SavedGamesList" type="VBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HBox" type="HBoxContainer" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnPlayNew" type="Button" parent="MainLayout/TabContainer/Jouer/TabScroll/VBox/SessionStatusCard/VBox/HBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 44)
-layout_mode = 2
-text = "⚙️ Nouvelle Partie"
-
 [node name="Bots" type="MarginContainer" parent="MainLayout/TabContainer"]
 visible = false
 layout_mode = 2
@@ -358,7 +308,7 @@ theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
-metadata/_tab_index = 4
+metadata/_tab_index = 3
 
 [node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Bots"]
 layout_mode = 2
@@ -415,15 +365,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
-
-[node name="ConfirmDeleteSession" type="ConfirmationDialog" parent="."]
-unique_name_in_owner = true
-title = "Effacer la partie"
-initial_position = 2
-size = Vector2i(420, 120)
-dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
-ok_button_text = "Effacer"
-cancel_button_text = "Annuler"
 
 [node name="ConfirmDeleteBot" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
