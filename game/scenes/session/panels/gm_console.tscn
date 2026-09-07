@@ -28,8 +28,16 @@ theme_type_variation = &"AlertPanel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-text = "Action reçue — répondez pour relancer le tour."
+text = "Action reçue — répondez, puis Tour suivant pour passer au joueur suivant."
 autowrap_mode = 3
+
+[node name="BtnNextTurn" type="Button" parent="Col"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_type_variation = &"AccentButton"
+tooltip_text = "Valider le tour en cours et passer au joueur suivant. Diffuser ne change pas le tour."
+text = "Tour suivant"
 
 [node name="Scroll" type="ScrollContainer" parent="Col"]
 layout_mode = 2
@@ -74,6 +82,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Choisir qui prend la parole"
 clip_text = true
+fit_to_longest_item = false
 
 [node name="NpcInput" type="TextEdit" parent="Col/Scroll/Body"]
 unique_name_in_owner = true

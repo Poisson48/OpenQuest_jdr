@@ -155,6 +155,7 @@ func _deserialize() -> void:
 		if tok is Dictionary:
 			var kind := KIND_MARKER if str(tok.get("kind", "")) == "marker" else KIND_TOKEN
 			_ingest(tok, kind, 4 if kind == KIND_TOKEN else 3)
+	_ingest_simple_markers()
 	for eff in play_defaults.get("effects", []):
 		if eff is Dictionary:
 			_ingest(eff, KIND_EFFECT, 3)
@@ -195,9 +196,39 @@ func _deserialize() -> void:
 		if prop is Dictionary:
 			_ingest(prop, KIND_PROP, 1)
 
+func _ingest_simple_markers() -> void:
+	## Les cartes 2D historiques stockent les marqueurs dans `markers`,
+	## pas dans `playDefaults.tokens`. On les adopte sans doublon.
+	for mk_variant in map_data.get("markers", []):
+		if not mk_variant is Dictionary:
+			continue
+		var mk: Dictionary = mk_variant
+		var mid := str(mk.get("id", ""))
+		if not mid.is_empty() and _elements.has(mid):
+			continue
+		var mx := int(round(float(mk.get("x", 0))))
+		var my := int(round(float(mk.get("y", 0))))
+		if _has_marker_at(mx, my):
+			continue
+		var raw := mk.duplicate(true)
+		if str(raw.get("markerType", "")).is_empty():
+			raw["markerType"] = str(raw.get("type", "npc"))
+		_ingest(raw, KIND_MARKER, 3)
+
+func _has_marker_at(cx: int, cy: int) -> bool:
+	for id in _order:
+		var elem: Dictionary = _elements[id]
+		if str(elem.get("kind", "")) != KIND_MARKER:
+			continue
+		if int(round(float(elem.get("x", 0)))) == cx and int(round(float(elem.get("y", 0)))) == cy:
+			return true
+	return false
+
 func _ingest(raw: Dictionary, kind: String, default_layer: int) -> void:
 	var elem := normalize_element(raw, kind, default_layer)
 	var id: String = elem["id"]
+	if _elements.has(id):
+		return
 	_elements[id] = elem
 	_order.append(id)
 
@@ -308,6 +339,7 @@ func to_map_data() -> Dictionary:
 	var links: Array = []
 	var areas: Array = []
 	var props: Array = []
+	var simple_markers: Array = []
 	for id in _order:
 		var elem: Dictionary = _elements.get(id, {})
 		if elem.is_empty():
@@ -319,7 +351,16 @@ func to_map_data() -> Dictionary:
 				tokens.append(payload)
 			KIND_MARKER:
 				payload["kind"] = "marker"
+				if str(payload.get("markerType", "")).is_empty():
+					payload["markerType"] = str(payload.get("type", "npc"))
 				tokens.append(payload)
+				simple_markers.append({
+					"id": str(elem.get("id", "")),
+					"x": int(round(float(elem.get("x", 0)))),
+					"y": int(round(float(elem.get("y", 0)))),
+					"type": str(payload.get("markerType", "npc")),
+					"label": str(elem.get("label", "")),
+				})
 			KIND_EFFECT:
 				effects.append(payload)
 			KIND_ZONE:
@@ -365,6 +406,7 @@ func to_map_data() -> Dictionary:
 	out["locationLinks"] = links
 	out["areas"] = areas
 	out["props"] = props
+	out["markers"] = simple_markers
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
 	out["lighting"] = lighting
@@ -450,6 +492,74 @@ func layer_name(layer_index: int) -> String:
 		if int(layer_def.get("id", -1)) == layer_index:
 			return str(layer_def.get("name", "Calque %d" % layer_index))
 	return "Calque %d" % layer_index
+
+## Picking 2D : marqueurs / notes / liens d'abord, puis décors, puis lieux.
+func hit_element_at(gx: float, gy: float) -> String:
+	var id := _hit_kinds_at(gx, gy, [KIND_NOTE, KIND_LINK, KIND_MARKER, KIND_TOKEN])
+	if not id.is_empty():
+		return id
+	id = _hit_kinds_at(gx, gy, [KIND_PROP])
+	if not id.is_empty():
+		return id
+	return _hit_kinds_at(gx, gy, [KIND_AREA])
+
+## Tous les visuels empilés sur une case (gomme : plus de texte fantôme).
+func hit_stack_at(gx: float, gy: float) -> Array:
+	var ids: Array = []
+	var seen: Dictionary = {}
+	for kind_group in [
+		[KIND_NOTE, KIND_LINK, KIND_MARKER, KIND_TOKEN, KIND_PROP],
+		[KIND_AREA],
+	]:
+		var sorted: Array = elements_sorted()
+		for i in range(sorted.size() - 1, -1, -1):
+			var elem: Dictionary = sorted[i]
+			var kind := str(elem.get("kind", ""))
+			if not kind_group.has(kind):
+				continue
+			if not is_element_selectable(elem):
+				continue
+			if not element_contains(elem, gx, gy):
+				continue
+			if kind == KIND_AREA:
+				var aw := maxf(0.5, float(elem.get("w", 2.0)))
+				var ah := maxf(0.5, float(elem.get("h", 2.0)))
+				var is_exit := str(elem.get("category", "")) == "exit" \
+					or str(elem.get("markerType", elem.get("type", ""))) == "exit"
+				if not is_exit and (aw > 2.2 or ah > 2.2):
+					continue
+			var id := str(elem.get("id", ""))
+			if id.is_empty() or seen.has(id):
+				continue
+			seen[id] = true
+			ids.append(id)
+	return ids
+
+func _hit_kinds_at(gx: float, gy: float, kinds: Array) -> String:
+	var sorted: Array = elements_sorted()
+	for i in range(sorted.size() - 1, -1, -1):
+		var elem: Dictionary = sorted[i]
+		if not kinds.has(str(elem.get("kind", ""))):
+			continue
+		if not is_element_selectable(elem):
+			continue
+		if element_contains(elem, gx, gy):
+			return str(elem.get("id", ""))
+	return ""
+
+static func element_contains(elem: Dictionary, gx: float, gy: float) -> bool:
+	var kind := str(elem.get("kind", ""))
+	var x := float(elem.get("x", 0.0))
+	var y := float(elem.get("y", 0.0))
+	var w := float(elem.get("w", 1.0))
+	var h := float(elem.get("h", 1.0))
+	match kind:
+		KIND_AREA, KIND_PROP, KIND_ZONE:
+			if str(elem.get("shape", "rect")) == "circle":
+				return Vector2(gx - x, gy - y).length() <= maxf(w, h) * 0.5
+			return absf(gx - x) <= w * 0.5 and absf(gy - y) <= h * 0.5
+		_:
+			return int(floor(gx)) == int(round(x)) and int(floor(gy)) == int(round(y))
 
 # ===========================================================================
 # Historique — deltas & transactions

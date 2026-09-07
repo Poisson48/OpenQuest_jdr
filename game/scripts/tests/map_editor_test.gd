@@ -416,6 +416,7 @@ func _test_tools() -> void:
 	_assert("snap_off", is_equal_approx(ToolsScript.apply_snap(2.4, "off"), 2.4))
 	_assert("snap_vector", ToolsScript.snap_vector(Vector2(1.2, 3.7), "cell") == Vector2(1.0, 4.0))
 	_assert("shortcuts_text", ToolsScript.shortcuts_text().contains("Ctrl+Z"))
+	_assert("simple_subset", ToolsScript.is_simple_tool(ToolsScript.PAINT) and not ToolsScript.is_simple_tool(ToolsScript.WALL))
 
 func _test_editor_ui(base: Dictionary) -> void:
 	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()

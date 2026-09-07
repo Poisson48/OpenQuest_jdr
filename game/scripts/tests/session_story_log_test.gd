@@ -34,6 +34,7 @@ func _run() -> void:
 	var log_text: RichTextLabel = log_panel.get_node("%LogText")
 	var before_count: int = gd.active_game.get("log", []).size()
 	var before_ui := log_text.get_parsed_text()
+	var turn_before: int = int(gd.active_game.get("turnIndex", 0))
 
 	print("role=", report.get("role", ""), " can_narrate=", role.can_narrate,
 		" kind=", role.kind, " is_mj=", role.is_mj,
@@ -60,6 +61,8 @@ func _run() -> void:
 	_assert("narrate_grows_log", after_narrate.size() == before_count + 1)
 	_assert("narrate_visible_ui", ui_after_narrate.contains("La brume s'écarte"))
 	_assert("narrate_latest", log_panel.latest_line().contains("La brume s'écarte"))
+	_assert("narrate_clears_wait", not bool(gd.active_game.get("waitingForGm", true)))
+	_assert("narrate_keeps_turn", int(gd.active_game.get("turnIndex", -1)) == turn_before)
 
 	# Chemin démo : placeholder « Choisir un PNJ » encore sélectionné.
 	var picker: OptionButton = console.get_node("%NpcPicker")
@@ -78,6 +81,41 @@ func _run() -> void:
 	_assert("npc_grows_log", after_npc.size() == before_count + 2)
 	_assert("npc_visible_ui", ui_after_npc.contains("Halte"))
 	_assert("npc_latest", log_panel.latest_line().contains("Halte"))
+
+	var session_npcs: Array = gd.list_session_npcs()
+	print("session_npcs=", session_npcs.size())
+	_assert("npc_roster_crowded", session_npcs.size() >= 12)
+	_assert("npc_picker_crowded", picker.item_count >= 14)
+
+	var named_idx := -1
+	var named := "Eldric le fossoyeur"
+	for i in range(picker.item_count):
+		if str(picker.get_item_metadata(i)) == named:
+			named_idx = i
+			break
+	if named_idx < 0 and picker.item_count > 2:
+		named_idx = 1
+		named = str(picker.get_item_metadata(named_idx))
+	_assert("npc_named_in_picker", named_idx > 0)
+	picker.select(named_idx)
+	console.get_node("%NpcInput").text = "Approchez, voyageurs."
+	console.get_node("%BtnNpc").pressed.emit()
+	await _settle(10)
+
+	var after_named: Array = gd.active_game.get("log", [])
+	var ui_named: String = log_panel.visible_text()
+	print("after_named count=", after_named.size(), " latest=", log_panel.latest_line())
+	_assert("named_npc_grows_log", after_named.size() == before_count + 3)
+	_assert("named_npc_visible", ui_named.contains("Approchez"))
+	_assert("named_npc_author", log_panel.latest_line().contains(named.split(" ", false)[0]))
+	_assert("npc_keeps_turn", int(gd.active_game.get("turnIndex", -1)) == turn_before)
+
+	var map_panel: Node = shell.get_panel("map")
+	var bubbles := 0
+	if map_panel != null and map_panel.has_method("describe"):
+		bubbles = int((map_panel.describe() as Dictionary).get("speech_bubbles", 0))
+	print("speech_bubbles=", bubbles)
+	_assert("speech_bubble_on_map", bubbles >= 1)
 
 	if _failed:
 		print("[STORY LOG] FAIL")

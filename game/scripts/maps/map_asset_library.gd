@@ -259,6 +259,7 @@ static func image_size(path: String) -> Vector2i:
 
 ## Texture pleine résolution, mise en cache (les cartes réutilisent beaucoup
 ## le même arbre ou la même maison).
+## Si le PNG a un fond opaque (damier Gemini / blanc), on détoure au chargement.
 static func load_texture(path: String) -> Texture2D:
 	if path.strip_edges().is_empty():
 		return null
@@ -267,27 +268,102 @@ static func load_texture(path: String) -> Texture2D:
 		if cached != null and is_instance_valid(cached):
 			return cached
 	var texture: Texture2D = null
-	if path.begins_with("res://"):
-		if ResourceLoader.exists(path):
-			var res := load(path)
-			texture = res as Texture2D
-		if texture == null:
-			# PNG shippé pas encore importé : lecture image brute.
-			var abs_path := ProjectSettings.globalize_path(path)
-			if FileAccess.file_exists(abs_path):
-				var img := Image.new()
-				if img.load(abs_path) == OK:
-					texture = ImageTexture.create_from_image(img)
-	else:
-		if not FileAccess.file_exists(path):
-			return null
-		var img := Image.new()
-		if img.load(path) != OK:
-			return null
+	var img := _load_rgba(path)
+	if img != null:
+		_ensure_cutout_alpha(img, path)
 		texture = ImageTexture.create_from_image(img)
 	if texture != null:
 		_texture_cache[path] = texture
 	return texture
+
+static func _load_rgba(path: String) -> Image:
+	var img := Image.new()
+	# Toujours preferer le PNG source sur disque : le cache .godot/imported
+	# peut garder une vieille version SANS alpha (damier Gemini opaque).
+	var abs_path := path
+	if path.begins_with("res://") or path.begins_with("user://"):
+		abs_path = ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path) and img.load(abs_path) == OK:
+		img.convert(Image.FORMAT_RGBA8)
+		return img
+	if path.begins_with("res://") and ResourceLoader.exists(path):
+		var res := load(path)
+		if res is Texture2D:
+			var from_tex: Image = (res as Texture2D).get_image()
+			if from_tex != null:
+				img = from_tex.duplicate()
+				img.convert(Image.FORMAT_RGBA8)
+				return img
+	return null
+
+## Fond clair / damier opaque → transparent. Ne touche pas un PNG déjà détouré.
+## Les sols (`ground/`) restent opaques : on ne les détoure pas ici.
+static func _ensure_cutout_alpha(img: Image, path: String = "") -> void:
+	if path.contains("/ground/") or path.contains("\\ground\\"):
+		return
+	var w := img.get_width()
+	var h := img.get_height()
+	if w < 2 or h < 2:
+		return
+	var clear_n := 0
+	var total := w * h
+	for y in range(h):
+		for x in range(w):
+			if img.get_pixel(x, y).a < 0.05:
+				clear_n += 1
+	if clear_n >= int(total * 0.08):
+		return
+	# Flood depuis les bords : pixels clairs / neutres.
+	var visited := PackedByteArray()
+	visited.resize(total)
+	visited.fill(0)
+	var queue: Array[Vector2i] = []
+	for x in range(w):
+		queue.append(Vector2i(x, 0))
+		queue.append(Vector2i(x, h - 1))
+	for y in range(h):
+		queue.append(Vector2i(0, y))
+		queue.append(Vector2i(w - 1, y))
+	var head := 0
+	while head < queue.size():
+		var p: Vector2i = queue[head]
+		head += 1
+		if p.x < 0 or p.y < 0 or p.x >= w or p.y >= h:
+			continue
+		var idx := p.y * w + p.x
+		if visited[idx] != 0:
+			continue
+		visited[idx] = 1
+		var c := img.get_pixel(p.x, p.y)
+		if c.a < 0.05:
+			continue
+		if not _is_light_background(c):
+			continue
+		img.set_pixel(p.x, p.y, Color(0, 0, 0, 0))
+		queue.append(Vector2i(p.x + 1, p.y))
+		queue.append(Vector2i(p.x - 1, p.y))
+		queue.append(Vector2i(p.x, p.y + 1))
+		queue.append(Vector2i(p.x, p.y - 1))
+	# Damier gris coincé entre branches.
+	for y in range(h):
+		for x in range(w):
+			var c2 := img.get_pixel(x, y)
+			if c2.a < 0.05:
+				continue
+			var mn := minf(c2.r, minf(c2.g, c2.b))
+			var mx := maxf(c2.r, maxf(c2.g, c2.b))
+			if mn >= 0.80 and (mx - mn) <= 0.09:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+
+static func _is_light_background(c: Color) -> bool:
+	var mn := minf(c.r, minf(c.g, c.b))
+	var mx := maxf(c.r, maxf(c.g, c.b))
+	if mn >= 0.78 and (mx - mn) <= 0.16:
+		return true
+	# Parchemin beige
+	if c.r >= 0.68 and c.g >= 0.60 and c.b >= 0.50 and (mx - mn) <= 0.28 and (c.r + c.g + c.b) / 3.0 >= 0.68:
+		return true
+	return false
 
 ## Vignette carrée pour les boutons de la bibliothèque.
 static func load_thumbnail(path: String) -> Texture2D:

@@ -7,6 +7,7 @@ class_name SessionToolRegistry
 ## une table `DEFS` descriptive et des accesseurs statiques. La barre d'outils
 ## se contente de lire ce catalogue ; elle ne décide de rien.
 
+const SELECT := "select"
 const MEMBER := "member"
 const MARKER := "marker"
 const EFFECT := "effect"
@@ -20,9 +21,14 @@ const DATA_DRIVEN := [MEMBER, MARKER]
 
 const DEFS := [
 	{
-		"id": MEMBER, "label": "Personnage", "glyph": "PJ", "group": "place",
+		"id": SELECT, "label": "Sélection", "glyph": "Sél", "group": "base",
 		"modes": ["simple", "complex"], "gm_only": false,
-		"hint": "Clic sur la carte : placer ou déplacer le personnage choisi.",
+		"hint": "Clic : inspecter. Glisser un jeton ou un décor : le déplacer. Double-clic : entrer dans un lieu.",
+	},
+	{
+		"id": MEMBER, "label": "Personnage", "glyph": "PJ", "group": "place",
+		"modes": ["simple", "complex"], "gm_only": true,
+		"hint": "Clic : poser le personnage choisi s'il n'est pas déjà sur la carte.",
 	},
 	{
 		"id": MARKER, "label": "Marqueur", "glyph": "Mrq", "group": "place",
@@ -46,18 +52,21 @@ const DEFS := [
 	},
 	{
 		"id": ERASE, "label": "Gomme", "glyph": "Gomme", "group": "edit",
-		"modes": ["simple", "complex"], "gm_only": false,
+		"modes": ["simple", "complex"], "gm_only": true,
 		"hint": "Clic : retirer le token ou le marqueur sous le curseur.",
 	},
 ]
 
 const GROUP_LABELS := {
+	"base": "Vue",
 	"place": "Placer",
 	"gm": "MJ",
 	"edit": "Corriger",
 }
 
-const GROUP_ORDER := ["place", "gm", "edit"]
+const GROUP_ORDER := ["base", "place", "gm", "edit"]
+
+const PLACE_MODES := [MEMBER, MARKER, EFFECT, FOG, ZONE, ERASE]
 
 const EFFECT_PRESETS := ["fire", "smoke", "magic"]
 
@@ -97,11 +106,13 @@ static func defs_in_group(group: String, render_mode: String, is_gm: bool) -> Ar
 		out.append(def)
 	return out
 
-## Outil par défaut : le premier personnage si la partie en a un, sinon la gomme.
-static func default_tool(party: Array) -> Dictionary:
-	if party.is_empty():
-		return { "mode": ERASE }
-	return { "mode": MEMBER, "member_id": str(party[0].get("id", "")) }
+## Outil par défaut : sélection / navigation. Placer un PJ ou un combat
+## exige un bouton explicite — un clic nu ne déclenche plus d'action opaque.
+static func default_tool(_party: Array = []) -> Dictionary:
+	return { "mode": SELECT }
+
+static func is_place_tool(tool: Dictionary) -> bool:
+	return PLACE_MODES.has(str(tool.get("mode", SELECT)))
 
 static func make(tool_id: String, extra: Dictionary = {}) -> Dictionary:
 	var tool := { "mode": tool_id }
@@ -133,17 +144,19 @@ static func same_tool(a: Dictionary, b: Dictionary) -> bool:
 
 ## Format attendu par `interactive_map.set_session_tool`.
 static func to_simple_tool(tool: Dictionary) -> Dictionary:
-	match str(tool.get("mode", MEMBER)):
+	match str(tool.get("mode", SELECT)):
 		ERASE:
 			return { "mode": ERASE }
 		MARKER:
 			return { "mode": MARKER, "markerType": str(tool.get("marker_type", "")) }
-		_:
+		MEMBER:
 			return { "mode": MEMBER, "memberId": str(tool.get("member_id", "")) }
+		_:
+			return { "mode": SELECT }
 
 ## Format attendu par `complex_map_engine_3d.set_session_tool`.
 static func to_complex_tool(tool: Dictionary) -> Dictionary:
-	var mode := str(tool.get("mode", MEMBER))
+	var mode := str(tool.get("mode", SELECT))
 	var out := { "mode": mode }
 	match mode:
 		MEMBER:

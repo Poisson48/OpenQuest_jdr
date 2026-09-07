@@ -40,10 +40,13 @@ func _ready() -> void:
 	]
 
 	GameData.reload_builtin_scenarios()
-	GameData.create_new_game("demo-kharak", "multi", "human", "long", party)
+	var scenario_id := "demo-kharak"
+	if GameData.get_scenario_by_id(scenario_id).is_empty():
+		scenario_id = "demo-crypte"
+	GameData.create_new_game(scenario_id, "multi", "human", "long", party)
 	GameData.active_game["gmName"] = "MJ Demo"
 	GameData.active_game["waitingForGm"] = true
-	GameData.active_game["turnIndex"] = 1
+	GameData.active_game["turnIndex"] = 0
 	GameData.add_log_entry("Aria", "J'approche la caravane prudemment et observe les nomades.", "player")
 	GameData.save_active_game()
 
@@ -51,5 +54,5 @@ func _ready() -> void:
 	MultiplayerManager.player_name = "MJ Demo"
 	MultiplayerManager.is_gm = true
 
-	print("[MJ DEMO] boot -> session demo-kharak human gm")
-	get_tree().change_scene_to_file("res://scenes/session/session.tscn")
+	print("[MJ DEMO] boot -> session %s human gm" % scenario_id)
+	get_tree().change_scene_to_file.call_deferred("res://scenes/session/session.tscn")

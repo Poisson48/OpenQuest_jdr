@@ -154,25 +154,22 @@
     }
   ],
   "npcs": [
-    {
-      "id": "yasmina",
-      "name": "Yasmina la caravanière",
-      "role": "Survivante",
-      "description": "Marchande épuisée qui cache la véritable nature de la cargaison.",
-      "scenes": [
-        "tresor-caravane",
-        "tribunal-seigneur"
-      ]
-    },
-    {
-      "id": "seigneur-sables",
-      "name": "Le Seigneur des Sables",
-      "role": "Antagoniste",
-      "description": "Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse.",
-      "scenes": [
-        "tempete-sable",
-        "tribunal-seigneur"
-      ]
-    }
+    {"id": "yasmina", "name": "Yasmina la caravanière", "role": "Survivante", "emoji": "🐪", "description": "Marchande épuisée qui cache la véritable nature de la cargaison.", "scenes": ["tresor-caravane", "tribunal-seigneur"]},
+    {"id": "seigneur-sables", "name": "Le Seigneur des Sables", "role": "Antagoniste", "emoji": "🌪️", "description": "Esprit ancien lié aux ruines. Il exige un tribut ou une épreuve de sagesse.", "scenes": ["tempete-sable", "tribunal-seigneur"]},
+    {"id": "selim", "name": "Selim l'aubergiste", "role": "Hôtelier", "emoji": "🏺", "description": "Tient l'auberge de l'oasis. Vend une carte partielle et des rumeurs de cité engloutie.", "scenes": ["oasis-selim"]},
+    {"id": "farah", "name": "Farah la cartographe", "role": "Guide", "emoji": "🗺️", "description": "A relevé les dunes jusqu'à Zhar-Rim. Elle refuse d'y retourner seule.", "scenes": ["oasis-selim", "ruines-zhar-rim"]},
+    {"id": "karim", "name": "Karim le chamelier", "role": "Conducteur", "emoji": "🐫", "description": "Mène les bêtes de la caravane. Il a entendu les voix dans la tempête.", "scenes": ["oasis-selim", "tempete-sable"]},
+    {"id": "zahra", "name": "Zahra la prêtresse", "role": "Oracle", "emoji": "🌙", "description": "Lit les vents. Elle parle d'un tribut dû au Seigneur des Sables.", "scenes": ["oasis-selim", "tribunal-seigneur"]},
+    {"id": "rakhim", "name": "Rakhim le bandit", "role": "Pillard", "emoji": "🗡️", "description": "Offre un abri douteux au cœur de la tempête — contre une part du butin.", "scenes": ["tempete-sable"]},
+    {"id": "omar", "name": "Omar le marchand", "role": "Négociant", "emoji": "💰", "description": "Compagnon de Yasmina. Il jure que le coffre ne contient que des épices.", "scenes": ["oasis-selim", "tresor-caravane"]},
+    {"id": "leila", "name": "Leila la nomade", "role": "Éclaireuse", "emoji": "🏕️", "description": "Connaît la piste secrète vers les ruines. Elle se méfie des mirages.", "scenes": ["oasis-selim", "ruines-zhar-rim"]},
+    {"id": "hassan", "name": "Hassan le guide", "role": "Pisteur", "emoji": "🧭", "description": "Suit les traces de scarabées dans le sable. Peu bavard, très précis.", "scenes": ["oasis-selim", "tempete-sable"]},
+    {"id": "malik", "name": "Malik le garde", "role": "Sentinelle", "emoji": "🛡️", "description": "Monté de garde à l'oasis. Il arrête ceux qui partent sans eau.", "scenes": ["oasis-selim"]},
+    {"id": "nour", "name": "Nour", "role": "Témoin", "emoji": "🧒", "description": "Enfant de l'oasis. Elle a vu la caravane partir vers le soufre.", "scenes": ["oasis-selim"]},
+    {"id": "ibn-rashid", "name": "Ibn Rashid", "role": "Érudit", "emoji": "📜", "description": "Traduit les inscriptions de Zhar-Rim. Il parle d'un puits interdit.", "scenes": ["ruines-zhar-rim", "catacombes-fraiches"]},
+    {"id": "saffiya", "name": "Saffiya", "role": "Informateur", "emoji": "💃", "description": "Danseuse de l'oasis. Elle vend des secrets aussi bien que du vin de dattes.", "scenes": ["oasis-selim"]},
+    {"id": "jafar", "name": "Jafar le puitsier", "role": "Villageois", "emoji": "💧", "description": "Entretient le puits de Selim. L'eau a un goût de soufre depuis trois jours.", "scenes": ["oasis-selim"]},
+    {"id": "bahlul", "name": "Bahlul", "role": "Espion", "emoji": "🪙", "description": "Mendiant trop bien informé. Il travaille pour les bandits — ou contre eux.", "scenes": ["oasis-selim", "tempete-sable"]},
+    {"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "emoji": "🪦", "description": "Présent sur la carte de Brumeval si la démo retombe sur le cimetière.", "scenes": ["oasis-selim"]}
   ]
 }

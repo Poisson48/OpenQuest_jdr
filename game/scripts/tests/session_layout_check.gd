@@ -52,6 +52,9 @@ func _run() -> void:
 	_assert("log_readable", log_panel.size.x >= 240.0 and log_panel.size.y >= 180.0)
 	_assert("action_present", shell.get_panel("action").size.y > 40.0)
 	_assert("dice_present", shell.get_panel("dice").size.y > 40.0)
+	_assert("next_turn_visible", bool(gm.get("next_turn_visible", false)))
+	_assert("waiting_banner", str(gm.get("turn_headline", "")).contains("répondez puis validez"))
+	_assert("turn_stays_on_actor", int(gm.get("turn_index", -1)) == 0)
 
 	var map_report: Dictionary = gm["map"]
 	print("map=", map_report)
@@ -59,6 +62,7 @@ func _run() -> void:
 	_assert("map_chrome_visible", map_report["chrome_visible"])
 	# Le navigateur affiche une échelle mesurée : 0 signifierait « toujours 100 % ».
 	_assert("scale_is_real", map_report["scale"] > 0.0)
+	_assert("default_tool_select", str(map_report.get("tool", "")) == "select")
 
 	# Une ligne de journal et un jet de dé ne doivent rien redimensionner.
 	var before := [gm["left_width"], gm["center_width"], gm["right_width"], gm["center_height"]]

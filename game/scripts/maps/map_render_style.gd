@@ -45,7 +45,8 @@ const CONFIGS := {
 		"parallax": 0.35,
 		"depthFade": 0.45,
 		"groundTint": 1.0,
-		"preferFlatProps": false,
+		# Hors fond illustré : props à plat (vue plan), pas des cartes dressées.
+		"preferFlatProps": true,
 	},
 	VTT: {
 		"perspective": false,

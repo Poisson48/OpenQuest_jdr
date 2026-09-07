@@ -14,6 +14,8 @@ const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
 const DEMO_SCENARIO_FILES := ["demo-valbois.json", "demo-crypte.json"]
 const DEMO_SCENARIO_IDS := ["demo-valbois", "demo-crypte"]
+## Chargés pour le boot MJ / parties déjà pointées, mais absents du catalogue Hub.
+const EXTRA_SCENARIO_FILES := ["demo-kharak.json"]
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
@@ -631,6 +633,12 @@ func _load_default_scenarios() -> Array:
 					s_data["roster"] = "general"
 				list.append(s_data)
 		if not list.is_empty():
+			for extra_name in EXTRA_SCENARIO_FILES:
+				var extra = _load_json_file(dir_path + extra_name)
+				if extra is Dictionary and extra.has("id"):
+					if not extra.has("roster"):
+						extra["roster"] = "general"
+					list.append(extra)
 			return list
 
 	# Fallback si aucun fichier n'a pu être chargé
@@ -1121,6 +1129,28 @@ func next_turn() -> void:
 	active_game["turnIndex"] = (idx + 1) % playable.size()
 	save_active_game()
 
+## Journalise l'action d'un joueur. N'avance pas le tour : le MJ décide
+## ensuite s'il valide (Tour suivant) ou laisse rejouer le même personnage.
+func apply_player_action(author: String, action: String) -> void:
+	if active_game.is_empty():
+		return
+	add_log_entry(author, action, "player")
+	try_auto_move_from_action(action)
+	maybe_reveal_investigation_from_action(action)
+	if str(active_game.get("gmType", "ai")) == "human":
+		set_waiting_for_gm(true)
+
+## Le MJ passe explicitement au joueur suivant. Diffuser / scène ne le font pas.
+func advance_player_turn() -> void:
+	if active_game.is_empty():
+		return
+	active_game["waitingForGm"] = false
+	var playable := get_playable_members()
+	if playable.size() > 1:
+		var idx: int = int(active_game.get("turnIndex", 0))
+		active_game["turnIndex"] = (idx + 1) % playable.size()
+	save_active_game()
+
 func set_waiting_for_gm(waiting: bool) -> void:
 	if active_game.is_empty():
 		return
@@ -1137,6 +1167,109 @@ func get_scenario_npcs() -> Array:
 		return []
 	var scenario := get_scenario_by_id(active_game.get("scenarioId", ""))
 	return scenario.get("npcs", [])
+
+## PNJ du scénario + jetons / marqueurs de carte, dédupliqués par nom.
+func list_session_npcs() -> Array:
+	var result: Array = []
+	var seen: Dictionary = {}
+	for npc_variant in get_scenario_npcs():
+		if typeof(npc_variant) != TYPE_DICTIONARY:
+			continue
+		_append_session_npc(result, seen, npc_variant)
+	if active_game.is_empty():
+		return result
+	for map_id_variant in active_game.get("mapIds", []):
+		var map_id := str(map_id_variant)
+		var map_def := MapData.get_by_id(map_id)
+		for mk_variant in map_def.get("markers", []):
+			if typeof(mk_variant) != TYPE_DICTIONARY:
+				continue
+			var mk: Dictionary = mk_variant
+			if str(mk.get("type", "")) != "npc":
+				continue
+			_append_session_npc(result, seen, {
+				"name": str(mk.get("label", mk.get("name", ""))),
+				"role": str(mk.get("role", "PNJ")),
+				"emoji": str(mk.get("emoji", "")),
+				"x": mk.get("x", -1),
+				"y": mk.get("y", -1),
+			})
+		for tok_variant in get_map_play_tokens(map_id):
+			if typeof(tok_variant) != TYPE_DICTIONARY:
+				continue
+			var tok: Dictionary = tok_variant
+			if not _token_is_npc_speaker(tok):
+				continue
+			_append_session_npc(result, seen, {
+				"name": str(tok.get("label", tok.get("name", ""))),
+				"role": str(tok.get("role", "PNJ")),
+				"emoji": str(tok.get("emoji", "")),
+				"x": tok.get("x", -1),
+				"y": tok.get("y", -1),
+			})
+	return result
+
+func find_speaker_grid(speaker_name: String) -> Vector2:
+	var needle := speaker_name.strip_edges().to_lower()
+	if needle.is_empty() or active_game.is_empty():
+		return Vector2(-1, -1)
+	for npc_variant in list_session_npcs():
+		var npc: Dictionary = npc_variant
+		var npc_name := str(npc.get("name", "")).strip_edges().to_lower()
+		if npc_name.is_empty():
+			continue
+		if npc_name == needle or npc_name.begins_with(needle) or needle.begins_with(npc_name):
+			if npc.has("x") and npc.has("y") and float(npc.get("x", -1)) >= 0.0:
+				return Vector2(float(npc.get("x", 0)), float(npc.get("y", 0)))
+	for map_id_variant in active_game.get("mapIds", []):
+		var map_id := str(map_id_variant)
+		for tok_variant in get_map_play_tokens(map_id):
+			if typeof(tok_variant) != TYPE_DICTIONARY:
+				continue
+			var tok: Dictionary = tok_variant
+			var label := str(tok.get("label", tok.get("name", ""))).strip_edges().to_lower()
+			if label.is_empty():
+				continue
+			if label == needle or label.begins_with(needle) or needle.begins_with(label):
+				return Vector2(float(tok.get("x", 0)), float(tok.get("y", 0)))
+		var map_def := MapData.get_by_id(map_id)
+		for mk_variant in map_def.get("markers", []):
+			if typeof(mk_variant) != TYPE_DICTIONARY:
+				continue
+			var mk: Dictionary = mk_variant
+			var label := str(mk.get("label", "")).strip_edges().to_lower()
+			if label.is_empty():
+				continue
+			if label == needle or label.begins_with(needle) or needle.begins_with(label):
+				return Vector2(float(mk.get("x", 0)), float(mk.get("y", 0)))
+	return Vector2(-1, -1)
+
+static func _token_is_npc_speaker(tok: Dictionary) -> bool:
+	var kind := str(tok.get("kind", ""))
+	if kind == "member":
+		return false
+	if kind == "npc":
+		return true
+	return str(tok.get("markerType", "")) == "npc"
+
+static func _append_session_npc(result: Array, seen: Dictionary, npc: Dictionary) -> void:
+	var npc_name := str(npc.get("name", "")).strip_edges()
+	if npc_name.is_empty():
+		return
+	var key := npc_name.to_lower()
+	if seen.has(key):
+		return
+	seen[key] = true
+	var row := {
+		"name": npc_name,
+		"role": str(npc.get("role", "")),
+		"emoji": str(npc.get("emoji", "")),
+	}
+	if npc.has("x"):
+		row["x"] = npc.get("x")
+	if npc.has("y"):
+		row["y"] = npc.get("y")
+	result.append(row)
 
 func can_member_act(client_id: String) -> bool:
 	if active_game.is_empty() or active_game.get("status") == "completed":
@@ -1421,6 +1554,14 @@ func get_map_play_entry(map_id: String) -> Dictionary:
 		entry["doorStates"] = {}
 	if not entry.has("visibleNow") or typeof(entry["visibleNow"]) != TYPE_ARRAY:
 		entry["visibleNow"] = []
+	if not entry.has("suppressedMarkers") or typeof(entry["suppressedMarkers"]) != TYPE_ARRAY:
+		entry["suppressedMarkers"] = []
+	if not entry.has("suppressedAreas") or typeof(entry["suppressedAreas"]) != TYPE_ARRAY:
+		entry["suppressedAreas"] = []
+	if not entry.has("suppressedLinks") or typeof(entry["suppressedLinks"]) != TYPE_ARRAY:
+		entry["suppressedLinks"] = []
+	if not entry.has("suppressedProps") or typeof(entry["suppressedProps"]) != TYPE_ARRAY:
+		entry["suppressedProps"] = []
 	_seed_play_defaults_from_map(map_id, entry)
 	_dedupe_member_tokens(entry)
 	return entry
@@ -1696,7 +1837,7 @@ func apply_map_op(map_id: String, op: Dictionary) -> bool:
 		MAP_OP_PLACE:
 			apply_complex_map_click_local(map_id, float(op.get("x", 0)), float(op.get("y", 0)), op.get("tool", {}))
 		MAP_OP_ERASE:
-			remove_map_token_at(map_id, int(roundf(float(op.get("x", 0)))), int(roundf(float(op.get("y", 0)))))
+			erase_map_visuals_at(map_id, int(roundf(float(op.get("x", 0)))), int(roundf(float(op.get("y", 0)))))
 			_remove_token_near(map_id, float(op.get("x", 0)), float(op.get("y", 0)))
 		MAP_OP_FOG_REVEAL:
 			for key in op.get("cells", []):
@@ -1729,6 +1870,8 @@ func apply_map_op(map_id: String, op: Dictionary) -> bool:
 ## Variante locale de `apply_complex_map_click` sans diffusion d'état complet.
 func apply_complex_map_click_local(map_id: String, gx: float, gy: float, tool: Dictionary) -> void:
 	var mode: String = tool.get("mode", "")
+	if mode.is_empty() or mode == "select" or mode == "pan":
+		return
 	match mode:
 		"member":
 			var mid := str(tool.get("memberId", ""))
@@ -1880,11 +2023,13 @@ func apply_complex_map_click(map_id: String, gx: float, gy: float, tool: Diction
 	if active_game.is_empty() or active_game.get("status") == "completed":
 		return
 	var mode: String = tool.get("mode", "")
+	if mode.is_empty() or mode == "select" or mode == "pan":
+		return
 	var ix := int(roundf(gx))
 	var iy := int(roundf(gy))
 	match mode:
 		"erase":
-			remove_map_token_at(map_id, ix, iy)
+			erase_map_visuals_at(map_id, ix, iy)
 			_remove_token_near(map_id, gx, gy)
 		"member":
 			# Pose initiale en un clic ; ensuite déplacement = drag & drop uniquement.
@@ -1940,14 +2085,19 @@ func place_complex_marker_token(map_id: String, gx: float, gy: float, marker_typ
 	if marker_type.is_empty():
 		return
 	_remove_token_near(map_id, gx, gy)
+	_clear_suppression_at(map_id, int(roundf(gx)), int(roundf(gy)))
 	var entry := get_map_play_entry(map_id)
-	entry["tokens"].append({
+	var tok := {
 		"id": generate_id("tok"),
 		"x": gx, "y": gy,
 		"kind": "marker",
 		"markerType": marker_type,
-		"label": MapData.get_marker_label(marker_type),
-	})
+		"label": "",
+	}
+	var sprite := MapData.get_marker_sprite_path(marker_type)
+	if not sprite.is_empty():
+		tok["image"] = sprite
+	entry["tokens"].append(tok)
 
 func _remove_token_near(map_id: String, gx: float, gy: float, threshold: float = 0.45) -> void:
 	var entry := get_map_play_entry(map_id)
@@ -2146,6 +2296,115 @@ func maybe_reveal_investigation_from_action(action_text: String) -> void:
 func get_map_play_tokens(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["tokens"]
 
+## Jeton / marqueur / lieu sous une case — pour inspecter sans rien déclencher.
+func inspect_map_at(map_id: String, gx: float, gy: float) -> Dictionary:
+	if map_id.is_empty():
+		return {}
+	var ix := int(roundf(gx))
+	var iy := int(roundf(gy))
+	for tok_variant in get_map_play_tokens(map_id):
+		if typeof(tok_variant) != TYPE_DICTIONARY:
+			continue
+		var tok: Dictionary = tok_variant
+		if int(roundf(float(tok.get("x", -999)))) != ix:
+			continue
+		if int(roundf(float(tok.get("y", -999)))) != iy:
+			continue
+		return {
+			"kind": str(tok.get("kind", "token")),
+			"token_id": str(tok.get("id", "")),
+			"label": str(tok.get("label", tok.get("name", ""))),
+			"member_id": str(tok.get("memberId", "")),
+			"marker_type": str(tok.get("markerType", "")),
+			"role": str(tok.get("role", "")),
+			"x": float(tok.get("x", ix)),
+			"y": float(tok.get("y", iy)),
+		}
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return {}
+	if not is_marker_suppressed(map_id, ix, iy):
+		for mk_variant in map_def.get("markers", []):
+			if typeof(mk_variant) != TYPE_DICTIONARY:
+				continue
+			var mk: Dictionary = mk_variant
+			if int(mk.get("x", -1)) != ix or int(mk.get("y", -1)) != iy:
+				continue
+			return {
+				"kind": "marker",
+				"token_id": "",
+				"label": str(mk.get("label", mk.get("name", ""))),
+				"marker_type": str(mk.get("type", "")),
+				"role": str(mk.get("role", "")),
+				"x": float(ix),
+				"y": float(iy),
+			}
+	var area := MapData.get_area_at(map_def, gx, gy)
+	if area.is_empty():
+		return {}
+	if get_suppressed_area_ids(map_id).has(str(area.get("id", ""))):
+		return {}
+	return {
+		"kind": "area",
+		"token_id": "",
+		"label": str(area.get("label", "")),
+		"area_id": str(area.get("id", "")),
+		"target_map_id": str(area.get("targetMapId", "")),
+		"x": float(area.get("x", gx)),
+		"y": float(area.get("y", gy)),
+	}
+
+## MJ : n'importe quel jeton. Joueur : uniquement son propre personnage.
+func can_session_move_token(map_id: String, token_id: String, acting_as_gm: bool, owned_member_id: String) -> bool:
+	if token_id.is_empty():
+		return false
+	if acting_as_gm:
+		return not find_map_token(map_id, token_id).is_empty()
+	if owned_member_id.is_empty():
+		return false
+	var tok := find_map_token(map_id, token_id)
+	if tok.is_empty():
+		return false
+	return str(tok.get("kind", "")) == "member" and str(tok.get("memberId", "")) == owned_member_id
+
+## Déplace un décor de carte (MJ only). Persiste dans MapData.
+func move_map_prop(map_id: String, prop_id: String, gx: float, gy: float) -> bool:
+	if map_id.is_empty() or prop_id.is_empty():
+		return false
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return false
+	var props: Array = map_def.get("props", [])
+	var found := false
+	for prop_variant in props:
+		if typeof(prop_variant) != TYPE_DICTIONARY:
+			continue
+		var prop: Dictionary = prop_variant
+		if str(prop.get("id", "")) != prop_id:
+			continue
+		prop["x"] = gx
+		prop["y"] = gy
+		found = true
+		break
+	if not found:
+		return false
+	map_def["props"] = props
+	MapData.update_map(map_def)
+	MapData.save_maps()
+	save_active_game()
+	return true
+
+func find_map_token(map_id: String, token_id: String) -> Dictionary:
+	if token_id.is_empty():
+		return {}
+	for tok_variant in get_map_play_tokens(map_id):
+		if typeof(tok_variant) != TYPE_DICTIONARY:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("id", "")) == token_id:
+			return tok
+	return {}
+
 func get_explored_cells(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["explored"]
 
@@ -2321,7 +2580,74 @@ func exit_to_world_map() -> void:
 
 func remove_map_token_at(map_id: String, x: int, y: int) -> void:
 	var entry := get_map_play_entry(map_id)
-	entry["tokens"] = entry["tokens"].filter(func(t): return not (t.get("x") == x and t.get("y") == y))
+	entry["tokens"] = entry["tokens"].filter(func(t):
+		return int(round(float(t.get("x", -999)))) != x or int(round(float(t.get("y", -999)))) != y
+	)
+
+## Gomme session : retire le jeton ET le marqueur / lieu / lien qui laisserait
+## un texte fantôme (« Sortie », « Ent… ») sur la case.
+func erase_map_visuals_at(map_id: String, x: int, y: int) -> void:
+	remove_map_token_at(map_id, x, y)
+	var key := cell_key(x, y)
+	var entry := get_map_play_entry(map_id)
+	_append_unique(entry["suppressedMarkers"], key)
+	_append_unique(entry["suppressedLinks"], key)
+	var map_def := MapData.get_by_id(map_id)
+	if map_def.is_empty():
+		return
+	for area_variant in map_def.get("areas", []):
+		if typeof(area_variant) != TYPE_DICTIONARY:
+			continue
+		var area: Dictionary = area_variant
+		if not _area_covers_cell(area, x, y):
+			continue
+		var aw := maxf(0.5, float(area.get("w", 2.0)))
+		var ah := maxf(0.5, float(area.get("h", 2.0)))
+		var is_exit := str(area.get("category", "")) == "exit"
+		if is_exit or (aw <= 2.2 and ah <= 2.2):
+			_append_unique(entry["suppressedAreas"], str(area.get("id", "")))
+	for prop_variant in map_def.get("props", []):
+		if typeof(prop_variant) != TYPE_DICTIONARY:
+			continue
+		var prop: Dictionary = prop_variant
+		if int(round(float(prop.get("x", -999)))) != x:
+			continue
+		if int(round(float(prop.get("y", -999)))) != y:
+			continue
+		_append_unique(entry["suppressedProps"], str(prop.get("id", "")))
+
+func _append_unique(list: Array, value: String) -> void:
+	if value.is_empty() or list.has(value):
+		return
+	list.append(value)
+
+func _area_covers_cell(area: Dictionary, x: int, y: int) -> bool:
+	var ax := float(area.get("x", 0.0))
+	var ay := float(area.get("y", 0.0))
+	var aw := maxf(0.5, float(area.get("w", 2.0)))
+	var ah := maxf(0.5, float(area.get("h", 2.0)))
+	return absf(float(x) + 0.5 - ax) <= aw * 0.5 and absf(float(y) + 0.5 - ay) <= ah * 0.5
+
+func get_suppressed_marker_keys(map_id: String) -> Array:
+	return get_map_play_entry(map_id).get("suppressedMarkers", [])
+
+func get_suppressed_area_ids(map_id: String) -> Array:
+	return get_map_play_entry(map_id).get("suppressedAreas", [])
+
+func get_suppressed_link_keys(map_id: String) -> Array:
+	return get_map_play_entry(map_id).get("suppressedLinks", [])
+
+func get_suppressed_prop_ids(map_id: String) -> Array:
+	return get_map_play_entry(map_id).get("suppressedProps", [])
+
+func is_marker_suppressed(map_id: String, x: int, y: int) -> bool:
+	return get_suppressed_marker_keys(map_id).has(cell_key(x, y))
+
+func _clear_suppression_at(map_id: String, x: int, y: int) -> void:
+	var key := cell_key(x, y)
+	var entry := get_map_play_entry(map_id)
+	entry["suppressedMarkers"].erase(key)
+	entry["suppressedLinks"].erase(key)
 
 func remove_member_tokens(map_id: String, member_id: String) -> void:
 	var entry := get_map_play_entry(map_id)
@@ -2359,14 +2685,19 @@ func place_marker_token(map_id: String, x: int, y: int, marker_type: String) -> 
 	if marker_type.is_empty():
 		return
 	remove_map_token_at(map_id, x, y)
+	_clear_suppression_at(map_id, x, y)
 	var tokens: Array = get_map_play_tokens(map_id)
-	tokens.append({
+	var tok := {
 		"id": generate_id("tok"),
 		"x": x, "y": y,
 		"kind": "marker",
 		"markerType": marker_type,
 		"label": "",
-	})
+	}
+	var sprite := MapData.get_marker_sprite_path(marker_type)
+	if not sprite.is_empty():
+		tok["image"] = sprite
+	tokens.append(tok)
 	save_active_game()
 
 func get_active_play_map_id() -> String:
@@ -2932,8 +3263,10 @@ func apply_map_play_action(map_id: String, x: int, y: int, tool: Dictionary) -> 
 	if active_game.is_empty() or active_game.get("status") == "completed":
 		return
 	var mode: String = tool.get("mode", "")
+	if mode.is_empty() or mode == "select" or mode == "pan":
+		return
 	if mode == "erase":
-		remove_map_token_at(map_id, x, y)
+		erase_map_visuals_at(map_id, x, y)
 	elif mode == "member":
 		var mid := str(tool.get("memberId", ""))
 		# Déjà sur la carte → pas de téléport au clic (drag only).

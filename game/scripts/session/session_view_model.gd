@@ -150,8 +150,8 @@ func _build_turn(state: Dictionary) -> Dictionary:
 	if role != null and role.kind == SessionRoleView.KIND_GM:
 		if waiting:
 			return {
-				"headline": "Votre tour de MJ",
-				"hint": "Les joueurs attendent votre réponse.",
+				"headline": "Action de %s — répondez puis validez le tour" % actor_name,
+				"hint": "Diffuser une réponse sans changer de joueur. Tour suivant passe la main.",
 				"tone": "alert",
 			}
 		if GameData.get_playable_members().size() <= 1:
@@ -162,7 +162,7 @@ func _build_turn(state: Dictionary) -> Dictionary:
 			}
 		return {
 			"headline": "Table MJ — tour de %s" % actor_name,
-			"hint": "Le joueur actif doit agir. Vous narrerez ensuite.",
+			"hint": "Le joueur actif doit agir. Tour suivant passe au suivant.",
 			"tone": "idle",
 		}
 
@@ -203,11 +203,12 @@ func _build_navigation(state: Dictionary) -> Dictionary:
 			"current": scene_id == current_id,
 		})
 	var npcs: Array = []
-	for npc_variant in GameData.get_scenario_npcs():
+	for npc_variant in GameData.list_session_npcs():
 		var npc: Dictionary = npc_variant
 		npcs.append({
 			"name": str(npc.get("name", "PNJ")),
 			"role": str(npc.get("role", "")),
+			"emoji": str(npc.get("emoji", "")),
 		})
 	return {
 		"scenes": scenes,
@@ -329,6 +330,21 @@ func npc_line(npc_name: String, text: String) -> void:
 		return
 	_broadcast(npc_name, "« %s »" % body, "npc")
 
+func advance_turn() -> void:
+	if role == null or not role.can_narrate:
+		return
+	var p2p_live := (
+		MultiplayerManager.is_p2p_active()
+		and GameData.has_active_game()
+		and (MultiplayerManager.is_p2p_host() or MultiplayerManager.is_in_room())
+	)
+	if p2p_live:
+		MultiplayerManager.client_advance_turn()
+		refresh()
+		return
+	GameData.advance_player_turn()
+	refresh()
+
 func go_to_scene(scene_id: String, reason: String = "Choix du MJ") -> void:
 	if scene_id.is_empty() or role == null or not role.can_navigate_scenes:
 		return
@@ -380,14 +396,9 @@ func _broadcast(author: String, text: String, log_type: String) -> void:
 func _process_local_action(action: String) -> void:
 	var actor := GameData.get_active_member()
 	var player_name: String = str(actor.get("name", "Joueur")) if not actor.is_empty() else "Joueur"
-	GameData.add_log_entry(player_name, action, "player")
-	GameData.try_auto_move_from_action(action)
-	GameData.maybe_reveal_investigation_from_action(action)
+	GameData.apply_player_action(player_name, action)
 	if str(GameData.active_game.get("gmType", "ai")) == "ai":
 		_simulate_ai_reply(action)
-	else:
-		GameData.set_waiting_for_gm(true)
-		GameData.next_turn()
 	refresh()
 
 func _simulate_ai_reply(action: String) -> void:

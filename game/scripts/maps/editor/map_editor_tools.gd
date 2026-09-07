@@ -139,6 +139,13 @@ const GROUP_LABELS := {
 
 const GROUP_ORDER := ["base", "place", "terrain", "fog", "tools"]
 
+## Sous-ensemble 2D : même flux (sélection, palette, inspecteur, undo)
+## sans murs / lumières / plateformes / effets 3D.
+const SIMPLE_IDS := [
+	SELECT, PAN, MARKER, NOTE, AREA, PROP,
+	PAINT, BUCKET, FOG_REVEAL, FOG_HIDE, LINK, MEASURE, ERASE,
+]
+
 static func get_def(tool_id: String) -> Dictionary:
 	for def in DEFS:
 		if def["id"] == tool_id:
@@ -164,6 +171,23 @@ static func defs_in_group(group: String) -> Array:
 		if def["group"] == group:
 			out.append(def)
 	return out
+
+static func simple_defs() -> Array:
+	var out: Array = []
+	for def in DEFS:
+		if SIMPLE_IDS.has(str(def["id"])):
+			out.append(def)
+	return out
+
+static func simple_defs_in_group(group: String) -> Array:
+	var out: Array = []
+	for def in simple_defs():
+		if def["group"] == group:
+			out.append(def)
+	return out
+
+static func is_simple_tool(tool_id: String) -> bool:
+	return SIMPLE_IDS.has(tool_id)
 
 static func tool_for_shortcut(key: String) -> String:
 	for def in DEFS:

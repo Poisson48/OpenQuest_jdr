@@ -11,6 +11,7 @@ signal tool_selected(tool: Dictionary)
 signal mode_selected(mode: String)
 signal snap_toggled(enabled: bool)
 signal trigger_requested
+signal enter_requested
 
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 
@@ -37,16 +38,23 @@ func rebuild(context: Dictionary) -> void:
 		_add_mode_toggle(mode)
 		_add_separator()
 
-	_add_member_tools(context, tool)
+	_add_tool(SessionToolRegistry.SELECT, SessionToolRegistry.make(SessionToolRegistry.SELECT), tool)
 	if is_gm:
-		_add_marker_tools(context, tool)
-	if MapMode.is_complex(mode) and is_gm and not bool(context.get("explore_mode", false)):
 		_add_separator()
-		_add_gm_tools(context, tool)
-	_add_separator()
-	_add_tool(SessionToolRegistry.ERASE, SessionToolRegistry.make(SessionToolRegistry.ERASE), tool)
+		_add_member_tools(context, tool)
+		_add_marker_tools(context, tool)
+		if MapMode.is_complex(mode) and not bool(context.get("explore_mode", false)):
+			_add_separator()
+			_add_gm_tools(context, tool)
+		_add_separator()
+		_add_tool(SessionToolRegistry.ERASE, SessionToolRegistry.make(SessionToolRegistry.ERASE), tool)
+		_add_pending_enter(context)
 
-	set_hint(SessionToolRegistry.hint(str(tool.get("mode", SessionToolRegistry.MEMBER))))
+	var pending: Dictionary = context.get("pending_nav", {})
+	if not pending.is_empty():
+		set_hint(str(pending.get("hint", SessionToolRegistry.hint(SessionToolRegistry.SELECT))))
+	else:
+		set_hint(SessionToolRegistry.hint(str(tool.get("mode", SessionToolRegistry.SELECT))))
 
 func set_hint(text: String) -> void:
 	if _hint != null:
@@ -131,6 +139,16 @@ func _add_tool(tool_id: String, tool: Dictionary, current: Dictionary) -> void:
 	)
 	btn.set_pressed_no_signal(SessionToolRegistry.same_tool(current, tool))
 	btn.pressed.connect(func(): tool_selected.emit(tool))
+	_row.add_child(btn)
+
+func _add_pending_enter(context: Dictionary) -> void:
+	var pending: Dictionary = context.get("pending_nav", {})
+	var label := str(pending.get("label", "")).strip_edges()
+	if label.is_empty() or not bool(pending.get("can_enter", false)):
+		return
+	_add_separator()
+	var btn := SessionStyle.tool_button("Entrer", "Entrer dans « %s »" % label, false)
+	btn.pressed.connect(func(): enter_requested.emit())
 	_row.add_child(btn)
 
 func _add_separator() -> void:

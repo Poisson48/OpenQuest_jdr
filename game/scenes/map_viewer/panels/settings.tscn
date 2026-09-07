@@ -1,0 +1,103 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/simple/simple_settings_panel.gd" id="1_script"]
+
+[node name="Settings" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+script = ExtResource("1_script")
+
+[node name="LblSize" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📐 Grille"
+
+[node name="SizeRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblW" type="Label" parent="SizeRow"]
+layout_mode = 2
+text = "L"
+
+[node name="SpinWidth" type="SpinBox" parent="SizeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 4.0
+max_value = 96.0
+value = 16.0
+
+[node name="LblH" type="Label" parent="SizeRow"]
+layout_mode = 2
+text = "H"
+
+[node name="SpinHeight" type="SpinBox" parent="SizeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 4.0
+max_value = 64.0
+value = 12.0
+
+[node name="LblFog" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🌫 Brouillard"
+
+[node name="ChkFog" type="CheckBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Activer le brouillard de guerre"
+
+[node name="FogRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnFogHide" type="Button" parent="FogRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tout masquer"
+
+[node name="BtnFogReveal" type="Button" parent="FogRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tout révéler"
+
+[node name="LblMeasure" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📏 Échelle"
+
+[node name="MeasureRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpinMeasure" type="SpinBox" parent="MeasureRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.25
+max_value = 20.0
+step = 0.25
+value = 1.5
+
+[node name="EditUnit" type="LineEdit" parent="MeasureRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "m"
+placeholder_text = "unité"
+
+[node name="LblHint" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 11
+text = "La grille 2D reste à plat. Murs, lumières et diorama restent dans l'éditeur complexe."
+autowrap_mode = 3

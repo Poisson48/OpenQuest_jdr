@@ -1,0 +1,164 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/simple/simple_map_editor.gd" id="1_script"]
+[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/action_bar.tscn" id="3_action"]
+[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/simple_stage.tscn" id="4_stage"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/panels/inspector.tscn" id="5_insp"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/panels/outliner.tscn" id="6_out"]
+[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/settings.tscn" id="7_set"]
+[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/library.tscn" id="8_lib"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/panels/history.tscn" id="9_hist"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/panels/esc_menu.tscn" id="10_esc"]
+
+[node name="SimpleMapEditor" type="Control"]
+clip_contents = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="SplitOuter" type="HSplitContainer" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LeftScroll" type="ScrollContainer" parent="SplitOuter"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(168, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.0
+horizontal_scroll_mode = 0
+
+[node name="LeftPanel" type="VBoxContainer" parent="SplitOuter/LeftScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ToolHost" type="VBoxContainer" parent="SplitOuter/LeftScroll/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblToolOptions" type="Label" parent="SplitOuter/LeftScroll/LeftPanel"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "⚙️ Options"
+
+[node name="ToolOptions" type="VBoxContainer" parent="SplitOuter/LeftScroll/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblSnap" type="Label" parent="SplitOuter/LeftScroll/LeftPanel"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🧲 Aimantation"
+
+[node name="SnapOption" type="OptionButton" parent="SplitOuter/LeftScroll/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SplitInner" type="HSplitContainer" parent="SplitOuter"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+
+[node name="CenterColumn" type="VBoxContainer" parent="SplitOuter/SplitInner"]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="ActionBar" parent="SplitOuter/SplitInner/CenterColumn" instance=ExtResource("3_action")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SimpleStage" parent="SplitOuter/SplitInner/CenterColumn" instance=ExtResource("4_stage")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LblHint" type="Label" parent="SplitOuter/SplitInner/CenterColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+autowrap_mode = 3
+text = ""
+
+[node name="RightTabs" type="TabContainer" parent="SplitOuter/SplitInner"]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.0
+
+[node name="Inspecteur" type="ScrollContainer" parent="SplitOuter/SplitInner/RightTabs"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Inspector" parent="SplitOuter/SplitInner/RightTabs/Inspecteur" instance=ExtResource("5_insp")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Calques" type="ScrollContainer" parent="SplitOuter/SplitInner/RightTabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Outliner" parent="SplitOuter/SplitInner/RightTabs/Calques" instance=ExtResource("6_out")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Carte" type="ScrollContainer" parent="SplitOuter/SplitInner/RightTabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Settings" parent="SplitOuter/SplitInner/RightTabs/Carte" instance=ExtResource("7_set")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Biblio" type="ScrollContainer" parent="SplitOuter/SplitInner/RightTabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Library" parent="SplitOuter/SplitInner/RightTabs/Biblio" instance=ExtResource("8_lib")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Historique" type="ScrollContainer" parent="SplitOuter/SplitInner/RightTabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="History" parent="SplitOuter/SplitInner/RightTabs/Historique" instance=ExtResource("9_hist")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="EscMenu" parent="." instance=ExtResource("10_esc")]
+unique_name_in_owner = true

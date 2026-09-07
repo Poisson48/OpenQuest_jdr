@@ -1,13 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://map_viewer"]
+[gd_scene load_steps=6 format=3 uid="uid://map_viewer"]
 
 [ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/map_viewer.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/mode_row.tscn" id="3_mode"]
-[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/tool_row.tscn" id="4_tools"]
-[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/palettes.tscn" id="5_palettes"]
-[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/simple_stage.tscn" id="6_stage"]
-[ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/bottom_bar.tscn" id="7_bottom"]
-[ext_resource type="PackedScene" path="res://scenes/map_editor/map_editor.tscn" id="8_editor"]
+[ext_resource type="PackedScene" path="res://scenes/map_viewer/simple_editor.tscn" id="4_simple"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/map_editor.tscn" id="5_editor"]
 
 [node name="MapViewer" type="Control"]
 layout_mode = 3
@@ -76,6 +73,12 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "✏️ Modifier"
 
+[node name="BtnPreview" type="Button" parent="VBox/TopBar"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "👁 Aperçu"
+
 [node name="EditorPanel" type="VBoxContainer" parent="VBox"]
 unique_name_in_owner = true
 clip_contents = true
@@ -97,53 +100,6 @@ unique_name_in_owner = true
 [node name="LblModeHint" parent="VBox/EditorPanel/ModeRow" index="3"]
 unique_name_in_owner = true
 
-[node name="ToolRow" parent="VBox/EditorPanel" instance=ExtResource("4_tools")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="BtnToolTile" parent="VBox/EditorPanel/ToolRow" index="0"]
-unique_name_in_owner = true
-
-[node name="BtnToolMarker" parent="VBox/EditorPanel/ToolRow" index="1"]
-unique_name_in_owner = true
-
-[node name="BtnToolLink" parent="VBox/EditorPanel/ToolRow" index="2"]
-unique_name_in_owner = true
-
-[node name="BtnToolErase" parent="VBox/EditorPanel/ToolRow" index="3"]
-unique_name_in_owner = true
-
-[node name="Palettes" parent="VBox/EditorPanel" instance=ExtResource("5_palettes")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="TilePalette" parent="VBox/EditorPanel/Palettes/TileScroll" index="0"]
-unique_name_in_owner = true
-
-[node name="MarkerPalette" parent="VBox/EditorPanel/Palettes/MarkerScroll" index="0"]
-unique_name_in_owner = true
-
-[node name="LinkPanel" parent="VBox/EditorPanel/Palettes" index="2"]
-unique_name_in_owner = true
-
-[node name="LinkTargetSelect" parent="VBox/EditorPanel/Palettes/LinkPanel/LinkRow" index="1"]
-unique_name_in_owner = true
-
-[node name="LinkLabelInput" parent="VBox/EditorPanel/Palettes/LinkPanel/LinkRow" index="3"]
-unique_name_in_owner = true
-
-[node name="IntegrationPanel" parent="VBox/EditorPanel/Palettes" index="3"]
-unique_name_in_owner = true
-
-[node name="LblIntegrationStatus" parent="VBox/EditorPanel/Palettes/IntegrationPanel" index="1"]
-unique_name_in_owner = true
-
-[node name="WorldMapSelect" parent="VBox/EditorPanel/Palettes/IntegrationPanel/IntRow" index="1"]
-unique_name_in_owner = true
-
-[node name="BtnPlaceWorld" parent="VBox/EditorPanel/Palettes/IntegrationPanel/IntRow" index="2"]
-unique_name_in_owner = true
-
 [node name="LblHint" type="Label" parent="VBox/EditorPanel"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -152,42 +108,15 @@ theme_override_font_sizes/font_size = 12
 text = ""
 autowrap_mode = 3
 
-[node name="SimpleStage" parent="VBox/EditorPanel" instance=ExtResource("6_stage")]
+[node name="SimpleEditor" parent="VBox/EditorPanel" instance=ExtResource("4_simple")]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
-[node name="MapHeader" parent="VBox/EditorPanel/SimpleStage" index="0"]
-unique_name_in_owner = true
-
-[node name="LblZoom" parent="VBox/EditorPanel/SimpleStage/MapHeader/ZoomRow" index="1"]
-unique_name_in_owner = true
-
-[node name="BtnZoomOut" parent="VBox/EditorPanel/SimpleStage/MapHeader/ZoomRow" index="0"]
-unique_name_in_owner = true
-
-[node name="BtnZoomIn" parent="VBox/EditorPanel/SimpleStage/MapHeader/ZoomRow" index="2"]
-unique_name_in_owner = true
-
-[node name="BtnZoomReset" parent="VBox/EditorPanel/SimpleStage/MapHeader/ZoomRow" index="3"]
-unique_name_in_owner = true
-
-[node name="MapFrame" parent="VBox/EditorPanel/SimpleStage" index="1"]
-unique_name_in_owner = true
-
-[node name="MapHost" parent="VBox/EditorPanel/SimpleStage/MapFrame" index="0"]
-unique_name_in_owner = true
-
-[node name="MapEditor" parent="VBox/EditorPanel" instance=ExtResource("8_editor")]
+[node name="MapEditor" parent="VBox/EditorPanel" instance=ExtResource("5_editor")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-size_flags_stretch_ratio = 1.0
-
-[node name="BottomBar" parent="VBox/EditorPanel" instance=ExtResource("7_bottom")]
-unique_name_in_owner = true
-layout_mode = 2
-
-[node name="BtnPreview" parent="VBox/EditorPanel/BottomBar" index="0"]
-unique_name_in_owner = true

@@ -21,6 +21,7 @@ signal editor_pointer_released(grid_pos: Vector2, screen_pos: Vector2, button: i
 signal view_changed()
 signal area_hovered(area: Dictionary)
 signal area_clicked(area: Dictionary)
+signal area_activate_requested(area: Dictionary)
 
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
@@ -47,7 +48,8 @@ var map_data: Dictionary = {}
 var is_gm: bool = false
 var readonly: bool = false
 var snap_to_grid: bool = true
-var session_tool: Dictionary = { "mode": "member" }
+var session_tool: Dictionary = { "mode": "select" }
+var owned_member_id: String = ""
 ## Quand vrai, l'entrée souris est relayée à l'éditeur au lieu d'être
 ## interprétée par le moteur (drag de token, clic outil…).
 var editor_mode: bool = false
@@ -96,6 +98,7 @@ var _pan_velocity: Vector2 = Vector2.ZERO
 var _last_pan_pos: Vector2 = Vector2.ZERO
 var _token_drag: Node = null
 var _token_press_candidate: Node = null
+var _token_click_candidate: Node = null
 var _token_nodes: Dictionary = {}
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
@@ -333,6 +336,27 @@ func _fit_to_view_when_ready() -> void:
 
 func set_session_tool(tool: Dictionary) -> void:
 	session_tool = tool
+
+func set_move_policy(p_is_gm: bool, p_owned_member_id: String = "") -> void:
+	is_gm = p_is_gm
+	owned_member_id = p_owned_member_id
+
+func _token_is_movable(node: Node) -> bool:
+	if node == null or readonly:
+		return false
+	if is_gm:
+		return true
+	var data: Dictionary = {}
+	if "token_data" in node and node.token_data is Dictionary:
+		data = node.token_data
+	return str(data.get("kind", "")) == "member" and str(data.get("memberId", "")) == owned_member_id
+
+func _token_node_id(node: Node) -> String:
+	if node == null:
+		return ""
+	if "token_data" in node and node.token_data is Dictionary:
+		return str(node.token_data.get("id", ""))
+	return ""
 
 func set_snap_to_grid(on: bool) -> void:
 	snap_to_grid = on
@@ -1124,7 +1148,9 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				_token_press_candidate = null if readonly else _pick_token(mb.position)
+				var picked := null if readonly else _pick_token(mb.position)
+				_token_click_candidate = picked
+				_token_press_candidate = picked if _token_is_movable(picked) else null
 				_token_drag = null
 				_pending_click = true
 				_pan_dragging = false
@@ -1139,8 +1165,12 @@ func _gui_input(event: InputEvent) -> void:
 					_token_drag = null
 					mouse_default_cursor_shape = Control.CURSOR_ARROW
 				elif _pending_click and not _pan_dragging:
-					_handle_map_click(mb.position)
+					if _token_click_candidate != null:
+						_on_token_selected(_token_node_id(_token_click_candidate))
+					else:
+						_handle_map_click(mb.position, mb.double_click)
 				_token_press_candidate = null
+				_token_click_candidate = null
 				_pan_dragging = false
 				_pending_click = false
 				accept_event()
@@ -1255,7 +1285,7 @@ func end_view_pan() -> void:
 	_pan_dragging = false
 	_pan_velocity = Vector2.ZERO
 
-func _handle_map_click(screen_pos: Vector2) -> void:
+func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
 	var grid := _screen_to_grid(screen_pos)
 	var gx := grid.x
 	var gy := grid.y
@@ -1263,7 +1293,10 @@ func _handle_map_click(screen_pos: Vector2) -> void:
 	if not editor_mode:
 		var area := MapData.get_area_at(map_data, gx, gy)
 		if not area.is_empty() and not str(area.get("targetMapId", "")).is_empty():
-			area_clicked.emit(area)
+			if double_click:
+				area_activate_requested.emit(area)
+			else:
+				area_clicked.emit(area)
 			return
 	if snap_to_grid:
 		gx = roundf(gx)
@@ -1276,7 +1309,7 @@ func _handle_map_click(screen_pos: Vector2) -> void:
 	if readonly and not is_gm:
 		return
 
-	var mode: String = session_tool.get("mode", "member")
+	var mode: String = session_tool.get("mode", "select")
 	if mode == "fog" and is_gm:
 		var brush: int = maxi(0, int(session_tool.get("fogRadius", 1)))
 		fog_revealed.emit(_fog_brush_cells(int(gx), int(gy), brush))
@@ -1285,7 +1318,7 @@ func _handle_map_click(screen_pos: Vector2) -> void:
 		var brush_h: int = maxi(0, int(session_tool.get("fogRadius", 1)))
 		fog_hidden.emit(_fog_brush_cells(int(gx), int(gy), brush_h))
 		return
-	if mode in ["select", "pan"]:
+	if mode in ["select", "pan", ""]:
 		return
 
 	map_clicked.emit(gx, gy, session_tool.duplicate(true))

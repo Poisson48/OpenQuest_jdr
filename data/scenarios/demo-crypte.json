@@ -133,24 +133,23 @@
     }
   ],
   "npcs": [
-    {
-      "id": "eldric",
-      "name": "Eldric le fossoyeur",
-      "role": "Informateur",
-      "description": "Un vieil homme nerveux qui a vu des lumières sous le cimetière. Il offre une clé rouillée.",
-      "scenes": [
-        "cimetiere-brumeval",
-        "entree-crypte"
-      ]
-    },
-    {
-      "id": "gardien-ombres",
-      "name": "Le Gardien des Ombres",
-      "role": "Antagoniste",
-      "description": "Une entité liée à la crypte. Il teste la bravoure ou la ruse des intrus.",
-      "scenes": [
-        "sanctuaire-interdit"
-      ]
-    }
+    {"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "emoji": "🪦", "description": "Un vieil homme nerveux qui a vu des lumières sous le cimetière. Il offre une clé rouillée.", "scenes": ["cimetiere-brumeval", "entree-crypte"]},
+    {"id": "myrrha", "name": "Sœur Myrrha", "role": "Prêtresse", "emoji": "⛪", "description": "Garde le petit oratoire au bord des tombes et bénit ceux qui descendent.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "emoji": "🛡️", "description": "Chef de la milice de Brumeval, posté près de l'entrée du cimetière.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "aldwyn", "name": "Mère Aldwyn", "role": "Villageoise", "emoji": "🧺", "description": "Vient déposer des fleurs chaque soir. Elle a entendu des pas sous la terre.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "tomas", "name": "Tomas", "role": "Adjoint", "emoji": "🕯️", "description": "Aide Eldric à ouvrir les dalles. Les mains lui tremblent encore.", "scenes": ["cimetiere-brumeval", "entree-crypte"]},
+    {"id": "benedic", "name": "Père Benedic", "role": "Prêtre", "emoji": "📿", "description": "Refuse d'admettre que les morts bougent. Sa foi vacille.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "lila", "name": "Lila la veuve", "role": "Témoin", "emoji": "🖤", "description": "Son mari a disparu près du mausolée. Elle veille encore.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "gareth", "name": "Gareth le veilleur", "role": "Sentinelle", "emoji": "👁️", "description": "Tourne autour des grilles la nuit. Il jure avoir vu une statue cligner.", "scenes": ["cimetiere-brumeval", "entree-crypte"]},
+    {"id": "nima", "name": "Nima l'herboriste", "role": "Marchande", "emoji": "🌿", "description": "Vend des sachets contre les miasmes. Elle connaît les plantes des tombes.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "hugo", "name": "Hugo", "role": "Apprenti", "emoji": "🪣", "description": "Gamin chargé des seaux d'eau bénite. Trop curieux pour son bien.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "isolde", "name": "Dame Isolde", "role": "Noble", "emoji": "💍", "description": "Finance les fouilles. Elle cherche un bijou de famille dans la crypte.", "scenes": ["cimetiere-brumeval", "salle-offrandes"]},
+    {"id": "corbin", "name": "Corbin", "role": "Messager", "emoji": "🪶", "description": "Porte les avis de disparition. Il a vu des traces de griffes sur la route.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "ysabeau", "name": "Ysabeau", "role": "Mendiante", "emoji": "🪙", "description": "Dort contre le mur du cimetière. Elle vend des rumeurs pour un sou.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "voss", "name": "Maître Voss", "role": "Érudit", "emoji": "📜", "description": "A déchiffré les runes de la dalle. Il met en garde contre le Gardien.", "scenes": ["cimetiere-brumeval", "entree-crypte"]},
+    {"id": "hilda", "name": "Garde Hilda", "role": "Milice", "emoji": "⚔️", "description": "Relève Rhen à la tombée du jour. Lame à la main, prière aux lèvres.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "milo", "name": "Milo", "role": "Enfant perdu", "emoji": "🧒", "description": "Cherche son chien près des tombes. Il a vu une lumière dans le trou.", "scenes": ["cimetiere-brumeval"]},
+    {"id": "gardien-ombres", "name": "Le Gardien des Ombres", "role": "Antagoniste", "emoji": "🌑", "description": "Une entité liée à la crypte. Il teste la bravoure ou la ruse des intrus.", "scenes": ["sanctuaire-interdit"]},
+    {"id": "piotr", "name": "Piotr", "role": "Colporteur", "emoji": "🧳", "description": "Étale des amulettes douteuses au portail. Il partira dès qu'il aura vendu.", "scenes": ["cimetiere-brumeval"]}
   ]
 }

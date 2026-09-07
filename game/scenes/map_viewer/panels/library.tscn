@@ -1,0 +1,68 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/simple/simple_library_panel.gd" id="1_script"]
+
+[node name="Library" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+script = ExtResource("1_script")
+
+[node name="LblTiles" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🖌 Tuiles"
+
+[node name="TileScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+vertical_scroll_mode = 0
+
+[node name="TileBox" type="HBoxContainer" parent="TileScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblMarkers" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "📍 Marqueurs"
+
+[node name="MarkerScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+vertical_scroll_mode = 0
+
+[node name="MarkerBox" type="HBoxContainer" parent="MarkerScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LblProps" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 12
+text = "🏚 Décors"
+
+[node name="PropCategoryRow" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnRefreshProps" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↺ Rafraîchir les décors"
+
+[node name="PropScroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 160)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PropGrid" type="GridContainer" parent="PropScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2

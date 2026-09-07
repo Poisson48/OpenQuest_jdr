@@ -87,6 +87,7 @@ func _connect_panels() -> void:
 	_console.narrate_requested.connect(func(text: String): model.narrate(text))
 	_console.npc_line_requested.connect(func(npc: String, text: String): model.npc_line(npc, text))
 	_console.scene_requested.connect(func(scene_id: String): model.go_to_scene(scene_id))
+	_console.turn_advance_requested.connect(func(): model.advance_turn())
 	_console.advance_requested.connect(func(): model.advance_scene())
 	_console.complete_requested.connect(_on_complete_pressed)
 
@@ -94,6 +95,8 @@ func _connect_panels() -> void:
 
 	_dice.roll_requested.connect(func(formula: String, secret: bool): model.roll(formula, secret))
 	_action.action_submitted.connect(func(text: String): model.submit_action(text))
+	if _map.has_signal("speaker_focus_requested"):
+		_map.speaker_focus_requested.connect(func(npc: String): _console.select_npc(npc))
 
 	if _player_hud_node != null:
 		_player_hud = _player_hud_node
@@ -114,6 +117,7 @@ func _on_log_reset(entries: Array) -> void:
 func _on_log_appended(entry: Dictionary) -> void:
 	_log.append(entry)
 	_push_toast()
+	_maybe_show_speech(entry)
 
 func _on_navigation_changed(nav: Dictionary) -> void:
 	_console.set_npcs(nav.get("npcs", []))
@@ -158,6 +162,13 @@ func _apply_immersive(immersive: bool) -> void:
 func _push_toast() -> void:
 	if _player_hud != null and _player_hud.visible:
 		_player_hud.show_toast(_log.latest_line())
+
+func _maybe_show_speech(entry: Dictionary) -> void:
+	if str(entry.get("type", "")) != "npc":
+		return
+	var speaker := str(entry.get("author", entry.get("speaker", "PNJ")))
+	var text := str(entry.get("text", ""))
+	_map.show_npc_speech(speaker, text)
 
 # ---------------------------------------------------------------------------
 # Actions de la coquille
@@ -255,4 +266,8 @@ func describe() -> Dictionary:
 	report["hud_visible"] = _player_hud != null and _player_hud.visible
 	report["preview_player_view"] = _preview_player_view
 	report["map"] = _map.describe()
+	report["waiting_for_gm"] = GameData.is_waiting_for_gm()
+	report["turn_index"] = int(GameData.active_game.get("turnIndex", 0))
+	report["turn_headline"] = _action.get_node("%LblTurn").text if _action != null else ""
+	report["next_turn_visible"] = _console.get_node("%BtnNextTurn").visible if _console != null else false
 	return report

@@ -196,6 +196,83 @@ func get_tile_color(map_data: Dictionary, tile_id: String) -> Color:
 		return Color.html(_tile_defs[kind][tile_id].get("color", "#444444"))
 	return Color.html("#333333")
 
+## Texture de sol livrée — vide si le PNG est un placeholder trop léger.
+func get_tile_texture_path(tile_id: String) -> String:
+	var paths := {
+		"grass": "res://data/props/ground/herbe.png",
+		"forest": "res://data/props/ground/herbe.png",
+		"road": "res://data/props/ground/sentier_boueux.png",
+		"floor": "res://data/props/ground/dalles_pierre.png",
+		"stone": "res://data/props/ground/dalles_pierre.png",
+		"water": "res://data/props/ground/eau_mare.png",
+		"sand": "res://data/props/ground/sentier_boueux.png",
+		"plains": "res://data/props/ground/herbe.png",
+		"hills": "res://data/props/ground/herbe.png",
+		"swamp": "res://data/props/ground/eau_mare.png",
+		"coast": "res://data/props/ground/sentier_boueux.png",
+	}
+	var path := str(paths.get(tile_id, ""))
+	if path.is_empty():
+		return ""
+	return path if is_usable_sprite(path) else ""
+
+func get_marker_sprite_path(marker_type: String) -> String:
+	var paths := {
+		"exit": "res://data/props/objects/porte_bois.png",
+		"npc": "res://data/props/characters/paysan_valbois.png",
+		"poi": "res://data/props/objects/panneau_bois.png",
+		"treasure": "res://data/props/furniture/coffre_fer.png",
+		"camp": "res://data/props/nature/tas_foin.png",
+		"city": "res://data/props/buildings/maison_maire.png",
+		"capital": "res://data/props/buildings/tour.png",
+		"dungeon": "res://data/props/buildings/temple_pierre.png",
+		"ruin": "res://data/props/buildings/tour.png",
+		"quest": "res://data/props/objects/panneau_bois.png",
+	}
+	var path := str(paths.get(marker_type, ""))
+	if path.is_empty():
+		return ""
+	return path if is_usable_sprite(path) else ""
+
+func get_character_sprite_path(role: String, label: String = "") -> String:
+	var hay := ("%s %s" % [role, label]).to_lower()
+	var path := "res://data/props/characters/paysan_valbois.png"
+	if hay.contains("garde") or hay.contains("milice") or hay.contains("sentinelle") \
+			or hay.contains("capitaine") or hay.contains("veilleur"):
+		path = "res://data/props/characters/garde_valbois.png"
+	elif hay.contains("hallebarde"):
+		path = "res://data/props/characters/garde_hallebarde.png"
+	elif hay.contains("marchand") or hay.contains("herboriste"):
+		path = "res://data/props/characters/marchande.png"
+	elif hay.contains("forge"):
+		path = "res://data/props/characters/forgeron.png"
+	elif hay.contains("villageois"):
+		var villager := "res://data/props/characters/villageois.png"
+		if is_usable_sprite(villager):
+			path = villager
+	return path if is_usable_sprite(path) else ""
+
+## Ignore les PNG procéduraux minuscules (placeholders) au profit d'une couleur.
+func is_usable_sprite(path: String) -> bool:
+	if path.strip_edges().is_empty():
+		return false
+	var abs_path := path
+	if path.begins_with("res://"):
+		if ResourceLoader.exists(path):
+			var res = load(path)
+			if res is Texture2D:
+				var tex := res as Texture2D
+				return tex.get_width() >= 48 and tex.get_height() >= 48
+		abs_path = ProjectSettings.globalize_path(path)
+	if not FileAccess.file_exists(abs_path):
+		return false
+	var f := FileAccess.open(abs_path, FileAccess.READ)
+	if f == null:
+		return false
+	var n := f.get_length()
+	f.close()
+	return n >= 2048
+
 func get_marker_emoji(marker_type: String) -> String:
 	return MARKERS.get(marker_type, "•")
 
@@ -614,7 +691,7 @@ func get_area_at(map_data: Dictionary, gx: float, gy: float) -> Dictionary:
 
 ## Crée la carte enfant d'un lieu et la relie dans les deux sens.
 ## Renvoie la carte créée (ou l'existante si le lieu en avait déjà une).
-func create_child_map_for_area(parent_map_id: String, area_id: String, grid_w: int = 24, grid_h: int = 18) -> Dictionary:
+func create_child_map_for_area(parent_map_id: String, area_id: String, grid_w: int = 24, grid_h: int = 18, render_mode: String = "") -> Dictionary:
 	var parent := get_by_id(parent_map_id)
 	if parent.is_empty():
 		return {}
@@ -629,12 +706,18 @@ func create_child_map_for_area(parent_map_id: String, area_id: String, grid_w: i
 	var title := str(area.get("label", "Lieu")).strip_edges()
 	if title.is_empty():
 		title = "Lieu"
-	var child := create_complex_map(
-		title,
-		str(parent.get("roster", "general")),
-		"local",
-		grid_w, grid_h
-	)
+	if render_mode.is_empty():
+		render_mode = get_render_mode(parent)
+	var child: Dictionary
+	if render_mode == RENDER_MODE_COMPLEX:
+		child = create_complex_map(
+			title,
+			str(parent.get("roster", "general")),
+			"local",
+			grid_w, grid_h
+		)
+	else:
+		child = create_blank_map(title, str(parent.get("roster", "general")), "local")
 	child["parentMapId"] = parent_map_id
 	child["scenarioId"] = str(parent.get("scenarioId", ""))
 	update_map(child)
@@ -1162,17 +1245,7 @@ const PLACE_NIGHT_PNG := "res://assets/maps/place_du_marche_night.png"
 
 func _build_demo_catalog() -> Array:
 	var list: Array = []
-	var simple = _load_json("res://data/maps/demo-taverne.json")
-	if simple is Dictionary and simple.has("id"):
-		simple["id"] = "demo-crypte-brumeval"
-		simple["title"] = "Brumeval — Cimetière"
-		simple["description"] = "Carte simple de la quête « La Crypte Oubliée »."
-		simple["scenarioId"] = "demo-crypte"
-		simple["renderMode"] = RENDER_MODE_SIMPLE
-		simple["mapKind"] = "local"
-		simple["roster"] = "general"
-		simple["parentMapId"] = ""
-		list.append(ensure_map_schema(simple))
+	list.append(ensure_map_schema(_brumeval_cemetery_map()))
 
 	var village_src := ProjectSettings.globalize_path(VILLAGE_PNG)
 	var place_src := ProjectSettings.globalize_path(PLACE_PNG)
@@ -1291,6 +1364,141 @@ func _build_demo_catalog() -> Array:
 	if FileAccess.file_exists(place_src):
 		import_background_image("demo-valbois-place", place_src)
 	return maps
+
+## Cimetière de Brumeval : sol texturé, décors PNG, quelques jetons — pas d'emojis.
+func _brumeval_cemetery_map() -> Dictionary:
+	var w := 16
+	var h := 12
+	var tiles := _brumeval_cemetery_tiles(w, h)
+	var tokens: Array = []
+	for npc in _brumeval_on_map_npcs():
+		var image := get_character_sprite_path(str(npc.role), str(npc.name))
+		var tok := {
+			"id": "tok-npc-%s" % str(npc.id),
+			"x": float(npc.x),
+			"y": float(npc.y),
+			"kind": "npc",
+			"markerType": "npc",
+			"label": str(npc.name),
+			"role": str(npc.role),
+			"scale": 1.0,
+		}
+		if not image.is_empty():
+			tok["image"] = image
+		tokens.append(tok)
+	var door := "res://data/props/objects/porte_bois.png"
+	var props: Array = _brumeval_cemetery_props()
+	if is_usable_sprite(door):
+		props.append(_map_prop("prop-porte", door, 1.0, 5.0, 1.15, 1.35))
+	return {
+		"id": "demo-crypte-brumeval",
+		"title": "Brumeval — Cimetière",
+		"description": "Cimetière villageois de la quête « La Crypte Oubliée ».",
+		"scenarioId": "demo-crypte",
+		"renderMode": RENDER_MODE_SIMPLE,
+		"mapKind": "local",
+		"roster": "general",
+		"parentMapId": "",
+		"width": w,
+		"height": h,
+		"tiles": tiles,
+		"markers": [],
+		"locationLinks": [],
+		"props": props,
+		"areas": [
+			{
+				"id": "area-exit-village",
+				"x": 1.0, "y": 5.0, "w": 1.2, "h": 1.2,
+				"label": "",
+				"category": "exit",
+				"icon": "",
+				"showCallout": false,
+				"targetMapId": "",
+			},
+			{
+				"id": "area-crypte",
+				"x": 10.5, "y": 3.0, "w": 2.4, "h": 2.2,
+				"label": "",
+				"category": "poi",
+				"icon": "",
+				"showCallout": false,
+				"targetMapId": "",
+			},
+		],
+		"fogEnabled": false,
+		"playDefaults": {
+			"tokens": tokens,
+			"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
+		},
+	}
+
+func _brumeval_cemetery_tiles(w: int, h: int) -> Array:
+	var tiles: Array = []
+	tiles.resize(w * h)
+	for y in range(h):
+		for x in range(w):
+			var id := "grass"
+			if x == 0 or y == 0 or x == w - 1 or y == h - 1:
+				id = "forest"
+			elif y == 5 and x >= 1 and x <= 12:
+				id = "road"
+			elif x >= 3 and x <= 5 and y >= 2 and y <= 3:
+				id = "water"
+			elif x >= 9 and x <= 12 and y >= 2 and y <= 4:
+				id = "stone"
+			elif x >= 10 and x <= 12 and y >= 8 and y <= 9:
+				id = "stone"
+			tiles[y * w + x] = id
+	return tiles
+
+func _brumeval_cemetery_props() -> Array:
+	var chapel := "res://data/props/buildings/temple_eliandre.png"
+	if not is_usable_sprite(chapel):
+		chapel = "res://data/props/buildings/temple_pierre.png"
+	return [
+		_map_prop("prop-chapelle", chapel, 10.6, 2.7, 3.0, 3.0),
+		_map_prop("prop-arbre-n", "res://data/props/nature/arbre_valbois.png", 4.2, 1.6, 2.2, 2.2),
+		_map_prop("prop-chene", "res://data/props/nature/chene_isole.png", 7.2, 8.6, 2.0, 2.2),
+		_map_prop("prop-sapin", "res://data/props/nature/sapin.png", 13.2, 6.4, 1.8, 2.4),
+		_map_prop("prop-arbre-s", "res://data/props/nature/arbre_valbois.png", 2.4, 9.2, 2.0, 2.0),
+		_map_prop("prop-fleurs", "res://data/props/nature/fleurs_sauvages.png", 6.4, 3.6, 1.4, 1.2),
+		_map_prop("prop-foin", "res://data/props/nature/tas_foin.png", 12.4, 8.6, 1.5, 1.3),
+		_map_prop("prop-panneau", "res://data/props/objects/panneau_bois.png", 2.3, 4.2, 1.0, 1.2),
+		_map_prop("prop-fontaine", "res://data/props/objects/fontaine.png", 7.6, 6.6, 1.4, 1.4),
+		_map_prop("prop-puits", "res://data/props/objects/puits.png", 5.4, 8.2, 1.3, 1.5),
+		_map_prop("prop-buisson", "res://data/props/nature/buisson.png", 8.6, 4.6, 1.2, 1.1),
+		_map_prop("prop-rocher", "res://data/props/nature/rocher.png", 4.8, 7.0, 1.1, 1.0),
+		_map_prop("prop-torche", "res://data/props/objects/torche.png", 9.2, 4.2, 0.7, 1.0),
+	]
+
+func _map_prop(id: String, asset: String, x: float, y: float, pw: float, ph: float) -> Dictionary:
+	return {
+		"id": id,
+		"asset": asset,
+		"x": x, "y": y, "w": pw, "h": ph,
+		"hidden": false,
+		"display": {"opacity": 1.0},
+	}
+
+## Personnages visibles sur la carte (le reste du casting reste dans le scénario).
+func _brumeval_on_map_npcs() -> Array:
+	return [
+		{"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "x": 3, "y": 5},
+		{"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "x": 2, "y": 2},
+		{"id": "myrrha", "name": "Sœur Myrrha", "role": "Prêtresse", "x": 10, "y": 2},
+		{"id": "tomas", "name": "Tomas", "role": "Adjoint", "x": 6, "y": 5},
+		{"id": "lila", "name": "Lila la veuve", "role": "Témoin", "x": 12, "y": 7},
+	]
+
+## Roster complet (console / dialogues) — plus posé sur la carte.
+func _brumeval_crowd_npcs() -> Array:
+	return [
+		{"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "emoji": "🪦", "x": 3, "y": 5},
+		{"id": "myrrha", "name": "Sœur Myrrha", "role": "Prêtresse", "emoji": "⛪", "x": 10, "y": 2},
+		{"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "emoji": "🛡️", "x": 2, "y": 2},
+		{"id": "tomas", "name": "Tomas", "role": "Adjoint", "emoji": "🕯️", "x": 6, "y": 5},
+		{"id": "lila", "name": "Lila la veuve", "role": "Témoin", "emoji": "🖤", "x": 12, "y": 7},
+	]
 
 ## Lieux légendés Valbois (callouts) + Place liée + sorties village (P3-B).
 func _valbois_village_areas(cells: Vector2i) -> Array:

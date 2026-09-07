@@ -83,6 +83,8 @@ func _run() -> void:
 
 	var editor_script: GDScript = load("res://scripts/maps/map_complex_editor.gd") as GDScript
 	_assert("editor_script", editor_script != null)
+	var simple_editor_script: GDScript = load("res://scripts/maps/simple/simple_map_editor.gd") as GDScript
+	_assert("simple_editor_script", simple_editor_script != null)
 
 	var cells: Vector2i = md.suggest_cells_from_image("res://icon.svg", 70)
 	_assert("suggest_cells", cells.x >= 4 and cells.y >= 4)

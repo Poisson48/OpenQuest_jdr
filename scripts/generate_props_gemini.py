@@ -51,6 +51,7 @@ STYLE_MAP = (
     "isometric / bird's-eye dimetric view (same angle as the map buildings), "
     "timber-framed walls, tiled or thatch roofs, cozy medieval village. "
     "Transparent background only (no parchment sheet, no map labels, no legend, no compass). "
+    "CRITICAL: real PNG alpha transparency — NEVER draw a gray/white checkerboard, NEVER a solid white/beige backdrop. "
     "Single centered prop cutout, readable at small size on a VTT map, ~512px. "
     "No text, no watermark, no UI."
 )
@@ -60,8 +61,11 @@ STYLE_CHAR = (
     "same medieval fantasy world, muted earthy palette (browns, slate blue, olive), "
     "painterly textured clothes/leather like Kael, but drawn as a standing map token cutout "
     "compatible with the illustrated village map (readable silhouette, soft edges). "
-    "Transparent background, front-ish 3/4 view, no text, no watermark, ~512px."
+    "Transparent background, front-ish 3/4 view, no text, no watermark, ~512px. "
+    "CRITICAL: real PNG alpha — never paint a checkerboard or white rectangle behind the character."
 )
+
+TINY_BYTES = 2048
 
 # Petit lot utile pour tester la biblio (pas le plafond budget).
 CURATED: list[dict[str, str]] = [
@@ -85,6 +89,58 @@ CURATED: list[dict[str, str]] = [
      "prompt": f"{STYLE_CHAR} Simple medieval villager / peasant of Valbois in tunic, friendly NPC token."},
     {"category": "characters", "file": "garde_valbois.png", "kind": "char",
      "prompt": f"{STYLE_CHAR} Town guard with helmet and spear/halberd, same world as Kael but local militia."},
+]
+
+# Lot classique VTT : manques + placeholders trop légers (herbe, porte, auberge…).
+CLASSIC: list[dict[str, str]] = [
+    {"category": "objects", "file": "porte_bois.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Wooden medieval door / cemetery gate cutout, dark oak planks, iron hinges, isometric-friendly, no frame around it."},
+    {"category": "objects", "file": "torche.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Single wall torch on a wooden stake, warm flame, iron basket, isometric-friendly cutout."},
+    {"category": "objects", "file": "feu_camp.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Small campfire with stones and wood, soft flame, isometric-friendly cutout."},
+    {"category": "ground", "file": "herbe.png", "kind": "map",
+     "prompt": (
+         f"{STYLE_MAP} ONLY a square top-down GRASS GROUND TILE: muted olive/moss turf, "
+         "soft watercolor blades, no well, no building, no object, no people, no path. "
+         "Flat terrain texture filling the frame, seamless-ish, no border."
+     )},
+    {"category": "ground", "file": "chemin.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Square dirt path / packed earth ground tile, warm brown, top-down, no border."},
+    {"category": "ground", "file": "pave.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Square cobblestone paving tile, muted grey-brown stones, top-down, no border."},
+    {"category": "buildings", "file": "auberge.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Cozy timber-framed inn with hanging sign, tiled roof, isometric village building."},
+    {"category": "buildings", "file": "maison.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Simple timber-framed village house with thatch or tile roof, isometric."},
+    {"category": "buildings", "file": "tour.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Small stone watchtower with conical roof, isometric village tower."},
+    {"category": "objects", "file": "puits.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Village stone well with wooden roof and bucket, isometric cutout."},
+    {"category": "objects", "file": "lampe.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Iron street lamp / lantern on a wooden post, warm glow, isometric cutout."},
+    {"category": "objects", "file": "caisse.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Closed wooden crate, iron bands, isometric cutout."},
+    {"category": "nature", "file": "arbre.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Single rounded oak tree, muted olive canopy, isometric-friendly cutout."},
+    {"category": "nature", "file": "buisson.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Small leafy bush, muted greens, isometric cutout."},
+    {"category": "nature", "file": "rocher.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Grey mossy boulder / rock cluster, isometric cutout."},
+    {"category": "furniture", "file": "table.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Rustic wooden table, slight top-down angle, isometric-friendly cutout."},
+    {"category": "furniture", "file": "banc.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Simple wooden bench, weathered planks, isometric-friendly cutout."},
+    {"category": "furniture", "file": "tonneau.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Single wooden barrel, iron hoops, isometric cutout."},
+    {"category": "characters", "file": "villageois.png", "kind": "char",
+     "prompt": f"{STYLE_CHAR} Simple medieval villager token, tunic and cloak, friendly NPC."},
+    {"category": "characters", "file": "garde.png", "kind": "char",
+     "prompt": f"{STYLE_CHAR} Town guard with helmet and short spear, local militia token."},
+    {"category": "vehicles", "file": "charrette.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Simple wooden cart, two wheels, isometric-friendly cutout."},
+    {"category": "vehicles", "file": "char_de_guerre.png", "kind": "map",
+     "prompt": f"{STYLE_MAP} Small wooden war wagon / chariot, isometric-friendly cutout."},
 ]
 
 
@@ -208,15 +264,25 @@ def generate_one(api_key: str, prompt: str, kind: str = "map", timeout: int = 18
         return raw
 
 
-def planned_jobs(max_images: int, force: bool) -> list[dict[str, str]]:
+def _is_tiny(path: Path) -> bool:
+    try:
+        return path.exists() and path.stat().st_size < TINY_BYTES
+    except OSError:
+        return False
+
+
+def planned_jobs(max_images: int, force: bool, pack: list[dict[str, str]], replace_tiny: bool) -> list[dict[str, str]]:
     jobs: list[dict[str, str]] = []
-    for item in CURATED:
+    for item in pack:
         if len(jobs) >= max_images:
             break
         dest = PROPS / item["category"] / item["file"]
         if dest.exists() and not force:
-            print(f"skip existing {item['category']}/{item['file']}")
-            continue
+            if replace_tiny and _is_tiny(dest):
+                print(f"replace tiny {item['category']}/{item['file']} ({dest.stat().st_size} B)")
+            else:
+                print(f"skip existing {item['category']}/{item['file']}")
+                continue
         jobs.append(item)
     return jobs
 
@@ -238,6 +304,23 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="Plan only, no API calls")
     parser.add_argument("--force", action="store_true", help="Overwrite existing targets")
+    parser.add_argument(
+        "--pack",
+        choices=("curated", "classic"),
+        default="classic",
+        help="Asset list (classic = village/dungeon gaps)",
+    )
+    parser.add_argument(
+        "--replace-tiny",
+        action="store_true",
+        default=True,
+        help="Overwrite placeholder PNGs under 2 KB (default on)",
+    )
+    parser.add_argument(
+        "--keep-tiny",
+        action="store_true",
+        help="Do not replace existing tiny placeholders",
+    )
     args = parser.parse_args()
 
     max_images = max(0, min(args.max, HARD_MAX_IMAGES))
@@ -257,15 +340,9 @@ def main() -> int:
     print(f"Budget ceiling (max only): ~${max_cost_usd:.2f} USD (~EUR {max_cost_usd * EUR_PER_USD:.2f})")
     print(f"Output root: {PROPS}")
 
-    api_key = resolve_api_key()
-    if not api_key:
-        print(
-            "ABORT: aucune cle (GEMINI_API_KEY / GOOGLE_API_KEY). "
-            "Aucun appel API. Utilisez generate_prop_placeholders.py pour du gratuit."
-        )
-        return 2
-
-    jobs = planned_jobs(max_images, args.force)
+    pack = CLASSIC if args.pack == "classic" else CURATED
+    replace_tiny = bool(args.replace_tiny) and not bool(args.keep_tiny)
+    jobs = planned_jobs(max_images, args.force, pack, replace_tiny)
     cost = estimate_cost(len(jobs))
     cost_eur = round(cost * EUR_PER_USD, 4)
     print(f"Planned requests: {len(jobs)}  estimated~${cost} (~EUR {cost_eur})")
@@ -275,6 +352,17 @@ def main() -> int:
     if not jobs:
         print("Nothing to do.")
         return 0
+
+    api_key = resolve_api_key()
+    if not api_key:
+        if args.dry_run:
+            print("Dry-run: no API key required.")
+            return 0
+        print(
+            "ABORT: aucune cle (GEMINI_API_KEY / GOOGLE_API_KEY). "
+            "Aucun appel API. Utilisez generate_prop_placeholders.py pour du gratuit."
+        )
+        return 2
 
     spent = 0.0
     ok = 0
@@ -291,9 +379,19 @@ def main() -> int:
         try:
             png = generate_one(api_key, item["prompt"], kind=str(item.get("kind", "map")))
             dest.write_bytes(png)
+            # Detourage systematique (Gemini peint souvent un damier opaque).
+            try:
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                from strip_prop_backgrounds import strip_image
+                from PIL import Image as _PILImage
+
+                cut = strip_image(_PILImage.open(dest))
+                cut.save(dest, format="PNG", optimize=True)
+            except Exception as strip_exc:
+                print(f"  WARN strip: {strip_exc}")
             spent += COST_PER_IMAGE_USD
             ok += 1
-            print(f"  saved {dest} ({len(png)} bytes) running~${spent:.3f}/EUR {spent * EUR_PER_USD:.3f}")
+            print(f"  saved {dest} ({dest.stat().st_size} bytes) running~${spent:.3f}/EUR {spent * EUR_PER_USD:.3f}")
         except Exception as exc:
             print(f"  FAIL: {exc}", file=sys.stderr)
             print("Aborting remaining requests to avoid wasted spend.")
