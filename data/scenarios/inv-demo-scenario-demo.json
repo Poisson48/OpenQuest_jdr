@@ -1,0 +1,174 @@
+{
+  "id": "inv-demo-scenario-demo",
+  "mystery": "Qui as tué le colonel Moutarde?",
+  "npcs": [
+    {
+      "description": "",
+      "id": "npc-1",
+      "name": "Ferdinand",
+      "role": "Majordome"
+    }
+  ],
+  "questFormat": "investigation",
+  "roster": "investigation",
+  "scenes": [
+    {
+      "content": "Les enqueteurs sont au poste dans le bureau du commissaire qui leur explique le probleme : un colonel important de l'armée a été retrouvé mort dans son bureau",
+      "graphPos": {
+        "x": -16,
+        "y": 16
+      },
+      "graphSize": {
+        "h": 241.17,
+        "w": 216.03
+      },
+      "id": "scene-debut",
+      "mapIds": [],
+      "tags": [
+        "debut"
+      ],
+      "title": "Scène de départ",
+      "transitions": [
+        {
+          "default": true,
+          "gmOnly": false,
+          "label": "Continuer",
+          "to": "scene-2"
+        }
+      ]
+    },
+    {
+      "content": "Vous arrivez devant un manoir immense, un majordome vous accueil...\nA vous de jouer!",
+      "graphPos": {
+        "x": 336,
+        "y": 48
+      },
+      "graphSize": {
+        "h": 148.27,
+        "w": 211.12
+      },
+      "id": "scene-2",
+      "mapIds": [],
+      "tags": [],
+      "title": "Arrivé sur les lieux du crime",
+      "transitions": [
+        {
+          "default": true,
+          "gmOnly": false,
+          "label": "Nouvelle branche",
+          "to": "scene-3"
+        },
+        {
+          "default": false,
+          "gmOnly": false,
+          "label": "Nouvelle branche",
+          "to": "scene-4"
+        }
+      ]
+    },
+    {
+      "content": "Vous avez décidez d'aller interroger les témoins",
+      "graphPos": {
+        "x": 672,
+        "y": -80
+      },
+      "graphSize": {
+        "h": 127.27,
+        "w": 311.41
+      },
+      "id": "scene-3",
+      "mapIds": [],
+      "tags": [],
+      "title": "Interroger les témoins",
+      "transitions": [
+        {
+          "default": true,
+          "gmOnly": false,
+          "label": "Nouvelle branche",
+          "to": "scene-5"
+        },
+        {
+          "default": false,
+          "gmOnly": false,
+          "label": "Nouvelle branche",
+          "to": "scene-6"
+        }
+      ]
+    },
+    {
+      "content": "Vous avez décider d'enqueter sur la scène de crime",
+      "graphPos": {
+        "x": 672,
+        "y": 256
+      },
+      "graphSize": {
+        "h": 106.37,
+        "w": 303.7
+      },
+      "id": "scene-4",
+      "mapIds": [],
+      "tags": [],
+      "title": "Examiner la scene de crime",
+      "transitions": [
+        {
+          "default": true,
+          "gmOnly": false,
+          "label": "Continuer",
+          "to": "scene-7"
+        }
+      ]
+    },
+    {
+      "content": "",
+      "graphPos": {
+        "x": 1264,
+        "y": -208
+      },
+      "graphSize": {
+        "h": 142.0,
+        "w": 417.14
+      },
+      "id": "scene-5",
+      "mapIds": [],
+      "tags": [],
+      "title": "Nouvelle scène 5",
+      "transitions": []
+    },
+    {
+      "content": "",
+      "graphPos": {
+        "x": 1280,
+        "y": -16
+      },
+      "graphSize": {
+        "h": 124.07,
+        "w": 392.7
+      },
+      "id": "scene-6",
+      "mapIds": [],
+      "tags": [],
+      "title": "Nouvelle scène 6",
+      "transitions": []
+    },
+    {
+      "content": "",
+      "graphPos": {
+        "x": 1264,
+        "y": 240
+      },
+      "graphSize": {
+        "h": 139.56,
+        "w": 381.52
+      },
+      "id": "scene-7",
+      "mapIds": [],
+      "tags": [],
+      "title": "Nouvelle scène 7",
+      "transitions": []
+    }
+  ],
+  "setting": "Manoir, bureau du commissaire, scènes d'interrogatoire et de crime.",
+  "startSceneId": "scene-debut",
+  "synopsis": "Une enquête : qui a tué le colonel Moutarde ?",
+  "title": "Scénario Démo"
+}

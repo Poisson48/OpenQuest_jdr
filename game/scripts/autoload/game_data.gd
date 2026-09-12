@@ -12,8 +12,8 @@ const BOTS_PATH = "user://bots.json"
 const BOTS_REMOVED_PATH = "user://bots_removed.json"
 const ACTIVE_GAME_PATH = "user://active_game.json"
 const SAVED_GAMES_PATH = "user://saved_games.json"
-const DEMO_SCENARIO_FILES := ["demo-valbois.json", "demo-crypte.json"]
-const DEMO_SCENARIO_IDS := ["demo-valbois", "demo-crypte"]
+const DEMO_SCENARIO_FILES := ["demo-valbois.json", "demo-crypte.json", "inv-demo-scenario-demo.json"]
+const DEMO_SCENARIO_IDS := ["demo-valbois", "demo-crypte", "inv-demo-scenario-demo"]
 ## Chargés pour le boot MJ / parties déjà pointées, mais absents du catalogue Hub.
 const EXTRA_SCENARIO_FILES := ["demo-kharak.json"]
 
