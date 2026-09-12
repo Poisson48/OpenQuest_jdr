@@ -126,6 +126,16 @@ func _clear_area_hover() -> void:
 	area_hovered.emit({})
 
 func _build_viewport_tree() -> void:
+	# Si un preload a échoué (ex. shaders manquants), _viewport peut exister
+	# sans _ground — on détruit et on reconstruit.
+	if _viewport != null and is_instance_valid(_viewport) and _ground != null and is_instance_valid(_ground):
+		return
+	if _viewport_container != null and is_instance_valid(_viewport_container):
+		_viewport_container.queue_free()
+		_viewport_container = null
+		_viewport = null
+		_ground = null
+		_world = null
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_viewport_container.stretch = true
@@ -269,6 +279,10 @@ func configure(
 	p_view_state: Dictionary = {},
 	p_selected_token: String = ""
 ) -> void:
+	if not is_node_ready():
+		await ready
+	if _viewport == null or _ground == null:
+		_build_viewport_tree()
 	var new_id: String = p_map.get("id", "")
 	var same_map := not new_id.is_empty() and new_id == _loaded_map_id
 
@@ -369,6 +383,12 @@ func set_view_inset(left: float, top: float, right: float, bottom: float) -> voi
 		request_fit_to_view()
 
 func _load_ground() -> void:
+	if _ground == null:
+		push_warning("[ComplexMap] ground missing — rebuild viewport")
+		if _viewport == null:
+			_build_viewport_tree()
+		if _ground == null:
+			return
 	var tex := MapData.load_background_texture(map_data)
 	if tex == null:
 		tex = MapData.generate_tile_texture(map_data, _grid_config)
@@ -461,6 +481,8 @@ func _apply_lighting() -> void:
 		_sun.light_energy = 1.15
 
 func _apply_atmosphere() -> void:
+	if _atmosphere == null or _vignette == null:
+		return
 	var atmo: Dictionary = map_data.get("atmosphere", {}) if map_data.get("atmosphere") is Dictionary else {}
 	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
 	var illustrated := not str(map_data.get("backgroundImage", "")).strip_edges().is_empty()

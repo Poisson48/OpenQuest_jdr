@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://valbois_lan_player"]
+
+[ext_resource type="Script" path="res://scripts/debug/valbois_lan_player_boot.gd" id="1"]
+
+[node name="ValboisLanPlayerBoot" type="Node"]
+script = ExtResource("1")
+player_slot = 1

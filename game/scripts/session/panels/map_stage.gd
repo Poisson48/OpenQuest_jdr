@@ -201,8 +201,15 @@ func show_speech(speaker: String, text: String, grid: Vector2 = Vector2(-1, -1))
 		return
 	var pos := grid
 	if pos.x < 0.0:
+		pos = GameData.find_speaker_grid(speaker)
+	if pos.x < 0.0:
 		pos = _fallback_grid()
 	_bubbles.enqueue(speaker, text, pos)
+
+func center_on_grid(gx: float, gy: float) -> void:
+	var renderer := active_renderer()
+	if renderer != null and renderer.has_method("center_on_grid"):
+		renderer.center_on_grid(gx, gy)
 
 func speech_bubble_count() -> int:
 	return _bubbles.visible_count() if _bubbles else 0

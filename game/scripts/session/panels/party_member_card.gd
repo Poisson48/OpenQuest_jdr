@@ -26,7 +26,21 @@ func setup(member: Dictionary, is_active_turn: bool, local_client_id: String) ->
 	theme_type_variation = &"AlertPanel" if is_active_turn else &"InsetPanel"
 	var member_name := str(member.get("name", "Aventurier"))
 	_name.text = member_name
-	_stats.text = "PV %d · CA %d" % [member.get("hp", 10), member.get("ac", 10)]
+	var inv_bits: Array[String] = []
+	for it_variant in member.get("inventory", []):
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		var qty := int(it.get("qty", 1))
+		var iname := str(it.get("name", it.get("id", "?")))
+		inv_bits.append(iname if qty <= 1 else "%s×%d" % [iname, qty])
+	if inv_bits.is_empty():
+		_stats.text = "PV %d · CA %d" % [member.get("hp", 10), member.get("ac", 10)]
+	else:
+		var shown := ", ".join(inv_bits)
+		if shown.length() > 42:
+			shown = shown.substr(0, 40) + "…"
+		_stats.text = "PV %d · CA %d · %s" % [member.get("hp", 10), member.get("ac", 10), shown]
 	tooltip_text = "Ouvrir la fiche de %s" % member_name
 	_apply_portrait(member, member_name)
 	_apply_badge(member, is_active_turn, local_client_id)

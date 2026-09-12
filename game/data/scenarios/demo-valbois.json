@@ -4,64 +4,214 @@
   "roster": "general",
   "startSceneId": "retour-a-valbois",
   "title": "Retour à Valbois",
-  "synopsis": "Kael, voleur originaire de Valbois, revient au village. Sur la Place du Marché, une dette ancienne et un bijou disparu au manoir du maire l'attendent — ainsi que trop de regards.",
-  "setting": "Village de Valbois, Place du Marché animée, étals, fontaine, ruelles étroites au crépuscule.",
+  "synopsis": "Trois compagnons reviennent à Valbois. Une dette ancienne, un bijou disparu au manoir du maire et trop de regards croisent leurs chemins. Plusieurs pistes mènent à la vérité — aucune n'est sûre.",
+  "setting": "Village de Valbois au crépuscule : Place du Marché, taverne, forge, manoir, ruelles étroites.",
   "scenes": [
     {
       "id": "retour-a-valbois",
       "title": "Le chemin du village",
       "tags": ["debut", "village"],
-      "content": "Les toits de Valbois apparaissent entre les peupliers. Kael reconnaît chaque chemin, chaque porte. Une charrette de foin bloque l'entrée nord. Des gamins crient près de la fontaine. Quelqu'un murmure son nom — ou celui d'un voleur qu'on n'a jamais oublié.",
+      "content": "Les toits de Valbois apparaissent entre les peupliers. Une charrette de foin bloque l'entrée nord. Des gamins crient près de la fontaine. Quelqu'un murmure un nom de voleur qu'on n'a jamais oublié.",
       "transitions": [
-        {
-          "to": "place-du-marche",
-          "label": "Descendre vers la Place du Marché",
-          "default": true
-        }
+        { "to": "place-du-marche", "label": "Descendre vers la Place du Marché", "default": true },
+        { "to": "taverne-cerf", "label": "Couper par la Taverne du Cerf" },
+        { "to": "forge-brume", "label": "Passer d'abord à la forge" }
       ]
     },
     {
       "id": "place-du-marche",
       "title": "La Place du Marché",
-      "tags": ["marche", "indice"],
-      "content": "Étals de fruits, draps, ferraille. La fontaine crachote. Une marchande fixe Kael trop longtemps. Sous un banc, un chiffon brodé aux armes du maire. Un garde de la milice passe, main sur la garde. Le bijou volé — ou jamais volé — n'est pas loin.",
+      "tags": ["marche", "indice", "carrefour"],
+      "content": "Étals de fruits, draps, ferraille. La fontaine crachote. Marta fixe trop longtemps. Sous un banc, un chiffon brodé aux armes du maire. Un garde de la milice passe, main sur la garde.",
       "transitions": [
-        {
-          "to": "la-dette",
-          "label": "Suivre la piste de la dette",
-          "default": true
-        },
-        {
-          "to": "retour-a-valbois",
-          "label": "Revenir vers l'entrée du village",
-          "gmOnly": true
-        }
+        { "to": "piste-bijou", "label": "Suivre la piste du chiffon", "default": true },
+        { "to": "taverne-cerf", "label": "Chercher des rumeurs à la taverne" },
+        { "to": "manoir-maire", "label": "Aller droit au manoir" },
+        { "to": "retour-a-valbois", "label": "Revenir vers l'entrée", "gmOnly": true }
       ]
     },
     {
-      "id": "la-dette",
-      "title": "La dette ancienne",
-      "tags": ["fin"],
-      "content": "Un contact dans l'ombre de la halle : la dette n'était pas de l'or, mais un nom. Rendre le bijou, le garder, ou le vendre — chaque choix ferme une porte à Valbois. Kael sourit rarement. Ce soir, quelqu'un va perdre quelque chose.",
+      "id": "taverne-cerf",
+      "title": "La Taverne du Cerf",
+      "tags": ["taverne", "indice"],
+      "content": "L'odeur de bière et de pain grillé. Renard le tavernier essuie un verre trop longtemps. Dans un coin, un homme hoodé parle d'une dette qui n'était pas de l'or. Une lettre froissée traîne sous une table.",
       "transitions": [
-        {
-          "to": "place-du-marche",
-          "label": "Repasser par la Place du Marché",
-          "gmOnly": true
-        }
+        { "to": "piste-bijou", "label": "Comparer la lettre au chiffon", "default": true },
+        { "to": "place-du-marche", "label": "Repasser par la place" },
+        { "to": "ruelles-nuit", "label": "Suivre l'homme hoodé dans les ruelles" }
+      ]
+    },
+    {
+      "id": "forge-brume",
+      "title": "La forge de Brume",
+      "tags": ["forge", "outil"],
+      "content": "Les étincelles dansent. Gareth le forgeron prête un marteau « pour ouvrir ce qui doit l'être ». Il a vu une silhouette quitter le manoir avant l'aube — trop fine pour un garde.",
+      "transitions": [
+        { "to": "manoir-maire", "label": "Emprunter le marteau vers le manoir", "default": true },
+        { "to": "place-du-marche", "label": "Rejoindre la place" },
+        { "to": "retour-a-valbois", "label": "Revenir au chemin", "gmOnly": true }
+      ]
+    },
+    {
+      "id": "manoir-maire",
+      "title": "Le manoir du maire",
+      "tags": ["manoir", "danger"],
+      "content": "Grilles froides, fenêtres closes. Dame Élise veille à la porte. À l'intérieur, un écrin vide : le bijou a bougé. Des traces de boue mènent vers les ruelles ouvers le marché.",
+      "transitions": [
+        { "to": "piste-bijou", "label": "Suivre les traces", "default": true },
+        { "to": "confrontation-dette", "label": "Exiger des comptes au contact" },
+        { "to": "ruelles-nuit", "label": "Fuir avant l'alarme" },
+        { "to": "place-du-marche", "label": "Rejoindre la place", "gmOnly": true }
+      ]
+    },
+    {
+      "id": "piste-bijou",
+      "title": "La piste du bijou",
+      "tags": ["enquete", "carrefour"],
+      "content": "Chiffon, lettre, rumeurs et boue : tout pointe vers un même nom. Le bijou n'a jamais quitté Valbois. Quelqu'un veut fermer la bouche de Kael — ou celle du maire.",
+      "transitions": [
+        { "to": "confrontation-dette", "label": "Affronter la dette face à face", "default": true },
+        { "to": "ruelles-nuit", "label": "Tenter une récupération discrète" },
+        { "to": "place-du-marche", "label": "Recouper les témoins", "gmOnly": true }
+      ]
+    },
+    {
+      "id": "ruelles-nuit",
+      "title": "Ruelles au crépuscule",
+      "tags": ["fuite", "ombre"],
+      "content": "Les ruelles se rétrécissent. Un chien aboie. Deux miliciens barrent le passage nord. Au sud, une échappatoire vers la halle — et peut-être le bijou.",
+      "transitions": [
+        { "to": "confrontation-dette", "label": "Sortir au grand jour avec la preuve", "default": true },
+        { "to": "denouement", "label": "Disparaître avec le bijou" },
+        { "to": "place-du-marche", "label": "Rejoindre la foule", "gmOnly": true }
+      ]
+    },
+    {
+      "id": "confrontation-dette",
+      "title": "La dette ancienne",
+      "tags": ["conflit", "choix"],
+      "content": "Dans l'ombre de la halle, le contact révèle la vérité : la dette n'était pas de l'or, mais un nom. Rendre le bijou, le garder, ou le vendre — chaque choix ferme une porte à Valbois.",
+      "transitions": [
+        { "to": "denouement", "label": "Trancher et clore l'affaire", "default": true },
+        { "to": "ruelles-nuit", "label": "Refuser et s'enfuir", "gmOnly": true },
+        { "to": "place-du-marche", "label": "Reporter la décision", "gmOnly": true }
+      ]
+    },
+    {
+      "id": "denouement",
+      "title": "Ce que Valbois retient",
+      "tags": ["fin"],
+      "content": "Le crépuscule tombe sur la place. Les étals se ferment. Quelqu'un a perdu quelque chose — un bijou, un secret, ou une dette. Les trois compagnons quittent Valbois autrement qu'ils y sont entrés.",
+      "transitions": [
+        { "to": "place-du-marche", "label": "Relire la place (épilogue)", "gmOnly": true }
       ]
     }
   ],
   "npcs": [
     {
-      "name": "Kael",
-      "role": "Voleur — héros de la démo",
-      "description": "Fils d'une couturière de Valbois. Silencieux, méfiant, doigts agiles. Il compte les sorties d'une pièce avant d'y entrer."
-    },
-    {
+      "id": "npc-marta",
       "name": "Marta l'étalière",
       "role": "Marchande",
-      "description": "Vend des draps et des rumeurs. Elle a vu le chiffon brodé avant Kael."
+      "description": "Vend des draps et des rumeurs. Elle a vu le chiffon brodé avant les héros.",
+      "scenes": ["place-du-marche", "piste-bijou"]
+    },
+    {
+      "id": "npc-renard",
+      "name": "Renard",
+      "role": "Tavernier",
+      "description": "Patron de la Taverne du Cerf. Essuie les verres et les consciences.",
+      "scenes": ["taverne-cerf"]
+    },
+    {
+      "id": "npc-gareth",
+      "name": "Gareth",
+      "role": "Forgeron",
+      "description": "Bras de fer, regard doux. Prête ses outils à qui sait pourquoi.",
+      "scenes": ["forge-brume"]
+    },
+    {
+      "id": "npc-elise",
+      "name": "Dame Élise",
+      "role": "Épouse du maire",
+      "description": "Garde la porte du manoir et les apparences du village.",
+      "scenes": ["manoir-maire"]
+    },
+    {
+      "id": "npc-capitaine",
+      "name": "Capitaine Ord",
+      "role": "Garde",
+      "description": "Chef de la milice. Méfie de Kael depuis l'ancienne affaire.",
+      "scenes": ["place-du-marche", "ruelles-nuit"]
+    },
+    {
+      "id": "npc-lyse",
+      "name": "Lyse",
+      "role": "Garde",
+      "description": "Jeune milicienne. Trop curieuse pour rester neutre.",
+      "scenes": ["retour-a-valbois", "place-du-marche"]
+    },
+    {
+      "id": "npc-pere-alain",
+      "name": "Père Alain",
+      "role": "Prêtre",
+      "description": "Desservant du temple d'Éliandre. Offre asile et conseils ambigus.",
+      "scenes": ["retour-a-valbois"]
+    },
+    {
+      "id": "npc-nina",
+      "name": "Nina",
+      "role": "Boulangère",
+      "description": "Connaît qui passe tôt et qui rentre tard.",
+      "scenes": ["place-du-marche"]
+    },
+    {
+      "id": "npc-tom",
+      "name": "Tom le gamin",
+      "role": "Villageois",
+      "description": "Crie près de la fontaine. A vu une silhouette au manoir.",
+      "scenes": ["retour-a-valbois", "place-du-marche"]
+    },
+    {
+      "id": "npc-sura",
+      "name": "Sura",
+      "role": "Herboriste",
+      "description": "Vend baumes et silence à la pharmacie.",
+      "scenes": ["place-du-marche", "piste-bijou"]
+    },
+    {
+      "id": "npc-hugo",
+      "name": "Hugo",
+      "role": "Palefrenier",
+      "description": "Aux écuries. Remarque les montures étrangères.",
+      "scenes": ["retour-a-valbois"]
+    },
+    {
+      "id": "npc-ombre",
+      "name": "L'Homme hoodé",
+      "role": "Informateur",
+      "description": "Contact de la dette. Change de table dès qu'on le regarde.",
+      "scenes": ["taverne-cerf", "confrontation-dette", "ruelles-nuit"]
+    },
+    {
+      "id": "npc-maire",
+      "name": "Maire Corbin",
+      "role": "Maire",
+      "description": "Ordonne, nie, négocie. Le bijou est sa faiblesse.",
+      "scenes": ["manoir-maire", "confrontation-dette"]
+    },
+    {
+      "id": "npc-odo",
+      "name": "Odo",
+      "role": "Meunier",
+      "description": "Vit au moulin. Entend les charrettes de nuit.",
+      "scenes": ["retour-a-valbois"]
+    },
+    {
+      "id": "npc-clara",
+      "name": "Clara",
+      "role": "Marchande",
+      "description": "Étal de ferraille. Vend des crochets « pour le jardin ».",
+      "scenes": ["place-du-marche", "piste-bijou"]
     }
   ]
 }

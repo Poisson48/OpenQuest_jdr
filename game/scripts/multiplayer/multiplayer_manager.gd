@@ -25,6 +25,8 @@ const SETTINGS_PATH := "user://multiplayer_settings.cfg"
 @export var pooling_url: String = "ws://127.0.0.1:8080"
 @export var player_name: String = "Joueur"
 @export var player_role: String = "player"  ## "gm" (MJ) ou "player" (joueur)
+## Force 127.0.0.1 pour une table locale sur la même machine.
+var force_loopback_p2p: bool = false
 
 var player_id: String = ""
 var room_code: String = ""
@@ -380,6 +382,9 @@ func _on_room_joined_side_effects(room: Dictionary) -> void:
 	room_joined.emit(room_code, room)
 
 func _detect_local_ip() -> String:
+	# Même machine / URL loopback → forcer 127.0.0.1 (évite VPN / mauvaise NIC).
+	if force_loopback_p2p or pooling_url.contains("127.0.0.1") or pooling_url.contains("localhost"):
+		return "127.0.0.1"
 	var addresses := IP.get_local_addresses()
 	for addr in addresses:
 		if addr.begins_with("192.168.") or addr.begins_with("10."):
@@ -435,6 +440,11 @@ func _merge_party_with_room(host_party: Array) -> Array:
 	if host_party.is_empty():
 		return _build_party_from_room()
 	var merged: Array = host_party.duplicate(true)
+	var seen_ids: Dictionary = {}
+	for m in merged:
+		var mid := str(m.get("id", ""))
+		if not mid.is_empty():
+			seen_ids[mid] = true
 	for room_player in get_room_players():
 		var pid: String = room_player.get("playerId", "")
 		if room_player.get("isGm", false):
@@ -447,6 +457,18 @@ func _merge_party_with_room(host_party: Array) -> Array:
 			if m.get("clientId", "") == pid:
 				already = true
 				break
+		var cid := str(char_data.get("id", ""))
+		if not cid.is_empty() and seen_ids.has(cid):
+			# Même fiche déjà prise : clone avec id unique pour ce client.
+			var member_dup: Dictionary = char_data.duplicate(true)
+			member_dup["id"] = "%s-%s" % [cid, str(pid).substr(0, 8)]
+			member_dup["isPlayer"] = true
+			member_dup["isHuman"] = true
+			member_dup["isBot"] = false
+			member_dup["clientId"] = pid
+			seen_ids[str(member_dup["id"])] = true
+			merged.append(member_dup)
+			continue
 		if already:
 			continue
 		var member: Dictionary = char_data.duplicate(true)
@@ -454,7 +476,21 @@ func _merge_party_with_room(host_party: Array) -> Array:
 		member["isHuman"] = true
 		member["isBot"] = false
 		member["clientId"] = pid
+		if not cid.is_empty():
+			seen_ids[cid] = true
 		merged.append(member)
+	# Retire les humains fantômes sans clientId réseau (ex. vieux Kael injecté).
+	if is_p2p_active():
+		var cleaned: Array = []
+		for m in merged:
+			if bool(m.get("isHuman", false)) and not bool(m.get("isBot", false)):
+				if str(m.get("clientId", "")).is_empty() or str(m.get("clientId", "")).begins_with("joueur-"):
+					# IDs locaux de démo : invalides en P2P.
+					if not get_room_players().is_empty():
+						continue
+			cleaned.append(m)
+		if not cleaned.is_empty():
+			merged = cleaned
 	return merged
 
 func _build_party_from_room() -> Array:

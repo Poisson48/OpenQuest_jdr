@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://session_scene_001"]
+[gd_scene load_steps=14 format=3 uid="uid://session_scene_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/session/session_shell.gd" id="2_script"]
@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/session/panels/action_bar.tscn" id="10_action"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/player_hud.tscn" id="11_hud"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/character_sheet.tscn" id="12_sheet"]
+[ext_resource type="PackedScene" path="res://scenes/session/panels/speaker_dialogue_overlay.tscn" id="13_dialogue"]
 
 [node name="Session" type="Control"]
 layout_mode = 3
@@ -127,6 +128,10 @@ dialog_text = ""
 cancel_button_text = "Annuler"
 
 [node name="PlayerHud" parent="." instance=ExtResource("11_hud")]
+unique_name_in_owner = true
+visible = false
+
+[node name="SpeakerDialogue" parent="." instance=ExtResource("13_dialogue")]
 unique_name_in_owner = true
 visible = false
 

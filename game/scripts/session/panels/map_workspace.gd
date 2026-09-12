@@ -166,6 +166,15 @@ func show_npc_speech(speaker: String, text: String) -> void:
 	var grid := GameData.find_speaker_grid(speaker)
 	stage.show_speech(speaker, text, grid)
 
+func focus_speaker(speaker: String) -> void:
+	if stage == null:
+		return
+	var grid := GameData.find_speaker_grid(speaker)
+	if grid.x < 0.0:
+		return
+	if stage.has_method("center_on_grid"):
+		stage.center_on_grid(grid.x, grid.y)
+
 # ---------------------------------------------------------------------------
 # Rendu
 # ---------------------------------------------------------------------------
@@ -416,6 +425,9 @@ func _on_enter_requested() -> void:
 		_on_navigation_requested("exit_world", {})
 
 func _enter_area(area: Dictionary) -> void:
+	# En P2P, seul le MJ change de lieu (sinon chaque client diverge).
+	if MultiplayerManager.is_p2p_active() and not MultiplayerManager.is_p2p_host():
+		return
 	var map_id := _current_map_id()
 	var area_id := str(area.get("id", _pending_nav.get("area_id", "")))
 	if map_id.is_empty() or area_id.is_empty():
@@ -520,3 +532,51 @@ func _focus_speaker_from_inspect(info: Dictionary) -> void:
 	if label.is_empty():
 		return
 	speaker_focus_requested.emit(label)
+
+# ---------------------------------------------------------------------------
+# Pilotage UI (simulateur / tests) — mêmes chemins que la souris
+# ---------------------------------------------------------------------------
+
+func ui_select_tool(tool: Dictionary) -> void:
+	_on_tool_selected(tool)
+
+func ui_select_select_tool() -> void:
+	ui_select_tool(SessionToolRegistry.make(SessionToolRegistry.SELECT))
+
+func ui_move_token(token_id: String, gx: float, gy: float) -> void:
+	_on_token_moved(token_id, gx, gy)
+
+func ui_click_grid(gx: float, gy: float) -> void:
+	_on_grid_clicked(gx, gy, _tool)
+
+func ui_prepare_enter_area(area_id: String) -> bool:
+	var map_id := _current_map_id()
+	if map_id.is_empty() or area_id.is_empty():
+		return false
+	var area := MapData.get_area(MapData.get_by_id(map_id), area_id)
+	if area.is_empty():
+		return false
+	_on_area_clicked(area)
+	_render_toolbar(GameData.active_game, GameData.get_session_display_map(_active_map_id).get("displayMap", {}))
+	return not _pending_nav.is_empty()
+
+func ui_press_enter() -> void:
+	_on_enter_requested()
+
+func ui_press_back() -> void:
+	if navigator != null:
+		navigator.get_node("%BtnBack").pressed.emit()
+
+func ui_press_toolbar_enter_button() -> bool:
+	if toolbar == null:
+		return false
+	var row: HBoxContainer = toolbar.get_node("%ToolRow")
+	for child in row.get_children():
+		if child is Button and str(child.text) == "Entrer":
+			(child as Button).pressed.emit()
+			return true
+	ui_press_enter()
+	return true
+
+func current_display_map_id() -> String:
+	return _current_map_id()

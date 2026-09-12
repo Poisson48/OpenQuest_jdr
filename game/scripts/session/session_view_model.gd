@@ -230,10 +230,12 @@ func _party_signature_of(party: Array, active_id: String) -> String:
 	var parts: PackedStringArray = [active_id]
 	for member_variant in party:
 		var member: Dictionary = member_variant
-		parts.append("%s|%s|%s|%s|%s" % [
+		var inv_sig := JSON.stringify(member.get("inventory", []))
+		parts.append("%s|%s|%s|%s|%s|%s" % [
 			member.get("id", ""), member.get("name", ""),
 			member.get("hp", 0), member.get("ac", 0),
 			member.get("portrait", member.get("image", "")),
+			inv_sig,
 		])
 	return "¤".join(parts)
 
@@ -244,7 +246,7 @@ func _map_signature_of(state: Dictionary) -> String:
 		"currentMapId": state.get("currentMapId", ""),
 		"nav": state.get("mapNavigation", {}),
 		"overrides": state.get("mapModeOverrides", {}),
-		"play": state.get("mapPlay", {}),
+		"play": state.get("mapPlayState", state.get("mapPlay", {})),
 		"status": state.get("status", ""),
 	})
 

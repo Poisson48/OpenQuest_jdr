@@ -263,7 +263,12 @@ func _apply_host_joiner_ui() -> void:
 		%BtnStartGame.visible = true
 		%BtnStartGame.text = "🚀 Lancer l'Aventure (P2P) !"
 		opt_scenario.disabled = false
-		opt_mode.disabled = false
+		# Table réseau = toujours multi ; le MJ ne joue pas un PJ.
+		for i in range(opt_mode.item_count):
+			if str(opt_mode.get_item_metadata(i)) == "multi":
+				opt_mode.selected = i
+				break
+		opt_mode.disabled = true
 		spin_party_size.editable = true
 		for child in bots_container.get_children():
 			child.disabled = false
@@ -272,6 +277,12 @@ func _apply_host_joiner_ui() -> void:
 				opt_gm.selected = i
 				break
 		opt_gm.disabled = true
+		# Préférences Valbois si dispo.
+		for i in range(opt_scenario.item_count):
+			if str(opt_scenario.get_item_metadata(i)) == "demo-valbois":
+				opt_scenario.selected = i
+				_on_scenario_selected(i)
+				break
 	else:
 		%BtnStartGame.visible = true
 		%BtnStartGame.text = "🚀 Lancer l'Aventure !"
@@ -508,7 +519,8 @@ func _on_start_game_pressed() -> void:
 				party.append(member)
 	if party.is_empty() and _host_plays_character():
 		party.append(_build_character_from_option(opt_main_char))
-	if scn_id == "demo-valbois":
+	# Ne pas injecter un Kael fantôme en table P2P / multi : il vole le tour 0.
+	if scn_id == "demo-valbois" and not _is_pooling_host and mode_val != "multi":
 		var kael := GameData.make_kael_party_member()
 		var has_kael := false
 		for member in party:
@@ -544,9 +556,8 @@ func _on_start_game_pressed() -> void:
 
 	if _is_pooling_host or (MultiplayerManager.is_p2p_host() and get_tree().has_meta("pooling_p2p_host")):
 		get_tree().remove_meta("pooling_p2p_host")
-		if not party.is_empty() and _host_plays_character():
-			party[0]["clientId"] = MultiplayerManager.player_id
-			MultiplayerManager.register_character(party[0])
+		# Groupe = uniquement les fiches enregistrées dans le salon (pas bots / pas PJ MJ).
+		party = []
 		_waiting_server_start = true
 		%BtnStartGame.disabled = true
 		%BtnStartGame.text = "⏳ Lancement P2P..."

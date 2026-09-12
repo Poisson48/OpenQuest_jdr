@@ -1308,16 +1308,19 @@ func _build_demo_catalog() -> Array:
 	village_light["nightMode"] = false
 	village_light["nightAmbient"] = 0.22
 	village["lighting"] = village_light
+	var village_tokens: Array = [{
+		"id": "tok-kael",
+		"x": float(cells_v.x) * 0.28,
+		"y": float(cells_v.y) * 0.38,
+		"kind": "member",
+		"memberId": "char-kael",
+		"label": "Kael",
+		"scale": 1.0,
+	}]
+	for npc in _valbois_village_npcs(cells_v):
+		village_tokens.append(_valbois_npc_token(npc))
 	village["playDefaults"] = {
-		"tokens": [{
-			"id": "tok-kael",
-			"x": float(cells_v.x) * 0.28,
-			"y": float(cells_v.y) * 0.38,
-			"kind": "member",
-			"memberId": "char-kael",
-			"label": "Kael",
-			"scale": 1.0,
-		}],
+		"tokens": village_tokens,
 		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
 	}
 	list.append(village)
@@ -1355,16 +1358,19 @@ func _build_demo_catalog() -> Array:
 	place_light["nightMode"] = false
 	place_light["nightAmbient"] = 0.22
 	place["lighting"] = place_light
+	var place_tokens: Array = [{
+		"id": "tok-kael-place",
+		"x": float(cells_p.x) * 0.50,
+		"y": float(cells_p.y) * 0.55,
+		"kind": "member",
+		"memberId": "char-kael",
+		"label": "Kael",
+		"scale": 1.0,
+	}]
+	for npc in _valbois_place_npcs(cells_p):
+		place_tokens.append(_valbois_npc_token(npc))
 	place["playDefaults"] = {
-		"tokens": [{
-			"id": "tok-kael-place",
-			"x": float(cells_p.x) * 0.50,
-			"y": float(cells_p.y) * 0.55,
-			"kind": "member",
-			"memberId": "char-kael",
-			"label": "Kael",
-			"scale": 1.0,
-		}],
+		"tokens": place_tokens,
 		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
 	}
 	list.append(place)
@@ -1521,6 +1527,49 @@ func _brumeval_crowd_npcs() -> Array:
 		{"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "emoji": "🛡️", "x": 2, "y": 2},
 		{"id": "tomas", "name": "Tomas", "role": "Adjoint", "emoji": "🕯️", "x": 6, "y": 5},
 		{"id": "lila", "name": "Lila la veuve", "role": "Témoin", "emoji": "🖤", "x": 12, "y": 7},
+	]
+
+func _valbois_npc_token(npc: Dictionary) -> Dictionary:
+	var image := get_character_sprite_path(str(npc.get("role", "")), str(npc.get("name", "")))
+	var tok := {
+		"id": "tok-npc-%s" % str(npc.get("id", "x")),
+		"x": float(npc.get("x", 0)),
+		"y": float(npc.get("y", 0)),
+		"kind": "npc",
+		"markerType": "npc",
+		"label": str(npc.get("name", "PNJ")),
+		"role": str(npc.get("role", "PNJ")),
+		"scale": 1.0,
+	}
+	if not image.is_empty():
+		tok["image"] = image
+	return tok
+
+func _valbois_village_npcs(cells: Vector2i) -> Array:
+	var w := float(cells.x)
+	var h := float(cells.y)
+	return [
+		{"id": "lyse", "name": "Lyse", "role": "Garde", "x": w * 0.22, "y": h * 0.40},
+		{"id": "pere-alain", "name": "Père Alain", "role": "Prêtre", "x": w * 0.34, "y": h * 0.18},
+		{"id": "gareth", "name": "Gareth", "role": "Forgeron", "x": w * 0.20, "y": h * 0.50},
+		{"id": "renard", "name": "Renard", "role": "Tavernier", "x": w * 0.38, "y": h * 0.54},
+		{"id": "hugo", "name": "Hugo", "role": "Palefrenier", "x": w * 0.74, "y": h * 0.66},
+		{"id": "odo", "name": "Odo", "role": "Meunier", "x": w * 0.16, "y": h * 0.24},
+		{"id": "elise", "name": "Dame Élise", "role": "Épouse du maire", "x": w * 0.68, "y": h * 0.46},
+		{"id": "tom", "name": "Tom le gamin", "role": "Villageois", "x": w * 0.48, "y": h * 0.36},
+	]
+
+func _valbois_place_npcs(cells: Vector2i) -> Array:
+	var w := float(cells.x)
+	var h := float(cells.y)
+	return [
+		{"id": "marta", "name": "Marta l'étalière", "role": "Marchande", "x": w * 0.36, "y": h * 0.40},
+		{"id": "clara", "name": "Clara", "role": "Marchande", "x": w * 0.42, "y": h * 0.52},
+		{"id": "nina", "name": "Nina", "role": "Boulangère", "x": w * 0.30, "y": h * 0.58},
+		{"id": "sura", "name": "Sura", "role": "Herboriste", "x": w * 0.58, "y": h * 0.60},
+		{"id": "capitaine", "name": "Capitaine Ord", "role": "Garde", "x": w * 0.62, "y": h * 0.36},
+		{"id": "ombre", "name": "L'Homme hoodé", "role": "Informateur", "x": w * 0.70, "y": h * 0.48},
+		{"id": "maire", "name": "Maire Corbin", "role": "Maire", "x": w * 0.78, "y": h * 0.42},
 	]
 
 ## Lieux légendés Valbois (callouts) + Place liée + sorties village (P3-B).

@@ -170,6 +170,18 @@ size_flags_horizontal = 3
 autowrap_mode = 3
 text = "Méfiant · Silencieux · Opportuniste"
 
+[node name="LblInventoryTitle" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "INVENTAIRE"
+
+[node name="LblInventory" type="Label" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = "Sac vide"
+
 [node name="Spacer" type="Control" parent="Frame/Root/Left/LeftBody/StatsPage/StatsInner"]
 custom_minimum_size = Vector2(0, 8)
 layout_mode = 2

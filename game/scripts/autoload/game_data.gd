@@ -83,7 +83,28 @@ func load_characters() -> void:
 		characters = _create_seed_characters()
 		save_characters()
 	_ensure_kael_character()
+	_ensure_seed_character("char-aria")
+	_ensure_seed_character("char-thorin")
 	characters_updated.emit()
+
+func _ensure_seed_character(char_id: String) -> void:
+	for c in characters:
+		if str(c.get("id", "")) == char_id:
+			# Complète portrait manquant.
+			if str(c.get("portrait", "")).is_empty():
+				for seed_c in _create_seed_characters():
+					if str(seed_c.get("id", "")) == char_id:
+						if seed_c.has("portrait"):
+							c["portrait"] = seed_c["portrait"]
+							c["image"] = seed_c.get("image", seed_c["portrait"])
+							save_characters()
+						break
+			return
+	for seed_c in _create_seed_characters():
+		if str(seed_c.get("id", "")) == char_id:
+			characters.append(normalize_character(seed_c))
+			save_characters()
+			return
 
 func save_characters() -> void:
 	_save_json_file(CHARACTERS_PATH, characters)
@@ -342,6 +363,42 @@ func resolve_kael_portrait() -> String:
 			return dest
 	return portrait_res
 
+## Art locuteur pour dialogue cinématique (perso / PNJ / MJ).
+func resolve_speaker_art(speaker_name: String, kind: String = "npc") -> String:
+	var want := speaker_name.strip_edges().to_lower()
+	if want.is_empty():
+		return ""
+	# 1) Membre du groupe
+	for m in active_game.get("party", []):
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		var n := str(m.get("name", "")).to_lower()
+		if n == want or n.contains(want) or want.contains(n):
+			var p := str(m.get("portrait", m.get("image", ""))).strip_edges()
+			if not p.is_empty():
+				return p
+			if n.contains("kael") or str(m.get("id", "")) == "char-kael":
+				return resolve_kael_portrait()
+	# 2) Token / PNJ de carte
+	for map_id in ["demo-valbois-village", "demo-valbois-place"]:
+		for tok in get_map_play_tokens(map_id):
+			if typeof(tok) != TYPE_DICTIONARY:
+				continue
+			var label := str(tok.get("label", tok.get("name", ""))).to_lower()
+			if label == want or label.contains(want) or want.contains(label):
+				var img := str(tok.get("image", "")).strip_edges()
+				if not img.is_empty():
+					return img
+	# 3) Sprite de rôle
+	if kind == "gm":
+		# Pas de paysan aléatoire pour le MJ : on masquera l'art si aucun portrait dédié.
+		return ""
+	var role_guess := speaker_name
+	var sprite := MapData.get_character_sprite_path(role_guess, speaker_name)
+	if not sprite.is_empty():
+		return sprite
+	return "res://data/props/characters/paysan_valbois.png"
+
 func make_kael_party_member() -> Dictionary:
 	_ensure_kael_character()
 	var portrait := resolve_kael_portrait()
@@ -397,6 +454,10 @@ func _make_kael_character() -> Dictionary:
 			"Le bruit attire les dettes… et les lames.",
 			"Je n'ai pas peur du noir. Le noir a peur de moi.",
 		],
+		"inventory": [
+			{"id": "item-crochets", "name": "Crochets de serrure", "qty": 1},
+			{"id": "item-cape", "name": "Cape sombre", "qty": 1},
+		],
 	})
 
 func _create_seed_characters() -> Array:
@@ -408,10 +469,33 @@ func _create_seed_characters() -> Array:
 			"race": "Elfe",
 			"class": "Rôdeuse",
 			"roster": "general",
+			"portrait": "res://assets/portraits/aria_sombrelame.png",
+			"image": "res://assets/portraits/aria_sombrelame.png",
 			"stats": { "str": 12, "dex": 16, "con": 12, "int": 10, "wis": 14, "cha": 10 },
 			"hp": 12,
 			"ac": 14,
-			"backstory": "Traqueuse émérite des Terres Sauvages."
+			"backstory": "Traqueuse émérite des Terres Sauvages.",
+			"inventory": [
+				{"id": "item-arc", "name": "Arc court", "qty": 1},
+				{"id": "item-rations", "name": "Rations", "qty": 2},
+			],
+		},
+		{
+			"id": "char-thorin",
+			"name": "Thorin",
+			"race": "Nain",
+			"class": "Guerrier",
+			"roster": "general",
+			"portrait": "res://assets/portraits/thorin.png",
+			"image": "res://assets/portraits/thorin.png",
+			"stats": { "str": 16, "dex": 10, "con": 16, "int": 8, "wis": 12, "cha": 8 },
+			"hp": 14,
+			"ac": 16,
+			"backstory": "Vétéran des guerres souterraines de Karak.",
+			"inventory": [
+				{"id": "item-hache", "name": "Hache de guerre", "qty": 1},
+				{"id": "item-bouclier", "name": "Bouclier", "qty": 1},
+			],
 		},
 		{
 			"id": "char-brom",
@@ -1536,7 +1620,7 @@ func complete_scenario(reason: String = "") -> bool:
 	active_game["status"] = "completed"
 	active_game["waitingForGm"] = false
 	save_active_game()
-	return false
+	return true
 
 func get_current_scene() -> Dictionary:
 	if active_game.is_empty():
@@ -1787,17 +1871,24 @@ func _enrich_member_token_portraits(entry: Dictionary) -> void:
 func _apply_valbois_demo() -> void:
 	if active_game.is_empty() or str(active_game.get("scenarioId", "")) != "demo-valbois":
 		return
-	var kael := make_kael_party_member()
 	var party: Array = active_game.get("party", [])
 	var found := false
 	for i in range(party.size()):
 		if str(party[i].get("id", "")) == "char-kael" or str(party[i].get("name", "")) == "Kael":
+			var kael := make_kael_party_member()
+			for key in ["clientId", "isHuman", "isPlayer", "isBot", "inventory"]:
+				if party[i].has(key):
+					kael[key] = party[i][key]
 			party[i] = kael
 			found = true
 			break
-	if not found:
-		party.insert(0, kael)
+	# Solo : injecte Kael. Multi avec groupe déjà peuplé (LAN) : on n'ajoute pas.
+	if not found and str(active_game.get("mode", "solo")) == "solo":
+		party.insert(0, make_kael_party_member())
 	active_game["party"] = party
+	_ensure_party_inventories()
+	if str(active_game.get("mode", "solo")) == "multi" and get_playable_members().size() >= 2:
+		_seed_valbois_party_tokens()
 
 	var village_id := "demo-valbois-village"
 	var place_id := "demo-valbois-place"
@@ -1824,9 +1915,380 @@ func _apply_valbois_demo() -> void:
 		"areaStack": [],
 	}
 
-	# Un seul token Kael : celui de playDefaults (évite un doublon au re-seed).
 	add_log_entry("Système", "Démo Valbois — vous êtes au village. Cliquez la Place du Marché pour y entrer.", "system")
-	add_log_entry("Kael", "Les étals font trop de bruit… parfait pour se fondre.", "player")
+
+## Démarre une table Valbois 3 joueurs + MJ humain (vue MJ, pas forcePlayerView).
+func start_valbois_party_session() -> bool:
+	if MapData.get_by_id("demo-valbois-village").is_empty():
+		push_error("[VALBOIS] Carte complexe introuvable.")
+		return false
+	reload_builtin_scenarios()
+	var party: Array = [
+		{
+			"id": "char-aria",
+			"name": "Aria",
+			"race": "Elfe",
+			"class": "Rôdeuse",
+			"hp": 12,
+			"ac": 14,
+			"isPlayer": true,
+			"isHuman": true,
+			"isBot": false,
+			"clientId": "joueur-aria",
+			"inventory": [
+				{"id": "item-arc", "name": "Arc court", "qty": 1},
+				{"id": "item-rations", "name": "Rations", "qty": 2},
+			],
+		},
+		{
+			"id": "char-thorin",
+			"name": "Thorin",
+			"race": "Nain",
+			"class": "Guerrier",
+			"hp": 14,
+			"ac": 16,
+			"isPlayer": true,
+			"isHuman": true,
+			"isBot": false,
+			"clientId": "joueur-thorin",
+			"inventory": [
+				{"id": "item-hache", "name": "Hache de guerre", "qty": 1},
+				{"id": "item-bouclier", "name": "Bouclier", "qty": 1},
+			],
+		},
+		make_kael_party_member(),
+	]
+	party[2]["clientId"] = "joueur-kael"
+	party[2]["inventory"] = [
+		{"id": "item-crochets", "name": "Crochets de serrure", "qty": 1},
+		{"id": "item-cape", "name": "Cape sombre", "qty": 1},
+	]
+	create_new_game(
+		"demo-valbois",
+		"multi",
+		"human",
+		"oneshot",
+		party,
+		["demo-valbois-village", "demo-valbois-place"]
+	)
+	if active_game.is_empty():
+		return false
+	active_game["forcePlayerView"] = false
+	active_game["allowGmProxyActions"] = true
+	active_game["gmName"] = "MJ Valbois"
+	active_game["waitingForGm"] = false
+	active_game["turnIndex"] = 0
+	_ensure_party_inventories()
+	_seed_valbois_party_tokens()
+	if MultiplayerManager != null:
+		MultiplayerManager.player_role = "gm"
+		MultiplayerManager.player_name = "MJ Valbois"
+		MultiplayerManager.is_gm = true
+	save_active_game()
+	return true
+
+func _seed_valbois_party_tokens() -> void:
+	var village_id := "demo-valbois-village"
+	var place_id := "demo-valbois-place"
+	var village := MapData.get_by_id(village_id)
+	var place := MapData.get_by_id(place_id)
+	if village.is_empty():
+		return
+	var vw := float(village.get("width", 24))
+	var vh := float(village.get("height", 16))
+	var members: Array = get_playable_members()
+	if members.is_empty():
+		members = active_game.get("party", [])
+	var n := maxi(members.size(), 1)
+	var i := 0
+	for member_variant in members:
+		if typeof(member_variant) != TYPE_DICTIONARY:
+			continue
+		var mid := str(member_variant.get("id", ""))
+		if mid.is_empty():
+			continue
+		var ox := 0.24 + 0.04 * float(i)
+		var oy := 0.36 + 0.03 * float(i % 3)
+		place_complex_member_token(village_id, vw * ox, vh * oy, mid)
+		if not place.is_empty():
+			var pw := float(place.get("width", 20))
+			var ph := float(place.get("height", 14))
+			place_complex_member_token(
+				place_id,
+				pw * (0.44 + 0.04 * float(i)),
+				ph * (0.52 + 0.03 * float(i % 2)),
+				mid
+			)
+		i += 1
+		if i >= n + 2:
+			break
+	save_map_play_and_sync()
+
+# ---------------------------------------------------------------------------
+# Inventaire de session
+# ---------------------------------------------------------------------------
+
+func _ensure_party_inventories() -> void:
+	if active_game.is_empty():
+		return
+	var party: Array = active_game.get("party", [])
+	for i in range(party.size()):
+		if typeof(party[i]) != TYPE_DICTIONARY:
+			continue
+		if not party[i].has("inventory") or typeof(party[i]["inventory"]) != TYPE_ARRAY:
+			party[i]["inventory"] = []
+	active_game["party"] = party
+
+func get_member_inventory(member_id: String) -> Array:
+	var member := _find_party_member(member_id)
+	if member.is_empty():
+		return []
+	var inv = member.get("inventory", [])
+	return inv if typeof(inv) == TYPE_ARRAY else []
+
+func find_party_member_id_by_name(member_name: String) -> String:
+	var needle := member_name.strip_edges().to_lower()
+	for m in active_game.get("party", []):
+		if str(m.get("name", "")).strip_edges().to_lower() == needle:
+			return str(m.get("id", ""))
+	return ""
+
+func give_item_to_member(member_id: String, item_id: String, item_name: String, qty: int = 1, silent: bool = false) -> bool:
+	if active_game.is_empty() or member_id.is_empty() or item_id.is_empty() or qty <= 0:
+		return false
+	_ensure_party_inventories()
+	var member := _find_party_member(member_id)
+	if member.is_empty():
+		return false
+	var inv: Array = member.get("inventory", [])
+	var found := false
+	for it_variant in inv:
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		if str(it.get("id", "")) == item_id:
+			it["qty"] = int(it.get("qty", 0)) + qty
+			if not item_name.is_empty():
+				it["name"] = item_name
+			found = true
+			break
+	if not found:
+		inv.append({"id": item_id, "name": item_name if not item_name.is_empty() else item_id, "qty": qty})
+	member["inventory"] = inv
+	if not silent:
+		add_log_entry(
+			"Système",
+			"%s obtient [b]%s[/b] ×%d." % [str(member.get("name", "Héros")), item_name if not item_name.is_empty() else item_id, qty],
+			"system"
+		)
+	save_active_game()
+	# Lanterne en inventaire = source de lumière dès que la nuit est active.
+	if _item_is_lantern(item_id, item_name) and is_session_night():
+		save_map_play_and_sync()
+	return true
+
+# ---------------------------------------------------------------------------
+# Atmosphère de session (nuit + lanternes portées)
+# ---------------------------------------------------------------------------
+
+func get_session_atmosphere() -> Dictionary:
+	if active_game.is_empty():
+		return {
+			"nightMode": false,
+			"nightAmbient": 0.14,
+			"lanternRadius": 4.5,
+			"lanternEnergy": 1.9,
+			"lanternColor": "#ffb35c",
+		}
+	if not active_game.has("sessionAtmosphere") or typeof(active_game["sessionAtmosphere"]) != TYPE_DICTIONARY:
+		active_game["sessionAtmosphere"] = {
+			"nightMode": false,
+			"nightAmbient": 0.14,
+			"lanternRadius": 4.5,
+			"lanternEnergy": 1.9,
+			"lanternColor": "#ffb35c",
+		}
+	return active_game["sessionAtmosphere"]
+
+func is_session_night() -> bool:
+	return bool(get_session_atmosphere().get("nightMode", false))
+
+func set_session_night(enabled: bool, ambient: float = -1.0) -> void:
+	if active_game.is_empty():
+		return
+	var atm := get_session_atmosphere()
+	atm["nightMode"] = enabled
+	if ambient >= 0.0:
+		atm["nightAmbient"] = clampf(ambient, 0.05, 0.6)
+	active_game["sessionAtmosphere"] = atm
+	if enabled:
+		add_log_entry("MJ", "La nuit tombe sur la carte. Sans lanterne, on ne voit rien.", "gm")
+	else:
+		add_log_entry("MJ", "L'aube revient. Les lanternes s'éteignent.", "gm")
+	save_map_play_and_sync()
+
+func _item_is_lantern(item_id: String, item_name: String = "") -> bool:
+	var blob := ("%s %s" % [item_id, item_name]).to_lower()
+	return blob.contains("lantern") or blob.contains("torche") or blob.contains("torch")
+
+func member_has_lantern(member_id: String) -> bool:
+	if member_id.is_empty():
+		return false
+	for it_variant in get_member_inventory(member_id):
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		if int(it.get("qty", 0)) <= 0:
+			continue
+		if _item_is_lantern(str(it.get("id", "")), str(it.get("name", ""))):
+			return true
+	return false
+
+func build_lantern_light_sources(map_id: String) -> Array:
+	var sources: Array = []
+	if not is_session_night() or map_id.is_empty():
+		return sources
+	var atm := get_session_atmosphere()
+	var radius := float(atm.get("lanternRadius", 4.5))
+	var energy := float(atm.get("lanternEnergy", 1.9))
+	var color := str(atm.get("lanternColor", "#ffb35c"))
+	for tok_variant in get_map_play_tokens(map_id):
+		if typeof(tok_variant) != TYPE_DICTIONARY:
+			continue
+		var tok: Dictionary = tok_variant
+		var mid := str(tok.get("memberId", ""))
+		if mid.is_empty() or not member_has_lantern(mid):
+			continue
+		sources.append({
+			"id": "lig-lantern-%s" % mid,
+			"kind": "light",
+			"x": float(tok.get("x", 0.0)),
+			"y": float(tok.get("y", 0.0)),
+			"w": 1.0,
+			"h": 1.0,
+			"radius": radius,
+			"energy": energy,
+			"color": color,
+			"elevation": 0.55,
+			"flicker": true,
+			"shadows": false,
+			"hidden": false,
+			"revealsFog": false,
+			"label": "Lanterne",
+			"layer": 2,
+		})
+	return sources
+
+## Duplique la carte catalogue et y injecte nuit/lanternes de session (sans muter MapData).
+func apply_session_lighting_to_map(map_data: Dictionary) -> Dictionary:
+	if map_data.is_empty():
+		return map_data
+	if not is_session_night():
+		return map_data
+	var out: Dictionary = map_data.duplicate(true)
+	var light: Dictionary = MapData.get_lighting_config(out)
+	light["nightMode"] = true
+	light["nightAmbient"] = float(get_session_atmosphere().get("nightAmbient", 0.14))
+	var kept: Array = []
+	for src_variant in light.get("sources", []):
+		if typeof(src_variant) != TYPE_DICTIONARY:
+			continue
+		var src: Dictionary = src_variant
+		if str(src.get("id", "")).begins_with("lig-lantern-"):
+			continue
+		kept.append(src)
+	kept.append_array(build_lantern_light_sources(str(out.get("id", ""))))
+	light["sources"] = kept
+	out["lighting"] = light
+	return out
+
+func take_item_from_member(member_id: String, item_id: String, qty: int = 1, silent: bool = false) -> bool:
+	if active_game.is_empty() or member_id.is_empty() or item_id.is_empty() or qty <= 0:
+		return false
+	_ensure_party_inventories()
+	var member := _find_party_member(member_id)
+	if member.is_empty():
+		return false
+	var inv: Array = member.get("inventory", [])
+	var kept: Array = []
+	var removed := false
+	var removed_name := item_id
+	for it_variant in inv:
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		if str(it.get("id", "")) != item_id:
+			kept.append(it)
+			continue
+		var have := int(it.get("qty", 0))
+		if have < qty:
+			return false
+		removed = true
+		removed_name = str(it.get("name", item_id))
+		var left := have - qty
+		if left > 0:
+			it["qty"] = left
+			kept.append(it)
+	if not removed:
+		return false
+	member["inventory"] = kept
+	if not silent:
+		add_log_entry(
+			"Système",
+			"%s perd [b]%s[/b] ×%d." % [str(member.get("name", "Héros")), removed_name, qty],
+			"system"
+		)
+	save_active_game()
+	return true
+
+func transfer_item(from_member_id: String, to_member_id: String, item_id: String, qty: int = 1) -> bool:
+	var from_member := _find_party_member(from_member_id)
+	if from_member.is_empty():
+		return false
+	var item_name := item_id
+	for it_variant in from_member.get("inventory", []):
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		if str(it.get("id", "")) == item_id:
+			item_name = str(it.get("name", item_id))
+			break
+	if not take_item_from_member(from_member_id, item_id, qty, true):
+		return false
+	if not give_item_to_member(to_member_id, item_id, item_name, qty, true):
+		give_item_to_member(from_member_id, item_id, item_name, qty, true)
+		return false
+	var to_member := _find_party_member(to_member_id)
+	add_log_entry(
+		"Système",
+		"%s donne [b]%s[/b] ×%d à %s." % [
+			str(from_member.get("name", "?")),
+			item_name,
+			qty,
+			str(to_member.get("name", "?")),
+		],
+		"system"
+	)
+	save_active_game()
+	return true
+
+func member_has_item(member_id: String, item_id: String, qty: int = 1) -> bool:
+	for it_variant in get_member_inventory(member_id):
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		if str(it.get("id", "")) == item_id and int(it.get("qty", 0)) >= qty:
+			return true
+	return false
+
+func find_member_token_id(map_id: String, member_id: String) -> String:
+	for tok_variant in get_map_play_tokens(map_id):
+		if typeof(tok_variant) != TYPE_DICTIONARY:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("memberId", "")) == member_id:
+			return str(tok.get("id", ""))
+	return ""
 
 func get_fog_revealed_cells(map_id: String) -> Array:
 	return get_map_play_entry(map_id)["fogRevealed"]
@@ -3482,7 +3944,7 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 		if not area_map.is_empty():
 			var stack := get_area_stack()
 			return {
-				"displayMap": area_map,
+				"displayMap": apply_session_lighting_to_map(area_map),
 				"navContext": {
 					"mode": "area",
 					"rootMap": active_map,
@@ -3494,7 +3956,7 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 		var local_map := MapData.get_by_id(nav.get("localMapId", ""))
 		if not local_map.is_empty():
 			return {
-				"displayMap": local_map,
+				"displayMap": apply_session_lighting_to_map(local_map),
 				"navContext": {
 					"mode": "local",
 					"worldMap": active_map,
@@ -3502,7 +3964,7 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 					"localMap": local_map,
 				},
 			}
-	return { "displayMap": active_map, "navContext": {} }
+	return { "displayMap": apply_session_lighting_to_map(active_map), "navContext": {} }
 
 # ==============================================================================
 # MOTEUR DE DÉS

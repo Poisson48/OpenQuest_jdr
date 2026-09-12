@@ -26,6 +26,7 @@ const BARK_INTERVAL := 7.5
 @onready var _ability_wis = %AbilityWIS
 @onready var _ability_cha = %AbilityCHA
 @onready var _traits: Label = %LblTraits
+@onready var _inventory: Label = %LblInventory
 @onready var _bark: Label = %LblBark
 @onready var _story: Label = %LblStory
 @onready var _quirk: Label = %LblQuirk
@@ -104,7 +105,18 @@ func _fill() -> void:
 	_ability_int.setup("INT", int(stats.get("int", 10)))
 	_ability_wis.setup("SAG", int(stats.get("wis", 10)))
 	_ability_cha.setup("CHA", int(stats.get("cha", 10)))
-	_traits.text = str(_member.get("temperament", "Méfiant · Silencieux · Opportuniste"))
+	var temperament := str(_member.get("temperament", "Méfiant · Silencieux · Opportuniste"))
+	_traits.text = temperament
+	var inv_bits: Array[String] = []
+	for it_variant in _member.get("inventory", []):
+		if typeof(it_variant) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = it_variant
+		var qty := int(it.get("qty", 1))
+		var iname := str(it.get("name", it.get("id", "?")))
+		inv_bits.append("• %s" % (iname if qty <= 1 else "%s ×%d" % [iname, qty]))
+	if _inventory != null:
+		_inventory.text = "Sac vide" if inv_bits.is_empty() else "\n".join(inv_bits)
 	var lines: Array = _barks()
 	var line: String = str(lines[_bark_idx % lines.size()]) if not lines.is_empty() else "…"
 	_bark.text = "« %s »" % line

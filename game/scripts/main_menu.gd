@@ -26,6 +26,7 @@ const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn"
 
 var _pending_delete_id: String = ""
 var _updating_language_ui := false
+var _pooling_char_registered := false
 
 const DISCORD_INVITE_URL := "https://discord.gg/nqYfxpbNC"
 
@@ -251,10 +252,11 @@ func _on_pooling_room_updated(room: Dictionary) -> void:
 		room_code_lbl.text = tr("👑 Code à partager : %s") % room.get("code", "????")
 	else:
 		room_code_lbl.text = tr("🔗 Partie : %s") % room.get("code", "????")
-	if MultiplayerManager.is_in_room() and opt_pooling_char.item_count > 0 and not MultiplayerManager.is_mj():
-		_on_pooling_register_char_pressed()
+	# Ne pas auto-enregistrer l'index 0 (souvent un perso de test) :
+	# le joueur / l'agent choisit puis clique « Enregistrer ».
 
 func _on_pooling_room_left() -> void:
+	_pooling_char_registered = false
 	room_code_lbl.text = ""
 	p2p_status_lbl.text = ""
 	_refresh_pooling_players()
@@ -263,6 +265,7 @@ func _on_pooling_room_left() -> void:
 	_update_pooling_launch_ui()
 
 func _on_pooling_room_closed(closed_code: String, reason: String) -> void:
+	_pooling_char_registered = false
 	room_code_lbl.text = ""
 	p2p_status_lbl.text = ""
 	_refresh_pooling_players()

@@ -17,58 +17,250 @@ script = ExtResource("1_script")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 56.0
+offset_bottom = 52.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
 
-[node name="Row" type="HBoxContainer" parent="TopBar"]
+[node name="TopPanel" type="PanelContainer" parent="TopBar"]
 layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 12
+mouse_filter = 0
+theme_type_variation = &"DockPanel"
 
-[node name="BtnLeave" type="Button" parent="TopBar/Row"]
+[node name="Row" type="HBoxContainer" parent="TopBar/TopPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BtnLeave" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "← Quitter"
 
-[node name="LblTitle" type="Label" parent="TopBar/Row"]
+[node name="LblTitle" type="Label" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.78)
-theme_override_font_sizes/font_size = 14
-text = ""
-horizontal_alignment = 1
-clip_text = true
-
-[node name="Spacer" type="Control" parent="TopBar/Row"]
-custom_minimum_size = Vector2(88, 0)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="LblToast" type="Label" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.15
-anchor_right = 0.85
-offset_top = 58.0
-offset_bottom = 110.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.95, 0.9, 0.78, 0.95)
+theme_override_colors/font_color = Color(0.95, 0.9, 0.78, 0.9)
 theme_override_font_sizes/font_size = 15
 text = ""
-horizontal_alignment = 1
+clip_text = true
+
+[node name="LblTurn" type="Label" parent="TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+text = "En attente…"
+horizontal_alignment = 2
+
+[node name="JournalDock" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.52
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 58.0
+offset_bottom = -148.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="JournalPanel" type="PanelContainer" parent="JournalDock"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 0
+theme_type_variation = &"DockPanel"
+
+[node name="JournalCol" type="VBoxContainer" parent="JournalDock/JournalPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="JournalHeader" type="HBoxContainer" parent="JournalDock/JournalPanel/JournalCol"]
+layout_mode = 2
+
+[node name="LblJournalTitle" type="Label" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+text = "Histoire"
+
+[node name="BtnClearFocus" type="Button" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "↓"
+
+[node name="LogScroll" type="ScrollContainer" parent="JournalDock/JournalPanel/JournalCol"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="LogText" type="RichTextLabel" parent="JournalDock/JournalPanel/JournalCol/LogScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_mode = 0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
+theme_override_font_sizes/normal_font_size = 16
+theme_override_constants/line_separation = 4
+
+[node name="HeroDock" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -320.0
+offset_right = 320.0
+offset_bottom = -148.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+
+[node name="HeroPanel" type="PanelContainer" parent="HeroDock"]
+layout_mode = 2
+mouse_filter = 0
+theme_type_variation = &"DockPanel"
+
+[node name="HeroCol" type="VBoxContainer" parent="HeroDock/HeroPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeroTop" type="HBoxContainer" parent="HeroDock/HeroPanel/HeroCol"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Portrait" type="TextureRect" parent="HeroDock/HeroPanel/HeroCol/HeroTop"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HeroMeta" type="VBoxContainer" parent="HeroDock/HeroPanel/HeroCol/HeroTop"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="LblHeroName" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "—"
+
+[node name="LblHeroSub" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.62, 0.5, 1)
+theme_override_font_sizes/font_size = 12
+text = ""
+
+[node name="LblHeroHp" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.45, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "PV —"
+
+[node name="LblInventoryPreview" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
+theme_override_font_sizes/font_size = 12
+text = "Sac vide"
+autowrap_mode = 3
+
+[node name="HeroBtns" type="HBoxContainer" parent="HeroDock/HeroPanel/HeroCol"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnMySheet" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AccentButton"
+text = "Ma fiche"
+
+[node name="BtnInventory" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"ToolButton"
+text = "Sac"
+
+[node name="InventoryPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 50
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -200.0
+offset_right = 220.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_type_variation = &"DockPanel"
+
+[node name="InvCol" type="VBoxContainer" parent="InventoryPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InvHeader" type="HBoxContainer" parent="InventoryPanel/InvCol"]
+layout_mode = 2
+
+[node name="LblInvTitle" type="Label" parent="InventoryPanel/InvCol/InvHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 16
+text = "Inventaire"
+
+[node name="BtnCloseInv" type="Button" parent="InventoryPanel/InvCol/InvHeader"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "✕"
+
+[node name="InvScroll" type="ScrollContainer" parent="InventoryPanel/InvCol"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="InvList" type="VBoxContainer" parent="InventoryPanel/InvCol/InvScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="BottomBar" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -76,17 +268,18 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -122.0
+offset_top = -142.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
 
 [node name="Bar" type="PanelContainer" parent="BottomBar"]
 layout_mode = 2
 size_flags_vertical = 8
+mouse_filter = 0
 theme_type_variation = &"DockPanel"
 
 [node name="Col" type="VBoxContainer" parent="BottomBar/Bar"]
@@ -104,28 +297,28 @@ theme_override_constants/separation = 8
 
 [node name="ActionInput" type="LineEdit" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Que faites-vous ?"
 
 [node name="BtnSend" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_type_variation = &"AccentButton"
 text = "Envoyer"
 
 [node name="BtnD6" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(48, 36)
+custom_minimum_size = Vector2(48, 38)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d6"
 
 [node name="BtnD20" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(48, 36)
+custom_minimum_size = Vector2(52, 38)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d20"

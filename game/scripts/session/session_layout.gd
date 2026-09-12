@@ -73,6 +73,7 @@ func apply_preset(next_preset: String) -> void:
 	var immersive := preset == PRESET_IMMERSIVE
 	_header.visible = not immersive
 	_left.visible = not immersive and _left_allowed()
+	# En immersif le HUD joueur affiche le journal : dock droit masqué.
 	_right.visible = not immersive
 	var margin := 0 if immersive else UiLayout.SPACING_PANEL
 	for side in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
@@ -106,6 +107,15 @@ func relayout() -> void:
 	if _root == null or _outer == null:
 		return
 	if preset == PRESET_IMMERSIVE:
+		# Carte plein cadre : le HUD joueur gère journal / actions.
+		var available := _outer.size.x
+		if available < 32.0:
+			call_deferred("relayout")
+			return
+		_left_width = 0.0
+		_right_width = 0.0
+		_set_offset(_outer, 0)
+		_set_offset(_inner, 0)
 		return
 	var available := _outer.size.x
 	if available < 32.0:
@@ -122,7 +132,7 @@ func relayout() -> void:
 		_apply_inner_offset(available - sep - _left_width)
 	else:
 		_set_offset(_outer, 0)
-		_apply_inner_offset(available)
+		_apply_inner_offset(available - sep if _right.visible else available)
 
 func _apply_inner_offset(inner_width: float) -> void:
 	var sep := float(_inner.get_theme_constant("separation"))

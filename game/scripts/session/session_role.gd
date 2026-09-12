@@ -65,8 +65,13 @@ static func resolve(game: Dictionary, mp: Node) -> SessionRoleView:
 	view.can_see_hidden_map = view.kind == KIND_GM
 	view.can_roll_secret = gm_console
 
-	var acting_allowed := not view.completed and view.kind != KIND_GM
-	view.can_submit_action = acting_allowed and _can_member_act(view.client_id, mp)
+	var proxy_actions := bool(game.get("allowGmProxyActions", false))
+	var acting_allowed := not view.completed and (view.kind != KIND_GM or proxy_actions)
+	view.can_submit_action = (
+		acting_allowed
+		and not view.awaiting_gm
+		and (proxy_actions or _can_member_act(view.client_id, mp))
+	)
 	view.can_roll = (view.can_submit_action or gm_console) and not view.completed
 	return view
 

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://valbois_menu_lan_boot"]
+
+[ext_resource type="Script" path="res://scripts/debug/valbois_menu_lan_boot.gd" id="1"]
+
+[node name="ValboisMenuLanBoot" type="Node"]
+script = ExtResource("1")
