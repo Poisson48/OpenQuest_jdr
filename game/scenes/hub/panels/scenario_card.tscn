@@ -15,7 +15,7 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "Sans titre"
 autowrap_mode = 3
 
@@ -23,14 +23,14 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BadgeLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "⚔️ One-shot"
 
 [node name="LblSynopsis" type="Label" parent="VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Pas de synopsis."
 autowrap_mode = 3
 
@@ -38,7 +38,7 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 15
 text = "📜 0 scènes · 👤 0 PNJ"
 
 [node name="Actions" type="VBoxContainer" parent="VBox"]
@@ -63,6 +63,21 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"AccentButton"
 text = "🎮 Lancer"
+
+[node name="BtnPublish" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "📚 Publier dans le catalogue"
+
+[node name="BtnUnpublish" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📝 Remettre en brouillon"
 
 [node name="BtnDelete" type="Button" parent="VBox/Actions"]
 unique_name_in_owner = true

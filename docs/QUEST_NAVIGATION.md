@@ -41,6 +41,7 @@ Les joueurs suivent la narration du MJ ; le moteur synchronise l'état (scène c
 | `transitions[].gmOnly` | Suggestion MJ (raccourci, retour) — toujours disponible au MJ |
 | `startSceneId` | Scène de départ (sinon première du tableau) |
 | `tags` | Métadonnées (acte, lieu, fin…) pour l'UI |
+| `mapIds` | Cartes liées à la scène (bascule auto à l'entrée) |
 
 **Rétrocompatibilité** : un scénario `{ title, content }[]` sans `id`/`transitions` devient linéaire implicite (chaîne `scene-0 → scene-1 → …`).
 
@@ -114,7 +115,7 @@ Accès : Hub → Bibliothèque de scénarios → **+ Nouveau scénario** ou **�
 | Phase | Contenu |
 |-------|---------|
 | **2** | Conditions sur transitions (`requiresFlag`, dés, objet) |
-| **3** | Liaison scène ↔ carte (`mapIds`, bascule auto) |
+| **3** | ~~Liaison scène ↔ carte (`mapIds`, bascule auto)~~ ✅ |
 | **4** | PNJ filtrés par scène courante dans le picker |
 | **5** | Serveur Node : `go_to_scene` WebSocket + IA sur graphe |
 | **6** | Éditeur visuel de graphe dans le hub |

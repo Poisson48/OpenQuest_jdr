@@ -29,6 +29,7 @@ static func normalize_scenario(scenario: Dictionary) -> Dictionary:
 		scene_id = _ensure_unique_scene_id(scene_id, used_ids, i)
 		scene["id"] = scene_id
 		used_ids[scene_id] = true
+		scene["mapIds"] = get_scene_map_ids(scene)
 		scenes[i] = scene
 
 	var legacy_linear := true
@@ -51,7 +52,8 @@ static func normalize_scenario(scenario: Dictionary) -> Dictionary:
 				"label": "Continuer",
 				"default": true,
 			}]
-		scene["transitions"] = _sanitize_transitions(transitions, used_ids)
+		scene["transitions"] = _sanitize_transitions(transitions, used_ids, str(scene.get("id", "")))
+		scene["mapIds"] = get_scene_map_ids(scene)
 		scenes[i] = scene
 
 	normalized["scenes"] = scenes
@@ -59,6 +61,27 @@ static func normalize_scenario(scenario: Dictionary) -> Dictionary:
 	if start_id.is_empty() or not used_ids.has(start_id):
 		normalized["startSceneId"] = str(scenes[0].get("id", "scene-0"))
 	return normalized
+
+## Cartes liées à une scène (`mapIds` ou ancien champ unique `mapId`).
+static func get_scene_map_ids(scene: Dictionary) -> Array:
+	if scene.is_empty():
+		return []
+	var result: Array = []
+	var seen: Dictionary = {}
+	var raw: Variant = scene.get("mapIds", null)
+	if raw == null and scene.has("mapId"):
+		raw = [scene.get("mapId")]
+	if typeof(raw) == TYPE_STRING:
+		raw = [raw]
+	if typeof(raw) != TYPE_ARRAY:
+		return []
+	for entry in raw:
+		var mid := str(entry).strip_edges()
+		if mid.is_empty() or seen.has(mid):
+			continue
+		seen[mid] = true
+		result.append(mid)
+	return result
 
 static func get_scene_by_id(scenario: Dictionary, scene_id: String) -> Dictionary:
 	var target := str(scene_id).strip_edges()
@@ -411,8 +434,9 @@ static func _ensure_unique_scene_id(base_id: String, used_ids: Dictionary, index
 		suffix += 1
 	return "%s-%d" % [candidate, suffix]
 
-static func _sanitize_transitions(transitions: Array, used_ids: Dictionary) -> Array:
+static func _sanitize_transitions(transitions: Array, used_ids: Dictionary, from_id: String = "") -> Array:
 	var result: Array = []
+	var seen_to: Dictionary = {}
 	var has_default := false
 	for transition in transitions:
 		if typeof(transition) != TYPE_DICTIONARY:
@@ -420,10 +444,20 @@ static func _sanitize_transitions(transitions: Array, used_ids: Dictionary) -> A
 		var to_id := str(transition.get("to", "")).strip_edges()
 		if to_id.is_empty() or not used_ids.has(to_id):
 			continue
+		# Pas de boucle sur soi-même, pas de doublon de cible.
+		if (not from_id.is_empty() and to_id == from_id) or seen_to.has(to_id):
+			continue
+		seen_to[to_id] = true
 		var copy: Dictionary = transition.duplicate(true)
 		copy["to"] = to_id
+		copy["label"] = str(copy.get("label", "")).strip_edges()
+		copy["default"] = bool(copy.get("default", false))
+		copy["gmOnly"] = bool(copy.get("gmOnly", false))
 		if copy.get("default", false):
-			has_default = true
+			if has_default:
+				copy["default"] = false
+			else:
+				has_default = true
 		result.append(copy)
 	if not result.is_empty() and not has_default:
 		result[0]["default"] = true

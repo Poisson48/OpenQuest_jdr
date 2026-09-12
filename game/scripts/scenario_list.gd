@@ -6,6 +6,7 @@ const ScenarioCardScene := preload("res://scenes/hub/panels/scenario_card.tscn")
 @onready var list_scroll: ScrollContainer = %ListScroll
 @onready var mode_filter: OptionButton = %ModeFilter
 @onready var scenarios_count_lbl: Label = %ScenariosCountLabel
+@onready var library_tabs: HBoxContainer = %LibraryTabs
 @onready var page_title: Label = $MainLayout/TopBar/Title
 @onready var detail_panel: PanelContainer = %DetailPanel
 @onready var detail_scroll: ScrollContainer = $MainLayout/ContentArea/DetailPanel/DetailScroll
@@ -16,8 +17,11 @@ const ScenarioCardScene := preload("res://scenes/hub/panels/scenario_card.tscn")
 
 var selected_scenario_id: String = ""
 var _pending_delete_scenario_id: String = ""
+var _pending_publish_scenario_id: String = ""
 var _last_scenario_grid_cols: int = -1
 var _locked_mode: String = ""
+var _library_tab: String = "catalog" # catalog | draft
+var _library_tab_group: ButtonGroup
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
@@ -26,9 +30,13 @@ func _ready() -> void:
 	%BtnPlayDetail.pressed.connect(_on_play_selected_scenario)
 	%BtnEditDetail.pressed.connect(_on_edit_selected_scenario)
 	%BtnDeleteDetail.pressed.connect(_on_delete_selected_scenario)
+	%BtnPublishDetail.pressed.connect(_on_publish_selected_scenario)
+	%BtnUnpublishDetail.pressed.connect(_on_unpublish_selected_scenario)
 	%ConfirmDeleteScenario.confirmed.connect(_on_confirm_delete_scenario)
+	%ConfirmPublishScenario.confirmed.connect(_on_confirm_publish_scenario)
 
 	_setup_mode_filter()
+	_setup_library_tabs()
 	_apply_entry_context()
 	mode_filter.item_selected.connect(func(_idx): refresh_list())
 	if not list_scroll.resized.is_connected(_on_list_scroll_resized):
@@ -47,6 +55,47 @@ func _setup_mode_filter() -> void:
 	mode_filter.set_item_metadata(1, "adventure")
 	mode_filter.add_item("🔍 Enquête", 2)
 	mode_filter.set_item_metadata(2, "investigation")
+
+func _setup_library_tabs() -> void:
+	for child in library_tabs.get_children():
+		child.queue_free()
+	_library_tab_group = ButtonGroup.new()
+	_library_tab_group.allow_unpress = false
+	_add_library_tab_button("Catalogue", "catalog")
+	_add_library_tab_button("Brouillons", "draft")
+	_sync_library_tab_buttons()
+
+func _add_library_tab_button(label: String, tab_id: String) -> void:
+	var btn := Button.new()
+	btn.text = label
+	btn.toggle_mode = true
+	btn.button_group = _library_tab_group
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size = Vector2(0, 40)
+	btn.set_meta("tab_id", tab_id)
+	btn.pressed.connect(func(): _set_library_tab(tab_id))
+	library_tabs.add_child(btn)
+
+func _set_library_tab(tab_id: String) -> void:
+	if _library_tab == tab_id:
+		_sync_library_tab_buttons()
+		return
+	_library_tab = tab_id
+	detail_panel.visible = false
+	_sync_library_tab_buttons()
+	refresh_list()
+
+func _sync_library_tab_buttons() -> void:
+	for child in library_tabs.get_children():
+		var btn := child as Button
+		if btn == null:
+			continue
+		var tab_id := str(btn.get_meta("tab_id", ""))
+		btn.set_pressed_no_signal(tab_id == _library_tab)
+		if tab_id == _library_tab:
+			btn.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		else:
+			btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 
 func _apply_entry_context() -> void:
 	if get_tree().has_meta("preselected_scenario_mode"):
@@ -99,7 +148,11 @@ func refresh_list() -> void:
 
 	var mode := _current_mode_filter()
 	var total := 0
-	if mode == "all":
+	if _library_tab == "draft":
+		total = _add_draft_sections(mode)
+		if total == 0:
+			_add_empty_state()
+	elif mode == "all":
 		total += _add_roster_duration_sections("adventure")
 		total += _add_roster_duration_sections("investigation")
 		if total == 0:
@@ -117,7 +170,8 @@ func refresh_list() -> void:
 			var title := _mode_section_title(mode)
 			_add_scenario_section(title, list)
 
-	scenarios_count_lbl.text = "%d scénario%s" % [total, "s" if total != 1 else ""]
+	var noun := "brouillon" if _library_tab == "draft" else "scénario"
+	scenarios_count_lbl.text = "%d %s%s" % [total, noun, "s" if total != 1 else ""]
 	_last_scenario_grid_cols = _scenario_grid_columns()
 
 func _add_roster_duration_sections(roster_mode: String) -> int:
@@ -136,6 +190,39 @@ func _add_roster_duration_sections(roster_mode: String) -> int:
 	if not long_list.is_empty():
 		_add_scenario_section(long_title, long_list)
 	return count
+
+func _add_draft_sections(mode: String) -> int:
+	if mode == "all":
+		var total := 0
+		total += _add_draft_roster_section("adventure")
+		total += _add_draft_roster_section("investigation")
+		return total
+	if mode == "adventure" or mode == "investigation":
+		return _add_draft_roster_section(mode)
+	var list := _sorted_scenarios(_drafts_for_mode(mode))
+	if list.is_empty():
+		return 0
+	_add_scenario_section("📝 Brouillons", list)
+	return list.size()
+
+func _add_draft_roster_section(roster_mode: String) -> int:
+	var drafts := _sorted_scenarios(_drafts_for_mode(roster_mode))
+	if drafts.is_empty():
+		return 0
+	var split := _split_by_duration(drafts)
+	var short_list: Array = split["short"]
+	var long_list: Array = split["long"]
+	var short_title := "📝 Brouillons — aventures courtes" if roster_mode == "adventure" else "📝 Brouillons — enquêtes courtes"
+	var long_title := "📝 Brouillons — aventures longues" if roster_mode == "adventure" else "📝 Brouillons — enquêtes longues"
+	var title := "📝 Brouillons — aventures" if roster_mode == "adventure" else "📝 Brouillons — enquêtes"
+	if not short_list.is_empty() and not long_list.is_empty():
+		_add_scenario_section(short_title, short_list)
+		_add_scenario_section(long_title, long_list)
+	elif not short_list.is_empty():
+		_add_scenario_section(title if long_list.is_empty() else short_title, short_list)
+	elif not long_list.is_empty():
+		_add_scenario_section(long_title, long_list)
+	return drafts.size()
 
 func _split_by_duration(scenarios: Array) -> Dictionary:
 	var short: Array = []
@@ -166,6 +253,13 @@ func _scenarios_for_mode(mode: String) -> Array:
 		_:
 			return GameData.get_scenarios()
 
+func _drafts_for_mode(mode: String) -> Array:
+	match mode:
+		"investigation", "long", "oneshot", "adventure":
+			return GameData.get_draft_scenarios(mode)
+		_:
+			return GameData.get_draft_scenarios()
+
 func _sorted_scenarios(list: Array) -> Array:
 	var copy: Array = list.duplicate()
 	copy.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -192,16 +286,26 @@ func _scenario_grid_columns() -> int:
 
 func _add_empty_state() -> void:
 	var lbl := Label.new()
-	match _locked_mode:
-		"investigation":
-			lbl.text = "Aucune affaire d'enquête pour le moment."
-		"adventure":
-			lbl.text = "Aucun scénario d'aventure (one-shot ou campagne) pour le moment."
-		_:
-			lbl.text = "Aucun scénario ne correspond à ce mode."
+	if _library_tab == "draft":
+		match _locked_mode:
+			"investigation":
+				lbl.text = "Aucun brouillon d'enquête — crée-en un avec « + Nouveau scénario »."
+			"adventure":
+				lbl.text = "Aucun brouillon d'aventure — crée-en un avec « + Nouveau scénario »."
+			_:
+				lbl.text = "Aucun brouillon — crée-en un avec « + Nouveau scénario »."
+	else:
+		match _locked_mode:
+			"investigation":
+				lbl.text = "Aucune affaire d'enquête pour le moment."
+			"adventure":
+				lbl.text = "Aucun scénario d'aventure (one-shot ou campagne) pour le moment."
+			_:
+				lbl.text = "Aucun scénario ne correspond à ce mode."
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	scenario_sections_root.add_child(lbl)
 
 func _add_scenario_section(title: String, scenarios: Array) -> void:
@@ -213,7 +317,7 @@ func _add_scenario_section(title: String, scenarios: Array) -> void:
 	header.text = "%s (%d)" % [title, scenarios.size()]
 	header.add_theme_color_override("font_color", ThemeColors.GOLD)
 	header.theme_type_variation = "HeaderMedium"
-	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_font_size_override("font_size", 18)
 	section.add_child(header)
 
 	var grid := GridContainer.new()
@@ -234,6 +338,8 @@ func _create_scenario_card(scn: Dictionary) -> PanelContainer:
 	card.view_pressed.connect(_show_scenario_details)
 	card.play_pressed.connect(_launch_game_with_scenario)
 	card.delete_pressed.connect(_ask_delete_scenario)
+	card.publish_pressed.connect(_ask_publish_scenario)
+	card.unpublish_pressed.connect(_on_unpublish_scenario)
 	return card
 
 func _show_scenario_details(scn: Dictionary) -> void:
@@ -265,10 +371,18 @@ func _show_scenario_details(scn: Dictionary) -> void:
 				n.get("description", "")
 			]
 	detail_npcs.text = npcs_text
+	_update_detail_publish_buttons(scn)
 	detail_panel.visible = true
 	await get_tree().process_frame
 	detail_scroll.scroll_vertical = 0
 	_update_detail_text_widths()
+
+func _update_detail_publish_buttons(scn: Dictionary) -> void:
+	var is_draft := GameData.is_draft_scenario(scn)
+	var can_unpublish := GameData.is_catalog_scenario(scn) and not GameData.DEMO_SCENARIO_IDS.has(str(scn.get("id", "")))
+	%BtnPlayDetail.visible = not is_draft
+	%BtnPublishDetail.visible = is_draft
+	%BtnUnpublishDetail.visible = can_unpublish
 
 func _on_edit_selected_scenario() -> void:
 	if not selected_scenario_id.is_empty():
@@ -284,10 +398,27 @@ func _on_delete_selected_scenario() -> void:
 	var scn := GameData.get_scenario_by_id(selected_scenario_id)
 	_ask_delete_scenario(selected_scenario_id, scn.get("title", "Scénario"))
 
+func _on_publish_selected_scenario() -> void:
+	if selected_scenario_id.is_empty():
+		return
+	var scn := GameData.get_scenario_by_id(selected_scenario_id)
+	_ask_publish_scenario(selected_scenario_id, scn.get("title", "Scénario"))
+
+func _on_unpublish_selected_scenario() -> void:
+	if selected_scenario_id.is_empty():
+		return
+	var scn := GameData.get_scenario_by_id(selected_scenario_id)
+	_on_unpublish_scenario(selected_scenario_id, scn.get("title", "Scénario"))
+
 func _ask_delete_scenario(scenario_id: String, title: String) -> void:
 	_pending_delete_scenario_id = scenario_id
 	%ConfirmDeleteScenario.dialog_text = "Supprimer le scénario « %s » ?" % title
 	%ConfirmDeleteScenario.popup_centered()
+
+func _ask_publish_scenario(scenario_id: String, title: String) -> void:
+	_pending_publish_scenario_id = scenario_id
+	%ConfirmPublishScenario.dialog_text = "Publier « %s » dans le catalogue ?\nIl quittera les brouillons." % title
+	%ConfirmPublishScenario.popup_centered()
 
 func _on_confirm_delete_scenario() -> void:
 	if _pending_delete_scenario_id.is_empty():
@@ -298,6 +429,23 @@ func _on_confirm_delete_scenario() -> void:
 	GameData.delete_scenario(_pending_delete_scenario_id)
 	_pending_delete_scenario_id = ""
 	refresh_list()
+
+func _on_confirm_publish_scenario() -> void:
+	if _pending_publish_scenario_id.is_empty():
+		return
+	var sid := _pending_publish_scenario_id
+	_pending_publish_scenario_id = ""
+	if not GameData.publish_scenario(sid):
+		return
+	detail_panel.visible = false
+	_set_library_tab("catalog")
+
+func _on_unpublish_scenario(scenario_id: String, _title: String) -> void:
+	if not GameData.unpublish_scenario(scenario_id):
+		return
+	if selected_scenario_id == scenario_id:
+		detail_panel.visible = false
+	_set_library_tab("draft")
 
 func _launch_game_with_scenario(scenario_id: String) -> void:
 	GameData.go_to_game_setup("", scenario_id)
@@ -318,6 +466,9 @@ func _on_new_scenario_pressed() -> void:
 			fmt = "investigation"
 		"adventure", "long", "oneshot":
 			fmt = "oneshot"
+	# Les nouveaux scénarios apparaissent dans l'onglet Brouillons.
+	_library_tab = "draft"
+	_sync_library_tab_buttons()
 	GameData.go_to_scenario_editor("", roster, fmt)
 
 func _on_back_pressed() -> void:

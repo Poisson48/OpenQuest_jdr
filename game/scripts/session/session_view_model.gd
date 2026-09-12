@@ -241,6 +241,7 @@ func _party_signature_of(party: Array, active_id: String) -> String:
 func _map_signature_of(state: Dictionary) -> String:
 	return JSON.stringify({
 		"maps": state.get("mapIds", []),
+		"currentMapId": state.get("currentMapId", ""),
 		"nav": state.get("mapNavigation", {}),
 		"overrides": state.get("mapModeOverrides", {}),
 		"play": state.get("mapPlay", {}),

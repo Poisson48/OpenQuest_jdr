@@ -86,10 +86,56 @@ func _run() -> void:
 			"tags": tags,
 			"content_len": str(scene.get("content", "")).length(),
 			"badge_visible": editor.get_node("%LblSceneBadge").visible,
+			"has_maps_list": editor.has_node("%SceneMaps"),
 			"ok": scene.get("title") == "Prologue testé"
 				and tags.has("debut")
 				and tags.has("test")
-				and str(scene.get("content", "")).contains("remparts"),
+				and str(scene.get("content", "")).contains("remparts")
+				and editor.has_node("%SceneMaps"),
+		}
+	)
+
+	await _step("link_maps_to_scene", func():
+		var editor := current_scene
+		var scenario: Dictionary = editor.get("_scenario")
+		var sid := str(scenario["scenes"][0].get("id", ""))
+		editor.set("_selected_scene_id", sid)
+		# Injecte une carte fictive dans MapData pour le picker
+		var md: Node = editor.get_tree().root.get_node("MapData")
+		var fake := {
+			"id": "test-map-link",
+			"title": "Carte Test Lien",
+			"roster": str(scenario.get("roster", "general")),
+			"mapKind": "local",
+			"scenarioId": "",
+			"parentMapId": "",
+			"width": 8,
+			"height": 8,
+			"tiles": [],
+		}
+		md.maps.append(fake)
+		editor.call("_refresh_scene_panel")
+		await process_frame
+		var list: ItemList = editor.get_node("%SceneMaps")
+		var picked := -1
+		for i in range(list.item_count):
+			if str(list.get_item_metadata(i)) == "test-map-link":
+				picked = i
+				break
+		if picked < 0:
+			return { "ok": false, "error": "map_not_listed", "count": list.item_count }
+		list.select(picked, false)
+		editor.call("_on_scene_maps_changed")
+		await process_frame
+		scenario = editor.get("_scenario")
+		var maps: Array = QuestNavigation.get_scene_map_ids(scenario["scenes"][0])
+		var linked_scn := str(md.get_by_id("test-map-link").get("scenarioId", ""))
+		# cleanup
+		md.maps = md.maps.filter(func(m): return str(m.get("id", "")) != "test-map-link")
+		return {
+			"maps": maps,
+			"linked_scn": linked_scn,
+			"ok": maps.has("test-map-link") and linked_scn == str(scenario.get("id", "")),
 		}
 	)
 
@@ -300,6 +346,127 @@ func _run() -> void:
 			"before": before,
 			"after": after,
 			"ok": start_id == target_id and int(after) >= int(before),
+		}
+	)
+
+	await _step("right_click_jump_between_scenes", func():
+		var editor := current_scene
+		var fixture := {
+			"id": "test-jump",
+			"title": "Jump",
+			"roster": "general",
+			"startSceneId": "a",
+			"scenes": [
+				{ "id": "a", "title": "Alpha", "content": "", "transitions": [
+					{ "to": "b", "label": "Vers Beta", "default": true },
+				], "graphPos": { "x": 0, "y": 0 } },
+				{ "id": "b", "title": "Beta", "content": "", "transitions": [], "graphPos": { "x": 400, "y": 0 } },
+			],
+			"npcs": [],
+		}
+		editor.set("_scenario", fixture)
+		editor.set("_selected_scene_id", "a")
+		editor.call("_refresh_all")
+		await _wait_graph_ready(editor)
+		editor.call("_show_graph_scene_popup", "a", Vector2(100, 100))
+		await process_frame
+		var popup: PopupMenu = editor.get("_graph_popup")
+		var branch_meta := ""
+		var scene_meta := ""
+		for i in range(popup.item_count):
+			var meta := str(popup.get_item_metadata(i))
+			if meta == "b" and branch_meta.is_empty():
+				branch_meta = meta
+			if meta == "a":
+				scene_meta = meta
+		editor.call("_select_and_focus_scene", "b")
+		await _wait_graph_ready(editor)
+		return {
+			"popup_items": popup.item_count,
+			"branch_meta": branch_meta,
+			"scene_meta": scene_meta,
+			"selected": editor.get("_selected_scene_id"),
+			"ok": popup.item_count >= 3 and branch_meta == "b" and scene_meta == "a"
+				and str(editor.get("_selected_scene_id")) == "b",
+		}
+	)
+
+	await _step("drag_and_resize_scene_nodes", func():
+		var editor := current_scene
+		var fixture := {
+			"id": "test-drag-resize",
+			"title": "DragResize",
+			"roster": "general",
+			"startSceneId": "a",
+			"scenes": [
+				{ "id": "a", "title": "Alpha", "content": "x", "transitions": [], "graphPos": { "x": 40, "y": 40 } },
+				{ "id": "b", "title": "Beta", "content": "y", "transitions": [], "graphPos": { "x": 300, "y": 40 } },
+			],
+			"npcs": [],
+		}
+		editor.set("_scenario", fixture)
+		editor.set("_selected_scene_id", "a")
+		editor.call("_refresh_all")
+		await _wait_graph_ready(editor)
+		var nodes := _graph_nodes(editor)
+		var node_a: GraphNode = null
+		for n in nodes:
+			if str(n.get_meta("scene_id", "")) == "a":
+				node_a = n
+				break
+		if node_a == null:
+			return { "ok": false, "error": "node_a_missing" }
+		# Simule un déplacement + une sélection sans rebuild destructif
+		node_a.position_offset = Vector2(120, 160)
+		editor.call("_on_graph_node_dragged", node_a)
+		editor.call("_on_graph_node_selected", node_a)
+		await process_frame
+		var nodes_after_select := _graph_nodes(editor)
+		var still_same_instance := false
+		for n in nodes_after_select:
+			if n == node_a:
+				still_same_instance = true
+				break
+		editor.call("_on_graph_node_resize_request", node_a, Vector2(320, 200))
+		await process_frame
+		var was_resizable := bool(node_a.resizable)
+		var was_draggable := bool(node_a.draggable)
+		var scenario: Dictionary = editor.get("_scenario")
+		var scene_a: Dictionary = scenario["scenes"][0]
+		var gp: Dictionary = scene_a.get("graphPos", {})
+		var gs: Dictionary = scene_a.get("graphSize", {})
+		# Rebuild : la taille choisie doit être restaurée
+		editor.call("_rebuild_graph")
+		await _wait_graph_ready(editor)
+		var restored: GraphNode = null
+		for n in _graph_nodes(editor):
+			if str(n.get_meta("scene_id", "")) == "a":
+				restored = n
+				break
+		var restored_size := Vector2.ZERO
+		if restored != null and is_instance_valid(restored):
+			restored_size = restored.size
+			if restored.has_meta("graph_size"):
+				restored_size = restored.get_meta("graph_size")
+		return {
+			"still_same_instance": still_same_instance,
+			"selected": editor.get("_selected_scene_id"),
+			"pos": gp,
+			"size": gs,
+			"restored_w": restored_size.x,
+			"restored_h": restored_size.y,
+			"resizable": was_resizable,
+			"draggable": was_draggable,
+			"ok": still_same_instance
+				and str(editor.get("_selected_scene_id")) == "a"
+				and float(gp.get("x", 0)) == 120.0
+				and float(gp.get("y", 0)) == 160.0
+				and float(gs.get("w", 0)) == 320.0
+				and float(gs.get("h", 0)) == 200.0
+				and absf(restored_size.x - 320.0) < 1.0
+				and absf(restored_size.y - 200.0) < 1.0
+				and was_resizable
+				and was_draggable,
 		}
 	)
 

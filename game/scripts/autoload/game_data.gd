@@ -16,6 +16,7 @@ const DEMO_SCENARIO_FILES := ["demo-valbois.json", "demo-crypte.json", "inv-demo
 const DEMO_SCENARIO_IDS := ["demo-valbois", "demo-crypte", "inv-demo-scenario-demo"]
 ## Chargés pour le boot MJ / parties déjà pointées, mais absents du catalogue Hub.
 const EXTRA_SCENARIO_FILES := ["demo-kharak.json"]
+const EXTRA_SCENARIO_IDS := ["demo-kharak"]
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
@@ -135,10 +136,12 @@ func is_scenario_valid_for_format(scenario: Dictionary, quest_format: String) ->
 func get_scenarios_for_quest_format(quest_format: String) -> Array:
 	var result: Array = []
 	for s in scenarios:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
 		var scn_id: String = s.get("id", "")
 		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
 			continue
-		if not DEMO_SCENARIO_IDS.has(scn_id):
+		if not is_catalog_scenario(s):
 			continue
 		if is_scenario_valid_for_format(s, quest_format):
 			result.append(s)
@@ -447,14 +450,104 @@ func reload_builtin_scenarios() -> void:
 	scenarios_updated.emit()
 
 func load_scenarios() -> void:
-	# Catalogue démo : uniquement la quête simple et Valbois.
-	scenarios = _load_default_scenarios()
-	for i in range(scenarios.size()):
-		if scenarios[i] is Dictionary:
-			scenarios[i] = QuestNavigation.normalize_scenario(scenarios[i])
-	removed_scenario_ids = []
+	_load_removed_scenarios()
+	# Les IDs démo ne doivent jamais rester dans la liste des suppressions.
+	for demo_id in DEMO_SCENARIO_IDS:
+		removed_scenario_ids.erase(demo_id)
+	for extra_id in EXTRA_SCENARIO_IDS:
+		removed_scenario_ids.erase(extra_id)
+	_save_removed_scenarios()
+	var builtins := _load_default_scenarios()
+	var builtin_ids: Dictionary = {}
+	for s in builtins:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
+		var bid := str(s.get("id", ""))
+		if not bid.is_empty():
+			builtin_ids[bid] = true
+
+	var merged: Array = []
+	for s in builtins:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
+		merged.append(QuestNavigation.normalize_scenario(s))
+
+	var saved = _load_json_file(SCENARIOS_PATH)
+	if saved is Array:
+		for s in saved:
+			if typeof(s) != TYPE_DICTIONARY:
+				continue
+			var sid := str(s.get("id", ""))
+			if sid.is_empty() or builtin_ids.has(sid) or removed_scenario_ids.has(sid):
+				continue
+			var user_scn: Dictionary = QuestNavigation.normalize_scenario(s)
+			if str(user_scn.get("status", "")).is_empty():
+				user_scn["status"] = "draft"
+			merged.append(user_scn)
+
+	scenarios = merged
 	save_scenarios()
 	scenarios_updated.emit()
+
+func is_catalog_scenario(scenario: Dictionary) -> bool:
+	var sid := str(scenario.get("id", ""))
+	if sid.is_empty() or removed_scenario_ids.has(sid):
+		return false
+	if DEMO_SCENARIO_IDS.has(sid):
+		return true
+	if EXTRA_SCENARIO_IDS.has(sid):
+		return false
+	return str(scenario.get("status", "")) == "published"
+
+func is_draft_scenario(scenario: Dictionary) -> bool:
+	var sid := str(scenario.get("id", ""))
+	if sid.is_empty() or removed_scenario_ids.has(sid):
+		return false
+	if DEMO_SCENARIO_IDS.has(sid) or EXTRA_SCENARIO_IDS.has(sid):
+		return false
+	return str(scenario.get("status", "draft")) != "published"
+
+func get_draft_scenarios(quest_format: String = "") -> Array:
+	var result: Array = []
+	for s in scenarios:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
+		if not is_draft_scenario(s):
+			continue
+		if not quest_format.is_empty() and not is_scenario_valid_for_format(s, quest_format):
+			continue
+		result.append(s)
+	return result
+
+func publish_scenario(scenario_id: String) -> bool:
+	if scenario_id.is_empty():
+		return false
+	for i in range(scenarios.size()):
+		if typeof(scenarios[i]) != TYPE_DICTIONARY:
+			continue
+		if str(scenarios[i].get("id", "")) != scenario_id:
+			continue
+		if DEMO_SCENARIO_IDS.has(scenario_id) or EXTRA_SCENARIO_IDS.has(scenario_id):
+			return false
+		scenarios[i]["status"] = "published"
+		save_scenarios()
+		return true
+	return false
+
+func unpublish_scenario(scenario_id: String) -> bool:
+	if scenario_id.is_empty():
+		return false
+	for i in range(scenarios.size()):
+		if typeof(scenarios[i]) != TYPE_DICTIONARY:
+			continue
+		if str(scenarios[i].get("id", "")) != scenario_id:
+			continue
+		if DEMO_SCENARIO_IDS.has(scenario_id) or EXTRA_SCENARIO_IDS.has(scenario_id):
+			return false
+		scenarios[i]["status"] = "draft"
+		save_scenarios()
+		return true
+	return false
 
 func _load_removed_scenarios() -> void:
 	var data = _load_json_file(SCENARIOS_REMOVED_PATH)
@@ -473,10 +566,12 @@ func save_scenarios() -> void:
 func get_scenarios(quest_format: String = "", roster: String = "") -> Array:
 	var result := []
 	for s in scenarios:
+		if typeof(s) != TYPE_DICTIONARY:
+			continue
 		var scn_id: String = s.get("id", "")
 		if scn_id.is_empty() or removed_scenario_ids.has(scn_id):
 			continue
-		if not DEMO_SCENARIO_IDS.has(scn_id):
+		if not is_catalog_scenario(s):
 			continue
 		if not quest_format.is_empty() and s.get("questFormat", "") != quest_format:
 			continue
@@ -573,6 +668,7 @@ func create_blank_scenario(roster: String = "general", quest_format: String = "o
 		"setting": "",
 		"questFormat": quest_format,
 		"roster": roster,
+		"status": "draft",
 		"startSceneId": start_id,
 		"scenes": [{
 			"id": start_id,
@@ -580,6 +676,7 @@ func create_blank_scenario(roster: String = "general", quest_format: String = "o
 			"content": "Décrivez le point d'entrée de l'aventure...",
 			"tags": ["debut"],
 			"transitions": [],
+			"mapIds": [],
 			"graphPos": { "x": 48, "y": 48 },
 		}],
 		"npcs": [],
@@ -591,6 +688,12 @@ func create_blank_scenario(roster: String = "general", quest_format: String = "o
 func save_scenario(scenario_dict: Dictionary) -> void:
 	if not scenario_dict.has("id") or scenario_dict["id"].is_empty():
 		scenario_dict["id"] = generate_id("scn")
+	if not scenario_dict.has("status") or str(scenario_dict.get("status", "")).is_empty():
+		var sid := str(scenario_dict["id"])
+		if DEMO_SCENARIO_IDS.has(sid):
+			scenario_dict["status"] = "published"
+		elif not EXTRA_SCENARIO_IDS.has(sid):
+			scenario_dict["status"] = "draft"
 	var index := -1
 	for i in range(scenarios.size()):
 		if scenarios[i].get("id") == scenario_dict["id"]:
@@ -604,6 +707,9 @@ func save_scenario(scenario_dict: Dictionary) -> void:
 
 func delete_scenario(id: String) -> bool:
 	if id.is_empty() or removed_scenario_ids.has(id):
+		return false
+	# Les scénarios démo du catalogue ne sont pas supprimables.
+	if DEMO_SCENARIO_IDS.has(id) or EXTRA_SCENARIO_IDS.has(id):
 		return false
 	for i in range(scenarios.size() - 1, -1, -1):
 		if scenarios[i].get("id") == id:
@@ -1016,15 +1122,26 @@ func resolve_start_map_ids(
 func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_format: String, party_members: Array, map_ids: Array = []) -> Dictionary:
 	var scenario := get_scenario_by_id(scenario_id)
 	var resolved_map_ids: Array = resolve_start_map_ids(scenario_id, quest_format, map_ids, true)
-	if resolved_map_ids.is_empty():
-		push_warning("Impossible de créer une partie sans carte (scénario « %s »)." % scenario_id)
-		return {}
 	var start_scene_id := str(scenario.get("startSceneId", ""))
 	if start_scene_id.is_empty():
 		start_scene_id = QuestNavigation.get_scene_id_at_index(scenario, 0)
 	var start_scene := QuestNavigation.get_scene_by_id(scenario, start_scene_id)
+	var start_map_ids := QuestNavigation.get_scene_map_ids(start_scene)
+	for mid in start_map_ids:
+		var id := str(mid)
+		if id.is_empty() or MapData.get_by_id(id).is_empty():
+			continue
+		if not resolved_map_ids.has(id):
+			resolved_map_ids.append(id)
+	resolved_map_ids = expand_map_ids_with_linked_locals(resolved_map_ids)
+	if resolved_map_ids.is_empty():
+		push_warning("Impossible de créer une partie sans carte (scénario « %s »)." % scenario_id)
+		return {}
 	var start_index := QuestNavigation.get_scene_index(scenario, start_scene_id)
 	var now := Time.get_unix_time_from_system()
+	var initial_map_id := ""
+	if not start_map_ids.is_empty() and resolved_map_ids.has(str(start_map_ids[0])):
+		initial_map_id = str(start_map_ids[0])
 	var new_game := {
 		"id": generate_id("game"),
 		"scenarioId": scenario_id,
@@ -1036,6 +1153,7 @@ func create_new_game(scenario_id: String, mode: String, gm_type: String, quest_f
 		"mapIds": resolved_map_ids,
 		"mapPlayState": {},
 		"mapNavigation": { "view": "world", "worldMapId": null, "localMapId": null, "worldCell": null },
+		"currentMapId": initial_map_id,
 		"currentSceneId": start_scene_id,
 		"currentSceneIndex": maxi(0, start_index),
 		"visitedSceneIds": [start_scene_id] if not start_scene_id.is_empty() else [],
@@ -1356,10 +1474,56 @@ func go_to_scene(scene_id: String, reason: String = "") -> bool:
 		],
 		"gm"
 	)
+	_apply_scene_map_links(target_scene)
 	_reveal_world_on_scene_advance()
 	_reveal_investigation_on_scene_advance()
 	save_active_game()
 	return true
+
+func _apply_scene_map_links(scene: Dictionary) -> void:
+	if active_game.is_empty() or scene.is_empty():
+		return
+	var scene_maps := QuestNavigation.get_scene_map_ids(scene)
+	if scene_maps.is_empty():
+		return
+	var map_ids: Array = active_game.get("mapIds", [])
+	if typeof(map_ids) != TYPE_ARRAY:
+		map_ids = []
+	var changed := false
+	for mid in scene_maps:
+		var id := str(mid)
+		if id.is_empty() or MapData.get_by_id(id).is_empty():
+			continue
+		if not map_ids.has(id):
+			map_ids.append(id)
+			changed = true
+	if changed:
+		active_game["mapIds"] = expand_map_ids_with_linked_locals(map_ids)
+	var primary := str(scene_maps[0])
+	if primary.is_empty() or MapData.get_by_id(primary).is_empty():
+		return
+	active_game["currentMapId"] = primary
+	var map_data := MapData.get_by_id(primary)
+	if MapData.is_world_map(map_data):
+		active_game["mapNavigation"] = {
+			"view": "world",
+			"worldMapId": primary,
+			"localMapId": null,
+			"worldCell": null,
+		}
+	else:
+		var world_id := ""
+		for mid in active_game.get("mapIds", []):
+			var candidate := MapData.get_by_id(str(mid))
+			if not candidate.is_empty() and MapData.is_world_map(candidate):
+				world_id = str(mid)
+				break
+		active_game["mapNavigation"] = {
+			"view": "local",
+			"worldMapId": world_id if not world_id.is_empty() else null,
+			"localMapId": primary,
+			"worldCell": null,
+		}
 
 func complete_scenario(reason: String = "") -> bool:
 	if active_game.is_empty():
@@ -2706,6 +2870,9 @@ func get_active_play_map_id() -> String:
 	var map_ids: Array = active_game.get("mapIds", [])
 	if map_ids.is_empty():
 		return ""
+	var current_map := str(active_game.get("currentMapId", "")).strip_edges()
+	if not current_map.is_empty() and map_ids.has(current_map):
+		return current_map
 	var nav: Dictionary = active_game.get("mapNavigation", {})
 	if nav.get("view") == "local":
 		var local_id: String = nav.get("localMapId", "")

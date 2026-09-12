@@ -48,13 +48,13 @@ text = "← Retour au Hub"
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "📜 Bibliothèque de Scénarios"
 
 [node name="LblModeFilter" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Mode :"
 
 [node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar"]
@@ -72,8 +72,13 @@ text = "+ Nouveau scénario"
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "0 scénario(s)"
+
+[node name="LibraryTabs" type="HBoxContainer" parent="MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="ContentArea" type="Control" parent="MainLayout"]
 layout_mode = 2
@@ -134,7 +139,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 22
 text = "Titre du Scénario"
 autowrap_mode = 3
 
@@ -188,6 +193,21 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "🎮 Lancer cette aventure"
 
+[node name="BtnPublishDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+text = "📚 Publier dans le catalogue"
+
+[node name="BtnUnpublishDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📝 Remettre en brouillon"
+
 [node name="BtnDeleteDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -200,4 +220,13 @@ initial_position = 2
 size = Vector2i(440, 120)
 dialog_text = "Supprimer ce scénario ?"
 ok_button_text = "Supprimer"
+cancel_button_text = "Annuler"
+
+[node name="ConfirmPublishScenario" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Publier le scénario"
+initial_position = 2
+size = Vector2i(480, 140)
+dialog_text = "Publier ce scénario dans le catalogue ?"
+ok_button_text = "Publier"
 cancel_button_text = "Annuler"

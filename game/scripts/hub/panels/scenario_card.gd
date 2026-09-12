@@ -6,6 +6,8 @@ signal edit_pressed(scenario_id: String)
 signal view_pressed(scenario: Dictionary)
 signal play_pressed(scenario_id: String)
 signal delete_pressed(scenario_id: String, title: String)
+signal publish_pressed(scenario_id: String, title: String)
+signal unpublish_pressed(scenario_id: String, title: String)
 
 var _scn: Dictionary = {}
 
@@ -14,6 +16,8 @@ func _ready() -> void:
 	%BtnView.pressed.connect(func(): view_pressed.emit(_scn))
 	%BtnPlay.pressed.connect(func(): play_pressed.emit(str(_scn.get("id", ""))))
 	%BtnDelete.pressed.connect(func(): delete_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
+	%BtnPublish.pressed.connect(func(): publish_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
+	%BtnUnpublish.pressed.connect(func(): unpublish_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
 
 func setup(scn: Dictionary) -> void:
 	if not is_node_ready():
@@ -39,3 +43,9 @@ func setup(scn: Dictionary) -> void:
 	var scenes: Array = scn.get("scenes", [])
 	var npcs: Array = scn.get("npcs", [])
 	%LblMeta.text = "📜 %d scènes · 👤 %d PNJ" % [scenes.size(), npcs.size()]
+
+	var is_draft := GameData.is_draft_scenario(scn)
+	var can_unpublish := GameData.is_catalog_scenario(scn) and not GameData.DEMO_SCENARIO_IDS.has(str(scn.get("id", "")))
+	%BtnPlay.visible = not is_draft
+	%BtnPublish.visible = is_draft
+	%BtnUnpublish.visible = can_unpublish

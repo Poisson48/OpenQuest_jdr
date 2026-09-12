@@ -112,6 +112,29 @@ func list_for_scenario(scenario_id: String, roster: String = "") -> Array:
 			result.append(m)
 	return result
 
+## Cartes pouvant être liées à une scène : d'abord celles du scénario, puis les orphelines du roster.
+func list_linkable_maps_for_scenario(scenario_id: String, roster: String = "general") -> Array:
+	var linked: Array = []
+	var orphans: Array = []
+	for m in maps:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		if not str(m.get("parentMapId", "")).is_empty():
+			continue
+		if not roster.is_empty() and str(m.get("roster", "general")) != roster:
+			continue
+		var sid := str(m.get("scenarioId", ""))
+		if not scenario_id.is_empty() and sid == scenario_id:
+			linked.append(m)
+		elif sid.is_empty():
+			orphans.append(m)
+	var sorter := func(a: Dictionary, b: Dictionary) -> bool:
+		return str(a.get("title", "")).to_lower() < str(b.get("title", "")).to_lower()
+	linked.sort_custom(sorter)
+	orphans.sort_custom(sorter)
+	linked.append_array(orphans)
+	return linked
+
 func get_map_ids_for_scenario(scenario_id: String, quest_format: String = "") -> Array:
 	var ids: Array = []
 	for m in maps:

@@ -216,7 +216,7 @@ autowrap_mode = 3
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  glisser un port → pour créer une branche"
+text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  clic scène → éditer  ·  glisser le fond → vue  ·  glisser un nœud → déplacer  ·  coin → redimensionner  ·  glisser un port → branche  ·  clic droit → aller à une scène"
 autowrap_mode = 3
 
 [node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
@@ -316,6 +316,26 @@ text = "Tags"
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "acte-1, carrefour, fin"
+
+[node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Cartes liées"
+
+[node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+select_mode = 2
+allow_reselect = true
+
+[node name="LblSceneMapsHint" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+text = "Clique pour lier/délier une carte. La première cochée devient la carte active en jeu."
+autowrap_mode = 3
 
 [node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
