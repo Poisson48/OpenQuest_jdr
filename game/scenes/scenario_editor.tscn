@@ -150,14 +150,54 @@ text = "Scène de départ"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="NpcPanel" type="PanelContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 240)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"InsetPanel"
+
+[node name="NpcPanelMargin" type="MarginContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="NpcPanelVBox" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="NpcHeader" type="HBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "👤 PNJ"
 
-[node name="NpcList" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="BtnAddNpcPanel" type="Button" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+text = "+ Ajouter"
+
+[node name="NpcScroll" type="ScrollContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="NpcList" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
 [node name="CenterSplit" type="HSplitContainer" parent="MainLayout/BodySplit"]

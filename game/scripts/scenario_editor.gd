@@ -45,6 +45,8 @@ func _ready() -> void:
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnAddScene.pressed.connect(_on_add_scene_pressed)
 	%BtnAddNpc.pressed.connect(_on_add_npc_pressed)
+	if has_node("%BtnAddNpcPanel"):
+		%BtnAddNpcPanel.pressed.connect(_on_add_npc_pressed)
 	%BtnSetStart.pressed.connect(_on_set_start_pressed)
 	%BtnDeleteScene.pressed.connect(_on_delete_scene_pressed)
 	%BtnAddTransition.pressed.connect(_on_add_transition_pressed)
@@ -209,7 +211,18 @@ func _sync_meta_ui() -> void:
 	if not _locked_roster.is_empty():
 		meta_roster.disabled = true
 
+	_update_mode_dropdowns_visibility()
 	_refresh_start_scene_options()
+
+func _is_investigation_mode() -> bool:
+	return str(_scenario.get("roster", "")) == "investigation" \
+		or str(_scenario.get("questFormat", "")) == "investigation"
+
+func _update_mode_dropdowns_visibility() -> void:
+	# En enquête, format et roster disent la même chose : un seul menu suffit.
+	var is_inv := _is_investigation_mode()
+	meta_format.visible = not is_inv
+	meta_roster.visible = true
 
 func _refresh_start_scene_options() -> void:
 	meta_start_scene.clear()
@@ -239,16 +252,39 @@ func _on_meta_changed(_arg = null) -> void:
 	_scenario["synopsis"] = meta_synopsis.text.strip_edges()
 	_scenario["setting"] = meta_setting.text.strip_edges()
 	_scenario["mystery"] = meta_mystery.text.strip_edges()
-	if meta_format.selected >= 0:
-		_scenario["questFormat"] = str(meta_format.get_item_metadata(meta_format.selected))
 	if meta_roster.selected >= 0:
 		_scenario["roster"] = str(meta_roster.get_item_metadata(meta_roster.selected))
+	var roster := str(_scenario.get("roster", "general"))
+	if roster == "investigation":
+		_scenario["questFormat"] = "investigation"
+	elif meta_format.visible and meta_format.selected >= 0:
+		var fmt := str(meta_format.get_item_metadata(meta_format.selected))
+		# Le format « Enquête » bascule tout le scénario en enquête.
+		if fmt == "investigation":
+			_scenario["roster"] = "investigation"
+			_scenario["questFormat"] = "investigation"
+		else:
+			_scenario["questFormat"] = fmt
+	elif str(_scenario.get("questFormat", "")) == "investigation":
+		# On quitte l’enquête via le roster : format aventure par défaut.
+		_scenario["questFormat"] = "oneshot"
+	_update_mode_dropdowns_visibility()
+	if meta_format.visible:
+		var shown_fmt := str(_scenario.get("questFormat", "oneshot"))
+		for i in range(meta_format.item_count):
+			if str(meta_format.get_item_metadata(i)) == shown_fmt:
+				meta_format.select(i)
+				break
+	for i in range(meta_roster.item_count):
+		if str(meta_roster.get_item_metadata(i)) == str(_scenario.get("roster", "general")):
+			meta_roster.select(i)
+			break
 	_update_mystery_visibility()
 	_dirty = true
 	_refresh_graph_health()
 
 func _update_mystery_visibility() -> void:
-	var show: bool = str(_scenario.get("roster", "")) == "investigation" or str(_scenario.get("questFormat", "")) == "investigation"
+	var show: bool = _is_investigation_mode()
 	lbl_mystery.visible = show
 	meta_mystery.visible = show
 
