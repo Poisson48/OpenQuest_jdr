@@ -14,6 +14,7 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var inv_summary_lbl: Label = %InvSummaryLabel
 @onready var maps_sections_root: VBoxContainer = %MapsSectionsRoot
 @onready var maps_sort: OptionButton = %MapsSort
+@onready var maps_library_tabs: HBoxContainer = %MapsLibraryTabs
 @onready var btn_home: Button = %BtnHome
 @onready var btn_adv_new_char: Button = %BtnAdvNewChar
 @onready var btn_adv_scenarios: Button = %BtnAdvScenarios
@@ -25,11 +26,15 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var btn_new_map_adv: Button = %BtnNewMapAdv
 @onready var btn_new_map_inv: Button = %BtnNewMapInv
 @onready var confirm_delete_map: ConfirmationDialog = %ConfirmDeleteMap
+@onready var confirm_publish_map: ConfirmationDialog = %ConfirmPublishMap
 @onready var confirm_delete_bot: ConfirmationDialog = %ConfirmDeleteBot
 
 var _pending_delete_map_id: String = ""
+var _pending_publish_map_id: String = ""
 var _pending_delete_bot_id: String = ""
 var _last_bot_grid_cols: int = -1
+var _maps_library_tab: String = "catalog" # catalog | draft
+var _maps_library_tab_group: ButtonGroup
 
 func _ready() -> void:
 	# @onready résout les % avant ce corps ; ne pas reparente les onglets avant les connexions.
@@ -47,10 +52,9 @@ func _ready() -> void:
 	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
 	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
 	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
-	btn_new_map_world.visible = false
-	btn_new_map_adv.visible = false
-	btn_new_map_inv.visible = false
+	_add_vtt_map_button()
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
+	confirm_publish_map.confirmed.connect(_on_confirm_publish_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
 	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Bots"])
@@ -59,6 +63,7 @@ func _ready() -> void:
 	MapData.maps_updated.connect(_render_maps_tab)
 	GameData.bots_updated.connect(_render_bots)
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
+	_setup_maps_library_tabs()
 	_setup_maps_sort()
 	_setup_bots_filter()
 	
@@ -139,6 +144,50 @@ func _setup_maps_sort() -> void:
 	maps_sort.add_item("Scénario lié", 3)
 	maps_sort.item_selected.connect(func(_idx): _render_maps_tab())
 
+func _setup_maps_library_tabs() -> void:
+	if maps_library_tabs == null:
+		return
+	for child in maps_library_tabs.get_children():
+		child.queue_free()
+	_maps_library_tab_group = ButtonGroup.new()
+	_maps_library_tab_group.allow_unpress = false
+	_add_maps_library_tab_button("Catalogue", "catalog")
+	_add_maps_library_tab_button("Brouillons", "draft")
+	_sync_maps_library_tab_buttons()
+
+func _add_maps_library_tab_button(label: String, tab_id: String) -> void:
+	var btn := Button.new()
+	btn.text = label
+	btn.toggle_mode = true
+	btn.button_group = _maps_library_tab_group
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size = Vector2(0, 40)
+	btn.set_meta("tab_id", tab_id)
+	btn.pressed.connect(func(): _set_maps_library_tab(tab_id))
+	maps_library_tabs.add_child(btn)
+
+func _set_maps_library_tab(tab_id: String) -> void:
+	if _maps_library_tab == tab_id:
+		_sync_maps_library_tab_buttons()
+		return
+	_maps_library_tab = tab_id
+	_sync_maps_library_tab_buttons()
+	_render_maps_tab()
+
+func _sync_maps_library_tab_buttons() -> void:
+	if maps_library_tabs == null:
+		return
+	for child in maps_library_tabs.get_children():
+		var btn := child as Button
+		if btn == null:
+			continue
+		var tab_id := str(btn.get_meta("tab_id", ""))
+		btn.set_pressed_no_signal(tab_id == _maps_library_tab)
+		if tab_id == _maps_library_tab:
+			btn.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		else:
+			btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+
 func _current_maps_sort_mode() -> String:
 	match maps_sort.selected:
 		1: return "title_desc"
@@ -152,25 +201,44 @@ func _render_maps_tab() -> void:
 	for child in maps_sections_root.get_children():
 		child.queue_free()
 	var sort_mode := _current_maps_sort_mode()
-	var adventure := MapData.sort_maps(MapData.get_maps_by_category("adventure"), sort_mode)
+	var tab := _maps_library_tab
+	var draft_prefix := "📝 " if tab == "draft" else ""
+
+	var world := MapData.sort_maps(MapData.get_maps_by_category("world", tab), sort_mode)
+	var adventure := MapData.sort_maps(MapData.get_maps_by_category("adventure", tab), sort_mode)
+	var investigation := MapData.sort_maps(MapData.get_maps_by_category("investigation", tab), sort_mode)
+
 	var simple_maps: Array = []
-	var valbois_maps: Array = []
+	var complex_maps: Array = []
 	for m in adventure:
 		if str(m.get("renderMode", "simple")) == MapModeScript.COMPLEX:
-			valbois_maps.append(m)
+			complex_maps.append(m)
 		else:
 			simple_maps.append(m)
+
 	_add_maps_section(
-		"▦ Quête simple",
-		"La Crypte Oubliée — carte tuilée classique.",
+		"%s🌍 Cartes monde" % draft_prefix,
+		"Cartes d’ensemble pour les campagnes." if tab == "catalog" else "Brouillons de cartes monde.",
+		world,
+		"world"
+	)
+	_add_maps_section(
+		"%s▦ Quête simple" % draft_prefix,
+		"Cartes tuilées classiques." if tab == "catalog" else "Brouillons de cartes d’aventure simples.",
 		simple_maps,
 		"adventure"
 	)
 	_add_maps_section(
-		"⚙️ Valbois",
-		"Village illustré, Place du Marché et token Kael. Cliquez le lieu ⭐ pour zoomer.",
-		valbois_maps,
+		"%s⚙️ Cartes complexes" % draft_prefix,
+		"Dioramas / VTT (ex. Valbois)." if tab == "catalog" else "Brouillons de battlemaps et dioramas.",
+		complex_maps,
 		"adventure"
+	)
+	_add_maps_section(
+		"%s🔍 Enquête" % draft_prefix,
+		"Lieux pour les dossiers d’enquête." if tab == "catalog" else "Brouillons de cartes d’enquête.",
+		investigation,
+		"investigation"
 	)
 
 func _add_maps_section(title: String, hint: String, map_list: Array, category: String) -> void:
@@ -193,7 +261,10 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 
 	if map_list.is_empty():
 		var empty := Label.new()
-		empty.text = "Aucune carte — utilise les boutons « + » ci-dessus pour en créer une."
+		if _maps_library_tab == "draft":
+			empty.text = "Aucun brouillon ici — utilise les boutons « + » ci-dessus pour en créer un."
+		else:
+			empty.text = "Aucune carte — publie un brouillon, ou crée-en une avec les boutons « + »."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 		section.add_child(empty)
@@ -214,6 +285,8 @@ func _make_map_card(map_data: Dictionary, category: String) -> PanelContainer:
 	card.preview_pressed.connect(_preview_map)
 	card.edit_pressed.connect(_edit_map)
 	card.delete_pressed.connect(_ask_delete_map)
+	card.publish_pressed.connect(_ask_publish_map)
+	card.unpublish_pressed.connect(_on_unpublish_map)
 	card.demo_pressed.connect(_play_valbois_demo)
 	return card
 
@@ -233,6 +306,8 @@ func _edit_map(map_id: String) -> void:
 	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")
 
 func _create_map(roster: String, map_kind: String) -> void:
+	_maps_library_tab = "draft"
+	_sync_maps_library_tab_buttons()
 	var kind_label := "monde" if map_kind == "world" else ("enquête" if roster == "investigation" else "aventure")
 	var map := MapData.create_blank_map("Nouvelle carte %s" % kind_label, roster, map_kind)
 	MapData.preview_map_id = map.get("id", "")
@@ -261,6 +336,8 @@ func _add_vtt_map_button() -> void:
 	row.add_child(btn_vtt_inv)
 
 func _create_complex_map(roster: String) -> void:
+	_maps_library_tab = "draft"
+	_sync_maps_library_tab_buttons()
 	var label := "Battlemap enquête" if roster == "investigation" else "Battlemap VTT"
 	var map := MapData.create_complex_map(label, roster, "local", 24, 16)
 	MapData.preview_map_id = map.get("id", "")
@@ -271,6 +348,25 @@ func _ask_delete_map(map_id: String, title: String) -> void:
 	_pending_delete_map_id = map_id
 	confirm_delete_map.dialog_text = "Supprimer la carte « %s » ?" % title
 	confirm_delete_map.popup_centered()
+
+func _ask_publish_map(map_id: String, title: String) -> void:
+	_pending_publish_map_id = map_id
+	confirm_publish_map.dialog_text = "Publier « %s » dans le catalogue Cartes ?" % title
+	confirm_publish_map.popup_centered()
+
+func _on_confirm_publish_map() -> void:
+	if _pending_publish_map_id.is_empty():
+		return
+	var mid := _pending_publish_map_id
+	_pending_publish_map_id = ""
+	if not MapData.publish_map(mid):
+		return
+	_set_maps_library_tab("catalog")
+
+func _on_unpublish_map(map_id: String, _title: String) -> void:
+	if not MapData.unpublish_map(map_id):
+		return
+	_set_maps_library_tab("draft")
 
 func _on_confirm_delete_map() -> void:
 	if _pending_delete_map_id.is_empty():

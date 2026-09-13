@@ -84,6 +84,21 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Modifier"
 
+[node name="BtnPublish" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"AccentButton"
+text = "Publier"
+
+[node name="BtnUnpublish" type="Button" parent="VBox/Actions"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Brouillon"
+
 [node name="BtnDelete" type="Button" parent="VBox/Actions"]
 unique_name_in_owner = true
 layout_mode = 2

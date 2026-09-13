@@ -6,6 +6,8 @@ class_name MapCard
 signal preview_pressed(map_id: String)
 signal edit_pressed(map_id: String)
 signal delete_pressed(map_id: String, title: String)
+signal publish_pressed(map_id: String, title: String)
+signal unpublish_pressed(map_id: String, title: String)
 signal demo_pressed
 
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
@@ -25,6 +27,8 @@ func _ready() -> void:
 	%BtnPreview.pressed.connect(func(): preview_pressed.emit(_map_id))
 	%BtnEdit.pressed.connect(func(): edit_pressed.emit(_map_id))
 	%BtnDelete.pressed.connect(func(): delete_pressed.emit(_map_id, _title_text))
+	%BtnPublish.pressed.connect(func(): publish_pressed.emit(_map_id, _title_text))
+	%BtnUnpublish.pressed.connect(func(): unpublish_pressed.emit(_map_id, _title_text))
 	_btn_demo.pressed.connect(func(): demo_pressed.emit())
 
 func setup(map_data: Dictionary, category: String) -> void:
@@ -62,4 +66,10 @@ func setup(map_data: Dictionary, category: String) -> void:
 	else:
 		_meta.text = "%d marqueur(s)" % map_data.get("markers", []).size()
 
+	var is_draft := MapData.is_draft_map(map_data)
+	var is_demo := MapData.is_demo_map_id(_map_id)
+	var can_unpublish := MapData.is_catalog_map(map_data) and not is_demo
 	_btn_demo.visible = scenario_id == "demo-valbois"
+	%BtnPublish.visible = is_draft
+	%BtnUnpublish.visible = can_unpublish
+	%BtnDelete.visible = not is_demo

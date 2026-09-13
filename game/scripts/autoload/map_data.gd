@@ -7,6 +7,7 @@ const MAP_ASSETS_DIR := "user://map_assets/"
 const SCHEMA_VERSION := 4
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
+const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
 	"opacity": 0.22,
@@ -89,13 +90,90 @@ func _load_tile_defs() -> void:
 		_tile_defs = data
 
 func load_maps() -> void:
-	maps = _build_demo_catalog()
+	var demos := _build_demo_catalog()
+	var demo_ids: Dictionary = {}
+	for m in demos:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		var did := str(m.get("id", ""))
+		if not did.is_empty():
+			demo_ids[did] = true
+
+	var merged: Array = []
+	for m in demos:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		var demo_map: Dictionary = ensure_map_schema((m as Dictionary).duplicate(true))
+		demo_map["status"] = "published"
+		merged.append(demo_map)
+
+	var saved = _load_json(MAPS_PATH)
+	if saved is Array:
+		for entry in saved:
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var mid := str(entry.get("id", ""))
+			if mid.is_empty() or demo_ids.has(mid):
+				continue
+			var user_map: Dictionary = ensure_map_schema((entry as Dictionary).duplicate(true))
+			if str(user_map.get("status", "")).is_empty():
+				user_map["status"] = "draft"
+			merged.append(user_map)
+
+	maps = merged
 	save_maps()
-	maps_updated.emit()
 
 func save_maps() -> void:
 	_save_json(MAPS_PATH, maps)
 	maps_updated.emit()
+
+func is_demo_map_id(map_id: String) -> bool:
+	return DEMO_MAP_IDS.has(map_id)
+
+func is_catalog_map(map_data: Dictionary) -> bool:
+	var mid := str(map_data.get("id", ""))
+	if mid.is_empty():
+		return false
+	if is_demo_map_id(mid):
+		return true
+	return str(map_data.get("status", "")) == "published"
+
+func is_draft_map(map_data: Dictionary) -> bool:
+	var mid := str(map_data.get("id", ""))
+	if mid.is_empty() or is_demo_map_id(mid):
+		return false
+	return str(map_data.get("status", "draft")) != "published"
+
+func get_draft_maps() -> Array:
+	var result: Array = []
+	for m in maps:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		if is_draft_map(m):
+			result.append(m)
+	return result
+
+func publish_map(map_id: String) -> bool:
+	if map_id.is_empty() or is_demo_map_id(map_id):
+		return false
+	for i in range(maps.size()):
+		if str(maps[i].get("id", "")) != map_id:
+			continue
+		maps[i]["status"] = "published"
+		save_maps()
+		return true
+	return false
+
+func unpublish_map(map_id: String) -> bool:
+	if map_id.is_empty() or is_demo_map_id(map_id):
+		return false
+	for i in range(maps.size()):
+		if str(maps[i].get("id", "")) != map_id:
+			continue
+		maps[i]["status"] = "draft"
+		save_maps()
+		return true
+	return false
 
 func get_by_id(map_id: String) -> Dictionary:
 	for m in maps:
@@ -168,6 +246,10 @@ func get_setup_map_pool(scenario_id: String, quest_format: String) -> Array:
 	var pool: Array = []
 	var is_investigation := quest_format == "investigation" or scenario_id.begins_with("inv-")
 	for m in maps:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
+		if not is_catalog_map(m):
+			continue
 		if not str(m.get("parentMapId", "")).is_empty():
 			continue
 		if is_investigation:
@@ -382,10 +464,16 @@ func get_marker_label(marker_type: String) -> String:
 	}
 	return labels.get(marker_type, marker_type.capitalize())
 
-func get_maps_by_category(category: String) -> Array:
+func get_maps_by_category(category: String, library_tab: String = "catalog") -> Array:
 	var result: Array = []
 	for m in maps:
+		if typeof(m) != TYPE_DICTIONARY:
+			continue
 		if not str(m.get("parentMapId", "")).is_empty():
+			continue
+		if library_tab == "draft" and not is_draft_map(m):
+			continue
+		elif library_tab == "catalog" and not is_catalog_map(m):
 			continue
 		match category:
 			"world":
@@ -592,6 +680,9 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["props"] = []
 	if not map_data.has("parentMapId"):
 		map_data["parentMapId"] = ""
+	if not map_data.has("status") or str(map_data.get("status", "")).is_empty():
+		var mid := str(map_data.get("id", ""))
+		map_data["status"] = "published" if is_demo_map_id(mid) else "draft"
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
 		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
 	# Schéma 5 — style diorama 2.5D (défaut) ou VTT tactique.
@@ -640,6 +731,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"renderMode": RENDER_MODE_COMPLEX,
 		"renderStyle": "diorama",
 		"scenarioId": "",
+		"status": "draft",
 		"width": grid_cells_w,
 		"height": grid_cells_h,
 		"tiles": tiles,
@@ -1159,6 +1251,7 @@ func create_blank_map(title: String, roster: String, map_kind: String) -> Dictio
 		"mapKind": map_kind,
 		"renderMode": RENDER_MODE_SIMPLE,
 		"scenarioId": "",
+		"status": "draft",
 		"width": w,
 		"height": h,
 		"tiles": tiles,
@@ -1170,6 +1263,8 @@ func create_blank_map(title: String, roster: String, map_kind: String) -> Dictio
 	return map
 
 func delete_map(map_id: String) -> void:
+	if map_id.is_empty() or is_demo_map_id(map_id):
+		return
 	maps = maps.filter(func(m): return m.get("id", "") != map_id)
 	save_maps()
 

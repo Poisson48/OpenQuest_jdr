@@ -77,7 +77,7 @@ const META_KEYS := [
 	"title", "description", "width", "height", "grid", "fogEnabled",
 	"perspective", "lighting", "atmosphere", "backgroundImage",
 	"backgroundImageNight", "backgroundTransform", "scenarioId", "roster",
-	"mapKind", "measure", "renderStyle",
+	"mapKind", "measure", "renderStyle", "status",
 ]
 
 # --- État -------------------------------------------------------------------
