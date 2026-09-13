@@ -389,15 +389,14 @@ func resolve_speaker_art(speaker_name: String, kind: String = "npc") -> String:
 				var img := str(tok.get("image", "")).strip_edges()
 				if not img.is_empty():
 					return img
-	# 3) Sprite de rôle
+	# 3) Sprite de rôle — pas de paysan générique (pire qu'aucun portrait).
 	if kind == "gm":
-		# Pas de paysan aléatoire pour le MJ : on masquera l'art si aucun portrait dédié.
 		return ""
 	var role_guess := speaker_name
 	var sprite := MapData.get_character_sprite_path(role_guess, speaker_name)
 	if not sprite.is_empty():
 		return sprite
-	return "res://data/props/characters/paysan_valbois.png"
+	return ""
 
 func make_kael_party_member() -> Dictionary:
 	_ensure_kael_character()
@@ -2095,7 +2094,7 @@ func get_session_atmosphere() -> Dictionary:
 	if active_game.is_empty():
 		return {
 			"nightMode": false,
-			"nightAmbient": 0.14,
+			"nightAmbient": 0.22,
 			"lanternRadius": 4.5,
 			"lanternEnergy": 1.9,
 			"lanternColor": "#ffb35c",
@@ -2103,7 +2102,7 @@ func get_session_atmosphere() -> Dictionary:
 	if not active_game.has("sessionAtmosphere") or typeof(active_game["sessionAtmosphere"]) != TYPE_DICTIONARY:
 		active_game["sessionAtmosphere"] = {
 			"nightMode": false,
-			"nightAmbient": 0.14,
+			"nightAmbient": 0.22,
 			"lanternRadius": 4.5,
 			"lanternEnergy": 1.9,
 			"lanternColor": "#ffb35c",
@@ -2120,9 +2119,11 @@ func set_session_night(enabled: bool, ambient: float = -1.0) -> void:
 	atm["nightMode"] = enabled
 	if ambient >= 0.0:
 		atm["nightAmbient"] = clampf(ambient, 0.05, 0.6)
+	elif enabled:
+		atm["nightAmbient"] = maxf(float(atm.get("nightAmbient", 0.22)), 0.22)
 	active_game["sessionAtmosphere"] = atm
 	if enabled:
-		add_log_entry("MJ", "La nuit tombe sur la carte. Sans lanterne, on ne voit rien.", "gm")
+		add_log_entry("MJ", "La nuit tombe. Sans lanterne, vous êtes aveugle.", "gm")
 	else:
 		add_log_entry("MJ", "L'aube revient. Les lanternes s'éteignent.", "gm")
 	save_map_play_and_sync()
@@ -2143,6 +2144,24 @@ func member_has_lantern(member_id: String) -> bool:
 		if _item_is_lantern(str(it.get("id", "")), str(it.get("name", ""))):
 			return true
 	return false
+
+func party_has_lantern() -> bool:
+	for member_variant in active_game.get("party", []):
+		if typeof(member_variant) != TYPE_DICTIONARY:
+			continue
+		if member_has_lantern(str(member_variant.get("id", ""))):
+			return true
+	return false
+
+func local_member_is_night_blind() -> bool:
+	if not is_session_night():
+		return false
+	var me: Dictionary = {}
+	if MultiplayerManager != null and MultiplayerManager.has_method("get_my_party_member"):
+		me = MultiplayerManager.get_my_party_member(active_game)
+	if me.is_empty():
+		return not party_has_lantern()
+	return not member_has_lantern(str(me.get("id", "")))
 
 func build_lantern_light_sources(map_id: String) -> Array:
 	var sources: Array = []
@@ -2188,7 +2207,7 @@ func apply_session_lighting_to_map(map_data: Dictionary) -> Dictionary:
 	var out: Dictionary = map_data.duplicate(true)
 	var light: Dictionary = MapData.get_lighting_config(out)
 	light["nightMode"] = true
-	light["nightAmbient"] = float(get_session_atmosphere().get("nightAmbient", 0.14))
+	light["nightAmbient"] = float(get_session_atmosphere().get("nightAmbient", 0.22))
 	var kept: Array = []
 	for src_variant in light.get("sources", []):
 		if typeof(src_variant) != TYPE_DICTIONARY:

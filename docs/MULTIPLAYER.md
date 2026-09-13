@@ -13,11 +13,12 @@ OpenQuest passe d'un **serveur autoritaire Node** (tout le jeu transite par le P
 ```
 ┌─────────────┐     WebSocket      ┌──────────────────┐     WebSocket      ┌─────────────┐
 │  Joueur 1   │◄──────────────────►│ Serveur pooling  │◄──────────────────►│  Joueur 2   │
-│  (Hôte P2P) │   matchmaking only │  (Node, :8080)   │   matchmaking only │  (Client)   │
+│  (Hôte P2P) │  matchmaking+ICE   │  (Node, :8080)   │  matchmaking+ICE   │  (Client)   │
 └──────┬──────┘                    └──────────────────┘                    └──────┬──────┘
        │                                                                            │
-       └──────────────────── ENet P2P (port 7777) ──────────────────────────────────┘
+       └────────── WebRTC DataChannel (STUN / TURN optionnel) ─────────────────────┘
                               État de jeu, actions, dés
+         (repli LAN : ENet :7777 si p2p_transport=enet / force_loopback)
 ```
 
 | Composant | Rôle |
@@ -62,10 +63,12 @@ Le serveur pooling écoute sur le port **8080** (matchmaking uniquement).
 - `register_character` dans le contexte d'un salon
 - Hôte ENet Godot sur port **7777** (PC du MJ), adresse publiée via `set_p2p_host`
 
-### Phase 2 — Signalisation WebRTC (à venir)
-- Messages `signal` (offer/answer/ICE) relayés par le serveur pooling
-- NAT traversal pour joueurs sur Internet sans port forwarding
-- Remplacement progressif d'ENet LAN par WebRTC DataChannel
+### Phase 2 — Signalisation WebRTC + STUN (✅)
+- Messages `signal` (`offer` / `answer` / `ice` / `meta`) relayés par le serveur pooling
+- Plugin `webrtc/` (webrtc-native) + STUN publics (Google / Cloudflare)
+- TURN optionnel via `TURN_URL` / `TURN_USERNAME` / `TURN_CREDENTIAL`
+- Transport par défaut : **WebRTC** (`p2p_transport=auto`) ; ENet LAN si `force_loopback_p2p` ou `p2p_transport=enet`
+- Adresse hôte publiée : `webrtc` (plus besoin d'IP publique pour jouer)
 
 ### Phase 3 — Autorité P2P complète (à venir)
 - État de partie synchronisé entre pairs (CRDT ou hôte autoritaire Godot)

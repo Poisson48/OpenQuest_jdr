@@ -151,6 +151,30 @@ static func scroll(vertical: bool = true) -> ScrollContainer:
 		sc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	return sc
 
+static func member_hp(member: Dictionary) -> int:
+	return int(member.get("hp", 0))
+
+static func member_max_hp(member: Dictionary) -> int:
+	var mx := int(member.get("maxHp", member.get("hpMax", 0)))
+	if mx <= 0:
+		mx = maxi(member_hp(member), 1)
+	return mx
+
+static func hp_ratio(member: Dictionary) -> float:
+	return clampf(float(member_hp(member)) / float(member_max_hp(member)), 0.0, 1.0)
+
+static func style_hp_bar(bar: ProgressBar, member: Dictionary) -> void:
+	bar.min_value = 0.0
+	bar.max_value = 1.0
+	bar.value = hp_ratio(member)
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 8)
+	var fill := StyleBoxFlat.new()
+	var ratio := bar.value
+	fill.bg_color = ThemeColors.SUCCESS if ratio > 0.35 else ThemeColors.DANGER
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("fill", fill)
+
 ## Cadre plat sans bordure, utilisé pour l'affichage carte plein cadre.
 static func flat_stylebox(color: Color, radius: int = 0) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()

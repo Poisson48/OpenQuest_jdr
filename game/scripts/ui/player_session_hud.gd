@@ -8,6 +8,10 @@ signal leave_pressed
 signal open_character(member: Dictionary)
 signal action_submitted(text: String)
 signal roll_requested(formula: String)
+signal zoom_in_requested
+signal zoom_out_requested
+signal fit_requested
+signal chrome_changed
 
 const META_FONT_SIZE := 12
 
@@ -21,13 +25,17 @@ const META_FONT_SIZE := 12
 @onready var _hero_name: Label = %LblHeroName
 @onready var _hero_sub: Label = %LblHeroSub
 @onready var _hero_hp: Label = %LblHeroHp
+@onready var _hero_hp_bar: ProgressBar = %HeroHpBar
 @onready var _inv_preview: Label = %LblInventoryPreview
 @onready var _inv_panel: PanelContainer = %InventoryPanel
 @onready var _inv_list: VBoxContainer = %InvList
+@onready var _night_banner: PanelContainer = %NightBanner
+@onready var _night_label: Label = %LblNightBanner
 
 var _me: Dictionary = {}
 var _entries: Array = []
 var _my_turn := false
+var _journal_collapsed := false
 
 func _ready() -> void:
 	%BtnLeave.pressed.connect(func(): leave_pressed.emit())
@@ -38,6 +46,21 @@ func _ready() -> void:
 	%BtnMySheet.pressed.connect(_on_my_sheet)
 	%BtnInventory.pressed.connect(_toggle_inventory)
 	%BtnCloseInv.pressed.connect(func(): _inv_panel.visible = false)
+	%BtnZoomOut.pressed.connect(func(): zoom_out_requested.emit())
+	%BtnZoomIn.pressed.connect(func(): zoom_in_requested.emit())
+	%BtnFit.pressed.connect(func(): fit_requested.emit())
+	for btn in [%BtnExplore, %BtnTalk, %BtnInspect, %BtnFight]:
+		var phrase := str(btn.tooltip_text)
+		btn.pressed.connect(func(): _submit(phrase))
+	var btn_collapse: Button = %BtnClearFocus
+	btn_collapse.visible = true
+	btn_collapse.text = "«"
+	btn_collapse.tooltip_text = "Replier / déplier l'histoire"
+	btn_collapse.pressed.connect(_toggle_journal)
+	resized.connect(_on_resized)
+	if _night_banner:
+		_night_banner.visible = false
+	call_deferred("_adapt_chrome")
 
 func set_title(text: String) -> void:
 	_title.text = text
@@ -68,12 +91,19 @@ func set_me(member: Dictionary) -> void:
 		_hero_name.text = "—"
 		_hero_sub.text = ""
 		_hero_hp.text = "PV —"
+		if _hero_hp_bar:
+			_hero_hp_bar.visible = false
 		_inv_preview.text = "Aucun personnage"
 		_portrait.texture = null
 		return
 	_hero_name.text = str(_me.get("name", "Aventurier"))
-	_hero_sub.text = "%s · %s" % [_me.get("race", "?"), _me.get("class", "?")]
-	_hero_hp.text = "PV %d   ·   CA %d" % [int(_me.get("hp", 0)), int(_me.get("ac", 0))]
+	var race := str(_me.get("race", "")).strip_edges()
+	var klass := str(_me.get("class", "")).strip_edges()
+	_hero_sub.text = "%s · %s" % [race if not race.is_empty() else "—", klass if not klass.is_empty() else "—"]
+	_hero_hp.text = "PV %d   ·   CA %d" % [SessionStyle.member_hp(_me), int(_me.get("ac", 0))]
+	if _hero_hp_bar:
+		_hero_hp_bar.visible = true
+		SessionStyle.style_hp_bar(_hero_hp_bar, _me)
 	_inv_preview.text = _inventory_preview_text(_me)
 	_load_portrait(_me)
 	if _inv_panel.visible:
@@ -94,8 +124,10 @@ func set_party(party: Array, my_id: String = "") -> void:
 		var label := member_name
 		if not my_id.is_empty() and mid == my_id:
 			label = "★ %s" % member_name
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 2)
 		var btn := SessionStyle.button(" %s" % label, "Ouvrir la fiche de %s" % member_name)
-		btn.custom_minimum_size = Vector2(0, 36)
+		btn.custom_minimum_size = Vector2(0, 32)
 		var path := str(member.get("portrait", member.get("image", ""))).strip_edges()
 		if not path.is_empty():
 			var texture := MapData.load_token_cutout(path, 48)
@@ -104,7 +136,18 @@ func set_party(party: Array, my_id: String = "") -> void:
 				btn.expand_icon = true
 		var captured: Dictionary = member.duplicate(true)
 		btn.pressed.connect(func(): open_character.emit(captured))
-		_party_row.add_child(btn)
+		var hp_lbl := Label.new()
+		hp_lbl.theme_type_variation = &"CaptionLabel"
+		hp_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hp_lbl.text = "PV %d" % SessionStyle.member_hp(member)
+		var hp_bar := ProgressBar.new()
+		SessionStyle.style_hp_bar(hp_bar, member)
+		hp_bar.custom_minimum_size = Vector2(64, 6)
+		col.add_child(btn)
+		col.add_child(hp_lbl)
+		col.add_child(hp_bar)
+		_party_row.add_child(col)
+	_apply_party_compact()
 
 func reset_log(entries: Array) -> void:
 	_entries = entries.duplicate()
@@ -112,19 +155,144 @@ func reset_log(entries: Array) -> void:
 
 func append_log(entry: Dictionary) -> void:
 	_entries.append(entry)
-	_rebuild_log()
+	if not is_node_ready():
+		await ready
+	var before := _log_text.get_parsed_text().length() if _log_text else 0
+	_write_log_entry(entry)
+	var after := _log_text.get_parsed_text().length() if _log_text else 0
+	if after <= before:
+		_rebuild_log()
+	else:
+		_scroll_log_end()
 
-## Compat : ancien toast → append dans le journal si besoin.
+## Bandeau / toast court (nuit, navigation bloquée).
 func show_toast(text: String) -> void:
-	if text.strip_edges().is_empty():
+	var body := text.strip_edges()
+	if body.is_empty() or _night_label == null:
 		return
-	# Le journal est la source de vérité ; toast ignoré si déjà synchronisé.
+	_night_label.text = body
+	if _night_banner:
+		_night_banner.visible = true
+	var tw := create_tween()
+	tw.tween_interval(4.2)
+	tw.tween_callback(func():
+		if _night_label != null and _night_label.text == body and not GameData.local_member_is_night_blind():
+			if _night_banner:
+				_night_banner.visible = false
+	)
+
+func set_night_blind(blind: bool) -> void:
+	if _night_banner == null:
+		return
+	if blind:
+		_night_label.text = "Sans lanterne, vous êtes aveugle"
+		_night_banner.visible = true
+	else:
+		_night_banner.visible = false
+
+## Insets carte (gauche, haut, droite, bas) mesurés sur le HUD réel.
+## La fiche héros est un coin, pas une colonne : elle ne doit pas décaler toute la carte.
+func chrome_insets() -> Vector4:
+	if not is_node_ready():
+		return Vector4(16.0, 52.0, 260.0, 120.0)
+	var vp := size
+	var top_bar: Control = $TopBar
+	var bottom_bar: Control = $BottomBar
+	var journal: Control = $JournalDock
+	var top := maxf(48.0, top_bar.size.y + 4.0) if top_bar else 52.0
+	var bottom := maxf(96.0, bottom_bar.size.y + 8.0) if bottom_bar else 120.0
+	var left := 12.0
+	var right := 28.0
+	if journal and journal.visible and not _journal_collapsed:
+		right = maxf(right, journal.size.x + 8.0)
+	var max_side := maxf(180.0, vp.x * 0.24)
+	left = minf(left, max_side)
+	right = minf(right, max_side)
+	top = minf(top, maxf(48.0, vp.y * 0.12))
+	bottom = minf(bottom, maxf(88.0, vp.y * 0.26))
+	if vp.x - left - right < vp.x * 0.42:
+		right = maxf(160.0, vp.x - left - vp.x * 0.42)
+	if vp.y - top - bottom < vp.y * 0.42:
+		bottom = maxf(80.0, vp.y - top - vp.y * 0.42)
+	return Vector4(left, top, right, bottom)
 
 func set_enabled(enabled: bool) -> void:
 	_action.editable = enabled
 	%BtnSend.disabled = not enabled
-	%BtnD6.disabled = not enabled
-	%BtnD20.disabled = not enabled
+	# Les dés restent disponibles hors tour (quick win audit UX).
+	%BtnD6.disabled = false
+	%BtnD20.disabled = false
+	for btn in [%BtnExplore, %BtnTalk, %BtnInspect, %BtnFight]:
+		btn.disabled = not enabled
+
+func _toggle_journal() -> void:
+	_journal_collapsed = not _journal_collapsed
+	%BtnClearFocus.text = "»" if _journal_collapsed else "«"
+	%LogScroll.visible = not _journal_collapsed
+	_adapt_chrome()
+	chrome_changed.emit()
+
+func _on_resized() -> void:
+	_adapt_chrome()
+	chrome_changed.emit()
+
+func _is_compact() -> bool:
+	return size.y < 820.0 or size.x < 1480.0
+
+## Demi-écran 2x2 (~1720×696) : journal borné, barre basse et fiche compactes.
+func _adapt_chrome() -> void:
+	if not is_node_ready():
+		return
+	var compact := _is_compact()
+	var short := size.y < 740.0
+	var bottom_h := 96.0 if short else (118.0 if compact else 180.0)
+	var top_h := 50.0
+	var journal_w := minf(268.0 if compact else 340.0, maxf(size.x * 0.20, 200.0))
+	var suggest: Control = get_node_or_null("%SuggestRow")
+	if suggest:
+		suggest.visible = not short
+	var bottom: Control = $BottomBar
+	if bottom:
+		bottom.offset_top = -bottom_h
+	var journal: Control = $JournalDock
+	if journal:
+		journal.anchor_left = 1.0
+		journal.anchor_right = 1.0
+		journal.offset_top = top_h + 6.0
+		journal.offset_bottom = -bottom_h + 4.0
+		if _journal_collapsed:
+			journal.offset_left = -44.0
+			journal.offset_right = -6.0
+		else:
+			journal.offset_left = -(journal_w + 8.0)
+			journal.offset_right = -8.0
+	var hero: Control = $HeroDock
+	var hero_w := 216.0 if compact else 300.0
+	var hero_h := 108.0 if compact else 160.0
+	if hero:
+		hero.offset_left = 0.0
+		hero.offset_right = hero_w + 10.0
+		hero.offset_top = -(bottom_h + hero_h + 8.0)
+		hero.offset_bottom = -bottom_h - 4.0
+	if _inv_preview:
+		_inv_preview.visible = not compact
+	if _inv_panel:
+		_inv_panel.offset_left = 10.0
+		_inv_panel.offset_right = hero_w + 20.0
+		_inv_panel.offset_bottom = -(bottom_h + hero_h + 12.0)
+		_inv_panel.offset_top = _inv_panel.offset_bottom - (220.0 if compact else 232.0)
+	_apply_party_compact()
+
+func _apply_party_compact() -> void:
+	if _party_row == null:
+		return
+	var compact := _is_compact()
+	for col in _party_row.get_children():
+		if not (col is VBoxContainer):
+			continue
+		var kids := col.get_children()
+		for i in range(1, kids.size()):
+			kids[i].visible = not compact
 
 func submit_action_text(text: String) -> void:
 	if not _action.editable:

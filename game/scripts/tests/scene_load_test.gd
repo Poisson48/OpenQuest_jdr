@@ -23,6 +23,7 @@ const SCENES := [
 	"res://scenes/session/panels/map_stage.tscn",
 	"res://scenes/session/panels/map_toolbar.tscn",
 	"res://scenes/session/panels/player_hud.tscn",
+	"res://scenes/session/panels/speaker_dialogue_overlay.tscn",
 	"res://scenes/session/panels/character_sheet.tscn",
 	"res://scenes/session/panels/stat_chip.tscn",
 	"res://scenes/session/panels/ability_block.tscn",

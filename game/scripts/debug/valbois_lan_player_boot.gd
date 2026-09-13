@@ -17,14 +17,17 @@ func _ready() -> void:
 			player_slot = int(arg.get_slice("=", 1))
 	var info := _identity()
 	_banner = _make_banner("%s — attente du code salon…" % info.name)
-	MultiplayerManager.force_loopback_p2p = true
+	MultiplayerManager.force_loopback_p2p = false
+	MultiplayerManager.p2p_transport = "webrtc"
 	MultiplayerManager.set_player_role("player")
 	MultiplayerManager.player_name = info.name
 	MultiplayerManager.p2p_error.connect(func(m): _banner.text = "%s ERR: %s" % [info.name, m])
 	MultiplayerManager.room_joined.connect(_on_joined)
 	MultiplayerManager.room_updated.connect(_on_room_updated)
 	MultiplayerManager.game_started.connect(_on_game_started)
-	MultiplayerManager.p2p_connected.connect(func(_id): _log("ENet connecté"))
+	MultiplayerManager.p2p_connected.connect(func(_id):
+		_log("P2P connecté transport=%s" % MultiplayerManager.get_p2p_transport())
+	)
 
 	MultiplayerManager.connect_pooling("ws://127.0.0.1:8080", info.name)
 	_poll_code_and_join()

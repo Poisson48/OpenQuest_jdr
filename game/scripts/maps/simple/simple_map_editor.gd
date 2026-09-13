@@ -135,6 +135,7 @@ func _bind_ui() -> void:
 	var stage := %SimpleStage
 	stage.get_node("%MapHeader").visible = false
 	_imap = InteractiveMapScript.new()
+	_imap.always_show_areas = true
 	_imap.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_imap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_imap.size_flags_vertical = Control.SIZE_EXPAND_FILL

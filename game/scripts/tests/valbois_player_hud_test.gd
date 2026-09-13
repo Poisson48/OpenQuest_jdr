@@ -63,6 +63,13 @@ func _run() -> void:
 	_assert("map_full_bleed", map_report["stage_size"].y >= 500.0)
 	_assert("map_chrome_hidden", not map_report["chrome_visible"])
 	_assert("scale_is_real", map_report["scale"] > 0.0)
+	if hud != null and hud.has_method("chrome_insets"):
+		var inset: Vector4 = hud.chrome_insets()
+		print("chrome_insets=", inset)
+		_assert("inset_no_hero_column", inset.x < 80.0)
+		_assert("inset_journal_capped", inset.z < 360.0)
+		_assert("inset_leaves_map_x", inset.x + inset.z < 1280.0 * 0.45)
+		_assert("inset_leaves_map_y", inset.y + inset.w < 720.0 * 0.50)
 
 	await _shot("05_valbois_player_hud")
 

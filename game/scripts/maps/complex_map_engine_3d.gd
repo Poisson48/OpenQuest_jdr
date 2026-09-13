@@ -105,6 +105,7 @@ var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
 var _style_cfg: Dictionary = {}
 var _hovered_area_id: String = ""
+var _hovered_zone_id: String = ""
 var _fit_pending: bool = false
 var _fit_retries: int = 0
 
@@ -118,11 +119,15 @@ func _ready() -> void:
 
 func _clear_area_hover() -> void:
 	mouse_default_cursor_shape = Control.CURSOR_ARROW
-	if _hovered_area_id.is_empty():
+	if _hovered_area_id.is_empty() and _hovered_zone_id.is_empty():
 		return
 	_hovered_area_id = ""
+	_hovered_zone_id = ""
 	if _areas_overlay and _areas_overlay.has_method("set_hovered"):
 		_areas_overlay.set_hovered("")
+	if _areas_overlay and _areas_overlay.has_method("set_hovered_zone"):
+		_areas_overlay.set_hovered_zone({})
+	_apply_session_zone_visibility()
 	area_hovered.emit({})
 
 func _build_viewport_tree() -> void:
@@ -310,12 +315,9 @@ func configure(
 	_apply_camera_perspective()
 	_apply_lighting()
 	_apply_atmosphere()
-	if _areas_overlay and _areas_overlay.has_method("configure"):
-		# En éditeur, l'overlay dédié de l'éditeur dessine déjà les lieux.
-		if editor_mode:
-			_areas_overlay.configure(null, {})
-		else:
-			_areas_overlay.configure(self, map_data)
+	_sync_areas_overlay()
+	_hovered_area_id = ""
+	_hovered_zone_id = ""
 	# Même carte : conserver zoom/pan (y compris cartes illustrées).
 	# Nouvelle carte : cadrer le PNG ou la grille entière.
 	if same_map and not p_view_state.is_empty():
@@ -618,8 +620,11 @@ func _rebuild_layers() -> void:
 			continue
 		var znode = MapZone3DScript.new()
 		znode.setup(zone, _cell_size)
+		if znode.has_method("set_hover_only"):
+			znode.set_hover_only(not editor_mode)
 		_zones_layer.add_child(znode)
 		_zone_nodes[str(zone.get("id", ""))] = znode
+	_apply_session_zone_visibility()
 
 func _clear_children(layer: Node, registry: Dictionary) -> void:
 	for child in layer.get_children():
@@ -984,11 +989,29 @@ func set_editor_mode(on: bool) -> void:
 		_token_drag = null
 		_token_press_candidate = null
 		_pending_click = false
-	if _areas_overlay and _areas_overlay.has_method("configure"):
-		if on:
-			_areas_overlay.configure(null, {})
-		else:
-			_areas_overlay.configure(self, map_data)
+		_clear_area_hover()
+	_sync_areas_overlay()
+	_apply_session_zone_visibility()
+
+func _sync_areas_overlay() -> void:
+	if _areas_overlay == null or not _areas_overlay.has_method("configure"):
+		return
+	# En éditeur, l'overlay dédié de l'éditeur dessine déjà les lieux / zones.
+	if editor_mode:
+		_areas_overlay.configure(null, {}, [])
+	else:
+		_areas_overlay.configure(self, map_data, _zones)
+
+func _apply_session_zone_visibility() -> void:
+	for zid in _zone_nodes:
+		var node = _zone_nodes[zid]
+		if node == null or not is_instance_valid(node):
+			continue
+		if node.has_method("set_hover_only"):
+			node.set_hover_only(not editor_mode)
+		if node.has_method("set_highlighted"):
+			# En session le disque 3D reste éteint : l'overlay 2D peint le survol.
+			node.set_highlighted(editor_mode)
 
 static func _mods(event: InputEvent) -> Dictionary:
 	return {
@@ -1071,6 +1094,8 @@ func _process(delta: float) -> void:
 	_camera.position.z += _pan_velocity.y * delta
 	_pan_velocity *= pow(PAN_INERTIA_DECAY, delta * 60.0)
 	_clamp_camera()
+	if not editor_mode and _pan_velocity.length() < PAN_INERTIA_MIN:
+		_update_area_hover(get_local_mouse_position())
 
 func _rebuild_token_overlay() -> void:
 	if _token_overlay == null:
@@ -1095,17 +1120,45 @@ func _rebuild_token_overlay() -> void:
 		icon.modulate = Color(1, 1, 1, 1)
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		# Ombre/contour 2D derrière le perso pour le détacher du fond illustré.
+		var night := MapData.is_night_mode(map_data)
 		var outline := TextureRect.new()
 		outline.texture = tex
 		outline.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		outline.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		outline.modulate = Color(0, 0, 0, 0.9)
+		outline.modulate = Color(1.0, 0.78, 0.32, 0.82) if night else Color(0, 0, 0, 0.9)
 		outline.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var name_lbl := Label.new()
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.add_theme_color_override("font_color", Color(0.98, 0.93, 0.78, 1.0))
+		name_lbl.add_theme_color_override("font_outline_color", Color(0.02, 0.01, 0.0, 0.92))
+		name_lbl.add_theme_constant_override("outline_size", 5 if night else 3)
+		name_lbl.text = _overlay_token_label(node)
+		name_lbl.visible = not name_lbl.text.is_empty()
 		_token_overlay.add_child(outline)
 		_token_overlay.add_child(icon)
-		_overlay_icons[tid] = {"icon": icon, "outline": outline}
+		_token_overlay.add_child(name_lbl)
+		_overlay_icons[tid] = {"icon": icon, "outline": outline, "name": name_lbl, "night": night}
 	_sync_token_overlay_positions()
+
+func _overlay_token_label(node) -> String:
+	if node == null or not ("token_data" in node) or not (node.token_data is Dictionary):
+		return ""
+	var data: Dictionary = node.token_data
+	var label := str(data.get("label", data.get("name", ""))).strip_edges()
+	if not label.is_empty():
+		return label
+	if str(data.get("kind", "")) != "member":
+		return ""
+	var mid := str(data.get("memberId", ""))
+	for member_variant in _party:
+		if typeof(member_variant) != TYPE_DICTIONARY:
+			continue
+		if str(member_variant.get("id", "")) == mid:
+			return str(member_variant.get("name", "")).strip_edges()
+	return ""
 
 func _sync_token_overlay_positions() -> void:
 	if _token_overlay == null or _camera == null or _overlay_icons.is_empty():
@@ -1123,6 +1176,8 @@ func _sync_token_overlay_positions() -> void:
 		var entry = _overlay_icons[tid]
 		var icon: TextureRect = entry["icon"] if entry is Dictionary else entry
 		var outline: TextureRect = entry["outline"] if entry is Dictionary else null
+		var name_lbl: Label = entry["name"] if entry is Dictionary else null
+		var night := bool(entry.get("night", false)) if entry is Dictionary else false
 		var node = _token_nodes.get(tid)
 		if icon == null or node == null or icon.texture == null:
 			continue
@@ -1136,9 +1191,14 @@ func _sync_token_overlay_positions() -> void:
 		icon.size = Vector2(px_w, px_h)
 		icon.position = pos
 		if outline != null:
-			var grow := 3.0
+			var grow := 5.0 if night else 3.0
 			outline.size = Vector2(px_w + grow * 2.0, px_h + grow * 2.0)
 			outline.position = pos - Vector2(grow, grow)
+		if name_lbl != null:
+			name_lbl.reset_size()
+			var nsz := name_lbl.get_combined_minimum_size()
+			name_lbl.size = Vector2(maxf(nsz.x, px_w), nsz.y)
+			name_lbl.position = Vector2(feet_px.x - name_lbl.size.x * 0.5, pos.y + px_h + 2.0)
 
 func _on_token_drag_finished(token_id: String, gx: float, gy: float) -> void:
 	token_moved.emit(token_id, gx, gy)
@@ -1306,6 +1366,8 @@ func update_view_pan(screen_pos: Vector2) -> void:
 func end_view_pan() -> void:
 	_pan_dragging = false
 	_pan_velocity = Vector2.ZERO
+	if not editor_mode:
+		_update_area_hover(get_local_mouse_position())
 
 func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
 	var grid := _screen_to_grid(screen_pos)
@@ -1354,17 +1416,30 @@ func _fog_brush_cells(cx: int, cy: int, radius: int) -> Array:
 	return cells
 
 func _update_area_hover(screen_pos: Vector2) -> void:
+	if editor_mode:
+		return
 	var grid := _screen_to_grid(screen_pos)
 	var area := MapData.get_area_at(map_data, grid.x, grid.y)
+	var zone: Dictionary = MapZone3DScript.pick_at(_zones, grid.x, grid.y)
 	var aid := str(area.get("id", ""))
+	var zid := str(zone.get("id", ""))
 	var linked := not aid.is_empty() and not str(area.get("targetMapId", "")).is_empty()
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if linked else Control.CURSOR_ARROW
-	if aid == _hovered_area_id:
+	if aid == _hovered_area_id and zid == _hovered_zone_id:
 		return
 	_hovered_area_id = aid
+	_hovered_zone_id = zid
 	if _areas_overlay and _areas_overlay.has_method("set_hovered"):
 		_areas_overlay.set_hovered(aid)
-	area_hovered.emit(area)
+	if _areas_overlay and _areas_overlay.has_method("set_hovered_zone"):
+		_areas_overlay.set_hovered_zone(zone)
+	_apply_session_zone_visibility()
+	if not area.is_empty():
+		area_hovered.emit(area)
+	elif not zone.is_empty():
+		area_hovered.emit(zone)
+	else:
+		area_hovered.emit({})
 
 func trigger_effect(effect_id: String) -> void:
 	if _effect_nodes.has(effect_id):

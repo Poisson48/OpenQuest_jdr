@@ -48,14 +48,19 @@ export type PoolingClientMessage =
   | {
       type: "signal";
       targetPlayerId: string;
-      signalType: "offer" | "answer" | "ice";
+      signalType: "offer" | "answer" | "ice" | "meta";
       payload: unknown;
     }
   | { type: "ping" };
 
 /** Serveur → Client (pooling) */
 export type PoolingServerMessage =
-  | { type: "welcome"; playerId: string; playerName: string }
+  | {
+      type: "welcome";
+      playerId: string;
+      playerName: string;
+      iceServers?: Array<{ urls: string | string[]; username?: string; credential?: string }>;
+    }
   | { type: "pong" }
   | { type: "error"; message: string; code?: string }
   | { type: "lobby_update"; rooms: RoomSummary[] }
@@ -67,7 +72,7 @@ export type PoolingServerMessage =
   | {
       type: "signal";
       fromPlayerId: string;
-      signalType: "offer" | "answer" | "ice";
+      signalType: "offer" | "answer" | "ice" | "meta";
       payload: unknown;
     };
 

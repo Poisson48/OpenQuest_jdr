@@ -98,6 +98,9 @@ func _connect_panels() -> void:
 	_action.action_submitted.connect(func(text: String): model.submit_action(text))
 	if _map.has_signal("speaker_focus_requested"):
 		_map.speaker_focus_requested.connect(func(npc: String): _console.select_npc(npc))
+	if _map.has_signal("notice_requested"):
+		_map.notice_requested.connect(_on_session_notice)
+	_theme_confirm()
 
 	if _player_hud_node != null:
 		_player_hud = _player_hud_node
@@ -106,6 +109,7 @@ func _connect_panels() -> void:
 		_player_hud.open_character.connect(_open_character_sheet)
 		_player_hud.action_submitted.connect(func(text: String): model.submit_action(text))
 		_player_hud.roll_requested.connect(func(formula: String): model.roll(formula, false))
+		_bind_player_hud_chrome(_player_hud)
 
 # ---------------------------------------------------------------------------
 # Réactions au modèle
@@ -121,6 +125,7 @@ func _on_log_appended(entry: Dictionary) -> void:
 	if _player_hud != null and _player_hud.visible and _player_hud.has_method("append_log"):
 		_player_hud.append_log(entry)
 	_maybe_show_speech(entry)
+	_sync_night_banner()
 
 func _on_party_changed(members: Array, active_id: String) -> void:
 	_party.set_party(members, active_id)
@@ -147,14 +152,20 @@ func _refresh_player_hud_identity(members: Array = []) -> void:
 	var my_id := str(me.get("id", ""))
 	_player_hud.set_me(me)
 	_player_hud.set_party(party, my_id)
+	_sync_night_banner()
+	call_deferred("_sync_immersive_insets")
 
 func _on_navigation_changed(nav: Dictionary) -> void:
 	_console.set_npcs(nav.get("npcs", []))
 	_console.set_navigation(nav)
 	_console.set_waiting(bool(nav.get("waiting", false)))
+	_notes.set_scene_label(str(GameData.get_current_scene().get("title", "")))
 
 func _on_map_changed() -> void:
 	_map.refresh()
+	_sync_night_banner()
+	if is_immersive():
+		call_deferred("_sync_immersive_insets")
 
 func _on_role_changed(role: SessionRoleView) -> void:
 	var gm_view := role.kind == SessionRoleView.KIND_GM
@@ -200,9 +211,8 @@ func _apply_immersive(immersive: bool) -> void:
 			_refresh_player_hud_identity()
 			if _player_hud.has_method("reset_log"):
 				_player_hud.reset_log(GameData.active_game.get("log", []))
-			if model != null and _player_hud.has_method("set_turn"):
-				# Rejoue le dernier état de tour via refresh partiel
-				pass
+			_sync_night_banner()
+			call_deferred("_sync_immersive_insets")
 
 func _maybe_show_speech(entry: Dictionary) -> void:
 	var kind := str(entry.get("type", "player"))
@@ -210,17 +220,20 @@ func _maybe_show_speech(entry: Dictionary) -> void:
 		return
 	var speaker := str(entry.get("author", entry.get("speaker", "")))
 	var text := str(entry.get("text", ""))
-	if speaker.is_empty() or text.strip_edges().is_empty():
+	var body := text.strip_edges()
+	if speaker.is_empty() or body.is_empty():
 		return
-	# Bulle sur la carte (PNJ surtout).
-	if kind == "npc":
+	# Triple canal : journal toujours ; bulle OU cinématique selon la longueur.
+	const BUBBLE_MAX := 72
+	var cinematic := kind != "npc" or body.length() > BUBBLE_MAX
+	var bubble := kind == "npc" and body.length() <= BUBBLE_MAX
+	if bubble:
 		_map.show_npc_speech(speaker, text)
-	# Dialogue cinématique pour tous les locuteurs parlants.
-	if _speaker_dialogue != null and _speaker_dialogue.has_method("enqueue"):
+	if cinematic and _speaker_dialogue != null and _speaker_dialogue.has_method("enqueue"):
 		var art := GameData.resolve_speaker_art(speaker, kind)
 		_speaker_dialogue.enqueue(speaker, text, kind, art)
-	# Centre la caméra sur le locuteur si possible.
-	if _map.has_method("focus_speaker"):
+	# Recadrage doux : seulement pour une réplique cinématique assez longue.
+	if cinematic and body.length() > BUBBLE_MAX and _map.has_method("focus_speaker"):
 		_map.focus_speaker(speaker)
 
 # ---------------------------------------------------------------------------
@@ -282,6 +295,69 @@ func _ensure_player_hud() -> void:
 		_player_hud.open_character.connect(_open_character_sheet)
 		_player_hud.action_submitted.connect(func(text: String): model.submit_action(text))
 		_player_hud.roll_requested.connect(func(formula: String): model.roll(formula, false))
+		_bind_player_hud_chrome(_player_hud)
+
+func _bind_player_hud_chrome(hud: PlayerSessionHud) -> void:
+	if hud == null:
+		return
+	if hud.has_signal("zoom_in_requested") and not hud.zoom_in_requested.is_connected(_on_hud_zoom_in):
+		hud.zoom_in_requested.connect(_on_hud_zoom_in)
+		hud.zoom_out_requested.connect(_on_hud_zoom_out)
+		hud.fit_requested.connect(_on_hud_fit)
+	if hud.has_signal("chrome_changed") and not hud.chrome_changed.is_connected(_sync_immersive_insets):
+		hud.chrome_changed.connect(_sync_immersive_insets)
+
+func _on_hud_zoom_in() -> void:
+	if _map != null and _map.stage != null:
+		_map.stage.zoom_in()
+
+func _on_hud_zoom_out() -> void:
+	if _map != null and _map.stage != null:
+		_map.stage.zoom_out()
+
+func _on_hud_fit() -> void:
+	if _map != null and _map.stage != null:
+		_map.stage.fit()
+
+func _sync_immersive_insets() -> void:
+	if not is_immersive() or _player_hud == null or not _player_hud.visible:
+		return
+	if not _player_hud.has_method("chrome_insets"):
+		return
+	_map.apply_immersive_inset(_player_hud.chrome_insets())
+
+func _sync_night_banner() -> void:
+	if _player_hud == null or not _player_hud.visible:
+		return
+	if _player_hud.has_method("set_night_blind"):
+		_player_hud.set_night_blind(GameData.local_member_is_night_blind())
+
+func _on_session_notice(text: String) -> void:
+	if _player_hud != null and _player_hud.visible and _player_hud.has_method("show_toast"):
+		_player_hud.show_toast(text)
+	elif _map != null and _map.toolbar != null:
+		_map.toolbar.set_hint(text)
+
+func _theme_confirm() -> void:
+	if _confirm == null:
+		return
+	var box := StyleBoxFlat.new()
+	box.bg_color = ThemeColors.SURFACE_RAISED
+	box.border_color = ThemeColors.GOLD
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(10)
+	box.content_margin_left = 18
+	box.content_margin_right = 18
+	box.content_margin_top = 16
+	box.content_margin_bottom = 16
+	_confirm.add_theme_stylebox_override("panel", box)
+	_confirm.add_theme_color_override("title_color", ThemeColors.GOLD)
+	var ok := _confirm.get_ok_button()
+	if ok:
+		ok.theme_type_variation = &"AccentButton"
+	var cancel := _confirm.get_cancel_button()
+	if cancel:
+		cancel.theme_type_variation = &"GhostButton"
 
 func _create_fallback_game() -> void:
 	var scenarios: Array = GameData.get_scenarios()
@@ -421,10 +497,11 @@ func ui_complete() -> void:
 	await get_tree().create_timer(0.25).timeout
 	ui_confirm_if_open()
 
-func ui_set_night(enabled: bool, ambient: float = 0.14) -> void:
+func ui_set_night(enabled: bool, ambient: float = 0.22) -> void:
 	GameData.set_session_night(enabled, ambient)
 	if model != null:
 		model.refresh(true)
 	var map = get_panel("map")
 	if map != null and map.has_method("refresh"):
 		map.refresh()
+	_sync_night_banner()

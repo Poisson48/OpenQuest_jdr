@@ -14,6 +14,7 @@ signal token_selected(token_id: String)
 signal token_moved(token_id: String, gx: float, gy: float)
 signal prop_moved(prop_id: String, gx: float, gy: float)
 signal inspect_requested(info: Dictionary)
+signal area_hovered(area: Dictionary)
 
 const INTERACT_CLICK := "click"
 const INTERACT_PAINT := "paint"
@@ -56,6 +57,9 @@ var _loaded_map_id: String = ""
 var is_gm: bool = false
 var owned_member_id: String = ""
 var selected_token_id: String = ""
+## Éditeur de carte simple : les lieux restent visibles. En session, survol seul.
+var always_show_areas: bool = false
+var _hovered_area_id: String = ""
 
 var _pan_dragging: bool = false
 var _paint_dragging: bool = false
@@ -76,6 +80,7 @@ func _ready() -> void:
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
+	mouse_exited.connect(_clear_area_hover)
 
 func configure(p_map: Dictionary, p_tokens: Array, p_party: Array, p_explored: Array, p_quest_format: String, p_readonly: bool = false, p_nav: Dictionary = {}, p_revealed_markers: Array = [], p_revealed_links: Array = [], p_suppressed_markers: Array = [], p_suppressed_areas: Array = [], p_suppressed_links: Array = [], p_suppressed_props: Array = []) -> void:
 	var new_map_id: String = p_map.get("id", "")
@@ -95,6 +100,8 @@ func configure(p_map: Dictionary, p_tokens: Array, p_party: Array, p_explored: A
 	suppressed_links = p_suppressed_links
 	suppressed_props = p_suppressed_props
 	_loaded_map_id = new_map_id
+	if not same_map:
+		_hovered_area_id = ""
 	fog_enabled = MapData.is_world_map(map_data) and nav_context.is_empty() and not readonly
 	if str(session_tool.get("mode", "")) == "member":
 		if str(session_tool.get("memberId", "")).is_empty() and not party.is_empty():
@@ -311,20 +318,39 @@ func _draw_areas() -> void:
 		var area: Dictionary = area_variant
 		if bool(area.get("hidden", false)):
 			continue
+		var aid := str(area.get("id", ""))
+		if suppressed_areas.has(aid):
+			continue
+		var hovered := aid == _hovered_area_id and not aid.is_empty()
+		if not always_show_areas and not hovered:
+			continue
 		var ax := float(area.get("x", 0.0))
 		var ay := float(area.get("y", 0.0))
 		var aw := maxf(0.5, float(area.get("w", 2.0)))
 		var ah := maxf(0.5, float(area.get("h", 2.0)))
 		var rect := Rect2(pan_offset + Vector2((ax - aw * 0.5) * cs, (ay - ah * 0.5) * cs), Vector2(aw * cs, ah * cs))
-		if suppressed_areas.has(str(area.get("id", ""))):
-			continue
 		var fill := Color(0.2, 0.45, 0.7, 0.10)
 		if str(area.get("category", "")) == "exit":
 			fill = Color(0.55, 0.42, 0.22, 0.08)
 		elif not str(area.get("targetMapId", "")).is_empty():
 			fill = Color(0.78, 0.62, 0.18, 0.12)
+		if hovered:
+			fill.a = 0.22
+		elif not always_show_areas:
+			continue
 		draw_rect(rect, fill)
-		draw_rect(rect, Color(fill.r, fill.g, fill.b, 0.35), false, 1.0)
+		draw_rect(rect, Color(fill.r, fill.g, fill.b, 0.85 if hovered else 0.35), false, 2.0 if hovered else 1.0)
+		if hovered:
+			var label := str(area.get("label", "")).strip_edges()
+			if not label.is_empty():
+				var font := ThemeDB.fallback_font
+				var fs := 13
+				var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+				var box := Rect2(rect.get_center() - Vector2(tw.x * 0.5 + 8.0, ah * cs * 0.5 + tw.y + 10.0), tw + Vector2(16, 10))
+				draw_rect(box.grow(1.0), Color(0.18, 0.14, 0.10, 0.88), true)
+				draw_rect(box, Color(0.96, 0.92, 0.80, 0.96), true)
+				draw_string(font, Vector2(box.position.x + 8.0, box.position.y + tw.y + 2.0),
+					label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.16, 0.12, 0.08))
 
 func _draw_notes() -> void:
 	if not bool(overlay.get("show_notes", false)):
@@ -862,6 +888,8 @@ func _gui_input(event: InputEvent) -> void:
 			_clamp_pan()
 			queue_redraw()
 			accept_event()
+		else:
+			_update_area_hover(motion.position)
 
 func _on_left_pressed(mb: InputEventMouseButton) -> void:
 	var force_pan := mb.shift_pressed or interaction_mode == INTERACT_PAN
@@ -983,6 +1011,35 @@ func _cells_on_line(from: Vector2i, to: Vector2i) -> Array:
 			err += dx
 			y0 += sy
 	return points
+
+func _pos_to_grid(pos: Vector2) -> Vector2:
+	var cs := float(get_cell_size())
+	if cs <= 0.0:
+		return Vector2(-1, -1)
+	var local := pos - pan_offset
+	return Vector2(local.x / cs, local.y / cs)
+
+func _clear_area_hover() -> void:
+	if _hovered_area_id.is_empty():
+		return
+	_hovered_area_id = ""
+	area_hovered.emit({})
+	queue_redraw()
+
+func _update_area_hover(screen_pos: Vector2) -> void:
+	if always_show_areas:
+		return
+	var grid := _pos_to_grid(screen_pos)
+	var area := MapData.get_area_at(map_data, grid.x, grid.y)
+	var aid := str(area.get("id", ""))
+	if suppressed_areas.has(aid):
+		area = {}
+		aid = ""
+	if aid == _hovered_area_id:
+		return
+	_hovered_area_id = aid
+	area_hovered.emit(area)
+	queue_redraw()
 
 func _pos_to_cell(pos: Vector2) -> Vector2i:
 	var cs := get_cell_size()

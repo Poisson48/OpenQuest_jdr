@@ -53,7 +53,7 @@ clip_text = true
 
 [node name="LblTurn" type="Label" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 0)
+custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
@@ -62,15 +62,65 @@ theme_override_font_sizes/font_size = 14
 text = "En attente…"
 horizontal_alignment = 2
 
+[node name="BtnZoomOut" type="Button" parent="TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 32)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Dézoomer"
+text = "−"
+
+[node name="BtnZoomIn" type="Button" parent="TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 32)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Zoomer"
+text = "+"
+
+[node name="BtnFit" type="Button" parent="TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Afficher toute la carte"
+text = "Cadrer"
+
+[node name="NightBanner" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+z_index = 45
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 160.0
+offset_top = 56.0
+offset_right = -160.0
+offset_bottom = 96.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_type_variation = &"AlertPanel"
+
+[node name="LblNightBanner" type="Label" parent="NightBanner"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_colors/font_color = Color(0.95, 0.86, 0.7, 1)
+text = "Sans lanterne, vous êtes aveugle"
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="JournalDock" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = -1
-anchor_left = 0.52
+anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 58.0
-offset_bottom = -148.0
-grow_horizontal = 2
+offset_left = -276.0
+offset_top = 56.0
+offset_right = -8.0
+offset_bottom = -118.0
+grow_horizontal = 0
 grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 8
@@ -100,11 +150,12 @@ text = "Histoire"
 
 [node name="BtnClearFocus" type="Button" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 unique_name_in_owner = true
-visible = false
+visible = true
 custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
-text = "↓"
+text = "«"
+tooltip_text = "Replier / déplier l'histoire"
 
 [node name="LogScroll" type="ScrollContainer" parent="JournalDock/JournalPanel/JournalCol"]
 unique_name_in_owner = true
@@ -131,9 +182,9 @@ layout_mode = 1
 anchors_preset = -1
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -320.0
-offset_right = 320.0
-offset_bottom = -148.0
+offset_top = -234.0
+offset_right = 226.0
+offset_bottom = -122.0
 grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/margin_left = 10
@@ -183,6 +234,14 @@ theme_override_colors/font_color = Color(0.9, 0.45, 0.4, 1)
 theme_override_font_sizes/font_size = 13
 text = "PV —"
 
+[node name="HeroHpBar" type="ProgressBar" parent="HeroDock/HeroPanel/HeroCol"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+max_value = 1.0
+show_percentage = false
+value = 1.0
+
 [node name="LblInventoryPreview" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -216,17 +275,14 @@ unique_name_in_owner = true
 visible = false
 z_index = 50
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -220.0
-offset_top = -200.0
-offset_right = 220.0
-offset_bottom = 200.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = -1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -600.0
+offset_right = 330.0
+offset_bottom = -368.0
+grow_vertical = 0
 mouse_filter = 0
 theme_type_variation = &"DockPanel"
 
@@ -268,7 +324,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -142.0
+offset_top = -118.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
@@ -290,6 +346,43 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
+
+[node name="SuggestRow" type="HBoxContainer" parent="BottomBar/Bar/Col"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnExplore" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "J'explore attentivement les environs à la recherche d'indices."
+text = "Explorer"
+
+[node name="BtnTalk" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "J'engage la conversation avec les personnes présentes."
+text = "Discuter"
+
+[node name="BtnInspect" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "J'examine minutieusement cet endroit."
+text = "Examiner"
+
+[node name="BtnFight" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Je dégaine mon arme et me prépare au combat !"
+text = "Combattre"
 
 [node name="ActionRow" type="HBoxContainer" parent="BottomBar/Bar/Col"]
 layout_mode = 2

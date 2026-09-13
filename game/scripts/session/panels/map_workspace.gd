@@ -8,6 +8,7 @@ class_name MapWorkspacePanel
 ## panneaux enfants restent muets sur l'état de jeu.
 
 signal speaker_focus_requested(npc_name: String)
+signal notice_requested(text: String)
 
 @onready var navigator: MapNavigatorPanel = %MapNavigator
 @onready var stage: MapStagePanel = %MapStage
@@ -72,6 +73,10 @@ func set_immersive(on: bool) -> void:
 	_immersive = on
 	_apply_chrome_visibility()
 	stage.set_immersive(on)
+
+func apply_immersive_inset(inset: Vector4) -> void:
+	if stage != null and stage.has_method("apply_immersive_inset"):
+		stage.apply_immersive_inset(inset)
 
 ## Le porteur du rôle décide qui voit le caché : `GameData.is_gm_view_for_map`
 ## ignore la vue joueur forcée, on ne peut donc pas s'y fier seul.
@@ -427,6 +432,9 @@ func _on_enter_requested() -> void:
 func _enter_area(area: Dictionary) -> void:
 	# En P2P, seul le MJ change de lieu (sinon chaque client diverge).
 	if MultiplayerManager.is_p2p_active() and not MultiplayerManager.is_p2p_host():
+		notice_requested.emit("Seul le maître de jeu peut changer de lieu.")
+		if toolbar:
+			toolbar.set_hint("Seul le MJ peut entrer dans un lieu en réseau.")
 		return
 	var map_id := _current_map_id()
 	var area_id := str(area.get("id", _pending_nav.get("area_id", "")))
@@ -435,6 +443,8 @@ func _enter_area(area: Dictionary) -> void:
 	if GameData.enter_area(map_id, area_id):
 		_pending_nav = {}
 		refresh()
+	else:
+		notice_requested.emit("Impossible d'entrer dans ce lieu.")
 
 func _on_area_hovered(area: Dictionary) -> void:
 	if area.is_empty():
@@ -444,6 +454,8 @@ func _on_area_hovered(area: Dictionary) -> void:
 			toolbar.set_hint(SessionToolRegistry.hint(str(_tool.get("mode", SessionToolRegistry.SELECT))))
 		return
 	var label := str(area.get("label", "")).strip_edges()
+	if label.is_empty() and (area.has("radius") or str(area.get("shape", "")) != ""):
+		label = "Zone"
 	if label.is_empty():
 		return
 	var linked := not str(area.get("targetMapId", "")).is_empty()

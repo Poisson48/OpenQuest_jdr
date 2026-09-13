@@ -61,7 +61,7 @@ func set_npcs(npcs: Array) -> void:
 		var shown := npc_name if role.is_empty() else "%s (%s)" % [npc_name, role]
 		if not emoji.is_empty():
 			shown = "%s %s" % [emoji, shown]
-		_npc_picker.add_item(_dock_label(shown))
+		_npc_picker.add_item(shown)
 		_npc_picker.set_item_metadata(_npc_picker.item_count - 1, npc_name)
 		_npc_picker.set_item_tooltip(_npc_picker.item_count - 1, shown)
 	_npc_picker.add_item("PNJ improvisé…")
@@ -75,7 +75,7 @@ func set_navigation(nav: Dictionary) -> void:
 	for scene_variant in nav.get("scenes", []):
 		var scene: Dictionary = scene_variant
 		var full := str(scene.get("label", scene.get("id", "")))
-		_scene_picker.add_item(_dock_label(full))
+		_scene_picker.add_item(full)
 		var idx := _scene_picker.item_count - 1
 		_scene_picker.set_item_metadata(idx, str(scene.get("id", "")))
 		_scene_picker.set_item_tooltip(idx, full)
@@ -97,8 +97,9 @@ func set_navigation(nav: Dictionary) -> void:
 		if bool(transition.get("default", false)):
 			label += " ★"
 		var full := "→ %s" % label
-		var btn := SessionStyle.button(_dock_label(full, 24), full)
-		btn.clip_text = true
+		var btn := SessionStyle.button(full, full)
+		btn.clip_text = false
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.pressed.connect(func(): scene_requested.emit(to_id))
 		_transitions.add_child(btn)
 	if transitions.is_empty():

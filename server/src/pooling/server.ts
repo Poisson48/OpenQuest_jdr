@@ -17,6 +17,36 @@ export interface PoolingServerOptions {
 const clients = new Map<string, PoolingClient>();
 const roomManager = new RoomManager();
 
+/** STUN publics (+ TURN optionnel via env) pour le P2P WebRTC. */
+function getIceServers(): Array<{
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}> {
+  const servers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { urls: ["stun:stun.cloudflare.com:3478"] },
+  ];
+  const turnUrl = process.env.TURN_URL?.trim();
+  if (turnUrl) {
+    servers.push({
+      urls: turnUrl,
+      username: process.env.TURN_USERNAME || undefined,
+      credential: process.env.TURN_CREDENTIAL || undefined,
+    });
+  }
+  return servers;
+}
+
+function welcomePayload(playerId: string, playerName: string): PoolingServerMessage {
+  return {
+    type: "welcome",
+    playerId,
+    playerName,
+    iceServers: getIceServers(),
+  };
+}
+
 function send(ws: WebSocket, message: PoolingServerMessage): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
@@ -123,7 +153,7 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
           const player = room.players.get(client.id);
           if (player) player.playerName = client.name;
         }
-        send(client.ws, { type: "welcome", playerId: client.id, playerName: client.name });
+        send(client.ws, welcomePayload(client.id, client.name));
         sendRoomTo(client);
         broadcastLobby();
       }
@@ -310,7 +340,7 @@ export function startPoolingServer(options: PoolingServerOptions): void {
 
     console.log(`[pool +] ${playerName} (${id.slice(0, 8)})`);
 
-    send(ws, { type: "welcome", playerId: id, playerName });
+    send(ws, welcomePayload(id, playerName));
     send(ws, { type: "lobby_update", rooms: roomManager.listRooms() });
 
     ws.on("message", (data) => {

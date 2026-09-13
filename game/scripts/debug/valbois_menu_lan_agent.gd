@@ -10,6 +10,7 @@ const Director = preload("res://scripts/debug/valbois_lan_director.gd")
 @export var player_slot: int = 1
 @export var display_name: String = "MJ"
 @export var auto_boot: bool = true
+@export var p2p_transport: String = "webrtc"
 
 var _menu: Node
 var _banner: Label
@@ -23,6 +24,8 @@ func _ready() -> void:
 			player_slot = int(arg.get_slice("=", 1))
 		elif arg.begins_with("name="):
 			display_name = arg.get_slice("=", 1)
+		elif arg.begins_with("transport="):
+			p2p_transport = arg.get_slice("=", 1)
 	if display_name.is_empty():
 		display_name = _default_name()
 	if auto_boot:
@@ -62,6 +65,7 @@ func begin_from_root() -> void:
 		keeper.set("role_mode", role_mode)
 		keeper.set("player_slot", player_slot)
 		keeper.set("display_name", display_name)
+		keeper.set("p2p_transport", p2p_transport)
 		keeper.set("auto_boot", false)
 		st.root.add_child(keeper)
 		keeper.call_deferred("begin_from_root")
@@ -72,7 +76,7 @@ func begin_from_root() -> void:
 		st.root.add_child(self)
 		await st.process_frame
 	_banner = _make_banner("%s — boot…" % display_name)
-	MultiplayerManager.force_loopback_p2p = true
+	_configure_webrtc_p2p()
 	if not MultiplayerManager.game_started.is_connected(_on_game_started):
 		MultiplayerManager.game_started.connect(_on_game_started)
 	_log("goto main_menu")
@@ -105,17 +109,21 @@ func _run_lobby() -> void:
 		role_opt.item_selected.emit(role_opt.selected)
 	MultiplayerManager.set_player_role(role_mode)
 	MultiplayerManager.player_name = display_name
-	Shared.write_status({"phase": "connecting", "role": role_mode, "name": display_name})
+	_write_status({"phase": "connecting", "role": role_mode, "name": display_name})
 	await _wait(0.6)
 	_menu.get_node("%BtnConnectPooling").pressed.emit()
 	_log("connect clicked")
 	await _wait_until(func(): return MultiplayerManager.is_pooling_connected(), 25.0)
 	if not MultiplayerManager.is_pooling_connected():
 		_banner.text = "%s — pooling KO" % display_name
-		Shared.write_status({"phase": "pooling_fail", "role": role_mode})
+		_write_status({"phase": "pooling_fail", "role": role_mode})
 		_log("pooling fail")
 		return
-	_log("pooling ok mj=%s" % MultiplayerManager.is_mj())
+	_log("pooling ok mj=%s transport=%s loopback=%s" % [
+		MultiplayerManager.is_mj(),
+		MultiplayerManager.p2p_transport,
+		MultiplayerManager.force_loopback_p2p,
+	])
 	if role_mode == "gm":
 		await _gm_flow()
 	else:
@@ -134,7 +142,7 @@ func _gm_flow() -> void:
 		_banner.text = "MJ — code vide"
 		return
 	Shared.write_room_code(code)
-	Shared.write_status({"phase": "waiting_players", "code": code, "players": 0, "ready": 0})
+	_write_status({"phase": "waiting_players", "code": code, "players": 0, "ready": 0})
 	_banner.text = "MJ — code %s — attente 3 joueurs…" % code
 	await _wait_until(func():
 		var n := 0
@@ -146,7 +154,7 @@ func _gm_flow() -> void:
 			var ch = p.get("character", {})
 			if typeof(ch) == TYPE_DICTIONARY and not (ch as Dictionary).is_empty():
 				ready += 1
-		Shared.write_status({
+		_write_status({
 			"phase": "waiting_players",
 			"code": MultiplayerManager.room_code,
 			"players": n,
@@ -172,7 +180,7 @@ func _gm_flow() -> void:
 		_prefer_valbois(setup.get_node("%OptScenario"))
 	if setup != null and setup.has_node("%BtnStartGame"):
 		setup.get_node("%BtnStartGame").pressed.emit()
-		Shared.write_status({"phase": "starting", "code": MultiplayerManager.room_code})
+		_write_status({"phase": "starting", "code": MultiplayerManager.room_code})
 		_banner.text = "MJ — démarrage…"
 		_log("start game clicked")
 
@@ -242,7 +250,7 @@ func _select_character() -> void:
 func _on_game_started(_id: String, state: Dictionary) -> void:
 	GameData.apply_server_state(state)
 	_banner.text = "%s — session !" % display_name
-	Shared.write_status({"phase": "playing", "code": MultiplayerManager.room_code})
+	_write_status({"phase": "playing", "code": MultiplayerManager.room_code})
 	_log("game started")
 	if _st().root.has_node("ValboisLanDirector"):
 		return
@@ -268,6 +276,40 @@ func _wait_until(cond: Callable, timeout: float) -> void:
 			return
 		await _st().create_timer(0.25).timeout
 		t += 0.25
+
+func _configure_webrtc_p2p() -> void:
+	var mode := p2p_transport.strip_edges().to_lower()
+	if mode.is_empty():
+		mode = "webrtc"
+	p2p_transport = mode
+	MultiplayerManager.force_loopback_p2p = false
+	MultiplayerManager.p2p_transport = mode
+	MultiplayerManager.save_settings()
+	if not MultiplayerManager.p2p_host_started.is_connected(_on_p2p_host_started):
+		MultiplayerManager.p2p_host_started.connect(_on_p2p_host_started)
+	_log("P2P config transport=%s force_loopback=%s" % [
+		MultiplayerManager.p2p_transport,
+		MultiplayerManager.force_loopback_p2p,
+	])
+
+func _on_p2p_host_started(addr: String) -> void:
+	_log("p2p host started transport=%s address=%s" % [
+		MultiplayerManager.get_p2p_transport(),
+		addr,
+	])
+	_write_status({
+		"phase": "p2p_host",
+		"code": MultiplayerManager.room_code,
+		"role": role_mode,
+		"name": display_name,
+	})
+
+func _write_status(data: Dictionary) -> void:
+	data["transport"] = MultiplayerManager.get_p2p_transport()
+	data["p2pHost"] = MultiplayerManager.p2p_host_address
+	data["p2pWanted"] = MultiplayerManager.p2p_transport
+	data["forceLoopback"] = MultiplayerManager.force_loopback_p2p
+	Shared.write_status(data)
 
 func _log(msg: String) -> void:
 	print("[MENU %s] %s" % [display_name, msg])

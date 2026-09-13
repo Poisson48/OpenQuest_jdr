@@ -20,7 +20,17 @@ func reset(entries: Array) -> void:
 
 func append(entry: Dictionary) -> void:
 	_entries.append(entry)
-	_rebuild()
+	if not is_node_ready():
+		await ready
+	# Incremental : évite de réécrire tout le journal. Si Godot n'affiche
+	# pas la suite, on retombe sur une reconstruction complète.
+	var before := _text.get_parsed_text().length() if _text else 0
+	_write(entry)
+	var after := _text.get_parsed_text().length() if _text else 0
+	if after <= before:
+		_rebuild()
+	else:
+		_scroll_to_end()
 
 ## Dernière réplique lisible, pour le bandeau du HUD joueur.
 func latest_line() -> String:

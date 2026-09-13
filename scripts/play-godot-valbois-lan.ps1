@@ -1,4 +1,5 @@
 ﻿# Table locale Valbois via MENU REEL : 1 MJ + 3 joueurs, coins ecran, ~30mn condensées
+# P2P = WebRTC (signalisation pooling :8080). Pas de force_loopback ENet.
 # Godot 4 n'a PAS --user-data-dir : on isole via des profils projet (config/name distinct).
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -33,8 +34,8 @@ function New-IsolatedProjectProfile {
     }
     Set-Content -Path (Join-Path $dir "project.godot") -Value $proj -Encoding UTF8
 
-    # shaders est requis (sinon MapGround3D ne compile pas → carte noire)
-    $dirLinkNames = @("scenes", "scripts", "assets", "data", "theme", "locale", "addons", "shaders")
+    # shaders + webrtc (STUN/P2P) requis pour les profils isolés
+    $dirLinkNames = @("scenes", "scripts", "assets", "data", "theme", "locale", "addons", "shaders", "webrtc")
     foreach ($name in $dirLinkNames) {
         $src = Join-Path $GamePath $name
         $dst = Join-Path $dir $name
@@ -107,6 +108,9 @@ if (Test-Path $LanDir) { Remove-Item $LanDir -Recurse -Force -ErrorAction Silent
 New-Item -ItemType Directory -Path $LanDir -Force | Out-Null
 if (-not (Test-Path $ProfilesRoot)) { New-Item -ItemType Directory -Path $ProfilesRoot -Force | Out-Null }
 
+Write-Host "=== WebRTC native ==="
+& powershell -ExecutionPolicy Bypass -File (Join-Path $Root "scripts\ensure-webrtc-native.ps1")
+
 Write-Host "=== Serveur pooling (8080) ==="
 if (-not (Test-Path (Join-Path $ServerPath "node_modules"))) {
     Push-Location $ServerPath; npm install; Pop-Location
@@ -142,13 +146,14 @@ foreach ($p in $profiles) {
         "--",
         ("role={0}" -f $p.Role),
         ("slot={0}" -f $p.Slot),
-        ("name={0}" -f $p.Disp)
+        ("name={0}" -f $p.Disp),
+        "transport=webrtc"
     )
-    Write-Host ("Lance {0} (menu UI, profil isole {1})" -f $p.Disp, $p.Name)
+    Write-Host ("Lance {0} (menu UI WebRTC, profil isole {1})" -f $p.Disp, $p.Name)
     Start-Process -FilePath $godot -ArgumentList $argList
     Start-Sleep -Seconds 1.8
 }
 
 Start-Sleep -Seconds 3
 Move-GodotToCorners
-Write-Host "4 fenetres menu reel aux coins. Partie ~30mn condensée via outils UI."
+Write-Host "4 fenetres menu reel aux coins. P2P WebRTC (pas ENet loopback). Partie ~30mn condensees via outils UI."

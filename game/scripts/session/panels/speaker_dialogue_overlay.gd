@@ -1,13 +1,12 @@
 extends Control
 class_name SpeakerDialogueOverlay
 
-## Dialogue cinématique : portrait à droite + boîte parchemin à gauche.
+## Dialogue cinématique : joueur à droite, PNJ à gauche (bandeau bas).
 ## Style OpenQuest (or / parchemin) — pas de look Pokémon.
 
 signal dismissed
 
-const HOLD_SEC := 4.8
-const FADE_SEC := 0.35
+const FADE_SEC := 0.28
 
 @onready var _dim: ColorRect = %Dim
 @onready var _art: TextureRect = %SpeakerArt
@@ -20,28 +19,33 @@ var _queue: Array = []
 var _busy := false
 var _tween: Tween
 var _hold_gen := 0
+var _hold_sec := 4.0
 
 func _ready() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	z_index = 70
-	_dim.gui_input.connect(_on_dim_input)
-	_box.gui_input.connect(_on_dim_input)
+	# Le dim ne vole plus la souris à la carte / console — clic uniquement sur la boîte.
+	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dim.color = Color(0.05, 0.03, 0.02, 0.28)
+	_box.mouse_filter = Control.MOUSE_FILTER_STOP
+	_box.gui_input.connect(_on_box_input)
+	_line.bbcode_enabled = true
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event.is_action_pressed("ui_accept") or event.is_action_pressed("ui_cancel"):
+		_dismiss()
+		get_viewport().set_input_as_handled()
 
 func enqueue(speaker: String, text: String, kind: String = "npc", art_path: String = "") -> void:
 	var body := _plain(text)
 	var who := speaker.strip_edges()
 	if who.is_empty() or body.is_empty():
 		return
-	if _busy and visible and _name.text == who:
-		_show_now(who, body, kind, art_path)
-		return
-	for i in range(_queue.size()):
-		var q: Dictionary = _queue[i]
-		if str(q.get("speaker", "")) == who:
-			_queue[i] = {"speaker": who, "text": body, "kind": kind, "art": art_path}
-			return
+	# File FIFO réelle — ne plus écraser les répliques du même locuteur.
 	_queue.append({"speaker": who, "text": body, "kind": kind, "art": art_path})
 	_pump()
 
@@ -71,7 +75,9 @@ func _show_now(speaker: String, text: String, kind: String, art_path: String) ->
 	_name.text = speaker
 	_line.bbcode_enabled = true
 	_line.text = text
+	_hold_sec = clampf(1.8 + 0.045 * float(text.length()), 2.5, 8.0)
 	_style_for_kind(kind)
+	_layout_for_kind(kind)
 	_load_art(art_path, speaker, kind)
 	visible = true
 	modulate.a = 0.0
@@ -80,12 +86,83 @@ func _show_now(speaker: String, text: String, kind: String, art_path: String) ->
 		_tween.kill()
 	_tween = create_tween()
 	_tween.set_parallel(true)
-	_tween.tween_property(self, "modulate:a", 1.0, 0.22)
-	_tween.tween_property(_art, "modulate:a", 1.0, 0.4)
+	_tween.tween_property(self, "modulate:a", 1.0, 0.2)
+	_tween.tween_property(_art, "modulate:a", 1.0, 0.35)
+	call_deferred("_force_layout")
 	_arm_auto_hide(gen)
 
+func _force_layout() -> void:
+	if not is_inside_tree():
+		return
+	# Une frame : les ancres viennent d'être réécrites, Godot n'a pas encore
+	# recalculé size. reset_size trop tôt laisse le swap joueur/PNJ coincé.
+	await get_tree().process_frame
+	if not is_inside_tree() or not visible:
+		return
+	for node in [_art, _box]:
+		node.reset_size()
+	await get_tree().process_frame
+	if is_inside_tree():
+		for node in [_art, _box]:
+			node.reset_size()
+
+## Joueur / bot → portrait à droite. PNJ → portrait à gauche. MJ → boîte seule (bas).
+func _layout_for_kind(kind: String) -> void:
+	var player_side := kind == "player" or kind == "bot"
+	var gm_side := kind == "gm"
+	var compact := size.y < 820.0 or size.x < 1480.0
+	_art.flip_h = false
+	if compact:
+		# Demi-écran : bulle dans le trou de carte, au-dessus fiche + barre (~32 % bas)
+		# et à gauche du journal (~20 % droite).
+		_art.anchor_top = 0.38
+		_art.anchor_bottom = 0.64
+		_box.anchor_top = 0.44
+		_box.anchor_bottom = 0.64
+		_dim.color = Color(0.05, 0.03, 0.02, 0.10)
+		if gm_side:
+			_art.visible = false
+			_box.anchor_left = 0.18
+			_box.anchor_right = 0.72
+		elif player_side:
+			_art.anchor_left = 0.56
+			_art.anchor_right = 0.74
+			_box.anchor_left = 0.20
+			_box.anchor_right = 0.56
+		else:
+			_art.anchor_left = 0.16
+			_art.anchor_right = 0.34
+			_box.anchor_left = 0.34
+			_box.anchor_right = 0.72
+	else:
+		# Plein écran : portrait ~45 % H, boîte ~32–90 % H — évite le journal / hero card.
+		_art.anchor_top = 0.42
+		_art.anchor_bottom = 0.98
+		_box.anchor_top = 0.68
+		_box.anchor_bottom = 0.94
+		_dim.color = Color(0.05, 0.03, 0.02, 0.28)
+		if gm_side:
+			_art.visible = false
+			_box.anchor_left = 0.12
+			_box.anchor_right = 0.88
+		elif player_side:
+			_art.anchor_left = 0.58
+			_art.anchor_right = 0.96
+			_box.anchor_left = 0.04
+			_box.anchor_right = 0.56
+		else:
+			_art.anchor_left = 0.04
+			_art.anchor_right = 0.42
+			_box.anchor_left = 0.44
+			_box.anchor_right = 0.96
+	for node in [_art, _box]:
+		node.offset_left = 0.0
+		node.offset_top = 0.0
+		node.offset_right = 0.0
+		node.offset_bottom = 0.0
+
 func _arm_auto_hide(gen: int) -> void:
-	await get_tree().create_timer(HOLD_SEC).timeout
+	await get_tree().create_timer(_hold_sec).timeout
 	if gen != _hold_gen or not visible:
 		return
 	_dismiss()
@@ -106,7 +183,7 @@ func _dismiss() -> void:
 		_pump()
 	)
 
-func _on_dim_input(event: InputEvent) -> void:
+func _on_box_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_dismiss()
 
@@ -148,6 +225,9 @@ func _style_for_kind(kind: String) -> void:
 
 func _load_art(art_path: String, speaker: String, kind: String) -> void:
 	_art.texture = null
+	if kind == "gm":
+		_art.visible = false
+		return
 	_art.visible = true
 	var path := art_path.strip_edges()
 	if path.is_empty():

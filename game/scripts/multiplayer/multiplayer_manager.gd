@@ -1,6 +1,6 @@
 extends Node
 
-## Gestionnaire multijoueur P2P — ENet + coordination via serveur de pooling.
+## Gestionnaire multijoueur P2P — WebRTC+STUN (Internet) / ENet (LAN) + pooling.
 
 signal room_created(code: String, room: Dictionary)
 signal room_joined(code: String, room: Dictionary)
@@ -21,11 +21,14 @@ signal map_op_rejected(map_id: String, op: Dictionary, sender_player_id: String)
 
 const ENET_PORT := 7777
 const SETTINGS_PATH := "user://multiplayer_settings.cfg"
+const WebRTCP2PScript := preload("res://scripts/multiplayer/webrtc_p2p.gd")
 
 @export var pooling_url: String = "ws://127.0.0.1:8080"
 @export var player_name: String = "Joueur"
 @export var player_role: String = "player"  ## "gm" (MJ) ou "player" (joueur)
-## Force 127.0.0.1 pour une table locale sur la même machine.
+## auto = WebRTC+STUN (défaut) ; webrtc / enet forcent le transport.
+@export var p2p_transport: String = "auto"
+## Force 127.0.0.1 pour une table locale ENet sur la même machine.
 var force_loopback_p2p: bool = false
 
 var player_id: String = ""
@@ -36,11 +39,14 @@ var is_room_host: bool = false
 var is_gm: bool = false
 var p2p_host_address: String = ""
 var lobby_rooms: Array = []
+var ice_servers: Array = []
 
 var _socket: WebSocketPeer = WebSocketPeer.new()
 var _is_pooling_connected: bool = false
 var _enet_peer: ENetMultiplayerPeer = ENetMultiplayerPeer.new()
+var _webrtc: RefCounted = null ## WebRTCP2P
 var _is_p2p_active: bool = false
+var _transport_active: String = "" ## "webrtc" | "enet"
 
 func _ready() -> void:
 	load_settings()
@@ -58,6 +64,7 @@ func load_settings() -> void:
 	pooling_url = str(cfg.get_value("multiplayer", "pooling_url", pooling_url))
 	player_name = str(cfg.get_value("multiplayer", "player_name", player_name))
 	player_role = str(cfg.get_value("multiplayer", "player_role", player_role))
+	p2p_transport = str(cfg.get_value("multiplayer", "p2p_transport", p2p_transport))
 	last_room_code = str(cfg.get_value("multiplayer", "last_room_code", last_room_code))
 	_normalize_player_role()
 
@@ -79,6 +86,7 @@ func save_settings() -> void:
 	cfg.set_value("multiplayer", "pooling_url", pooling_url)
 	cfg.set_value("multiplayer", "player_name", player_name)
 	cfg.set_value("multiplayer", "player_role", player_role)
+	cfg.set_value("multiplayer", "p2p_transport", p2p_transport)
 	if not last_room_code.is_empty():
 		cfg.set_value("multiplayer", "last_room_code", last_room_code)
 	cfg.save(SETTINGS_PATH)
@@ -124,8 +132,143 @@ func is_p2p_active() -> bool:
 func is_p2p_host() -> bool:
 	return is_room_host and _is_p2p_active and multiplayer.is_server()
 
+func get_p2p_transport() -> String:
+	return _transport_active
+
 func get_room_players() -> Array:
 	return current_room.get("players", [])
+
+func _wants_webrtc() -> bool:
+	var mode := p2p_transport.strip_edges().to_lower()
+	if mode == "enet":
+		return false
+	if mode == "webrtc":
+		return true
+	# auto : WebRTC sauf si on force explicitement le LAN ENet loopback.
+	return not force_loopback_p2p
+
+func _is_webrtc_address(address: String) -> bool:
+	var a := address.strip_edges().to_lower()
+	return a == "webrtc" or a.begins_with("webrtc:")
+
+func start_p2p_host() -> bool:
+	stop_p2p()
+	if _wants_webrtc():
+		if _start_webrtc_host():
+			return true
+		var forced := p2p_transport.strip_edges().to_lower() == "webrtc"
+		if forced:
+			p2p_error.emit("WebRTC indisponible (transport forcé, pas de repli ENet).")
+			return false
+		push_warning("[P2P] WebRTC indisponible — repli ENet LAN")
+	return _start_enet_host()
+
+func connect_p2p(address: String = "") -> bool:
+	var target := address if not address.is_empty() else p2p_host_address
+	stop_p2p()
+	# WebRTC si demandé / annoncé, sinon ENet sur IP:port.
+	if _is_webrtc_address(target) or (target.is_empty() and _wants_webrtc()) or (
+		_wants_webrtc() and (target.is_empty() or _is_webrtc_address(target))
+	):
+		return _start_webrtc_client()
+	if target.is_empty():
+		p2p_error.emit("Aucune adresse P2P disponible.")
+		return false
+	if _wants_webrtc() and not target.contains(":"):
+		# Annonce ambiguë → tenter WebRTC
+		return _start_webrtc_client()
+	return _start_enet_client(target)
+
+func _start_webrtc_host() -> bool:
+	_webrtc = WebRTCP2PScript.new()
+	if not ice_servers.is_empty():
+		_webrtc.configure_ice(ice_servers)
+	_webrtc.signal_out.connect(_on_webrtc_signal_out)
+	_webrtc.error.connect(func(msg: String): p2p_error.emit(msg))
+	var err: Error = _webrtc.start_host()
+	if err != OK:
+		_webrtc = null
+		return false
+	multiplayer.multiplayer_peer = _webrtc.get_multiplayer_peer()
+	_is_p2p_active = true
+	_transport_active = "webrtc"
+	p2p_host_address = "webrtc"
+	print("[P2P] host started transport=webrtc address=webrtc")
+	_send({ "type": "set_p2p_host", "address": p2p_host_address })
+	p2p_host_started.emit(p2p_host_address)
+	return true
+
+func _start_webrtc_client() -> bool:
+	var host_id := str(current_room.get("hostId", current_room.get("gmId", "")))
+	if host_id.is_empty():
+		p2p_error.emit("Hôte WebRTC introuvable dans le salon.")
+		return false
+	_webrtc = WebRTCP2PScript.new()
+	if not ice_servers.is_empty():
+		_webrtc.configure_ice(ice_servers)
+	_webrtc.signal_out.connect(_on_webrtc_signal_out)
+	_webrtc.error.connect(func(msg: String): p2p_error.emit(msg))
+	_webrtc.peer_ready.connect(_on_webrtc_peer_ready)
+	_webrtc.start_client_request(host_id)
+	_is_p2p_active = true
+	_transport_active = "webrtc"
+	return true
+
+func _on_webrtc_peer_ready() -> void:
+	if _webrtc == null:
+		return
+	var peer = _webrtc.get_multiplayer_peer()
+	if peer != null:
+		multiplayer.multiplayer_peer = peer
+
+func _on_webrtc_signal_out(target_player_id: String, signal_type: String, payload: Dictionary) -> void:
+	_send({
+		"type": "signal",
+		"targetPlayerId": target_player_id,
+		"signalType": signal_type,
+		"payload": payload,
+	})
+
+func _start_enet_host() -> bool:
+	var err := _enet_peer.create_server(ENET_PORT, 8)
+	if err != OK:
+		p2p_error.emit("Impossible de démarrer l'hôte ENet (port %d)" % ENET_PORT)
+		return false
+	multiplayer.multiplayer_peer = _enet_peer
+	_is_p2p_active = true
+	_transport_active = "enet"
+	var address := _detect_local_ip()
+	p2p_host_address = "%s:%d" % [address, ENET_PORT]
+	print("[P2P] host started transport=enet address=%s" % p2p_host_address)
+	_send({ "type": "set_p2p_host", "address": p2p_host_address })
+	p2p_host_started.emit(p2p_host_address)
+	return true
+
+func _start_enet_client(target: String) -> bool:
+	var host := target
+	var port := ENET_PORT
+	if ":" in target:
+		var parts := target.split(":")
+		host = parts[0]
+		port = int(parts[1])
+	var err := _enet_peer.create_client(host, port)
+	if err != OK:
+		p2p_error.emit("Connexion ENet impossible (%s:%d)" % [host, port])
+		return false
+	multiplayer.multiplayer_peer = _enet_peer
+	_is_p2p_active = true
+	_transport_active = "enet"
+	return true
+
+func stop_p2p() -> void:
+	if _webrtc != null:
+		_webrtc.stop()
+		_webrtc = null
+	if _is_p2p_active:
+		multiplayer.multiplayer_peer = null
+		_enet_peer = ENetMultiplayerPeer.new()
+		_is_p2p_active = false
+		_transport_active = ""
 
 func get_my_party_member(state: Dictionary) -> Dictionary:
 	for member in state.get("party", []):
@@ -174,46 +317,6 @@ func register_character(character: Dictionary) -> void:
 
 func list_rooms() -> void:
 	_send({ "type": "list_rooms" })
-
-func start_p2p_host() -> bool:
-	stop_p2p()
-	var err := _enet_peer.create_server(ENET_PORT, 8)
-	if err != OK:
-		p2p_error.emit("Impossible de démarrer l'hôte ENet (port %d)" % ENET_PORT)
-		return false
-	multiplayer.multiplayer_peer = _enet_peer
-	_is_p2p_active = true
-	var address := _detect_local_ip()
-	p2p_host_address = "%s:%d" % [address, ENET_PORT]
-	_send({ "type": "set_p2p_host", "address": p2p_host_address })
-	p2p_host_started.emit(p2p_host_address)
-	return true
-
-func connect_p2p(address: String = "") -> bool:
-	var target := address if not address.is_empty() else p2p_host_address
-	if target.is_empty():
-		p2p_error.emit("Aucune adresse P2P disponible.")
-		return false
-	stop_p2p()
-	var host := target
-	var port := ENET_PORT
-	if ":" in target:
-		var parts := target.split(":")
-		host = parts[0]
-		port = int(parts[1])
-	var err := _enet_peer.create_client(host, port)
-	if err != OK:
-		p2p_error.emit("Connexion ENet impossible (%s:%d)" % [host, port])
-		return false
-	multiplayer.multiplayer_peer = _enet_peer
-	_is_p2p_active = true
-	return true
-
-func stop_p2p() -> void:
-	if _is_p2p_active:
-		multiplayer.multiplayer_peer = null
-		_enet_peer = ENetMultiplayerPeer.new()
-		_is_p2p_active = false
 
 # --- API client Phase 3 ---
 
@@ -305,6 +408,8 @@ func broadcast_state() -> void:
 
 func _process(_delta: float) -> void:
 	_socket.poll()
+	if _webrtc != null:
+		_webrtc.poll()
 	match _socket.get_ready_state():
 		WebSocketPeer.STATE_OPEN:
 			if not _is_pooling_connected:
@@ -332,6 +437,8 @@ func _handle_message(data: Dictionary) -> void:
 	match data.get("type", ""):
 		"welcome":
 			player_id = data.get("playerId", "")
+			if data.get("iceServers") is Array and not data["iceServers"].is_empty():
+				ice_servers = data["iceServers"]
 		"lobby_update":
 			lobby_rooms = data.get("rooms", [])
 			lobby_rooms_updated.emit(lobby_rooms)
@@ -349,8 +456,13 @@ func _handle_message(data: Dictionary) -> void:
 			room_updated.emit(room)
 			if is_gm and not _is_p2p_active:
 				start_p2p_host()
-			elif not is_gm and not p2p_host_address.is_empty() and not _is_p2p_active:
-				connect_p2p(p2p_host_address)
+			elif not is_gm and not _is_p2p_active:
+				if _is_webrtc_address(p2p_host_address) or (
+					p2p_host_address.is_empty() and _wants_webrtc()
+				):
+					connect_p2p("webrtc")
+				elif not p2p_host_address.is_empty():
+					connect_p2p(p2p_host_address)
 		"room_closed":
 			var closed_code: String = data.get("roomCode", room_code)
 			var reason: String = data.get("reason", "gm_left")
@@ -362,6 +474,13 @@ func _handle_message(data: Dictionary) -> void:
 			p2p_host_address = data.get("p2pHost", "") if data.get("p2pHost") else p2p_host_address
 			if is_gm and not _is_p2p_active:
 				start_p2p_host()
+		"signal":
+			if _webrtc != null:
+				_webrtc.handle_signal(
+					str(data.get("fromPlayerId", "")),
+					str(data.get("signalType", "")),
+					data.get("payload", {})
+				)
 		"player_joined", "player_left":
 			if is_in_room():
 				pass

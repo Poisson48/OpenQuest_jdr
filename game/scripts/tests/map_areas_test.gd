@@ -23,6 +23,7 @@ func _run() -> void:
 
 	_test_area_model(md)
 	_test_hit_testing(md)
+	_test_session_hover_visibility(md)
 	_test_child_maps(md)
 	_test_breadcrumb(md)
 	_test_session_navigation(md, gd)
@@ -87,6 +88,38 @@ func _test_hit_testing(md) -> void:
 	_assert("hit_circle_out", (md.get_area_at(map, 34.5, 13.5) as Dictionary).is_empty())
 	_assert("get_area_by_id", str(md.get_area(map, "a-rond").get("label", "")) == "Bosquet")
 	_assert("get_area_missing", (md.get_area(map, "inconnu") as Dictionary).is_empty())
+
+func _test_session_hover_visibility(md) -> void:
+	var OverlayScript := load("res://scripts/maps/map_areas_overlay.gd")
+	var ZoneScript := load("res://scripts/maps/map_layers/map_zone_3d.gd")
+	var overlay: Node = OverlayScript.new()
+	var map := {
+		"id": "hover-map",
+		"areas": [
+			{"id": "a1", "x": 8.0, "y": 8.0, "w": 4.0, "h": 4.0, "label": "Taverne"},
+			{"id": "a2", "x": 20.0, "y": 8.0, "w": 6.0, "h": 6.0, "label": "Place"},
+			{"id": "a-hidden", "x": 4.0, "y": 4.0, "w": 2.0, "h": 2.0, "label": "Secret", "hidden": true},
+		],
+	}
+	overlay.configure(null, map, [])
+	_assert("hover_none_painted", overlay.painted_ids().is_empty())
+	_assert("hover_none_area", not overlay.paints_area("a1"))
+	overlay.set_hovered("a1")
+	_assert("hover_only_a1", overlay.paints_area("a1") and not overlay.paints_area("a2"))
+	_assert("hover_painted_one", overlay.painted_ids().size() == 1)
+	overlay.set_hovered("a-hidden")
+	_assert("hover_hidden_skipped", not overlay.paints_area("a-hidden"))
+	overlay.set_hovered("")
+	var zone := {"id": "z-sort", "x": 5.0, "y": 5.0, "shape": "circle", "radius": 1.5, "label": "Sort"}
+	overlay.set_hovered_zone(zone)
+	_assert("hover_zone_painted", overlay.paints_zone("z-sort"))
+	overlay.set_hovered_zone({})
+	_assert("hover_zone_cleared", not overlay.paints_zone("z-sort"))
+
+	_assert("zone_hit", str(ZoneScript.pick_at([zone], 5.2, 5.1).get("id", "")) == "z-sort")
+	_assert("zone_miss", (ZoneScript.pick_at([zone], 20.0, 20.0) as Dictionary).is_empty())
+	_assert("hidden_area_no_hit", (md.get_area_at(map, 4.0, 4.0) as Dictionary).is_empty())
+	overlay.free()
 
 func _test_child_maps(md) -> void:
 	var village: Dictionary = md.create_complex_map("Valbois enfants", "general", "local", 40, 32)

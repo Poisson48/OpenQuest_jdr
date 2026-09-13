@@ -10,6 +10,7 @@ class_name GmNotesPanel
 signal notes_changed(text: String)
 
 @onready var _status: Label = %LblStatus
+@onready var _scene_title: Label = %LblSceneTitle
 @onready var _editor: TextEdit = %NotesInput
 @onready var _timer: Timer = %SaveTimer
 
@@ -32,7 +33,15 @@ func set_text(text: String) -> void:
 	_status.text = ""
 
 func set_scene_label(label: String) -> void:
-	_status.tooltip_text = label
+	if not is_node_ready():
+		await ready
+	var title := label.strip_edges()
+	if title.is_empty():
+		title = "Scène en cours"
+	if _scene_title != null:
+		_scene_title.text = title
+		_scene_title.tooltip_text = title
+	_status.tooltip_text = title
 
 func flush_now() -> void:
 	if _timer.is_stopped():

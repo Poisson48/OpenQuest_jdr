@@ -5,19 +5,43 @@ class_name MapZoneNode
 
 var zone_data: Dictionary = {}
 var grid_size: int = 70
+var hover_only: bool = false
+var highlighted: bool = false
 var _pulse: float = 0.0
 
 func setup(data: Dictionary, g_size: int) -> void:
 	zone_data = data.duplicate(true)
 	grid_size = g_size
 	position = Vector2(float(data.get("x", 0)) * g_size, float(data.get("y", 0)) * g_size)
+	_apply_visibility()
 	set_process(true)
 
+func set_hover_only(on: bool) -> void:
+	if hover_only == on:
+		return
+	hover_only = on
+	_apply_visibility()
+
+func set_highlighted(on: bool) -> void:
+	if highlighted == on:
+		return
+	highlighted = on
+	_apply_visibility()
+
+func _apply_visibility() -> void:
+	visible = (not hover_only) or highlighted
+	set_process(visible)
+	queue_redraw()
+
 func _process(delta: float) -> void:
+	if not visible:
+		return
 	_pulse += delta * 1.8
 	queue_redraw()
 
 func _draw() -> void:
+	if hover_only and not highlighted:
+		return
 	var shape: String = str(zone_data.get("shape", "circle"))
 	var col := Color.html(str(zone_data.get("color", "#c9a227")))
 	col.a = 0.28 + sin(_pulse) * 0.08

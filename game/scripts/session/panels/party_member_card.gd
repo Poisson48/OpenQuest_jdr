@@ -12,6 +12,7 @@ const PORTRAIT_PX := 64
 @onready var _initial: Label = %Initial
 @onready var _name: Label = %LblName
 @onready var _stats: Label = %LblStats
+@onready var _hp_bar: ProgressBar = %HpBar
 @onready var _badge: Label = %LblBadge
 
 var _member: Dictionary = {}
@@ -34,13 +35,17 @@ func setup(member: Dictionary, is_active_turn: bool, local_client_id: String) ->
 		var qty := int(it.get("qty", 1))
 		var iname := str(it.get("name", it.get("id", "?")))
 		inv_bits.append(iname if qty <= 1 else "%s×%d" % [iname, qty])
+	var hp := SessionStyle.member_hp(member)
+	var ac := int(member.get("ac", 0))
 	if inv_bits.is_empty():
-		_stats.text = "PV %d · CA %d" % [member.get("hp", 10), member.get("ac", 10)]
+		_stats.text = "PV %d · CA %d" % [hp, ac]
 	else:
 		var shown := ", ".join(inv_bits)
 		if shown.length() > 42:
 			shown = shown.substr(0, 40) + "…"
-		_stats.text = "PV %d · CA %d · %s" % [member.get("hp", 10), member.get("ac", 10), shown]
+		_stats.text = "PV %d · CA %d · %s" % [hp, ac, shown]
+	if _hp_bar != null:
+		SessionStyle.style_hp_bar(_hp_bar, member)
 	tooltip_text = "Ouvrir la fiche de %s" % member_name
 	_apply_portrait(member, member_name)
 	_apply_badge(member, is_active_turn, local_client_id)

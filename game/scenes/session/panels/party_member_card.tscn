@@ -59,6 +59,15 @@ theme_type_variation = &"CaptionLabel"
 text = "PV 10 · CA 10"
 clip_text = true
 
+[node name="HpBar" type="ProgressBar" parent="Row/Texts"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+mouse_filter = 2
+max_value = 1.0
+show_percentage = false
+value = 1.0
+
 [node name="LblBadge" type="Label" parent="Row"]
 unique_name_in_owner = true
 layout_mode = 2

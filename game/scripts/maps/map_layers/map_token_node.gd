@@ -138,7 +138,9 @@ func _draw() -> void:
 		var fs := maxi(9, int(grid_size * 0.19))
 		var tw := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
 		var name_y := r + fs + 4.0 + lift
-		draw_string(font, Vector2(-tw.x * 0.5, name_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.95, 0.9, 0.78, 0.92))
+		var pos := Vector2(-tw.x * 0.5, name_y)
+		draw_string_outline(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0.02, 0.01, 0.0, 0.92))
+		draw_string(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.98, 0.93, 0.78, 1.0))
 
 func _draw_ellipse(center: Vector2, radii: Vector2, col: Color) -> void:
 	var pts := PackedVector2Array()

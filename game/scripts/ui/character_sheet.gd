@@ -1,7 +1,7 @@
 extends Control
 class_name CharacterSheet
 
-## Fiche personnage plein écran.
+## Fiche personnage en carte centrée (pas un plein écran opaque).
 ## Structure dans `scenes/session/panels/character_sheet.tscn`.
 ## Gauche : stats / histoire (scroll si besoin) · Droite : silhouette.
 
@@ -92,21 +92,41 @@ func _process(delta: float) -> void:
 
 func _fill() -> void:
 	_name.text = str(_member.get("name", "Aventurier")).to_upper()
-	_subtitle.text = "%s  ·  %s" % [_member.get("race", "?"), _member.get("class", "?")]
-	_chip_hp.setup("PV", str(_member.get("hp", 10)), ThemeColors.DANGER.lightened(0.25))
-	_chip_ac.setup("CA", str(_member.get("ac", 10)), ThemeColors.INVESTIGATION_ACCENT)
-	_chip_mood.setup("Humeur", str(_member.get("stress", "Calme")), ThemeColors.GOLD)
+	var race := str(_member.get("race", "")).strip_edges()
+	var klass := str(_member.get("class", "")).strip_edges()
+	if race.is_empty() and klass.is_empty():
+		_subtitle.text = "Fiche incomplète"
+	elif race.is_empty() or klass.is_empty():
+		_subtitle.text = race if klass.is_empty() else klass
+	else:
+		_subtitle.text = "%s  ·  %s" % [race, klass]
+	var hp_txt := str(_member.get("hp")) if _member.has("hp") else "—"
+	var ac_txt := str(_member.get("ac")) if _member.has("ac") else "—"
+	_chip_hp.setup("PV", hp_txt, ThemeColors.DANGER.lightened(0.25))
+	_chip_ac.setup("CA", ac_txt, ThemeColors.INVESTIGATION_ACCENT)
+	var mood := str(_member.get("stress", "")).strip_edges()
+	_chip_mood.setup("Humeur", mood if not mood.is_empty() else "—", ThemeColors.GOLD)
 	var stats: Dictionary = _member.get("stats", {}) if _member.get("stats") is Dictionary else {}
+	var no_stats: Label = get_node_or_null("%LblNoStats")
+	var grid: Control = get_node_or_null("%AbilityGrid")
 	if stats.is_empty():
-		stats = {"str": 10, "dex": 16, "con": 12, "int": 11, "wis": 13, "cha": 9}
-	_ability_str.setup("FOR", int(stats.get("str", 10)))
-	_ability_dex.setup("DEX", int(stats.get("dex", 10)))
-	_ability_con.setup("CON", int(stats.get("con", 10)))
-	_ability_int.setup("INT", int(stats.get("int", 10)))
-	_ability_wis.setup("SAG", int(stats.get("wis", 10)))
-	_ability_cha.setup("CHA", int(stats.get("cha", 10)))
-	var temperament := str(_member.get("temperament", "Méfiant · Silencieux · Opportuniste"))
-	_traits.text = temperament
+		if grid:
+			grid.visible = false
+		if no_stats:
+			no_stats.visible = true
+	else:
+		if grid:
+			grid.visible = true
+		if no_stats:
+			no_stats.visible = false
+		_ability_str.setup("FOR", int(stats.get("str", 0)))
+		_ability_dex.setup("DEX", int(stats.get("dex", 0)))
+		_ability_con.setup("CON", int(stats.get("con", 0)))
+		_ability_int.setup("INT", int(stats.get("int", 0)))
+		_ability_wis.setup("SAG", int(stats.get("wis", 0)))
+		_ability_cha.setup("CHA", int(stats.get("cha", 0)))
+	var temperament := str(_member.get("temperament", "")).strip_edges()
+	_traits.text = temperament if not temperament.is_empty() else "—"
 	var inv_bits: Array[String] = []
 	for it_variant in _member.get("inventory", []):
 		if typeof(it_variant) != TYPE_DICTIONARY:
@@ -118,10 +138,22 @@ func _fill() -> void:
 	if _inventory != null:
 		_inventory.text = "Sac vide" if inv_bits.is_empty() else "\n".join(inv_bits)
 	var lines: Array = _barks()
-	var line: String = str(lines[_bark_idx % lines.size()]) if not lines.is_empty() else "…"
-	_bark.text = "« %s »" % line
-	_story.text = str(_member.get("backstory", "Aucune histoire écrite.")).strip_edges()
-	_quirk.text = str(_member.get("quirk", "Surveille toujours les sorties."))
+	var bark_box := _bark.get_parent() if _bark else null
+	if lines.is_empty():
+		_bark.text = ""
+		_bark.visible = false
+		if bark_box is Control:
+			bark_box.visible = false
+	else:
+		_bark.visible = true
+		if bark_box is Control:
+			bark_box.visible = true
+		var line: String = str(lines[_bark_idx % lines.size()])
+		_bark.text = "« %s »" % line
+	var story := str(_member.get("backstory", "")).strip_edges()
+	_story.text = story if not story.is_empty() else "Aucune histoire écrite."
+	var quirk := str(_member.get("quirk", "")).strip_edges()
+	_quirk.text = quirk if not quirk.is_empty() else "—"
 
 func _show_page() -> void:
 	_stats_page.visible = not _showing_story
@@ -180,11 +212,7 @@ func _barks() -> Array:
 	var custom = _member.get("barks", [])
 	if custom is Array and not custom.is_empty():
 		return custom
-	return [
-		"Les ombres mentent rarement. Les hommes, toujours.",
-		"Un regard de trop… je disparais.",
-		"La fortune favorise les doigts agiles.",
-	]
+	return []
 
 func _on_dim_input(ev: InputEvent) -> void:
 	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:

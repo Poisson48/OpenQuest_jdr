@@ -24,8 +24,9 @@ signal area_activate_requested(area: Dictionary)
 signal navigation_requested(action: String, data: Dictionary)
 signal view_changed
 
-## Insets laissés au HUD joueur en vue immersive (gauche, haut, droite, bas).
-const IMMERSIVE_INSET := Vector4(8.0, 56.0, 8.0, 128.0)
+## Insets HUD immersif (gauche, haut, droite, bas) — repli si le HUD n'a pas encore mesuré.
+## Pas une colonne héros : le fallback doit laisser une carte jouable en 2x2 (~1720×696).
+const IMMERSIVE_INSET := Vector4(16.0, 52.0, 260.0, 120.0)
 const SpeechBubbles := preload("res://scripts/session/panels/speech_bubble_overlay.gd")
 
 @onready var _simple: Control = %SimpleMap
@@ -33,6 +34,7 @@ const SpeechBubbles := preload("res://scripts/session/panels/speech_bubble_overl
 
 var _mode: String = MapMode.SIMPLE
 var _immersive: bool = false
+var _immersive_inset: Vector4 = IMMERSIVE_INSET
 var _loaded_map_id: String = ""
 ## Cadrage en attente d'une taille utilisable : voir `_arm_fit()`.
 var _pending_fit: bool = false
@@ -56,6 +58,8 @@ func _ready() -> void:
 		_simple.prop_moved.connect(func(id: String, gx: float, gy: float): prop_moved.emit(id, gx, gy))
 	if _simple.has_signal("inspect_requested"):
 		_simple.inspect_requested.connect(func(info: Dictionary): inspect_requested.emit(info))
+	if _simple.has_signal("area_hovered"):
+		_simple.area_hovered.connect(func(area: Dictionary): area_hovered.emit(area))
 
 	_complex.map_clicked.connect(func(gx: float, gy: float, tool: Dictionary): grid_clicked.emit(gx, gy, tool))
 	_complex.token_moved.connect(func(id: String, gx: float, gy: float): token_moved.emit(id, gx, gy))
@@ -141,17 +145,52 @@ func set_immersive(on: bool) -> void:
 	if _immersive == on:
 		return
 	_immersive = on
-	if _complex.has_method("set_view_inset"):
-		if on:
-			_complex.set_view_inset(
-				IMMERSIVE_INSET.x, IMMERSIVE_INSET.y, IMMERSIVE_INSET.z, IMMERSIVE_INSET.w
-			)
-		else:
-			_complex.set_view_inset(0.0, 0.0, 0.0, 0.0)
+	_apply_view_inset()
 	add_theme_stylebox_override("panel", SessionStyle.flat_stylebox(
 		ThemeColors.SURFACE_DEEP, 0 if on else 4
 	))
 	_arm_fit()
+
+## Recalcule le cadrage immersif depuis les tailles réelles du HUD (journal, hero, barres).
+func apply_immersive_inset(inset: Vector4) -> void:
+	var next := inset
+	if next.x < 8.0 and next.y < 8.0 and next.z < 8.0 and next.w < 8.0:
+		next = IMMERSIVE_INSET
+	next = _clamp_inset(next)
+	if _immersive_inset.is_equal_approx(next) and _immersive:
+		return
+	_immersive_inset = next
+	if _immersive:
+		_apply_view_inset()
+
+## Empêche les insets de bouffer la carte en demi-écran (2x2 LAN).
+func _clamp_inset(inset: Vector4) -> Vector4:
+	var vp := size
+	if vp.x < 32.0 or vp.y < 32.0:
+		return inset
+	var out := inset
+	var max_side := maxf(160.0, vp.x * 0.26)
+	out.x = minf(maxf(out.x, 0.0), max_side)
+	out.z = minf(maxf(out.z, 0.0), max_side)
+	out.y = minf(maxf(out.y, 0.0), maxf(48.0, vp.y * 0.14))
+	out.w = minf(maxf(out.w, 0.0), maxf(80.0, vp.y * 0.28))
+	if vp.x - out.x - out.z < vp.x * 0.40:
+		out.z = maxf(160.0, vp.x - out.x - vp.x * 0.40)
+		if vp.x - out.x - out.z < vp.x * 0.40:
+			out.x = maxf(8.0, vp.x - out.z - vp.x * 0.40)
+	if vp.y - out.y - out.w < vp.y * 0.40:
+		out.w = maxf(72.0, vp.y - out.y - vp.y * 0.40)
+	return out
+
+func _apply_view_inset() -> void:
+	if not _complex.has_method("set_view_inset"):
+		return
+	if _immersive:
+		_complex.set_view_inset(
+			_immersive_inset.x, _immersive_inset.y, _immersive_inset.z, _immersive_inset.w
+		)
+	else:
+		_complex.set_view_inset(0.0, 0.0, 0.0, 0.0)
 
 # ---------------------------------------------------------------------------
 # Navigation de vue

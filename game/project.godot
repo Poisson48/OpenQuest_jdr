@@ -52,4 +52,3 @@ theme/custom="res://theme/openquest_theme.tres"
 
 locale/translations=PackedStringArray("res://locale/ui.en.translation")
 locale/fallback="fr"
-

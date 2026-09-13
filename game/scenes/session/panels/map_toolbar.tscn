@@ -21,6 +21,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 vertical_scroll_mode = 0
+horizontal_scroll_mode = 3
+clip_contents = true
 
 [node name="ToolRow" type="HBoxContainer" parent="Col/Scroll"]
 unique_name_in_owner = true
@@ -33,3 +35,4 @@ layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = ""
 clip_text = true
+autowrap_mode = 3

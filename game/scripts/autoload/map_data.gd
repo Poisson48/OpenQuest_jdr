@@ -341,7 +341,7 @@ func get_marker_sprite_path(marker_type: String) -> String:
 
 func get_character_sprite_path(role: String, label: String = "") -> String:
 	var hay := ("%s %s" % [role, label]).to_lower()
-	var path := "res://data/props/characters/paysan_valbois.png"
+	var path := ""
 	if hay.contains("garde") or hay.contains("milice") or hay.contains("sentinelle") \
 			or hay.contains("capitaine") or hay.contains("veilleur"):
 		path = "res://data/props/characters/garde_valbois.png"
@@ -351,11 +351,14 @@ func get_character_sprite_path(role: String, label: String = "") -> String:
 		path = "res://data/props/characters/marchande.png"
 	elif hay.contains("forge"):
 		path = "res://data/props/characters/forgeron.png"
-	elif hay.contains("villageois"):
+	elif hay.contains("villageois") or hay.contains("paysan"):
 		var villager := "res://data/props/characters/villageois.png"
 		if is_usable_sprite(villager):
 			path = villager
-	return path if is_usable_sprite(path) else ""
+		else:
+			path = "res://data/props/characters/paysan_valbois.png"
+	# Inconnu : aucun sprite — mieux qu'un paysan générique.
+	return path if (not path.is_empty() and is_usable_sprite(path)) else ""
 
 ## Ignore les PNG procéduraux minuscules (placeholders) au profit d'une couleur.
 func is_usable_sprite(path: String) -> bool:
@@ -787,6 +790,8 @@ func get_area_at(map_data: Dictionary, gx: float, gy: float) -> Dictionary:
 	var best_size := INF
 	for area_variant in get_areas(map_data):
 		var area: Dictionary = area_variant
+		if bool(area.get("hidden", false)):
+			continue
 		var half_w := float(area.get("w", 2.0)) * 0.5
 		var half_h := float(area.get("h", 2.0)) * 0.5
 		var cx := float(area.get("x", 0.0))

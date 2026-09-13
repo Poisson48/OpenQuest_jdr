@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=27 format=3 uid="uid://openquest_theme_001"]
+[gd_resource type="Theme" load_steps=28 format=3 uid="uid://openquest_theme_001"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
 content_margin_left = 12.0
@@ -364,6 +364,22 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dialog"]
+content_margin_left = 20.0
+content_margin_top = 16.0
+content_margin_right = 20.0
+content_margin_bottom = 16.0
+bg_color = Color(0.184314, 0.145098, 0.0941176, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.788235, 0.635294, 0.152941, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_none"]
 
 [resource]
@@ -413,6 +429,9 @@ OptionButton/styles/focus = SubResource("StyleBoxFlat_btn_hover")
 OptionButton/styles/hover = SubResource("StyleBoxFlat_btn_hover")
 OptionButton/styles/normal = SubResource("StyleBoxFlat_btn_normal")
 OptionButton/styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+AcceptDialog/colors/title_color = Color(0.909804, 0.772549, 0.278431, 1)
+AcceptDialog/font_sizes/title_font_size = 18
+AcceptDialog/styles/panel = SubResource("StyleBoxFlat_dialog")
 Panel/styles/panel = SubResource("StyleBoxFlat_card_panel")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_card_panel")
 PopupMenu/colors/font_color = Color(0.909804, 0.862745, 0.784314, 1)

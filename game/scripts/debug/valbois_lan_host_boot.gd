@@ -13,13 +13,16 @@ func _ready() -> void:
 	Shared.clear()
 	Shared.write_status({"phase": "host_boot", "role": "gm"})
 
-	MultiplayerManager.force_loopback_p2p = true
+	MultiplayerManager.force_loopback_p2p = false
+	MultiplayerManager.p2p_transport = "webrtc"
 	MultiplayerManager.set_player_role("gm")
 	MultiplayerManager.player_name = "MJ Valbois"
 	MultiplayerManager.p2p_error.connect(_on_err)
 	MultiplayerManager.room_updated.connect(_on_room_updated)
 	MultiplayerManager.game_started.connect(_on_game_started)
-	MultiplayerManager.p2p_host_started.connect(func(addr): _log("ENet hôte %s" % addr))
+	MultiplayerManager.p2p_host_started.connect(func(addr):
+		_log("hôte P2P transport=%s address=%s" % [MultiplayerManager.get_p2p_transport(), addr])
+	)
 
 	MultiplayerManager.connect_pooling("ws://127.0.0.1:8080", "MJ Valbois")
 	_wait_connected_then_create()

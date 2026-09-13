@@ -239,9 +239,9 @@ func _apply_gm_beat(beat: Dictionary) -> void:
 	if beat.has("night"):
 		var on_night := bool(beat["night"])
 		if _shell.has_method("ui_set_night"):
-			_shell.ui_set_night(on_night, 0.12 if on_night else 0.22)
+			_shell.ui_set_night(on_night, 0.22 if on_night else 0.22)
 		else:
-			_gd.call("set_session_night", on_night, 0.12 if on_night else 0.22)
+			_gd.call("set_session_night", on_night, 0.22 if on_night else 0.22)
 		_banner.text = "MJ nuit %s" % ("ON" if on_night else "OFF")
 		Shared.write_status({
 			"phase": "playing",
