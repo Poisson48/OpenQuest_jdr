@@ -7,7 +7,7 @@ const MAP_ASSETS_DIR := "user://map_assets/"
 const SCHEMA_VERSION := 4
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
-const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
+const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval", "demo-quartier-serpent"]
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
 	"opacity": 0.22,
@@ -1474,6 +1474,18 @@ func _build_demo_catalog() -> Array:
 		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
 	}
 	list.append(place)
+
+	# Carte enquête pour la partie démo « Scénario Démo ».
+	var quartier_raw = _load_json("res://data/maps/demo-quartier-serpent.json")
+	if typeof(quartier_raw) != TYPE_DICTIONARY:
+		quartier_raw = _load_json("res://../data/maps/demo-quartier-serpent.json")
+	if typeof(quartier_raw) == TYPE_DICTIONARY:
+		var quartier: Dictionary = ensure_map_schema((quartier_raw as Dictionary).duplicate(true))
+		quartier["id"] = "demo-quartier-serpent"
+		quartier["scenarioId"] = "inv-demo-scenario-demo"
+		quartier["roster"] = "investigation"
+		quartier["status"] = "published"
+		list.append(quartier)
 
 	maps = list
 	var portrait_src := ProjectSettings.globalize_path("res://assets/portraits/voleur_kael.png")

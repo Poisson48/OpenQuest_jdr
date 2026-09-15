@@ -425,6 +425,76 @@ func start_valbois_demo_session() -> bool:
 	save_active_game()
 	return true
 
+## Partie démo enquête : scénario embarqué « Scénario Démo » + carte quartier.
+const SCENARIO_DEMO_ID := "inv-demo-scenario-demo"
+const SCENARIO_DEMO_MAP_ID := "demo-quartier-serpent"
+
+func make_scenario_demo_lead() -> Dictionary:
+	return {
+		"id": "char-demo-elise",
+		"name": "Élise Moreau",
+		"race": "Humaine",
+		"class": "Inspectrice",
+		"roster": "investigation",
+		"hp": 10,
+		"ac": 11,
+		"isPlayer": true,
+		"isHuman": true,
+		"isBot": false,
+		"clientId": "joueur-demo-enquete",
+		"stats": { "str": 10, "dex": 12, "con": 10, "int": 16, "wis": 14, "cha": 12 },
+		"backstory": "Inspectrice de la brigade criminelle, methodique et tenace.",
+	}
+
+func make_scenario_demo_partner() -> Dictionary:
+	return {
+		"id": "bot-demo-noah",
+		"name": "Noah",
+		"race": "Nain",
+		"class": "Expert légiste",
+		"roster": "investigation",
+		"hp": 12,
+		"ac": 12,
+		"isPlayer": false,
+		"isHuman": false,
+		"isBot": true,
+		"personality": "curious",
+		"stats": { "str": 12, "dex": 10, "con": 14, "int": 16, "wis": 12, "cha": 8 },
+		"traits": ["rigoureux", "patient"],
+	}
+
+func start_scenario_demo_session() -> bool:
+	load_scenarios()
+	var scenario := get_scenario_by_id(SCENARIO_DEMO_ID)
+	if scenario.is_empty():
+		push_error("[SCENARIO DEMO] Scénario « %s » introuvable." % SCENARIO_DEMO_ID)
+		return false
+	if MapData.get_by_id(SCENARIO_DEMO_MAP_ID).is_empty():
+		MapData.load_maps()
+	if MapData.get_by_id(SCENARIO_DEMO_MAP_ID).is_empty():
+		push_error("[SCENARIO DEMO] Carte « %s » introuvable." % SCENARIO_DEMO_MAP_ID)
+		return false
+	var party: Array = [make_scenario_demo_lead(), make_scenario_demo_partner()]
+	var game := create_new_game(
+		SCENARIO_DEMO_ID,
+		"solo",
+		"human",
+		"investigation",
+		party,
+		[SCENARIO_DEMO_MAP_ID]
+	)
+	if game.is_empty():
+		push_error("[SCENARIO DEMO] Impossible de créer la partie (carte / scénario).")
+		return false
+	active_game["gmName"] = "MJ Démo Enquête"
+	active_game["forcePlayerView"] = false
+	if MultiplayerManager != null:
+		MultiplayerManager.player_role = "gm"
+		MultiplayerManager.player_name = "MJ Démo Enquête"
+		MultiplayerManager.is_gm = true
+	save_active_game()
+	return true
+
 func _make_kael_character() -> Dictionary:
 	var portrait := "res://assets/portraits/voleur_kael.png"
 	return normalize_character({

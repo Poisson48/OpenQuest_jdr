@@ -29,7 +29,9 @@
         "w": 216.03
       },
       "id": "scene-debut",
-      "mapIds": [],
+      "mapIds": [
+        "demo-quartier-serpent"
+      ],
       "tags": [
         "debut"
       ],

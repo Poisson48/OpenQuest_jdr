@@ -4,7 +4,7 @@
   "description": "Dockland — commissariat, ruelles et entrepôts.",
   "roster": "investigation",
   "mapKind": "local",
-  "scenarioId": "inv-demo-serpent-noir",
+  "scenarioId": "inv-demo-scenario-demo",
   "width": 16,
   "height": 12,
   "tiles": [
@@ -233,5 +233,6 @@
       "label": "Témoin"
     }
   ],
-  "locationLinks": []
+  "locationLinks": [],
+  "status": "published"
 }
