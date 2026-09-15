@@ -28,6 +28,8 @@ var selected_map_ids: Array[String] = []
 var _current_scenario_id: String = ""
 var _current_quest_format: String = "oneshot"
 var _waiting_server_start: bool = false
+var _format_locked: bool = false
+var _entry_hub_tab: String = "Aventures"
 var _is_joiner: bool = false
 var _is_pooling_joiner: bool = false
 var _is_pooling_host: bool = false
@@ -52,8 +54,14 @@ func _ready() -> void:
 		preselected_format = GameData.get_quest_format_for_scenario(preselected_id)
 	if preselected_format.is_empty():
 		preselected_format = "adventure"
+	else:
+		_format_locked = true
 
+	_entry_hub_tab = "Enquête" if preselected_format == "investigation" else "Aventures"
 	_set_quest_format_option(preselected_format)
+	if _format_locked:
+		opt_quest_format.disabled = true
+		opt_quest_format.visible = false
 	_populate_data(preselected_id)
 
 	opt_quest_format.item_selected.connect(_on_quest_format_selected)
@@ -634,5 +642,4 @@ func _apply_responsive_layout() -> void:
 		columns.visible = true
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
-
+	GameData.go_to_hub(_entry_hub_tab)

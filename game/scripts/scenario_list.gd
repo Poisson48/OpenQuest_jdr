@@ -106,11 +106,20 @@ func _apply_entry_context() -> void:
 			page_title.text = "📜 Affaires d'Enquête"
 			mode_filter.selected = 2
 			mode_filter.disabled = true
+			mode_filter.visible = false
 		"long", "oneshot", "adventure":
 			page_title.text = "📜 Scénarios d'Aventure"
 			mode_filter.selected = 1
 			mode_filter.disabled = true
+			mode_filter.visible = false
 			_locked_mode = "adventure"
+		_:
+			# Sans contexte hub : forcer un mode unique (pas de mélange).
+			_locked_mode = "adventure"
+			page_title.text = "📜 Scénarios d'Aventure"
+			mode_filter.selected = 1
+			mode_filter.disabled = true
+			mode_filter.visible = false
 
 func _current_mode_filter() -> String:
 	if not _locked_mode.is_empty():
@@ -334,7 +343,7 @@ func _add_scenario_section(title: String, scenarios: Array) -> void:
 func _create_scenario_card(scn: Dictionary) -> PanelContainer:
 	var card := ScenarioCardScene.instantiate()
 	card.setup(scn)
-	card.edit_pressed.connect(func(id: String): GameData.go_to_scenario_editor(id))
+	card.edit_pressed.connect(func(id: String): _open_scenario_editor(id))
 	card.view_pressed.connect(_show_scenario_details)
 	card.play_pressed.connect(_launch_game_with_scenario)
 	card.delete_pressed.connect(_ask_delete_scenario)
@@ -386,7 +395,7 @@ func _update_detail_publish_buttons(scn: Dictionary) -> void:
 
 func _on_edit_selected_scenario() -> void:
 	if not selected_scenario_id.is_empty():
-		GameData.go_to_scenario_editor(selected_scenario_id)
+		_open_scenario_editor(selected_scenario_id)
 
 func _on_play_selected_scenario() -> void:
 	if not selected_scenario_id.is_empty():
@@ -448,7 +457,17 @@ func _on_unpublish_scenario(scenario_id: String, _title: String) -> void:
 	_set_library_tab("draft")
 
 func _launch_game_with_scenario(scenario_id: String) -> void:
-	GameData.go_to_game_setup("", scenario_id)
+	var setup_mode := "investigation" if _current_mode_filter() == "investigation" else "adventure"
+	GameData.go_to_game_setup(setup_mode, scenario_id)
+
+func _mode_roster_and_format() -> Dictionary:
+	if _current_mode_filter() == "investigation":
+		return { "roster": "investigation", "format": "investigation" }
+	return { "roster": "general", "format": "oneshot" }
+
+func _open_scenario_editor(scenario_id: String = "") -> void:
+	var ctx := _mode_roster_and_format()
+	GameData.go_to_scenario_editor(scenario_id, str(ctx["roster"]), str(ctx["format"]))
 
 func _update_detail_text_widths() -> void:
 	var wrap_width := maxi(320, int(detail_scroll.size.x) - 24)
@@ -457,19 +476,11 @@ func _update_detail_text_widths() -> void:
 		rtl.reset_size()
 
 func _on_new_scenario_pressed() -> void:
-	var mode := _current_mode_filter()
-	var roster := "general"
-	var fmt := "oneshot"
-	match mode:
-		"investigation":
-			roster = "investigation"
-			fmt = "investigation"
-		"adventure", "long", "oneshot":
-			fmt = "oneshot"
 	# Les nouveaux scénarios apparaissent dans l'onglet Brouillons.
 	_library_tab = "draft"
 	_sync_library_tab_buttons()
-	GameData.go_to_scenario_editor("", roster, fmt)
+	_open_scenario_editor("")
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	var hub_tab := "Enquête" if _current_mode_filter() == "investigation" else "Aventures"
+	GameData.go_to_hub(hub_tab)

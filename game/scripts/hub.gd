@@ -14,6 +14,7 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var inv_summary_lbl: Label = %InvSummaryLabel
 @onready var maps_sections_root: VBoxContainer = %MapsSectionsRoot
 @onready var maps_sort: OptionButton = %MapsSort
+@onready var maps_mode_filter: OptionButton = %MapsModeFilter
 @onready var maps_library_tabs: HBoxContainer = %MapsLibraryTabs
 @onready var btn_home: Button = %BtnHome
 @onready var btn_adv_new_char: Button = %BtnAdvNewChar
@@ -65,6 +66,7 @@ func _ready() -> void:
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
 	_setup_maps_library_tabs()
 	_setup_maps_sort()
+	_setup_maps_mode_filter()
 	_setup_bots_filter()
 	
 	_populate_hub_data()
@@ -89,20 +91,24 @@ func _apply_pending_hub_tab() -> void:
 			return
 
 func _setup_bots_filter() -> void:
-	var prev := _current_bots_filter_mode() if bots_filter.item_count > 0 else "all"
+	var prev := _current_bots_filter_mode() if bots_filter.item_count > 0 else "adventure"
+	if prev == "all":
+		prev = "adventure"
 	bots_filter.clear()
-	bots_filter.add_item(tr("Tous les modes"), 0)
-	bots_filter.set_item_metadata(0, "all")
-	bots_filter.add_item(tr("⚔️ Aventure & one-shots"), 1)
-	bots_filter.set_item_metadata(1, "adventure")
-	bots_filter.add_item(tr("🔍 Enquête"), 2)
-	bots_filter.set_item_metadata(2, "investigation")
+	bots_filter.add_item(tr("⚔️ Aventure & one-shots"), 0)
+	bots_filter.set_item_metadata(0, "adventure")
+	bots_filter.add_item(tr("🔍 Enquête"), 1)
+	bots_filter.set_item_metadata(1, "investigation")
 	if not bots_filter.item_selected.is_connected(_on_bots_filter_selected):
 		bots_filter.item_selected.connect(_on_bots_filter_selected)
+	var found := false
 	for i in bots_filter.item_count:
 		if str(bots_filter.get_item_metadata(i)) == prev:
 			bots_filter.selected = i
+			found = true
 			break
+	if not found:
+		bots_filter.selected = 0
 	if not bots_scroll.resized.is_connected(_on_bots_scroll_resized):
 		bots_scroll.resized.connect(_on_bots_scroll_resized)
 
@@ -119,8 +125,9 @@ func _on_bots_scroll_resized() -> void:
 func _current_bots_filter_mode() -> String:
 	var idx := bots_filter.selected
 	if idx >= 0 and idx < bots_filter.item_count:
-		return str(bots_filter.get_item_metadata(idx))
-	return "all"
+		var mode := str(bots_filter.get_item_metadata(idx))
+		return mode if mode != "all" else "adventure"
+	return "adventure"
 
 func _populate_hub_data() -> void:
 	# Stats aventures
@@ -143,6 +150,52 @@ func _setup_maps_sort() -> void:
 	maps_sort.add_item("Taille (grande → petite)", 2)
 	maps_sort.add_item("Scénario lié", 3)
 	maps_sort.item_selected.connect(func(_idx): _render_maps_tab())
+
+func _setup_maps_mode_filter() -> void:
+	if maps_mode_filter == null:
+		return
+	maps_mode_filter.clear()
+	maps_mode_filter.add_item("⚔️ Aventure", 0)
+	maps_mode_filter.set_item_metadata(0, "adventure")
+	maps_mode_filter.add_item("🔍 Enquête", 1)
+	maps_mode_filter.set_item_metadata(1, "investigation")
+	maps_mode_filter.selected = 0
+	if not maps_mode_filter.item_selected.is_connected(_on_maps_mode_selected):
+		maps_mode_filter.item_selected.connect(_on_maps_mode_selected)
+	_sync_maps_create_buttons()
+
+func _on_maps_mode_selected(_idx: int) -> void:
+	_sync_maps_create_buttons()
+	_render_maps_tab()
+
+func _current_maps_mode() -> String:
+	if maps_mode_filter == null or maps_mode_filter.selected < 0:
+		return "adventure"
+	return str(maps_mode_filter.get_item_metadata(maps_mode_filter.selected))
+
+func _sync_maps_create_buttons() -> void:
+	var inv := _current_maps_mode() == "investigation"
+	if btn_new_map_world:
+		btn_new_map_world.visible = not inv
+	if btn_new_map_adv:
+		btn_new_map_adv.visible = not inv
+	if btn_new_map_inv:
+		btn_new_map_inv.visible = inv
+	# Boutons VTT ajoutés dynamiquement : 2 derniers enfants de MapsCreateRow.
+	var row: Node = get_node_or_null("%MapsCreateRow")
+	if row == null:
+		return
+	var dyn_btns: Array = []
+	for child in row.get_children():
+		if child == btn_new_map_world or child == btn_new_map_adv or child == btn_new_map_inv:
+			continue
+		if child is Button:
+			dyn_btns.append(child)
+	# Convention : 1er = battlemap aventure, 2e = battlemap enquête.
+	if dyn_btns.size() >= 1:
+		dyn_btns[0].visible = not inv
+	if dyn_btns.size() >= 2:
+		dyn_btns[1].visible = inv
 
 func _setup_maps_library_tabs() -> void:
 	if maps_library_tabs == null:
@@ -202,12 +255,21 @@ func _render_maps_tab() -> void:
 		child.queue_free()
 	var sort_mode := _current_maps_sort_mode()
 	var tab := _maps_library_tab
+	var maps_mode := _current_maps_mode()
 	var draft_prefix := "📝 " if tab == "draft" else ""
+
+	if maps_mode == "investigation":
+		var investigation := MapData.sort_maps(MapData.get_maps_by_category("investigation", tab), sort_mode)
+		_add_maps_section(
+			"%s🔍 Enquête" % draft_prefix,
+			"Lieux pour les dossiers d’enquête." if tab == "catalog" else "Brouillons de cartes d’enquête.",
+			investigation,
+			"investigation"
+		)
+		return
 
 	var world := MapData.sort_maps(MapData.get_maps_by_category("world", tab), sort_mode)
 	var adventure := MapData.sort_maps(MapData.get_maps_by_category("adventure", tab), sort_mode)
-	var investigation := MapData.sort_maps(MapData.get_maps_by_category("investigation", tab), sort_mode)
-
 	var simple_maps: Array = []
 	var complex_maps: Array = []
 	for m in adventure:
@@ -233,12 +295,6 @@ func _render_maps_tab() -> void:
 		"Dioramas / VTT (ex. Valbois)." if tab == "catalog" else "Brouillons de battlemaps et dioramas.",
 		complex_maps,
 		"adventure"
-	)
-	_add_maps_section(
-		"%s🔍 Enquête" % draft_prefix,
-		"Lieux pour les dossiers d’enquête." if tab == "catalog" else "Brouillons de cartes d’enquête.",
-		investigation,
-		"investigation"
 	)
 
 func _add_maps_section(title: String, hint: String, map_list: Array, category: String) -> void:
@@ -334,6 +390,7 @@ func _add_vtt_map_button() -> void:
 	btn_vtt_inv.custom_minimum_size = Vector2(0, 40)
 	btn_vtt_inv.pressed.connect(func(): _create_complex_map("investigation"))
 	row.add_child(btn_vtt_inv)
+	_sync_maps_create_buttons()
 
 func _create_complex_map(roster: String) -> void:
 	_maps_library_tab = "draft"

@@ -118,13 +118,7 @@ func _stop_graph_panning() -> void:
 	graph_edit.mouse_default_cursor_shape = Control.CURSOR_ARROW
 
 func _setup_option_buttons() -> void:
-	meta_format.clear()
-	meta_format.add_item("One-shot", 0)
-	meta_format.set_item_metadata(0, "oneshot")
-	meta_format.add_item("Campagne longue", 1)
-	meta_format.set_item_metadata(1, "long")
-	meta_format.add_item("Enquête", 2)
-	meta_format.set_item_metadata(2, "investigation")
+	_rebuild_format_options_for_context()
 
 	meta_roster.clear()
 	meta_roster.add_item("Aventure", 0)
@@ -139,6 +133,28 @@ func _setup_option_buttons() -> void:
 	meta_setting.text_changed.connect(func(): _on_meta_changed())
 	meta_mystery.text_changed.connect(func(): _on_meta_changed())
 
+func _rebuild_format_options_for_context() -> void:
+	var previous := ""
+	if meta_format.item_count > 0 and meta_format.selected >= 0:
+		previous = str(meta_format.get_item_metadata(meta_format.selected))
+	meta_format.clear()
+	meta_format.add_item("One-shot", 0)
+	meta_format.set_item_metadata(0, "oneshot")
+	meta_format.add_item("Campagne longue", 1)
+	meta_format.set_item_metadata(1, "long")
+	# Pas d'option « Enquête » si on vient du hub Aventure (évite le mélange).
+	var allow_inv := _locked_roster.is_empty() and _locked_format.is_empty()
+	if allow_inv:
+		meta_format.add_item("Enquête", 2)
+		meta_format.set_item_metadata(2, "investigation")
+	var select_idx := 0
+	for i in range(meta_format.item_count):
+		if str(meta_format.get_item_metadata(i)) == previous:
+			select_idx = i
+			break
+	if meta_format.item_count > 0:
+		meta_format.select(select_idx)
+
 func _apply_entry_context() -> void:
 	if get_tree().has_meta("preselected_scenario_roster"):
 		_locked_roster = str(get_tree().get_meta("preselected_scenario_roster"))
@@ -146,6 +162,7 @@ func _apply_entry_context() -> void:
 	if get_tree().has_meta("preselected_quest_format"):
 		_locked_format = str(get_tree().get_meta("preselected_quest_format"))
 		get_tree().remove_meta("preselected_quest_format")
+	_rebuild_format_options_for_context()
 
 func _load_scenario() -> void:
 	var scenario_id := GameData.editor_scenario_id
@@ -219,7 +236,14 @@ func _is_investigation_mode() -> bool:
 		or str(_scenario.get("questFormat", "")) == "investigation"
 
 func _update_mode_dropdowns_visibility() -> void:
-	# En enquête, format et roster disent la même chose : un seul menu suffit.
+	# Mode verrouillé depuis le hub : un seul univers, pas de bascule Aventure ↔ Enquête.
+	if not _locked_roster.is_empty() or not _locked_format.is_empty():
+		meta_format.visible = _locked_roster != "investigation" and _locked_format != "investigation" \
+			and str(_scenario.get("roster", "")) != "investigation"
+		# En aventure verrouillée, le format oneshot/long reste utile ; le roster est fixe.
+		meta_roster.visible = false
+		return
+	# Enquête libre : un seul menu (roster).
 	var is_inv := _is_investigation_mode()
 	meta_format.visible = not is_inv
 	meta_roster.visible = true
@@ -1221,7 +1245,10 @@ func _validate_scenario(scenario: Dictionary) -> String:
 	return ""
 
 func _on_back_pressed() -> void:
-	GameData.go_to_scenario_list()
+	var mode := "investigation" if str(_scenario.get("roster", "")) == "investigation" \
+		or str(_scenario.get("questFormat", "")) == "investigation" \
+		or _locked_roster == "investigation" else "adventure"
+	GameData.go_to_scenario_list(mode)
 
 func _mark_dirty(status: String = "") -> void:
 	_dirty = true

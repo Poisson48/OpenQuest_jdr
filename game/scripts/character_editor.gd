@@ -141,16 +141,21 @@ func _apply_entry_context() -> void:
 		_locked_entity_type = str(get_tree().get_meta("preselected_entity_type"))
 		get_tree().remove_meta("preselected_entity_type")
 
+	if _locked_roster.is_empty():
+		# Sans contexte hub : rester en aventure (pas de mélange).
+		_locked_roster = "general"
+
 	if _locked_roster == "investigation":
 		page_title.text = "🔍 Enquêteurs & Bots"
 		roster_filter.selected = 2
 		roster_filter.disabled = true
-	elif _locked_roster == "general":
+		roster_filter.visible = false
+	else:
+		_locked_roster = "general"
 		page_title.text = "👥 Héros d'Aventure"
 		roster_filter.selected = 1
 		roster_filter.disabled = true
-	else:
-		page_title.text = "👥 Fiches Personnages & Bots"
+		roster_filter.visible = false
 
 	if _locked_entity_type == "bot":
 		entity_filter.selected = 2
@@ -158,6 +163,8 @@ func _apply_entry_context() -> void:
 	elif _locked_entity_type == "player":
 		entity_filter.selected = 1
 		entity_filter.disabled = true
+
+	_rebuild_input_roster_options()
 
 func _setup_filters() -> void:
 	roster_filter.clear()
@@ -171,11 +178,7 @@ func _setup_filters() -> void:
 	entity_filter.add_item("Bots (IA)", 2)
 
 func _setup_form_options() -> void:
-	input_roster.clear()
-	input_roster.add_item("Aventure (Standard)", 0)
-	input_roster.set_item_metadata(0, "general")
-	input_roster.add_item("Enquête (Investigation)", 1)
-	input_roster.set_item_metadata(1, "investigation")
+	_rebuild_input_roster_options()
 
 	input_entity_type.clear()
 	input_entity_type.add_item("Personnage joueur (PC)", 0)
@@ -190,6 +193,19 @@ func _setup_form_options() -> void:
 	input_ruleset_tier.set_item_metadata(1, "medium")
 	input_ruleset_tier.add_item("Complet (D&D)", 2)
 	input_ruleset_tier.set_item_metadata(2, "complete")
+
+func _rebuild_input_roster_options() -> void:
+	input_roster.clear()
+	if _locked_roster == "investigation":
+		input_roster.add_item("Enquête (Investigation)", 0)
+		input_roster.set_item_metadata(0, "investigation")
+		input_roster.select(0)
+		input_roster.disabled = true
+	else:
+		input_roster.add_item("Aventure (Standard)", 0)
+		input_roster.set_item_metadata(0, "general")
+		input_roster.select(0)
+		input_roster.disabled = true
 
 func _get_active_roster_filter() -> String:
 	if _locked_roster == "investigation":
@@ -339,8 +355,8 @@ func _load_form_from_dict(c: Dictionary, is_bot: bool, is_new: bool) -> void:
 	input_name.text = c.get("name", "")
 	input_race.text = c.get("race", "")
 	input_class.text = c.get("class", "")
-	input_roster.selected = 1 if roster == "investigation" else 0
-	input_roster.disabled = not _locked_roster.is_empty()
+	input_roster.selected = 0
+	input_roster.disabled = true
 	input_entity_type.selected = 1 if is_bot else 0
 	input_entity_type.disabled = not is_new or not _locked_entity_type.is_empty()
 	_set_selected_tier(tier)
@@ -455,7 +471,9 @@ func _collect_form_data() -> Dictionary:
 	if name_val.is_empty():
 		name_val = "Bot sans nom" if _is_bot_mode() else "Héros sans nom"
 
-	var r_meta := "investigation" if input_roster.selected == 1 else "general"
+	var r_meta := "general"
+	if input_roster.selected >= 0:
+		r_meta = str(input_roster.get_item_metadata(input_roster.selected))
 	if _locked_roster == "investigation":
 		r_meta = "investigation"
 	elif _locked_roster == "general":
@@ -535,4 +553,5 @@ func _delete_entry(id: String, is_bot: bool) -> void:
 		GameData.delete_character(id)
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	var hub_tab := "Enquête" if _locked_roster == "investigation" else "Aventures"
+	GameData.go_to_hub(hub_tab)
