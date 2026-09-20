@@ -9,7 +9,7 @@ Création de personnages, scénarios et cartes, puis session solo ou à plusieur
 | **Client Godot** | Jouable (démos Valbois + Crypte) | `.\scripts\play-godot.ps1` |
 | **Serveur Node (pooling)** | Opérationnel (LAN) | `.\scripts\dev-server.sh` ou `cd server && npm run dev` |
 
-> **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Audits détaillés dans `docs/`.
+> **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Audits détaillés dans `docs/`. L’audit produit [docs/AUDIT_OPENQUEST.md](docs/AUDIT_OPENQUEST.md) est la **baseline actuelle** pour le développement.
 
 ---
 
@@ -168,6 +168,7 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 
 | Fichier | Contenu |
 |---------|---------|
+| [docs/AUDIT_OPENQUEST.md](docs/AUDIT_OPENQUEST.md) | Audit produit — **baseline actuelle** pour le développement |
 | [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 |
 | [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) | Audit clarté UI *(disponible)* |
 | [docs/MAP_DIORAMA_PLAN.md](docs/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D (appliqué) |
