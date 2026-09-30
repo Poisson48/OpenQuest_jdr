@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/scenario.json",
+  "title": "OpenQuest Scenario",
+  "description": "Scénario de jeu OpenQuest JDR (contrat de données Godot / serveur Node).",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "quest_format",
+    "roster",
+    "start_scene_id",
+    "scenes",
+    "npcs",
+    "transitions",
+    "maps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant unique du scénario (ex. demo-valbois, inv-demo-train)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Titre affiché du scénario."
+    },
+    "synopsis": {
+      "type": "string",
+      "description": "Résumé court du scénario affiché dans le catalogue."
+    },
+    "setting": {
+      "type": "string",
+      "description": "Cadre / décor narratif du scénario."
+    },
+    "quest_format": {
+      "type": "string",
+      "enum": ["oneshot", "long", "investigation"],
+      "description": "Format de partie : oneshot, long ou investigation."
+    },
+    "roster": {
+      "type": "string",
+      "enum": ["general", "investigation"],
+      "description": "Roster de personnages auquel ce scénario est lié."
+    },
+    "start_scene_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID de la scène de départ du scénario."
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Liste des scènes narratives du scénario.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "content"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifiant unique de la scène."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Titre de la scène."
+          },
+          "content": {
+            "type": "string",
+            "description": "Texte narratif principal de la scène."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tags libres pour filtrer / naviguer (ex. action, intrigue)."
+          },
+          "map_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "IDs des cartes liées à cette scène."
+          }
+        }
+      }
+    },
+    "npcs": {
+      "type": "array",
+      "description": "PNJ définis dans le scénario.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant unique du PNJ."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nom du PNJ."
+          },
+          "role": {
+            "type": "string",
+            "description": "Rôle / fonction du PNJ (forgeron, garde, marchand...)."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description physique et comportementale."
+          },
+          "personality": {
+            "type": "string",
+            "description": "Traits de personnalité du PNJ."
+          },
+          "motive": {
+            "type": "string",
+            "description": "Motivation secrète ou apparente du PNJ."
+          },
+          "spawn_trigger": {
+            "type": "string",
+            "description": "Condition d'apparition du PNJ (auto, scene_entry, flag)."
+          },
+          "follows_party": {
+            "type": "boolean",
+            "description": "Si vrai, le PNJ suit le groupe en déplacement."
+          }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Transitions entre scènes (graphe non linéaire).",
+      "items": {
+        "type": "object",
+        "required": ["from_scene_id", "to_scene_id"],
+        "additionalProperties": false,
+        "properties": {
+          "from_scene_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Scène source de la transition."
+          },
+          "to_scene_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Scène cible de la transition."
+          },
+          "label": {
+            "type": "string",
+            "description": "Libellé affiché pour cette transition."
+          },
+          "condition": {
+            "type": "string",
+            "description": "Condition d'activation (flag, clue_count, etc.)."
+          }
+        }
+      }
+    },
+    "maps": {
+      "type": "array",
+      "description": "IDs des cartes utilisées dans le scénario.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "mystery": {
+      "type": "string",
+      "description": "Énigme centrale (scénarios investigation uniquement)."
+    }
+  }
+}
