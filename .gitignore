@@ -10,3 +10,15 @@ server/data/sessions/
 data/sessions/
 .claude/settings.local.json
 game/.godot/
+
+# Artefacts de développement
+*.log
+__pycache__/
+*.pyc
+.dsh-acl-report/
+.godot_profiles/
+.lan_table/
+server/dist/
+game/webrtc/
+# Captures d'écran de debug à la racine (docs/screenshots reste versionné)
+/*.png
