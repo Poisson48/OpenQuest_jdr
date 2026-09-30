@@ -51,7 +51,7 @@ Le serveur Node est l'**autorité** : il reçoit les inputs des joueurs, met à 
 
 | Composant | Choix | Pourquoi |
 |-----------|-------|----------|
-| **Moteur** | Godot 4.4 | Open source, excellent pour 2D, WebSocket intégré |
+| **Moteur** | Godot 4.7 | Open source, excellent pour 2D/3D, WebSocket intégré |
 | **Langage** | GDScript | Natif Godot, courbe d'apprentissage douce |
 | **Réseau** | `WebSocketPeer` | Connexion directe au serveur Node, pas de plugin |
 | **Rendu** | Forward+ (2D) | Suffisant pour un JDR vue de dessus / carte |
@@ -62,13 +62,17 @@ Le serveur Node est l'**autorité** : il reçoit les inputs des joueurs, met à 
 game/
 ├── project.godot
 ├── scenes/
-│   ├── main.tscn       # Scène racine (UI + joueurs)
-│   └── player.tscn     # Représentation visuelle d'un joueur
+│   ├── main_menu.tscn  # Menu principal + hub
+│   ├── session/        # Session de jeu (MJ + joueurs)
+│   ├── map_editor/     # Éditeur de cartes 3D
+│   └── hub/            # Hub (scénarios, personnages, cartes)
 └── scripts/
-    ├── main.gd           # Boucle de jeu, inputs clavier
-    ├── multiplayer/
-    │   └── multiplayer_manager.gd  # Autoload ENet + pooling WebSocket
-    └── main_menu.gd                  # UI salon P2P (code 4 chiffres)
+    ├── core/             # Logique métier pure (persistence, rules, session, maps, navigation)
+    ├── maps/editor/      # Éditeur battlemap 3D (document + contrôleurs)
+    ├── session/          # UI session (SessionViewModel, panneaux)
+    ├── multiplayer/      # MultiplayerManager, WebRTCP2P
+    ├── ui/               # Composants UI partagés
+    └── tests/            # Tests headless
 ```
 
 ### Protocole réseau (v0.1)

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/bot.json",
+  "title": "OpenQuest Bot Archetype",
+  "description": "Archétype de compagnon bot OpenQuest JDR (contrat de données Godot / serveur Node).",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "race",
+    "class",
+    "personality",
+    "preferredActions",
+    "stats",
+    "hp",
+    "ac",
+    "traits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant unique de l'archétype bot."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nom du bot."
+    },
+    "race": {
+      "type": "string",
+      "description": "Race du bot (Humain, Elfe, Nain, etc.)."
+    },
+    "class": {
+      "type": "string",
+      "description": "Classe du bot (Guerrier, Mage, Rôdeuse, etc.)."
+    },
+    "personality": {
+      "type": "string",
+      "description": "Description de la personnalité du bot."
+    },
+    "preferredActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["combat", "talk", "explore", "stealth", "support", "creative"]
+      },
+      "description": "Types d'actions préférés du bot en résolution."
+    },
+    "stats": {
+      "type": "object",
+      "required": ["str", "dex", "con", "int", "wis", "cha"],
+      "additionalProperties": false,
+      "properties": {
+        "str": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "dex": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "con": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "int": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "wis": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "cha": { "type": "integer", "minimum": 1, "maximum": 30 }
+      }
+    },
+    "hp": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Points de vie maximum du bot."
+    },
+    "ac": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Classe d'armure du bot."
+    },
+    "traits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Traits de personnalité du bot (ex. \"courageux\", \"méfiant\")."
+    },
+    "role": {
+      "type": "string",
+      "description": "Rôle optionnel du bot dans le groupe (tank, soutien, éclaireur)."
+    },
+    "roster": {
+      "type": "string",
+      "enum": ["general", "investigation"],
+      "description": "Roster de personnages auquel ce bot est lié."
+    }
+  }
+}

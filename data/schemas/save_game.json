@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/save_game.json",
+  "title": "OpenQuest Save Game",
+  "description": "Sauvegarde de partie OpenQuest JDR (contrat de données Godot / serveur Node).",
+  "type": "object",
+  "required": [
+    "game_id",
+    "scenario_id",
+    "mode",
+    "gm_type",
+    "quest_format",
+    "party_members",
+    "log",
+    "current_scene_id",
+    "map_play_state",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "game_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant unique de la partie."
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID du scénario joué."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["solo", "multi"],
+      "description": "Mode de partie : solo ou multijoueur."
+    },
+    "gm_type": {
+      "type": "string",
+      "enum": ["ai", "human"],
+      "description": "Type de maître du jeu : IA ou humain."
+    },
+    "quest_format": {
+      "type": "string",
+      "enum": ["oneshot", "long", "investigation"],
+      "description": "Format de la quête."
+    },
+    "party_members": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Membres du groupe (joueurs humains et bots).",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "race", "class", "stats", "hp", "maxHp", "ac", "isBot", "isHuman"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "description": "Identifiant unique du membre." },
+          "characterId": {
+            "type": ["string", "null"],
+            "description": "ID de la fiche de personnage liée (null pour un bot)."
+          },
+          "name": { "type": "string", "minLength": 1, "description": "Nom du membre." },
+          "race": { "type": "string", "description": "Race du membre." },
+          "class": { "type": "string", "description": "Classe du membre." },
+          "stats": {
+            "type": "object",
+            "required": ["str", "dex", "con", "int", "wis", "cha"],
+            "additionalProperties": false,
+            "properties": {
+              "str": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "dex": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "con": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "int": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "wis": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "cha": { "type": "integer", "minimum": 1, "maximum": 30 }
+            }
+          },
+          "hp": { "type": "integer", "minimum": 0, "description": "Points de vie actuels." },
+          "maxHp": { "type": "integer", "minimum": 1, "description": "Points de vie maximum." },
+          "ac": { "type": "integer", "minimum": 0, "description": "Classe d'armure." },
+          "isBot": { "type": "boolean", "description": "Si vrai, membre contrôlé par l'IA." },
+          "isHuman": { "type": "boolean", "description": "Si vrai, membre contrôlé par un joueur." },
+          "playerName": {
+            "type": ["string", "null"],
+            "description": "Nom du joueur humain (null pour un bot)."
+          },
+          "clientId": {
+            "type": ["string", "null"],
+            "description": "ID WebSocket du client (null pour un bot ou en solo)."
+          },
+          "personality": {
+            "type": ["string", "null"],
+            "description": "Personnalité du bot (null pour un joueur)."
+          },
+          "preferredActions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["combat", "talk", "explore", "stealth", "support", "creative"]
+            },
+            "description": "Types d'actions préférés du bot."
+          },
+          "traits": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Traits de personnalité du bot."
+          },
+          "backstory": {
+            "type": "string",
+            "description": "Histoire du personnage."
+          }
+        }
+      }
+    },
+    "log": {
+      "type": "array",
+      "description": "Journal narratif de la partie.",
+      "items": {
+        "type": "object",
+        "required": ["type", "author", "text", "timestamp"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["system", "player", "gm", "bot"],
+            "description": "Type d'entrée de journal."
+          },
+          "author": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Auteur de l'entrée (nom du joueur, MJ IA, bot)."
+          },
+          "text": {
+            "type": "string",
+            "description": "Contenu textuel de l'entrée."
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Horodatage ISO 8601 de l'entrée."
+          }
+        }
+      }
+    },
+    "current_scene_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ID de la scène en cours."
+    },
+    "map_play_state": {
+      "type": "object",
+      "description": "État de jeu par carte (brouillard, tokens, portes, effets).",
+      "additionalProperties": true
+    },
+    "created_at": {
+      "type": "integer",
+      "description": "Horodatage Unix (millisecondes) de création de la partie."
+    },
+    "completed_at": {
+      "type": "integer",
+      "description": "Horodatage Unix (millisecondes) de fin de partie."
+    },
+    "play_time_ms": {
+      "type": "integer",
+      "description": "Durée totale de jeu en millisecondes."
+    },
+    "waiting_for_gm": {
+      "type": "boolean",
+      "description": "Si vrai, la partie attend une décision du MJ."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["playing", "completed"],
+      "description": "État de la partie."
+    }
+  }
+}

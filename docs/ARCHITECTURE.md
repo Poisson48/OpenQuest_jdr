@@ -18,73 +18,92 @@ OpenQuest_jdr/
 │   │   │   ├── map_edit_document.gd   # Modèle + historique undo/redo par deltas
 │   │   │   ├── map_editor_tools.gd    # Machine à états des outils
 │   │   │   ├── map_editor_overlay.gd  # Rendu 2D sélection/aperçus
-│   │   │   └── panels/                # Inspector, Outliner, Library, History, Settings
-│   │   ├── session/               # UI session de jeu (view-model + panneaux)
+│   │   │   ├── editor_input_handler.gd    # Dispatch souris/clavier
+│   │   │   ├── editor_save_controller.gd  # Politiques de sauvegarde
+│   │   │   ├── editor_tool_handlers.gd    # Création d'éléments par outil
+│   │   │   └── editor_view_controller.gd  # Zoom/pan/projection
+│   │   ├── session/               # UI session (view-model, panneaux)
 │   │   ├── multiplayer/           # MultiplayerManager, WebRTCP2P
-│   │   └── autoload/              # Façades (GameData, MapData, ThemeColors, …)
-│   ├── scenes/                    # Scènes .tscn
-│   ├── data/                      # JSON scénarios, cartes, props, schemas
+│   │   └── tests/                 # Tests headless
+│   ├── scenes/                    # Scènes Godot (.tscn)
+│   ├── data/                      # JSON scénarios, cartes, props
 │   └── assets/                    # Illustrations, portraits
-├── server/                        # Node.js + TypeScript
+├── server/                        # Serveur Node.js (TypeScript)
 │   └── src/
-│       ├── pooling/               # Serveur WebSocket, matchmaking par salons
+│       ├── pooling/               # Serveur WebSocket (matchmaking)
 │       ├── lobby/                 # RoomManager, types
-│       ├── mcp/                   # GM server LLM
-│       ├── narrative/             # Pools de phrases, mémoire anti-répétition
-│       ├── resolution/            # Résolution d'actions
-│       └── ai-gm.ts               # Moteur narratif (en cours de découpage)
-├── data/schemas/                  # Contrat de données partagé client ↔ serveur
-├── scripts/                       # Scripts de lancement et de test
-│   ├── play-godot*.ps1            # Lancement instances Godot
-│   ├── run_tests.ps1              # Runner unique tests Godot
-│   ├── dev-server.sh              # Lancement serveur Node
-│   ├── setup.sh                   # Installation environnement
-│   └── ensure-webrtc-native.ps1   # Téléchargement extension WebRTC
-├── tools/                         # Outils ponctuels (génération, capture, migration)
-└── docs/                          # Documentation et audits
-    └── archive/                   # Rapports ponctuels archivés
+│       ├── mcp/                   # Serveur MCP (MJ IA)
+│       ├── narrative/             # PhrasePools, ActionResolution, WorldState, QuestManager
+│       └── ai-gm.ts               # Façade MJ IA (< 400 lignes)
+├── data/
+│   └── schemas/                   # Contrat de données partagé (JSON Schema)
+│       ├── character.json
+│       ├── scenario.json
+│       ├── map.json
+│       └── bot.json
+├── tools/                         # Scripts d'outillage (generate_*, capture_*, etc.)
+├── scripts/                       # Scripts de lancement (play-godot*, run_tests, etc.)
+└── docs/
+    ├── ARCHITECTURE.md            # Ce document
+    ├── STACK.md                   # Stack technique
+    └── archive/                   # Audits ponctuels archivés
 ```
 
-## Diagramme de dépendances
+## Diagramme des dépendances
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    UI / Scènes Godot                        │
-│  session/panels  hub/panels  maps/editor/panels  ui/        │
-└─────────────────┬───────────────────────────────────────────┘
-                  │ signaux / view-models
-┌─────────────────▼───────────────────────────────────────────┐
-│                  Autoloads (façades)                         │
-│   GameData  MapData  MultiplayerManager  ThemeColors         │
-└─────────────────┬───────────────────────────────────────────┘
-                  │ délègue
-┌─────────────────▼───────────────────────────────────────────┐
-│                  game/scripts/core/                          │
-│  persistence/  rules/  session/  maps/  navigation/          │
-└─────────────────┬───────────────────────────────────────────┘
-                  │ JsonStore
-┌─────────────────▼───────────────────────────────────────────┐
-│              Persistance locale (user://)                    │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                  Client Godot                                │
-└─────────────────┬───────────────────────────────────────────┘
-                  │ WebSocket JSON (pooling)
-┌─────────────────▼───────────────────────────────────────────┐
-│                  server/src/                                 │
-│  pooling/  lobby/  mcp/  narrative/  resolution/             │
-└─────────────────────────────────────────────────────────────┘
-                  │
-┌─────────────────▼───────────────────────────────────────────┐
-│              data/schemas/ (contrat unique)                  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                    UI / Scènes                       │
+│  session_shell, map_complex_editor, hub, panels...   │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│              SessionViewModel                        │
+│         (diff/signaux, pont état → UI)               │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│              game/scripts/core/                      │
+│  ┌─────────────┐ ┌──────────┐ ┌──────────────────┐  │
+│  │ persistence │ │  rules   │ │     session      │  │
+│  │  JsonStore  │ │   Dice   │ │  SessionState    │  │
+│  │  Repos      │ │  Stats   │ │  TurnManager     │  │
+│  └─────────────┘ └──────────┘ │  Inventory       │  │
+│                               └──────────────────┘  │
+│  ┌─────────────┐ ┌──────────────────────────────┐   │
+│  │    maps     │ │        navigation            │   │
+│  │  MapFog     │ │  SemanticMove, Investigation │   │
+│  │  MapVision  │ │  QuestNavigation, SceneGraph │   │
+│  └─────────────┘ └──────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│              data/schemas/ (contrat)                 │
+│        character.json, scenario.json, map.json       │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│              server/src/ (Node.js)                   │
+│  ┌─────────┐ ┌───────┐ ┌─────┐ ┌─────────────────┐  │
+│  │ pooling │ │ lobby │ │ mcp │ │    narrative     │  │
+│  │  WS     │ │ rooms │ │ LLM │ │ PhrasePools      │  │
+│  │         │ │       │ │     │ │ ActionResolution │  │
+│  └─────────┘ └───────┘ └─────┘ │ WorldState       │  │
+│                                │ QuestManager     │  │
+│                                └─────────────────┘  │
+└─────────────────────────────────────────────────────┘
 ```
 
-## Principes
+## Principes directeurs
 
-1. **Logique métier isolée** : `game/scripts/core/` ne dépend pas de Node ni de rendu.
-2. **Façades autoload** : `GameData` et `MapData` délèguent aux modules `core/`.
-3. **Contrat de données unique** : `data/schemas/` est la source de vérité pour les JSON échangés.
-4. **Éditeur découplé** : `MapEditDocument` porte le modèle, les contrôleurs pilotent, l'overlay rend.
-5. **Tests automatisés** : `scripts/run_tests.ps1` exécute les 30 tests Godot headless.
+1. **`core/` est pur** : aucune dépendance `Node`, `@onready`, ou autoload. Tout est testable isolément.
+2. **Un seul contrat** : `data/schemas/` est la source de vérité pour les structures partagées client/serveur.
+3. **Façades minimales** : les autoloads (`GameData`, `MapData`) ne font que déléguer aux modules `core/`.
+4. **Fichiers < 400 lignes** : un fichier = une responsabilité.
+5. **Signaux pour l'UI** : `SessionViewModel` émet uniquement ce qui a changé (pas de rebuild complet).
+
+## Règles de migration
+
+- Quand vous extrayez une fonction de `game_data.gd` vers `core/`, laissez une délégation d'un ligne dans la façade.
+- Les modules `core/session/`, `core/maps/`, `core/navigation/` sont **statiques** : ils opèrent sur un `game: Dictionary` passé en paramètre.
+- Les repositories sont instanciables avec un signal `changed` pour notifier l'UI.
