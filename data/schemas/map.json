@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/map.json",
+  "title": "OpenQuest Map",
+  "description": "Carte de jeu OpenQuest JDR (contrat de données Godot / serveur Node).",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "map_kind",
+    "grid_cells",
+    "tiles",
+    "markers",
+    "props",
+    "walls",
+    "areas",
+    "links",
+    "render_mode"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant unique de la carte."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Titre affiché de la carte."
+    },
+    "map_kind": {
+      "type": "string",
+      "enum": ["local", "world"],
+      "description": "Type de carte : locale (intérieur / zone) ou monde (carte du monde)."
+    },
+    "grid_cells": {
+      "type": "object",
+      "required": ["width", "height"],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Largeur de la grille en cases."
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hauteur de la grille en cases."
+        }
+      },
+      "description": "Dimensions de la grille de jeu."
+    },
+    "tiles": {
+      "type": "array",
+      "description": "Liste plate des tuiles (index = y * width + x).",
+      "items": {
+        "type": "string",
+        "description": "ID de tuile (grass, stone, water, etc.)."
+      }
+    },
+    "markers": {
+      "type": "array",
+      "description": "Marqueurs posés sur la carte (points d'intérêt).",
+      "items": {
+        "type": "object",
+        "required": ["x", "y", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "x": { "type": "number", "description": "Position X en cases." },
+          "y": { "type": "number", "description": "Position Y en cases." },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Type de marqueur (poi, npc, treasure, etc.)."
+          },
+          "label": {
+            "type": "string",
+            "description": "Libellé affiché du marqueur."
+          }
+        }
+      }
+    },
+    "props": {
+      "type": "array",
+      "description": "Éléments décoratifs posés sur la carte.",
+      "items": {
+        "type": "object",
+        "required": ["id", "asset", "x", "y"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "description": "Identifiant unique du prop." },
+          "asset": { "type": "string", "minLength": 1, "description": "Chemin du sprite du prop." },
+          "x": { "type": "number", "description": "Position X en cases." },
+          "y": { "type": "number", "description": "Position Y en cases." },
+          "pw": { "type": "number", "description": "Largeur affichée en cases." },
+          "ph": { "type": "number", "description": "Hauteur affichée en cases." }
+        }
+      }
+    },
+    "walls": {
+      "type": "array",
+      "description": "Murs bloquants (ligne de vue et déplacement).",
+      "items": {
+        "type": "object",
+        "required": ["x", "y", "w", "blocksSight"],
+        "additionalProperties": false,
+        "properties": {
+          "x": { "type": "number", "description": "Position X du centre du mur." },
+          "y": { "type": "number", "description": "Position Y du centre du mur." },
+          "w": { "type": "number", "description": "Longueur du mur en cases." },
+          "blocksSight": { "type": "boolean", "description": "Si vrai, bloque la ligne de vue." },
+          "isDoor": { "type": "boolean", "description": "Si vrai, ce mur est une porte ouvrable." },
+          "open": { "type": "boolean", "description": "État d'ouverture de la porte." },
+          "rotation": { "type": "number", "description": "Angle en degrés." }
+        }
+      }
+    },
+    "areas": {
+      "type": "array",
+      "description": "Zones interactives de la carte.",
+      "items": {
+        "type": "object",
+        "required": ["id", "shape"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "description": "Identifiant unique de la zone." },
+          "shape": {
+            "type": "string",
+            "enum": ["circle", "rect"],
+            "description": "Forme géométrique de la zone."
+          },
+          "x": { "type": "number", "description": "Centre X en cases." },
+          "y": { "type": "number", "description": "Centre Y en cases." },
+          "radius": { "type": "number", "description": "Rayon (forme circle)." },
+          "w": { "type": "number", "description": "Largeur (forme rect)." },
+          "h": { "type": "number", "description": "Hauteur (forme rect)." },
+          "label": { "type": "string", "description": "Libellé de la zone." },
+          "target_map_id": {
+            "type": "string",
+            "description": "Carte cible si cette zone est un lien vers une carte enfant."
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "description": "Liens de navigation entre cases de carte et cartes locales.",
+      "items": {
+        "type": "object",
+        "required": ["x", "y", "targetMapId"],
+        "additionalProperties": false,
+        "properties": {
+          "x": { "type": "number", "description": "Position X en cases." },
+          "y": { "type": "number", "description": "Position Y en cases." },
+          "targetMapId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID de la carte locale cible."
+          },
+          "label": {
+            "type": "string",
+            "description": "Libellé affiché du lien."
+          }
+        }
+      }
+    },
+    "render_mode": {
+      "type": "string",
+      "enum": ["simple", "diorama", "vtt"],
+      "description": "Mode de rendu : tuiles simples, diorama illustré ou battlemap VTT."
+    },
+    "lighting": {
+      "type": "object",
+      "description": "Configuration d'éclairage et de nuit.",
+      "additionalProperties": false,
+      "properties": {
+        "night": { "type": "boolean", "description": "Active le mode nuit." },
+        "ambient": { "type": "number", "description": "Niveau d'ambiance (0.0 à 1.0)." },
+        "night_image_path": {
+          "type": "string",
+          "description": "Chemin de l'image de nuit (rendu diorama)."
+        }
+      }
+    },
+    "play_defaults": {
+      "type": "object",
+      "description": "Valeurs par défaut pour la session de jeu.",
+      "additionalProperties": false,
+      "properties": {
+        "fog_enabled": {
+          "type": "boolean",
+          "description": "Brouillard de guerre actif."
+        },
+        "los_enabled": {
+          "type": "boolean",
+          "description": "Ligne de vue dynamique active."
+        },
+        "vision_radius": {
+          "type": "number",
+          "description": "Rayon de vision par défaut en cases."
+        }
+      }
+    }
+  }
+}
