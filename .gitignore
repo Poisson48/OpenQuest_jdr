@@ -25,3 +25,7 @@ game/webrtc/
 
 # Jeux de ressources Godot regenérés à chaque import (LF/CRLF churn uniquement)
 *.import
+
+# Profils de test et récupération de permissions (machine locale)
+.test_userdata/
+.acl-recovery/

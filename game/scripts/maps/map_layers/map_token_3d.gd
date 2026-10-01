@@ -1,7 +1,9 @@
 extends StaticBody3D
 class_name MapToken3D
 
-## Token — cylindre VTT, ou découpe dressée en mode diorama (DD2).
+## Token — cylindre VTT, découpe dressée (diorama/DD2), ou **pion** façon
+## pièce d'échecs sur le plateau (vue table) : révolution LatheMesh teintée
+## à la couleur du joueur, qu'on pose / déplace comme une figurine.
 
 signal drag_finished(token_id: String, gx: float, gy: float)
 signal selected(token_id: String)
@@ -13,6 +15,7 @@ var readonly: bool = false
 var party: Array = []
 var selected_state: bool = false
 var diorama_mode: bool = false
+var pawn_mode: bool = false
 
 var _sprite: Sprite3D
 var _mesh: MeshInstance3D
@@ -43,7 +46,9 @@ func _build_visuals() -> void:
 	_overlay_texture = null
 	_overlay_height = cell_size * 1.9
 
-	if diorama_mode:
+	if pawn_mode:
+		_build_pawn_visuals()
+	elif diorama_mode:
 		_build_diorama_visuals()
 	else:
 		_build_vtt_visuals()
@@ -51,8 +56,9 @@ func _build_visuals() -> void:
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	# Hitbox large : le calque 2D est grand ; le raycast 3D reste un filet de secours.
-	capsule.radius = cell_size * (0.55 if diorama_mode else 0.34)
-	capsule.height = cell_size * (1.6 if diorama_mode else 0.6)
+	var wide := diorama_mode and not pawn_mode
+	capsule.radius = cell_size * (0.55 if wide else 0.34)
+	capsule.height = cell_size * (1.6 if wide else 0.6)
 	shape.shape = capsule
 	shape.position.y = capsule.height * 0.5
 	add_child(shape)
@@ -81,7 +87,73 @@ func _build_diorama_visuals() -> void:
 	# Pas d'anneau de sélection 3D : il traverse le calque et fait une barre parasite.
 
 func uses_overlay_layer() -> bool:
-	return diorama_mode and _overlay_texture != null
+	return diorama_mode and not pawn_mode and _overlay_texture != null
+
+## Bascule « pion posé sur le plateau » (vue table) — reconstruit le visuel.
+func set_pawn_mode(on: bool) -> void:
+	if pawn_mode == on:
+		return
+	pawn_mode = on
+	_build_visuals()
+	_sync_position()
+	if selected_state:
+		set_selected(true)
+
+## Pion façon pièce d'échecs : profil de révolution (socle évasé, col,
+## tête sphérique), verni à la couleur du joueur. Se pose / se soulève
+## comme une figurine (cf. set_selected / update_drag_world).
+## La révolution est tournée à la main (SurfaceTool) — LatheMesh n'existe pas
+## dans Godot. Remplaçable plus tard par un vrai modèle Meshy par personnage
+## (TableModelLoader.load_obj).
+func _build_pawn_visuals() -> void:
+	var base_r := cell_size * 0.30
+	var h := cell_size * 1.15
+	_mesh = MeshInstance3D.new()
+	_mesh.mesh = _make_pawn_mesh(base_r, h)
+	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var body_mat := StandardMaterial3D.new()
+	body_mat.albedo_color = _token_color()
+	body_mat.roughness = 0.32
+	body_mat.metallic = 0.08
+	body_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_mesh.material_override = body_mat
+	add_child(_mesh)
+	_add_selection_ring(0.03)
+
+## Révolution 360° d'un profil pion (x = rayon en fraction de `base_r`,
+## y = hauteur en fraction de `h`), triangles + normales générées.
+func _make_pawn_mesh(base_r: float, h: float) -> ArrayMesh:
+	var prof := [
+		Vector2(0.0, 0.0),
+		Vector2(0.95, 0.0),
+		Vector2(1.0, 0.05),
+		Vector2(0.72, 0.12),
+		Vector2(0.38, 0.30),
+		Vector2(0.30, 0.50),
+		Vector2(0.50, 0.60),
+		Vector2(0.34, 0.66),
+		Vector2(0.52, 0.78),
+		Vector2(0.50, 0.88),
+		Vector2(0.30, 0.98),
+		Vector2(0.0, 1.0),
+	]
+	var segments := 28
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in range(prof.size() - 1):
+		var a: Vector2 = prof[i]
+		var b: Vector2 = prof[i + 1]
+		for s in range(segments):
+			var t0 := TAU * float(s) / float(segments)
+			var t1 := TAU * float(s + 1) / float(segments)
+			var a0 := Vector3(a.x * base_r * cos(t0), a.y * h, a.x * base_r * sin(t0))
+			var b0 := Vector3(b.x * base_r * cos(t0), b.y * h, b.x * base_r * sin(t0))
+			var b1 := Vector3(b.x * base_r * cos(t1), b.y * h, b.x * base_r * sin(t1))
+			var a1 := Vector3(a.x * base_r * cos(t1), a.y * h, a.x * base_r * sin(t1))
+			for v: Vector3 in [a0, b0, b1, a0, b1, a1]:
+				st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
 
 func get_overlay_texture() -> Texture2D:
 	return _overlay_texture
@@ -168,7 +240,7 @@ func set_selected(on: bool) -> void:
 	selected_state = on
 	if _selection_ring:
 		_selection_ring.visible = on
-	if diorama_mode:
+	if diorama_mode and not pawn_mode:
 		position.y = cell_size * 0.03 if on else 0.0
 		return
 	if _mesh and _mesh.material_override is StandardMaterial3D:

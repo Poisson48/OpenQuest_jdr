@@ -22,6 +22,10 @@ signal view_changed()
 signal area_hovered(area: Dictionary)
 signal area_clicked(area: Dictionary)
 signal area_activate_requested(area: Dictionary)
+## Résultat d'un lancer de dés sur la table (vue table). Règle maison : un dé
+## **compte s'il finit droit** (posé sur une face) — même tombé par terre ;
+## `valid` faux si un dé est resté de travers (arête / pointe).
+signal table_dice_result(faces: Array, total: int, valid: bool)
 
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
@@ -35,6 +39,8 @@ const MapLights3DScript := preload("res://scripts/maps/map_layers/map_lights_3d.
 const MapProps3DScript := preload("res://scripts/maps/map_layers/map_props_3d.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const MapAreasOverlayScript := preload("res://scripts/maps/map_areas_overlay.gd")
+const TableEnvironmentScript := preload("res://scripts/maps/map_layers/table_environment_3d.gd")
+const TableDice3DScript := preload("res://scripts/maps/map_layers/table_dice_3d.gd")
 
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 4.0
@@ -42,6 +48,10 @@ const DRAG_THRESHOLD := 4.0
 const PAN_INERTIA_DECAY := 0.88
 const PAN_INERTIA_MIN := 2.0
 const CAM_HEIGHT := 48.0
+## Vue table : fov « assis à la table » et limites de l'orbite caméra.
+const TABLE_FOV := 50.0
+const TABLE_ELEV_MIN := 18.0
+const TABLE_ELEV_MAX := 78.0
 
 var zoom: float = 1.0
 var map_data: Dictionary = {}
@@ -69,10 +79,33 @@ var _base_camera_height: float = CAM_HEIGHT
 ## Marges écran (gauche, haut, droite, bas) pour cadrer la carte hors HUD.
 var _view_inset: Vector4 = Vector4.ZERO
 
+## Vue table (plateau virtuel) : la carte est posée sur une table de taverne
+## (`TableEnvironment3D`) et la caméra orbite depuis une place autour de la table.
+var table_view: bool = false
+var _table_env: Node3D = null
+var _table_yaw: float = 0.0        # degrés, 0 = place sud (haut de la carte au fond)
+var _table_elev: float = 32.0      # degrés au-dessus de l'horizon
+var _table_seat: int = 0
+var _table_dist_base: float = 10.0 # distance pour cadrer toute la table (zoom = 1)
+var _table_target: Vector2 = Vector2.ZERO  # point visé au sol (x, z)
+var _table_drag_yaw: float = 0.0
+var _table_drag_elev: float = 32.0
+var _table_seat_labels: Array = []
+## Drag en cours : false = orbite (tourner), true = pan (déplacer la caméra
+## sans tourner — Shift+glisser ou molette du milieu).
+var _drag_pan_mode: bool = false
+var _table_drag_target_start: Vector2 = Vector2.ZERO
+var _dice = null
+var _dice_color := Color(0.88, 0.84, 0.74)
+var _dice_sides: int = 6
+## Geste de lancer (clic droit tenu) : échantillons souris pour la vitesse.
+var _throw_samples: Array = []
+
 var _viewport_container: SubViewportContainer
 var _viewport: SubViewport
 var _camera: Camera3D
 var _world: Node3D
+var _world_env: WorldEnvironment
 var _ground: Node3D
 var _elevations_layer: Node3D
 var _grid_layer: Node3D
@@ -143,6 +176,11 @@ func _build_viewport_tree() -> void:
 		_world = null
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# stretch=true : le container aligne le buffer sur la taille du Control et
+	# force lui-même `_viewport.size` (set_size_force) — caméra, zoom, grille et
+	# conversions `_viewport_pixel_scale` restent cohérents avec l'UI.
+	# Ne jamais assigner `_viewport.size` à la main avec stretch=true : le moteur
+	# refuse ("Can't change the size of a SubViewport…") et spamme les logs.
 	_viewport_container.stretch = true
 	# IGNORE : sinon le container avale les clics et le parent ne reçoit jamais
 	# `_gui_input` (pan, pose, drag tokens, pointeur éditeur). Le picking 3D
@@ -161,8 +199,8 @@ func _build_viewport_tree() -> void:
 	_viewport.msaa_3d = Viewport.MSAA_DISABLED
 	_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	_viewport.scaling_3d_scale = 1.0
-	# Taille initiale ; `_sync_viewport_pixel_size` aligne sur les pixels écran
-	# (sinon canvas_items upscale un buffer ~1024px → carte floue).
+	# Taille initiale (remplacée par celle du container dès le premier resize,
+	# via set_size_force tant que stretch=true).
 	_viewport.size = Vector2i(1280, 800)
 	_viewport_container.add_child(_viewport)
 
@@ -176,6 +214,7 @@ func _build_viewport_tree() -> void:
 	# LINEAR : préserve les couleurs du PNG illustré (FILMIC assombrit/adoucit).
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env_node.environment = env
+	_world_env = env_node
 	_viewport.add_child(env_node)
 
 	_world = Node3D.new()
@@ -312,6 +351,7 @@ func configure(
 
 	_load_ground()
 	_load_elevations()
+	_sync_table_environment()
 	_apply_camera_perspective()
 	_apply_lighting()
 	_apply_atmosphere()
@@ -431,6 +471,13 @@ func _load_elevations() -> void:
 
 func _apply_camera_perspective() -> void:
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
+	if table_view:
+		# Vue table : perspective « assis à la table », cadrage piloté par l'orbite.
+		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		_camera.fov = TABLE_FOV
+		_update_fit_base()
+		_update_ortho_size()
+		return
 	if bool(cfg.get("perspective", false)):
 		# Diorama : caméra perspective inclinée → parallaxe au pan.
 		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
@@ -456,6 +503,15 @@ func _apply_camera_perspective() -> void:
 
 func _apply_lighting() -> void:
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
+	if table_view:
+		# Salle intérieure : le soleil devient un fill doux, la suspension
+		# de la table éclaire le plateau (TableEnvironment3D).
+		_sun.visible = true
+		_sun.shadow_enabled = false
+		_sun.light_energy = 0.35
+		_sun.light_color = Color(1.0, 0.88, 0.72)
+		_sun.rotation_degrees = Vector3(-62.0, 25.0, 0.0)
+		return
 	if not bool(cfg.get("shadows", true)):
 		# Diorama : pas d'ombres portées. Soft fill pour ne pas noircir les
 		# matériaux encore éclairés (lumières ponctuelles, tokens VTT…).
@@ -515,11 +571,26 @@ func _apply_view_state(view_state: Dictionary) -> void:
 	if view_state.is_empty():
 		return
 	zoom = clampf(float(view_state.get("zoom", zoom)), MIN_ZOOM, MAX_ZOOM)
+	if table_view:
+		_table_seat = int(view_state.get("tableSeat", _table_seat))
+		_table_yaw = float(view_state.get("tableYaw", _table_yaw))
+		_table_elev = clampf(float(view_state.get("tableElev", _table_elev)), TABLE_ELEV_MIN, TABLE_ELEV_MAX)
+		if _table_env != null and _table_env.has_method("set_active_seat"):
+			_table_env.set_active_seat(_table_seat)
+		_update_ortho_size()
+		return
 	_camera.position.x = float(view_state.get("panX", _camera.position.x))
 	_camera.position.z = float(view_state.get("panY", _camera.position.z))
 	_update_ortho_size()
 
 func get_view_state() -> Dictionary:
+	if table_view:
+		return {
+			"zoom": zoom,
+			"tableSeat": _table_seat,
+			"tableYaw": _table_yaw,
+			"tableElev": _table_elev,
+		}
 	return {
 		"zoom": zoom,
 		"panX": _camera.position.x,
@@ -583,7 +654,12 @@ func _rebuild_layers() -> void:
 		var use_cutout := has_image \
 			or MapRenderStyleScript.is_dd2(map_data) \
 			or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
+		# Vue table : des **pions** 3D posés sur le plateau, pas des découpes.
+		if table_view:
+			use_cutout = false
 		node.setup(tok, _cell_size, _party, readonly, use_cutout)
+		if table_view and node.has_method("set_pawn_mode"):
+			node.set_pawn_mode(true)
 		if use_cutout and node.has_method("set_overlay_height"):
 			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
 			# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
@@ -636,11 +712,16 @@ func _viewport_aspect() -> float:
 	return vp.x / maxf(vp.y, 1.0)
 
 func _effective_viewport_size() -> Vector2:
+	# Taille de la zone d'affichage, en pixels Control. Ne pas confondre avec
+	# `_viewport.size` (buffer en résolution écran, utile pour les conversions
+	# de pixels) : la géométrie de caméra/grille doit rester en pixels Control.
 	if size.x > 16.0 and size.y > 16.0:
 		return size
 	if _viewport_container != null and _viewport_container.size.x > 16.0 and _viewport_container.size.y > 16.0:
 		return _viewport_container.size
-	return Vector2(_viewport.size)
+	if _viewport != null and _viewport.size.x > 16.0 and _viewport.size.y > 16.0:
+		return Vector2(_viewport.size)
+	return Vector2(maxf(size.x, 8.0), maxf(size.y, 8.0))
 
 func _usable_viewport_size() -> Vector2:
 	var vp := _effective_viewport_size()
@@ -655,6 +736,10 @@ func _focus_screen_pos() -> Vector2:
 	return Vector2(_view_inset.x + usable.x * 0.5, _view_inset.y + usable.y * 0.5)
 
 func _update_ortho_size() -> void:
+	if table_view:
+		_apply_table_camera()
+		view_changed.emit()
+		return
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
 		# En perspective, le zoom rapproche / éloigne la caméra du sol.
 		_camera.position.y = maxf(0.5, _base_camera_height / maxf(zoom, 0.001))
@@ -740,6 +825,11 @@ func _ground_focus() -> Vector2:
 func _center_focus_on(target: Vector2) -> void:
 	if _camera == null:
 		return
+	if table_view:
+		# Orbite : on déplace le point visé, la caméra reste sur son cercle.
+		_table_target = target
+		_update_ortho_size()
+		return
 	var focus := _ground_focus()
 	_camera.position.x += target.x - focus.x
 	_camera.position.z += target.y - focus.y
@@ -748,6 +838,9 @@ func _center_focus_on(target: Vector2) -> void:
 ## montre toute la carte dans la zone utile (hors insets HUD).
 func _update_fit_base() -> void:
 	if _map_extent == Vector2.ZERO or _camera == null:
+		return
+	if table_view:
+		_update_table_fit()
 		return
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
 		var saved_zoom := zoom
@@ -785,6 +878,14 @@ func _fit_to_view() -> void:
 	if vp.x < 32.0 or vp.y < 32.0:
 		request_fit_to_view()
 		return
+	if table_view:
+		# « Cadrer » en vue table : toute la table visible depuis la place active.
+		zoom = 1.0
+		_table_target = _map_extent * 0.5
+		_update_fit_base()
+		_update_ortho_size()
+		zoom_changed.emit(zoom)
+		return
 	zoom = 1.0
 	_update_fit_base()
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
@@ -796,6 +897,9 @@ func _fit_to_view() -> void:
 	zoom_changed.emit(zoom)
 
 func _clamp_camera() -> void:
+	if table_view:
+		# L'orbite est bornée par ses propres limites (yaw libre, elev bornée).
+		return
 	if _map_extent == Vector2.ZERO:
 		return
 	var visible := _visible_ground_size()
@@ -821,6 +925,12 @@ func _apply_zoom(factor: float, anchor: Vector2) -> void:
 	var new_zoom := clampf(zoom * factor, MIN_ZOOM, MAX_ZOOM)
 	if is_equal_approx(new_zoom, old_zoom):
 		return
+	if table_view:
+		# Zoom = distance à la table (autour du point visé).
+		zoom = new_zoom
+		_update_ortho_size()
+		zoom_changed.emit(zoom)
+		return
 	var world_before := _raycast_ground(_control_to_viewport(anchor))
 	zoom = new_zoom
 	_update_ortho_size()
@@ -833,12 +943,23 @@ func _apply_zoom(factor: float, anchor: Vector2) -> void:
 	_clamp_camera()
 	zoom_changed.emit(zoom)
 
+func _viewport_pixel_scale() -> Vector2:
+	# Échelle pixel Control → pixel viewport (buffer en résolution écran).
+	# Avec stretch=true, le container fait coïncider le buffer avec la zone du
+	# Control, donc l'échelle vaut résolution_écran / taille_Control (~1.0 ici).
+	var vp_size := Vector2(_viewport.size) if _viewport != null else Vector2.ZERO
+	var ctrl := _effective_viewport_size()
+	if vp_size.x > 1.0 and vp_size.y > 1.0 and ctrl.x > 1.0 and ctrl.y > 1.0:
+		return vp_size / ctrl
+	var root_vp := get_viewport()
+	if root_vp != null:
+		var st := root_vp.get_stretch_transform().get_scale()
+		if absf(st.x) > 0.0001 and absf(st.y) > 0.0001:
+			return Vector2(maxf(absf(st.x), 1.0), maxf(absf(st.y), 1.0))
+	return Vector2.ONE
+
 func _control_to_viewport(pos: Vector2) -> Vector2:
-	var container_size := _viewport_container.size
-	if container_size.x <= 1.0 or container_size.y <= 1.0:
-		return pos
-	var vp_size := Vector2(_viewport.size)
-	return pos * (vp_size / container_size)
+	return pos * _viewport_pixel_scale()
 
 func _raycast_ground(viewport_pos: Vector2) -> Vector3:
 	var origin := _camera.project_ray_origin(viewport_pos)
@@ -889,13 +1010,7 @@ func screen_to_grid_pos(pos: Vector2) -> Vector2:
 func _viewport_to_control(pos: Vector2) -> Vector2:
 	if _viewport == null or _viewport_container == null:
 		return pos
-	var vp_size := Vector2(_viewport.size)
-	if vp_size.x <= 1.0 or vp_size.y <= 1.0:
-		return pos
-	var container_size := _viewport_container.size
-	if container_size.x <= 1.0 or container_size.y <= 1.0:
-		return pos
-	return pos * (container_size / vp_size)
+	return pos / _viewport_pixel_scale()
 
 ## Rectangle de la carte actuellement visible, en coordonnées grille.
 func visible_grid_rect() -> Rect2:
@@ -918,6 +1033,15 @@ func center_on_grid(gx: float, gy: float) -> void:
 ## Recadre la caméra sur un rectangle exprimé en cases.
 func focus_grid_rect(rect: Rect2, margin: float = 1.6) -> void:
 	if _camera == null or rect.size == Vector2.ZERO:
+		return
+	if table_view:
+		# Vue table : recentre le point visé (la distance suit le zoom courant).
+		_table_target = Vector2(
+			rect.get_center().x * _cell_size,
+			rect.get_center().y * _cell_size
+		)
+		_update_ortho_size()
+		zoom_changed.emit(zoom)
 		return
 	var extent := rect.size * _cell_size * margin
 	if _camera.projection == Camera3D.PROJECTION_PERSPECTIVE:
@@ -1079,9 +1203,6 @@ func _is_token_node(node: Node) -> bool:
 	return node != null and node.get_script() == MapToken3DScript
 
 func _process(delta: float) -> void:
-	# stretch=true du container écrase SubViewport.size : on le force ensuite
-	# à la résolution native pour éviter le flou d'upscale fenêtre.
-	_sync_viewport_pixel_size()
 	_sync_token_overlay_positions()
 	if _token_drag:
 		var world := _raycast_ground(_control_to_viewport(get_local_mouse_position()))
@@ -1089,6 +1210,10 @@ func _process(delta: float) -> void:
 			_token_drag.update_drag_world(world)
 		return
 	if _pan_velocity.length() < PAN_INERTIA_MIN:
+		return
+	if table_view:
+		# Pas d'inertie de translation en orbite : on retombe simplement.
+		_pan_velocity = Vector2.ZERO
 		return
 	_camera.position.x += _pan_velocity.x * delta
 	_camera.position.z += _pan_velocity.y * delta
@@ -1164,9 +1289,9 @@ func _sync_token_overlay_positions() -> void:
 	if _token_overlay == null or _camera == null or _overlay_icons.is_empty():
 		return
 	var vp_size := Vector2(_viewport.size)
-	if vp_size.x < 1.0 or vp_size.y < 1.0 or size.x < 1.0 or size.y < 1.0:
+	if vp_size.x < 1.0 or vp_size.y < 1.0:
 		return
-	var scale := size / vp_size
+	var scale := Vector2.ONE / _viewport_pixel_scale() # px viewport → unités Control
 	var origin_vp: Vector2 = _camera.unproject_position(Vector3.ZERO)
 	var cell_vp: Vector2 = _camera.unproject_position(Vector3(_cell_size, 0.0, 0.0))
 	var px_per_cell := absf((cell_vp.x - origin_vp.x) * scale.x)
@@ -1237,9 +1362,8 @@ func _gui_input(event: InputEvent) -> void:
 				_pending_click = true
 				_pan_dragging = false
 				_pan_velocity = Vector2.ZERO
-				_drag_start = mb.position
-				_pan_start = _camera.position
-				_last_pan_pos = mb.position
+				# Shift + glisser = déplacer la caméra sans tourner.
+				_begin_view_drag(mb.position, mb.shift_pressed)
 				accept_event()
 			else:
 				if _token_drag:
@@ -1262,10 +1386,21 @@ func _gui_input(event: InputEvent) -> void:
 			_token_drag = null
 			_pan_velocity = Vector2.ZERO
 			if mb.pressed:
-				_drag_start = mb.position
-				_pan_start = _camera.position
-				_last_pan_pos = mb.position
+				# Molette du milieu = déplacer la caméra sans tourner.
+				_begin_view_drag(mb.position, true)
 			accept_event()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			# Geste de lancer (vue table) : le dé apparaît au clic pressé et suit
+			# la souris ; le LÂCHER le relâche avec la vitesse du geste.
+			if table_view:
+				if mb.pressed:
+					var world := _raycast_ground(_control_to_viewport(mb.position))
+					if world != Vector3.INF:
+						begin_dice_throw(world, mb.position)
+					accept_event()
+				else:
+					end_dice_throw(mb.position)
+					accept_event()
 	elif event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
 		if _token_press_candidate != null and _token_drag == null:
@@ -1282,6 +1417,11 @@ func _gui_input(event: InputEvent) -> void:
 				_token_drag.update_drag_world(world)
 			accept_event()
 			return
+		if _dice != null and is_instance_valid(_dice) and _dice.held_count() > 0:
+			# Dé tenu par le clic droit : il suit la souris (visée avant lancer).
+			update_dice_throw(motion.position)
+			accept_event()
+			return
 		if _pending_click and not _pan_dragging:
 			if _drag_start.distance_to(motion.position) >= DRAG_THRESHOLD:
 				_pan_dragging = true
@@ -1295,6 +1435,9 @@ func _gui_input(event: InputEvent) -> void:
 
 ## Applique le déplacement de vue correspondant à un mouvement souris.
 func _pan_from_motion(motion: InputEventMouseMotion) -> void:
+	if table_view:
+		_table_orbit_from_motion(motion.position)
+		return
 	var delta_pos := motion.position - _drag_start
 	var span := _ground_span_per_pixel()
 	_camera.position.x = _pan_start.x - delta_pos.x * span.x
@@ -1326,9 +1469,7 @@ func _editor_gui_input(event: InputEvent) -> void:
 				_pan_dragging = mb.pressed
 				_pan_velocity = Vector2.ZERO
 				if mb.pressed:
-					_drag_start = mb.position
-					_pan_start = _camera.position
-					_last_pan_pos = mb.position
+					_begin_view_drag(mb.position, true)
 				accept_event()
 			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
 				if mb.pressed:
@@ -1345,16 +1486,19 @@ func _editor_gui_input(event: InputEvent) -> void:
 			return
 		editor_pointer_moved.emit(_screen_to_grid(motion.position), motion.position, _mods(motion))
 
-## Déplacement de vue piloté par l'éditeur (outil « main », espace maintenu).
-func begin_view_pan(screen_pos: Vector2) -> void:
+## Déplacement de vue piloté par l'éditeur (outil « main », espace maintenu) —
+## c'est un pan : déplacer la caméra sans la tourner.
+func begin_view_pan(screen_pos: Vector2, pan_mode: bool = true) -> void:
 	_pan_dragging = true
 	_pan_velocity = Vector2.ZERO
-	_drag_start = screen_pos
-	_pan_start = _camera.position
-	_last_pan_pos = screen_pos
+	_begin_view_drag(screen_pos, pan_mode)
 
 func update_view_pan(screen_pos: Vector2) -> void:
 	if not _pan_dragging or _camera == null:
+		return
+	if table_view:
+		_table_orbit_from_motion(screen_pos)
+		view_changed.emit()
 		return
 	var delta_pos := screen_pos - _drag_start
 	var span := _ground_span_per_pixel()
@@ -1368,6 +1512,376 @@ func end_view_pan() -> void:
 	_pan_velocity = Vector2.ZERO
 	if not editor_mode:
 		_update_area_hover(get_local_mouse_position())
+
+## Mémorise l'état de départ d'un drag de vue (pan OU orbite table).
+## `pan_mode` : true = déplacer la caméra sans tourner (Shift+glisser).
+func _begin_view_drag(screen_pos: Vector2, pan_mode: bool = false) -> void:
+	_drag_start = screen_pos
+	_pan_start = _camera.position if _camera != null else Vector3.ZERO
+	_last_pan_pos = screen_pos
+	_table_drag_yaw = _table_yaw
+	_table_drag_elev = _table_elev
+	_drag_pan_mode = pan_mode
+	_table_drag_target_start = _table_target
+
+# ===========================================================================
+# Vue table (plateau virtuel)
+# ===========================================================================
+#
+# La carte devient le plan de jeu posé sur une table de taverne ; la caméra
+# orbite depuis une des quatre places autour de la table (drag = tourner autour
+# du plateau, molette = s'approcher / s'éloigner, « Cadrer » = table entière).
+
+func set_table_view(on: bool) -> void:
+	if not is_node_ready():
+		await ready
+	if table_view == on:
+		if on:
+			_sync_table_environment()
+		return
+	table_view = on
+	if on:
+		_sync_table_environment()
+		if _table_env != null and _table_env.has_method("set_active_seat"):
+			_table_env.set_active_seat(_table_seat)
+		_table_target = _map_extent * 0.5
+		_apply_ambient_for_table()
+	else:
+		if _table_env != null and is_instance_valid(_table_env):
+			_table_env.queue_free()
+		_table_env = null
+		_apply_ambient_for_table()
+	_apply_camera_perspective()
+	_apply_lighting()
+	# Les tokens changent de style en basculant (pions sur la table).
+	if not map_data.is_empty():
+		_rebuild_layers()
+	if not table_view:
+		request_fit_to_view()
+	view_changed.emit()
+
+func is_table_view() -> bool:
+	return table_view
+
+## Place occupée autour de la table : 0=sud, 1=est, 2=nord, 3=ouest.
+func get_table_seat() -> int:
+	return _table_seat
+
+func set_table_seat(index: int) -> void:
+	_table_seat = wrapi(index, 0, 4)
+	_table_yaw = float(_table_seat * 90)
+	if _table_env != null and _table_env.has_method("set_active_seat"):
+		_table_env.set_active_seat(_table_seat)
+	_update_ortho_size()
+	zoom_changed.emit(zoom)
+
+func cycle_table_seat(direction: int = 1) -> void:
+	set_table_seat(_table_seat + direction)
+
+func table_seat_label(index: int = -1) -> String:
+	if _table_env != null and _table_env.has_method("seat_label"):
+		return str(_table_env.seat_label(_table_seat if index < 0 else index))
+	return ""
+
+## Libellés des places autour de la table (joueurs + MJ), 0..3.
+func set_table_seat_labels(labels: Array) -> void:
+	_table_seat_labels = labels.duplicate()
+	if _table_env != null and _table_env.has_method("set_seat_labels"):
+		_table_env.set_seat_labels(_table_seat_labels)
+
+## Inclinaison de vue par place (ex. MJ plus haut pour tout voir).
+func set_table_elevation(deg: float) -> void:
+	_table_elev = clampf(deg, TABLE_ELEV_MIN, TABLE_ELEV_MAX)
+	_table_drag_elev = _table_elev
+	_update_ortho_size()
+
+## Couleur des dés du joueur courant.
+func set_table_dice_color(color: Color) -> void:
+	_dice_color = color
+
+## Type de dé à lancer : 4, 6, 8, 10, 12, 20 ou 100 (vrai dé à 100 faces).
+func set_table_dice_sides(sides: int) -> void:
+	_dice_sides = sides if sides in [4, 6, 8, 10, 12, 20, 100] else 6
+
+func get_table_dice_sides() -> int:
+	return _dice_sides
+
+## Lancer de dés à un point du plateau (clic droit = « où l'on veut »).
+## **Un clic = un seul dé**, quel que soit son type (d100 = vrai dé 100 faces).
+## Les dés s'accumulent sur la table. Le verdict d'atterrissage arrive via
+## `table_dice_result`.
+func roll_table_dice_at(world: Vector3, count: int = -1) -> void:
+	if not table_view or _table_env == null:
+		return
+	_ensure_dice()
+	var n := count
+	if n <= 0:
+		n = 1
+	if _dice.has_method("roll"):
+		_dice.roll(n, world, _dice_color, _dice_sides)
+
+func _ensure_dice() -> void:
+	if _dice == null or not is_instance_valid(_dice):
+		_dice = TableDice3DScript.new()
+		_dice.name = "TableDice"
+		_world.add_child(_dice)
+		_dice.dice_settled.connect(_on_dice_settled)
+
+# --------------------------------------------------------------------------
+# Geste de lancer (clic droit) : le dé APPARAÎT au clic et suit la souris,
+# le LÂCHER du clic le relâche avec la vitesse calculée du geste de souris.
+# --------------------------------------------------------------------------
+
+func begin_dice_throw(world: Vector3, screen_pos: Vector2) -> void:
+	if not table_view or _table_env == null:
+		return
+	_ensure_dice()
+	if _dice.held_count() > 0:
+		_dice.release_held(Vector3.ZERO, Vector3(0.0, 1.0, 0.0))
+	_dice.hold_die(world, _dice_color, _dice_sides)
+	_throw_samples.clear()
+	_throw_samples.append({"pos": screen_pos, "t": Time.get_ticks_msec()})
+
+func update_dice_throw(screen_pos: Vector2) -> void:
+	if _dice == null or not is_instance_valid(_dice) or _dice.held_count() == 0:
+		return
+	var world := _raycast_ground(_control_to_viewport(screen_pos))
+	if world != Vector3.INF:
+		_dice.move_held(world)
+	_record_throw_sample(screen_pos)
+
+func end_dice_throw(screen_pos: Vector2) -> void:
+	if _dice == null or not is_instance_valid(_dice) or _dice.held_count() == 0:
+		return
+	_record_throw_sample(screen_pos)
+	_dice.release_held(_throw_velocity_world(), _throw_spin())
+	_throw_samples.clear()
+
+func _record_throw_sample(screen_pos: Vector2) -> void:
+	_throw_samples.append({"pos": screen_pos, "t": Time.get_ticks_msec()})
+	while _throw_samples.size() > 2 \
+		and Time.get_ticks_msec() - int(_throw_samples[0]["t"]) > 220:
+		_throw_samples.pop_front()
+
+## Vitesse du dé = mouvement de la souris au moment du lancer (fenêtre ~150 ms),
+## converti px/s → unités monde (plan du sol) et projeté sur les axes caméra.
+func _throw_velocity_world() -> Vector3:
+	if _throw_samples.size() < 2:
+		return Vector3(0.0, 0.4, 0.0)
+	var first: Dictionary = _throw_samples[0]
+	for s_variant in _throw_samples:
+		var s: Dictionary = s_variant
+		if int(s["t"]) >= Time.get_ticks_msec() - 150:
+			first = s
+			break
+	var last: Dictionary = _throw_samples[_throw_samples.size() - 1]
+	var dt := maxf(float(int(last["t"]) - int(first["t"])) / 1000.0, 0.016)
+	var delta: Vector2 = (last["pos"] as Vector2) - (first["pos"] as Vector2)
+	var px_per_s := delta / dt
+	var span := _ground_span_per_pixel()
+	var right := Vector3.RIGHT
+	var fwd := Vector3(0.0, 0.0, -1.0)
+	if _camera != null:
+		var basis := _camera.global_transform.basis
+		var r := Vector3(basis.x.x, 0.0, basis.x.z)
+		var f := Vector3(-basis.z.x, 0.0, -basis.z.z)
+		if r.length_squared() > 0.0001:
+			right = r.normalized()
+		if f.length_squared() > 0.0001:
+			fwd = f.normalized()
+	var vel := right * (px_per_s.x * span.x) + fwd * (-px_per_s.y * span.y)
+	var flat := Vector3(vel.x, 0.0, vel.z)
+	var max_speed := 7.0
+	if flat.length() > max_speed:
+		flat = flat.normalized() * max_speed
+	# Petit lob : plus le geste est vif, plus le dé part vers le haut.
+	flat.y = clampf(flat.length() * 0.3 + 0.3, 0.3, 3.0)
+	return flat
+
+func _throw_spin() -> Vector3:
+	return Vector3(
+		randf_range(-8.0, 8.0), randf_range(-8.0, 8.0), randf_range(-8.0, 8.0)
+	)
+
+func _on_dice_settled(faces: Array, positions: Array, droit: PackedByteArray) -> void:
+	# Règle maison : ça compte si le dé finit **droit**, où qu'il soit tombé.
+	var valid := positions.size() > 0
+	for d in droit:
+		if d == 0:
+			valid = false
+	var total := 0
+	if _dice_sides == 100:
+		# Vrai dé à 100 faces : la face du dessus est le résultat (1-100).
+		total = int(faces[0]) if faces.size() > 0 else 0
+	elif _dice_sides == 10:
+		# d10 chiffres 0-9 : le 0 vaut 10.
+		for f_variant in faces:
+			var v := int(f_variant)
+			total += 10 if v == 0 else v
+	else:
+		for f_variant in faces:
+			total += int(f_variant)
+	table_dice_result.emit(faces, total, valid)
+
+func _sync_table_environment() -> void:
+	if not table_view or _world == null:
+		return
+	if _table_env == null or not is_instance_valid(_table_env):
+		_table_env = TableEnvironmentScript.new()
+		_table_env.name = "TableEnv"
+		_world.add_child(_table_env)
+		_world.move_child(_table_env, 0)
+	if _map_extent != Vector2.ZERO and _table_env.has_method("configure"):
+		_table_env.configure(_map_extent)
+	if not _table_seat_labels.is_empty() and _table_env.has_method("set_seat_labels"):
+		_table_env.set_seat_labels(_table_seat_labels)
+
+## Ambiance salle : fond sombre chaud, lumière ambiante tamisée (la table
+## est éclairée par sa propre suspension — cf. TableEnvironment3D).
+func _apply_ambient_for_table() -> void:
+	if _world_env == null or _world_env.environment == null:
+		return
+	var env := _world_env.environment
+	if table_view:
+		env.background_color = Color(0.04, 0.03, 0.03)
+		env.ambient_light_color = Color(0.42, 0.33, 0.24)
+		env.ambient_light_energy = 0.32
+	else:
+		env.background_color = Color(0.06, 0.05, 0.08)
+		env.ambient_light_color = Color(0.42, 0.38, 0.48)
+		env.ambient_light_energy = 0.55
+
+## Point visé au sol (x, z), centré sur la table sauf recentrage demandé.
+func _table_target_point() -> Vector3:
+	var t := _table_target
+	if _map_extent != Vector2.ZERO:
+		t = Vector2(
+			clampf(t.x, 0.0, _map_extent.x),
+			clampf(t.y, 0.0, _map_extent.y)
+		)
+	return Vector3(t.x, 0.45, t.y)
+
+## Distance caméra bornée pour ne jamais traverser le plateau ni partir trop loin.
+func _table_dist_limits() -> Vector2:
+	var size_t: Vector2 = _table_env.table_size_with_margin() \
+		if _table_env != null and _table_env.has_method("table_size_with_margin") else _map_extent
+	var ref := maxf(maxf(size_t.x, size_t.y), 1.0)
+	return Vector2(ref * 0.3, ref * 2.2)
+
+## Distance (zoom=1) cadrant toute la table depuis la place active.
+## Ajustée par projection réelle des coins de la table : en perspective
+## inclinée le sol visible est un trapèze, les estimations « span × pixels »
+## dérapent vite aux faibles angles (et comptent mal les échelles DPI).
+func _update_table_fit() -> void:
+	if _camera == null or _map_extent == Vector2.ZERO:
+		return
+	var size_t: Vector2 = _table_env.table_size_with_margin() \
+		if _table_env != null and _table_env.has_method("table_size_with_margin") \
+		else _map_extent + Vector2(1.2, 1.2) * 2.0
+	var target := _table_target_point()
+	var elev_r := deg_to_rad(_table_elev)
+	var yaw_r := deg_to_rad(_table_yaw)
+	var back := Vector3(sin(yaw_r) * cos(elev_r), sin(elev_r), cos(yaw_r) * cos(elev_r))
+	var aspect := maxf(_viewport_aspect(), 0.4)
+	var fov_y := deg_to_rad(TABLE_FOV)
+	var fov_x := 2.0 * atan(tan(fov_y * 0.5) * aspect)
+	var d_w := (size_t.x * 0.5) / tan(fov_x * 0.5)
+	var d_h := (size_t.y * 0.5) / maxf(tan(fov_y * 0.5) * sin(elev_r), 0.15)
+	var dist := maxf(d_w, d_h) * 1.05
+	var limits := _table_dist_limits()
+	var corners := _table_corner_worlds(size_t)
+	for _pass in range(8):
+		dist = clampf(dist, limits.x, limits.y)
+		_camera.position = target + back * dist
+		_camera.look_at(target)
+		var factor := _table_frame_factor(corners)
+		if factor <= 0.0:
+			break
+		if absf(factor - 1.0) < 0.02:
+			break
+		dist *= clampf(factor, 0.4, 2.5) * 1.01
+	_table_dist_base = clampf(dist, limits.x, limits.y)
+
+## Coins monde (y=0) du plateau à cadrer (plan de jeu + marge).
+func _table_corner_worlds(size_t: Vector2) -> PackedVector3Array:
+	var c := Vector3(_map_extent.x * 0.5, 0.0, _map_extent.y * 0.5)
+	var hx := size_t.x * 0.5
+	var hz := size_t.y * 0.5
+	return PackedVector3Array([
+		Vector3(c.x - hx, 0.0, c.z - hz),
+		Vector3(c.x + hx, 0.0, c.z - hz),
+		Vector3(c.x - hx, 0.0, c.z + hz),
+		Vector3(c.x + hx, 0.0, c.z + hz),
+	])
+
+## Facteur d'échelle pour que le cadre des coins remplisse la zone utile :
+## 1.0 = parfaitement cadré, >1 = encore trop grand (faut reculer), 0 = N/A.
+func _table_frame_factor(corners: PackedVector3Array) -> float:
+	if _camera == null or corners.size() < 4:
+		return 0.0
+	var usable := _usable_viewport_size()
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for corner in corners:
+		if _camera.is_position_behind(corner):
+			return 2.5
+		var p := _viewport_to_control(_camera.unproject_position(corner))
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var need := max_p - min_p
+	if need.x <= 0.0 or need.y <= 0.0:
+		return 0.0
+	return maxf(need.x / maxf(usable.x, 1.0), need.y / maxf(usable.y, 1.0))
+
+## Place la caméra à la place active : orbite autour du point visé.
+func _apply_table_camera() -> void:
+	if _camera == null or not table_view:
+		return
+	var target := _table_target_point()
+	var elev_r := deg_to_rad(clampf(_table_elev, TABLE_ELEV_MIN, TABLE_ELEV_MAX))
+	var yaw_r := deg_to_rad(_table_yaw)
+	var back := Vector3(sin(yaw_r) * cos(elev_r), sin(elev_r), cos(yaw_r) * cos(elev_r))
+	var limits := _table_dist_limits()
+	var dist := clampf(_table_dist_base / maxf(zoom, 0.001), limits.x, limits.y)
+	_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	_camera.fov = TABLE_FOV
+	_camera.position = target + back * dist
+	if _camera.position.distance_to(target) > 0.01:
+		_camera.look_at(target)
+
+## Drag de vue en cours sur la table : Shift/molette du milieu = pan (déplacer
+## sans tourner), sinon = orbite (tourner autour du plateau).
+func _table_orbit_from_motion(screen_pos: Vector2) -> void:
+	if _drag_pan_mode:
+		_table_pan_from_motion(screen_pos)
+		return
+	var delta_pos := screen_pos - _drag_start
+	_table_yaw = _table_drag_yaw - delta_pos.x * 0.32
+	_table_elev = clampf(_table_drag_elev + delta_pos.y * 0.18, TABLE_ELEV_MIN, TABLE_ELEV_MAX)
+	_update_ortho_size()
+
+## Déplacement latéral de la caméra (axe/yaw/inclinaison inchangés) : la scène
+## suit le curseur. Le point visé glisse dans le plan du sol.
+func _table_pan_from_motion(screen_pos: Vector2) -> void:
+	if _camera == null:
+		return
+	var delta := screen_pos - _drag_start
+	var span := _ground_span_per_pixel()
+	var k := (span.x + span.y) * 0.5
+	var basis := _camera.global_transform.basis
+	var right := Vector3(basis.x.x, 0.0, basis.x.z)
+	var fwd := Vector3(-basis.z.x, 0.0, -basis.z.z)
+	if right.length_squared() > 0.0001:
+		right = right.normalized()
+	else:
+		right = Vector3.RIGHT
+	if fwd.length_squared() > 0.0001:
+		fwd = fwd.normalized()
+	else:
+		fwd = Vector3(0, 0, -1)
+	var move := -right * delta.x * k + fwd * delta.y * k
+	_table_target = _table_drag_target_start + Vector2(move.x, move.z)
+	_update_ortho_size()
 
 func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
 	var grid := _screen_to_grid(screen_pos)
@@ -1469,35 +1983,8 @@ func zoom_out() -> void:
 func reset_zoom() -> void:
 	_fit_to_view()
 
-func _sync_viewport_pixel_size() -> void:
-	if _viewport == null or _viewport_container == null:
-		return
-	var logical := _viewport_container.size
-	if logical.x < 2.0 or logical.y < 2.0:
-		logical = size
-	if logical.x < 2.0 or logical.y < 2.0:
-		return
-	var scale := Vector2.ONE
-	var root_vp := get_viewport()
-	if root_vp != null:
-		scale = root_vp.get_stretch_transform().get_scale()
-	var sx := maxf(absf(scale.x), 1.0)
-	var sy := maxf(absf(scale.y), 1.0)
-	var tw := int(ceil(logical.x * sx))
-	var th := int(ceil(logical.y * sy))
-	# Plafond 4K pour limiter le coût GPU.
-	var max_dim := 3840
-	if tw > max_dim or th > max_dim:
-		var f := float(max_dim) / float(maxi(tw, th))
-		tw = maxi(64, int(ceil(float(tw) * f)))
-		th = maxi(64, int(ceil(float(th) * f)))
-	var target := Vector2i(maxi(64, tw), maxi(64, th))
-	if _viewport.size != target:
-		_viewport.size = target
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		_sync_viewport_pixel_size()
 		if map_data.is_empty() or _camera == null or _map_extent == Vector2.ZERO:
 			return
 		var keep := get_view_state()
