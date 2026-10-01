@@ -568,7 +568,8 @@ func _merge_party_with_room(host_party: Array) -> Array:
 		var pid: String = room_player.get("playerId", "")
 		if room_player.get("isGm", false):
 			continue
-		var char_data: Dictionary = room_player.get("character", {})
+		var raw_char = room_player.get("character", {})
+		var char_data: Dictionary = raw_char if raw_char is Dictionary else {}
 		if char_data.is_empty():
 			continue
 		var already := false
@@ -617,10 +618,16 @@ func _build_party_from_room() -> Array:
 	for room_player in get_room_players():
 		if room_player.get("isGm", false):
 			continue
-		var char_data: Dictionary = room_player.get("character", {})
+		var raw_char = room_player.get("character", {})
+		var char_data: Dictionary = raw_char if raw_char is Dictionary else {}
+		var member: Dictionary
 		if char_data.is_empty():
-			continue
-		var member: Dictionary = char_data.duplicate(true)
+			# Joueur connecté sans fiche enregistrée : héros vierge nommé d'après
+			# son pseudo — sinon il reste invisible dans le groupe (« Groupe 0 »).
+			member = GameData.create_blank_character()
+			member["name"] = str(room_player.get("playerName", "Joueur")).strip_edges()
+		else:
+			member = char_data.duplicate(true)
 		member["isPlayer"] = true
 		member["isHuman"] = true
 		member["isBot"] = false

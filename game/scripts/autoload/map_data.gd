@@ -1738,7 +1738,14 @@ func _load_json(path: String) -> Variant:
 	if not FileAccess.file_exists(path):
 		return null
 	var text := FileAccess.get_file_as_string(path)
-	return JSON.parse_string(text)
+	if text.strip_edges().is_empty():
+		# Fichier vide (ex. 1er boot, écriture interrompue) — pas une erreur.
+		return null
+	var json := JSON.new()
+	if json.parse(text) != OK:
+		push_warning("Erreur lecture JSON (%s) : %s" % [path, json.get_error_message()])
+		return null
+	return json.data
 
 func _save_json(path: String, data: Variant) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)

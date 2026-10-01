@@ -95,22 +95,34 @@ func _force_layout() -> void:
 	if not is_inside_tree():
 		return
 	# Une frame : les ancres viennent d'être réécrites, Godot n'a pas encore
-	# recalculé size. reset_size trop tôt laisse le swap joueur/PNJ coincé.
+	# recalculé size. On réapplique les offsets nuls pour que la boîte reprenne
+	# exactement son rectangle ancré — reset_size() l'écrasait à la taille
+	# minimale du texte (bulle en colonne étroite).
 	await get_tree().process_frame
 	if not is_inside_tree() or not visible:
 		return
-	for node in [_art, _box]:
-		node.reset_size()
+	_apply_anchor_offsets()
 	await get_tree().process_frame
 	if is_inside_tree():
-		for node in [_art, _box]:
-			node.reset_size()
+		_apply_anchor_offsets()
+
+func _apply_anchor_offsets() -> void:
+	for node in [_art, _box]:
+		node.offset_left = 0.0
+		node.offset_top = 0.0
+		node.offset_right = 0.0
+		node.offset_bottom = 0.0
 
 ## Joueur / bot → portrait à droite. PNJ → portrait à gauche. MJ → boîte seule (bas).
 func _layout_for_kind(kind: String) -> void:
 	var player_side := kind == "player" or kind == "bot"
 	var gm_side := kind == "gm"
-	var compact := size.y < 820.0 or size.x < 1480.0
+	# Référence de mise en page : `size` peut ne pas encore être calculé au
+	# premier affichage (juste après un changement de scène) → repli viewport.
+	var ref := size
+	if ref.x < 2.0 or ref.y < 2.0:
+		ref = get_viewport_rect().size
+	var compact := ref.y < 820.0 or ref.x < 1480.0
 	_art.flip_h = false
 	if compact:
 		# Demi-écran : bulle dans le trou de carte, au-dessus fiche + barre (~32 % bas)

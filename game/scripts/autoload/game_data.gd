@@ -56,6 +56,9 @@ func _load_json_file(path: String) -> Variant:
 	if not file:
 		return null
 	var content := file.get_as_text()
+	if content.strip_edges().is_empty():
+		# Fichier vide (ex. écriture interrompue au 1er boot) — pas une erreur.
+		return null
 	var json := JSON.new()
 	var error := json.parse(content)
 	if error != OK:

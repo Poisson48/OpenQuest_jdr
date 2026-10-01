@@ -286,13 +286,15 @@ func _on_pooling_lobby_updated(_rooms: Array) -> void:
 	_update_pooling_role_ui()
 
 func _on_p2p_host_started(address: String) -> void:
-	p2p_status_lbl.text = tr("● Hôte ENet actif — %s") % address
+	var detail := "WebRTC" if MultiplayerManager.get_p2p_transport() == "webrtc" else "ENet (%s)" % address
+	p2p_status_lbl.text = tr("● Hôte P2P actif — %s") % detail
 	p2p_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	_update_pooling_launch_ui()
 
 func _on_p2p_connected(_peer_id: int) -> void:
 	if not MultiplayerManager.is_p2p_host():
-		p2p_status_lbl.text = tr("● Connecté P2P (ENet)")
+		var label := "WebRTC" if MultiplayerManager.get_p2p_transport() == "webrtc" else "ENet"
+		p2p_status_lbl.text = tr("● Connecté P2P (%s)") % label
 		p2p_status_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	_update_pooling_launch_ui()
 
