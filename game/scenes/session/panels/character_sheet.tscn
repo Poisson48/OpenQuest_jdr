@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/character_sheet.gd" id="1_script"]
-[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="2_theme"]
+[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/stat_chip.tscn" id="3_chip"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/ability_block.tscn" id="4_ability"]
 

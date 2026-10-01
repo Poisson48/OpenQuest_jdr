@@ -1,6 +1,6 @@
 extends Control
 
-const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn")
+var SavedGameRowScene: PackedScene = null
 
 @onready var home_page: VBoxContainer = %HomePage
 @onready var ongoing_page: PanelContainer = %OngoingPage
@@ -31,6 +31,7 @@ var _pooling_char_registered := false
 const DISCORD_INVITE_URL := "https://discord.gg/nqYfxpbNC"
 
 func _ready() -> void:
+	SavedGameRowScene = load("res://scenes/hub/panels/saved_game_row.tscn")
 	%BtnPlay.pressed.connect(_on_play_pressed)
 	%BtnOngoing.pressed.connect(_on_ongoing_pressed)
 	%BtnDiscover.pressed.connect(_on_discover_pressed)

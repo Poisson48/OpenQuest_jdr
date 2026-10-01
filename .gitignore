@@ -22,3 +22,6 @@ server/dist/
 game/webrtc/
 # Captures d'écran de debug à la racine (docs/screenshots reste versionné)
 /*.png
+
+# Jeux de ressources Godot regenérés à chaque import (LF/CRLF churn uniquement)
+*.import

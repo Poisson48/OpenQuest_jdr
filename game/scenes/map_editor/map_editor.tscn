@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/map_complex_editor.gd" id="1_script"]
-[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="2_theme"]
+[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/inspector.tscn" id="3_insp"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/outliner.tscn" id="4_out"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/settings.tscn" id="5_set"]

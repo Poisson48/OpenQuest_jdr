@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://game_setup_001"]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/game_setup.gd" id="2_script"]
 
 [node name="GameSetup" type="Control"]

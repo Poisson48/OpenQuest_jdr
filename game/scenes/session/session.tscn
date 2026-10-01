@@ -1,6 +1,6 @@
-[gd_scene load_steps=14 format=3 uid="uid://session_scene_001"]
+[gd_scene load_steps=14 format=3]
 
-[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/session/session_shell.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/session_header.tscn" id="3_header"]
 [ext_resource type="PackedScene" path="res://scenes/session/panels/party_dock.tscn" id="4_party"]
