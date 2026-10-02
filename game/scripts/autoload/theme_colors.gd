@@ -36,7 +36,7 @@ const HAIRLINE: Color = Color("3a2f21")
 # ---------------------------------------------------------------------------
 # Typographie — 3 niveaux max pour les titres
 # ---------------------------------------------------------------------------
-const FONT_SIZE_H1: int = 28      # Titre de page
+const FONT_SIZE_H1: int = 24      # Titre de page
 const FONT_SIZE_H2: int = 20      # Titre de section / panel
 const FONT_SIZE_H3: int = 16      # Titre de sous-section
 const FONT_SIZE_BODY: int = 16    # Texte courant

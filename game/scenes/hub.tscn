@@ -49,7 +49,7 @@ text = "← Accueil"
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "🏛️ OpenQuest — Centre d'Aventures"
 
 [node name="TabNav" type="HBoxContainer" parent="MainLayout"]
