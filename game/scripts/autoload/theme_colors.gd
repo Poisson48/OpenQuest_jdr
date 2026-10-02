@@ -33,6 +33,23 @@ const SURFACE_DOCK: Color = Color("221b13")
 const SURFACE_RAISED: Color = Color("2f2618")
 const HAIRLINE: Color = Color("3a2f21")
 
+# ---------------------------------------------------------------------------
+# Typographie — 3 niveaux max pour les titres
+# ---------------------------------------------------------------------------
+const FONT_SIZE_H1: int = 28      # Titre de page
+const FONT_SIZE_H2: int = 20      # Titre de section / panel
+const FONT_SIZE_H3: int = 16      # Titre de sous-section
+const FONT_SIZE_BODY: int = 16    # Texte courant
+const FONT_SIZE_CAPTION: int = 14 # Légende, métadonnées
+const FONT_SIZE_MICRO: int = 12   # Détails techniques
+
+# ---------------------------------------------------------------------------
+# Boutons — 3 hauteurs standard
+# ---------------------------------------------------------------------------
+const BTN_HEIGHT_CTA: int = 48       # Action principale (Lancer, Envoyer)
+const BTN_HEIGHT_STANDARD: int = 40  # Action secondaire
+const BTN_HEIGHT_COMPACT: int = 32   # Outil compact (dés, zoom)
+
 ## Couleurs d'auteur du journal — un rôle, une teinte.
 const LOG_GM: Color = GOLD_LIGHT
 const LOG_NPC: Color = Color("b79bd8")

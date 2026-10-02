@@ -48,7 +48,7 @@ text = "← Retour au Hub"
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 20
 text = "📜 Bibliothèque de Scénarios"
 
 [node name="LblModeFilter" type="Label" parent="MainLayout/TopBar"]
@@ -139,7 +139,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 20
 text = "Titre du Scénario"
 autowrap_mode = 3
 
