@@ -46,12 +46,21 @@ custom_minimum_size = Vector2(140, 44)
 layout_mode = 2
 text = "← Accueil"
 
+[node name="LblBrand" type="Label" parent="MainLayout/TopBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 16
+text = "🗺️ OpenQuest"
+
+[node name="SepBrand" type="VSeparator" parent="MainLayout/TopBar"]
+layout_mode = 2
+
 [node name="Title" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 theme_override_font_sizes/font_size = 24
-text = "🏛️ OpenQuest — Centre d'Aventures"
+text = "🏛️ Centre d'Aventures"
 
 [node name="TabNav" type="HBoxContainer" parent="MainLayout"]
 unique_name_in_owner = true
