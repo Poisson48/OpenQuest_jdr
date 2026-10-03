@@ -2,7 +2,7 @@ extends Control
 
 const CharacterCardScene := preload("res://scenes/hub/panels/character_card.tscn")
 
-@onready var char_list_container: VBoxContainer = %CharacterList
+@onready var char_list_container: GridContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
 @onready var tier_picker_panel: PanelContainer = %TierPickerPanel
 @onready var tier_overlay: ColorRect = %TierOverlay

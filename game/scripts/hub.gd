@@ -481,11 +481,7 @@ func _sorted_bots(bots: Array) -> Array:
 	return copy
 
 func _bot_grid_columns() -> int:
-	var available := int(bots_scroll.size.x)
-	if available < 320:
-		available = int(get_viewport().get_visible_rect().size.x) - 96
-	var cols := clampi(available / 210, 4, 5)
-	return cols
+	return 4
 
 func _add_bots_empty_state() -> void:
 	var empty_lbl := Label.new()

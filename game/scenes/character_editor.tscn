@@ -82,11 +82,13 @@ grow_horizontal = 2
 grow_vertical = 2
 horizontal_scroll_mode = 0
 
-[node name="CharacterList" type="VBoxContainer" parent="MainLayout/ContentArea/ListScroll"]
+[node name="CharacterList" type="GridContainer" parent="MainLayout/ContentArea/ListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+columns = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="TierOverlay" type="ColorRect" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
