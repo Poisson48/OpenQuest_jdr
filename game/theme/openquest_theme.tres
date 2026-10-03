@@ -264,9 +264,9 @@ corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tool_normal"]
 content_margin_left = 7.0
-content_margin_top = 5.0
+content_margin_top = 8.0
 content_margin_right = 7.0
-content_margin_bottom = 5.0
+content_margin_bottom = 8.0
 bg_color = Color(0.152941, 0.121569, 0.0862745, 1)
 border_width_left = 1
 border_width_top = 1
@@ -280,9 +280,9 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tool_hover"]
 content_margin_left = 7.0
-content_margin_top = 5.0
+content_margin_top = 8.0
 content_margin_right = 7.0
-content_margin_bottom = 5.0
+content_margin_bottom = 8.0
 bg_color = Color(0.227451, 0.188235, 0.12549, 1)
 border_width_left = 1
 border_width_top = 1
@@ -296,9 +296,9 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tool_pressed"]
 content_margin_left = 7.0
-content_margin_top = 5.0
+content_margin_top = 8.0
 content_margin_right = 7.0
-content_margin_bottom = 5.0
+content_margin_bottom = 8.0
 bg_color = Color(0.294118, 0.223529, 0.0862745, 1)
 border_width_left = 1
 border_width_top = 1
@@ -312,9 +312,9 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ghost_normal"]
 content_margin_left = 10.0
-content_margin_top = 6.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 6.0
+content_margin_bottom = 8.0
 bg_color = Color(0, 0, 0, 0)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
@@ -323,9 +323,9 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ghost_hover"]
 content_margin_left = 10.0
-content_margin_top = 6.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 6.0
+content_margin_bottom = 8.0
 bg_color = Color(0.227451, 0.188235, 0.12549, 0.8)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
@@ -333,9 +333,9 @@ corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_accent_normal"]
-content_margin_left = 14.0
+content_margin_left = 12.0
 content_margin_top = 8.0
-content_margin_right = 14.0
+content_margin_right = 12.0
 content_margin_bottom = 8.0
 bg_color = Color(0.294118, 0.223529, 0.0862745, 1)
 border_width_left = 1
@@ -349,9 +349,9 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_accent_hover"]
-content_margin_left = 14.0
+content_margin_left = 12.0
 content_margin_top = 8.0
-content_margin_right = 14.0
+content_margin_right = 12.0
 content_margin_bottom = 8.0
 bg_color = Color(0.396078, 0.301961, 0.109804, 1)
 border_width_left = 1
