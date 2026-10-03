@@ -135,7 +135,7 @@ size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "🎮 Configurer une Partie d'Aventure"
 
-[node name="Enquête" type="MarginContainer" parent="MainLayout/TabContainer"]
+[node name="Enquêtes" type="MarginContainer" parent="MainLayout/TabContainer"]
 visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 16
@@ -144,59 +144,59 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 metadata/_tab_index = 1
 
-[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Enquête"]
+[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Enquêtes"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/TabScroll"]
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquêtes/TabScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
+[node name="HeroCard" type="PanelContainer" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox"]
 layout_mode = 2
 
-[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard"]
+[node name="HeroVBox" type="VBoxContainer" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard/HeroVBox"]
+[node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
 theme_override_font_sizes/font_size = 18
 text = "🔍 Mode Enquête & Polar"
 
-[node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/HeroCard/HeroVBox"]
+[node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
 text = "Chargement..."
 
-[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox"]
+[node name="ActionGrid" type="GridContainer" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 16
 columns = 2
 
-[node name="BtnInvNewChar" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
+[node name="BtnInvNewChar" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Détective / Enquêteur"
 
-[node name="BtnInvScenarios" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
+[node name="BtnInvScenarios" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "📁 Dossiers d'Enquêtes & Mystères"
 
-[node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquête/TabScroll/VBox/ActionGrid"]
+[node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
