@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://hub_scene_001"]
+[gd_scene load_steps=4 format=3 uid="uid://hub_scene_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/hub.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/hub/panels/pooling_panel.tscn" id="1_pooling"]
 
 [node name="Hub" type="Control"]
 layout_mode = 3
@@ -400,6 +401,27 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
+
+[node name="Multijoueur" type="MarginContainer" parent="MainLayout/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+metadata/_tab_index = 4
+
+[node name="TabScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Multijoueur"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
+
+[node name="PoolingPanel" parent="MainLayout/TabContainer/Multijoueur/TabScroll" instance=ExtResource("1_pooling")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ConfirmDeleteBot" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

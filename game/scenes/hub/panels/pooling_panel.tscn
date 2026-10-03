@@ -1,0 +1,175 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/hub/panels/pooling_panel.gd" id="1_script"]
+
+[node name="PoolingPanel" type="PanelContainer"]
+layout_mode = 2
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingTitle" type="Label" parent="VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "🎲 Salon multijoueur (P2P)"
+
+[node name="LblPoolingHint" type="Label" parent="VBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Le MJ crée la partie (pooling + ENet). Les joueurs rejoignent via le code à 4 chiffres."
+autowrap_mode = 2
+
+[node name="RoleRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblRole" type="Label" parent="VBox/RoleRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Rôle :"
+
+[node name="OptPoolingRole" type="OptionButton" parent="VBox/RoleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NameRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPlayerName" type="Label" parent="VBox/NameRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Pseudo :"
+
+[node name="PlayerNameInput" type="LineEdit" parent="VBox/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Votre pseudo"
+text = "Joueur"
+
+[node name="PoolingUrlRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingUrl" type="Label" parent="VBox/PoolingUrlRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Pooling :"
+
+[node name="PoolingUrlInput" type="LineEdit" parent="VBox/PoolingUrlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "ws://127.0.0.1:8080"
+text = "ws://127.0.0.1:8080"
+
+[node name="PoolingConnectRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnConnectPooling" type="Button" parent="VBox/PoolingConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔌 Connexion pooling"
+
+[node name="PoolingStatusLabel" type="Label" parent="VBox/PoolingConnectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CaptionLabel"
+text = "○ Non connecté"
+
+[node name="RoomActionsRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnCreateRoom" type="Button" parent="VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🎲 Créer une partie (MJ)"
+
+[node name="RoomCodeInput" type="LineEdit" parent="VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
+placeholder_text = "4827"
+max_length = 4
+
+[node name="BtnJoinRoom" type="Button" parent="VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔗 Rejoindre"
+
+[node name="BtnRejoinRoom" type="Button" parent="VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "↩ Reconnecter"
+
+[node name="BtnLeaveRoom" type="Button" parent="VBox/RoomActionsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✕ Quitter"
+
+[node name="RoomCodeLabel" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = ""
+
+[node name="P2pStatusLabel" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = ""
+
+[node name="LblPoolingPlayers" type="Label" parent="VBox"]
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "👥 Joueurs du salon"
+
+[node name="PoolingPlayersVbox" type="VBoxContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PoolingCharRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblPoolingChar" type="Label" parent="VBox/PoolingCharRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(110, 0)
+text = "Personnage :"
+
+[node name="OptPoolingChar" type="OptionButton" parent="VBox/PoolingCharRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnPoolingRegisterChar" type="Button" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✓ Enregistrer mon personnage"
+
+[node name="PoolingLaunchRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BtnLaunchPoolingGame" type="Button" parent="VBox/PoolingLaunchRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"AccentButton"
+text = "🚀 Lancer la partie"
+
+[node name="LblWaitingMj" type="Label" parent="VBox/PoolingLaunchRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CaptionLabel"
+text = "⏳ En attente du MJ..."

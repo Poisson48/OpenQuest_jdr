@@ -58,7 +58,7 @@ func _ready() -> void:
 	confirm_publish_map.confirmed.connect(_on_confirm_publish_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
-	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Bots"])
+	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Bots", "Multijoueur"])
 	_setup_full_width_tabs()
 	_apply_pending_hub_tab()
 	MapData.maps_updated.connect(_render_maps_tab)
