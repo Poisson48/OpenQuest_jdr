@@ -31,7 +31,6 @@ var _pooling_char_registered := false
 const DISCORD_INVITE_URL := "https://discord.gg/nqYfxpbNC"
 
 func _ready() -> void:
-	%BtnPlay.pressed.connect(_on_play_pressed)
 	%BtnOngoing.pressed.connect(_on_ongoing_pressed)
 	%BtnDiscover.pressed.connect(_on_discover_pressed)
 	%BtnDiscord.pressed.connect(_on_discord_pressed)

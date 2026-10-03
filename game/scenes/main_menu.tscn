@@ -91,14 +91,6 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="BtnPlay" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
-text = "🎮 Lancer une partie"
-
 [node name="BtnOngoing" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
