@@ -1,0 +1,44 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/shared/app_header.gd" id="1_script"]
+
+[node name="AppHeader" type="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+script = ExtResource("1_script")
+
+[node name="Eyebrow" type="Label" parent="."]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_font_sizes/font_size = 14
+text = "JEU DE RÔLE · SOLO & MULTIJOUEUR LOCAL"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_font_sizes/font_size = 24
+text = "🗺️ OpenQuest JDR"
+horizontal_alignment = 1
+
+[node name="Tagline" type="Label" parent="."]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_font_sizes/font_size = 16
+text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque action compte — avec un MJ humain ou une IA qui s'adapte à tes choix."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="LanguageRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="LblLanguage" type="Label" parent="LanguageRow"]
+layout_mode = 2
+text = "Langue :"
+
+[node name="OptLanguage" type="OptionButton" parent="LanguageRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2

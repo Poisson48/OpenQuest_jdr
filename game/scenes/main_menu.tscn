@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://main_menu_001"]
+[gd_scene load_steps=4 format=3 uid="uid://main_menu_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -43,47 +44,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 20
 
-[node name="HeaderBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="AppHeader" parent="ScrollContainer/Margin/VBox" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
-
-[node name="Eyebrow" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 14
-text = "JEU DE RÔLE · SOLO & MULTIJOUEUR LOCAL"
-horizontal_alignment = 1
-
-[node name="Title" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 24
-text = "🗺️ OpenQuest JDR"
-horizontal_alignment = 1
-
-[node name="Tagline" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 16
-text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque action compte — avec un MJ humain ou une IA qui s'adapte à tes choix."
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="LanguageRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 8
-
-[node name="LblLanguage" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Langue :"
-
-[node name="OptLanguage" type="OptionButton" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 0)
-layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2

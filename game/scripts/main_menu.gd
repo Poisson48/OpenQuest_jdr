@@ -6,10 +6,8 @@ const SavedGameRowScene := preload("res://scenes/hub/panels/saved_game_row.tscn"
 @onready var ongoing_page: PanelContainer = %OngoingPage
 @onready var play_status_lbl: Label = %PlayStatusLabel
 @onready var saved_games_list: VBoxContainer = %SavedGamesList
-@onready var opt_language: OptionButton = %OptLanguage
 
 var _pending_delete_id: String = ""
-var _updating_language_ui := false
 
 const DISCORD_INVITE_URL := "https://discord.gg/nqYfxpbNC"
 
@@ -22,36 +20,12 @@ func _ready() -> void:
 	%ConfirmDeleteResume.confirmed.connect(_on_confirm_delete_resume)
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
 
-	_setup_language_selector()
-	_configure_pooling_dropdown(opt_language)
 	_apply_static_translations()
 	_show_home_page()
 	_render_saved_games()
 	_highlight_nav("home")
 
-func _setup_language_selector() -> void:
-	_updating_language_ui = true
-	opt_language.clear()
-	var selected := 0
-	for i in LocaleSettings.SUPPORTED_LOCALES.size():
-		var code: String = LocaleSettings.SUPPORTED_LOCALES[i]
-		opt_language.add_item(LocaleSettings.locale_display_name(code), i)
-		opt_language.set_item_metadata(i, code)
-		if code == LocaleSettings.locale:
-			selected = i
-	opt_language.selected = selected
-	if not opt_language.item_selected.is_connected(_on_language_selected):
-		opt_language.item_selected.connect(_on_language_selected)
-	_updating_language_ui = false
-
-func _on_language_selected(idx: int) -> void:
-	if _updating_language_ui:
-		return
-	var code := str(opt_language.get_item_metadata(idx))
-	LocaleSettings.apply_locale(code)
-
 func _on_locale_changed(_locale: String) -> void:
-	_setup_language_selector()
 	_apply_static_translations()
 	_render_saved_games()
 	get_tree().root.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
@@ -61,9 +35,6 @@ func _apply_static_translations() -> void:
 	%ConfirmDeleteResume.ok_button_text = tr("Effacer")
 	%ConfirmDeleteResume.cancel_button_text = tr("Annuler")
 	%ConfirmDeleteResume.dialog_text = tr("Effacer cette partie ? Toute la progression sera perdue.")
-
-func _configure_pooling_dropdown(dropdown: OptionButton) -> void:
-	dropdown.get_popup().popup_window = true
 
 func _on_play_pressed() -> void:
 	GameData.go_to_game_setup()
