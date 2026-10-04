@@ -191,11 +191,13 @@ vertical_scroll_mode = 2
 [node name="FormVBox" type="VBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 10
 
 [node name="FormHeader" type="HBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
 [node name="FormTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
 unique_name_in_owner = true
@@ -299,6 +301,7 @@ text = "Stats simplifiées (Naheulbeuk) :"
 [node name="GridSimpleStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblSimpleForce" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
@@ -308,6 +311,7 @@ text = "Force :"
 [node name="InputSimpleForce" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -319,6 +323,7 @@ text = "Ruse :"
 [node name="InputSimpleRuse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -330,6 +335,7 @@ text = "Robustesse :"
 [node name="InputSimpleRobustesse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -341,6 +347,7 @@ text = "Charisme :"
 [node name="InputSimpleCharisme" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -368,6 +375,7 @@ text = "Caractéristiques (1-30) :"
 [node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblStr" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
@@ -377,6 +385,7 @@ text = "Force (FOR) :"
 [node name="InputStr" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -388,6 +397,7 @@ text = "Dextérité (DEX) :"
 [node name="InputDex" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -399,6 +409,7 @@ text = "Constitution (CON) :"
 [node name="InputCon" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -410,6 +421,7 @@ text = "Intelligence (INT) :"
 [node name="InputInt" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -421,6 +433,7 @@ text = "Sagesse (SAG) :"
 [node name="InputWis" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -432,6 +445,7 @@ text = "Charisme (CHA) :"
 [node name="InputCha" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -450,6 +464,7 @@ text = "Points de Vie (PV) :"
 [node name="InputHp" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 999.0
 value = 10.0
@@ -461,6 +476,7 @@ text = "Classe d'Armure (CA) :"
 [node name="InputAc" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 50.0
 value = 10.0
@@ -473,6 +489,7 @@ text = "Niveau :"
 [node name="InputLevel" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 20.0
 value = 1.0
@@ -532,6 +549,7 @@ text = "Fiche avancée (D&D) :"
 [node name="GridComplete" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 2
 
 [node name="LblAlignment" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
@@ -542,6 +560,7 @@ text = "Alignement :"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_horizontal = 3
 placeholder_text = "ex: Loyal Bon"
 
 [node name="LblSpellcasting" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
@@ -551,6 +570,7 @@ text = "Lanceur de sorts :"
 [node name="InputSpellcasting" type="CheckBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Oui"
 
 [node name="LblProficiencies" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
