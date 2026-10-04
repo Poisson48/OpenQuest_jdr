@@ -21,10 +21,21 @@ func _ready() -> void:
 	if not get_tree().root.size_changed.is_connected(_on_root_size_changed):
 		get_tree().root.size_changed.connect(_on_root_size_changed)
 
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_SIZE_CHANGED:
+			# Force un recalcul après resize/minimize/restore
+			_on_root_size_changed()
+		NOTIFICATION_APPLICATION_FOCUS_IN:
+			# Force un recalcul quand la fenêtre retrouve le focus
+			# (utile après minimize/restore)
+			_on_root_size_changed()
+
 func _on_root_size_changed() -> void:
-	# Fullscreen / resize : rien à forcer ici — les contrôles ancrés
-	# FILL utilisent déjà get_visible_rect(). On évite tout re-lock de ratio.
-	pass
+	# Force un recalcul du layout après resize/minimize/restore.
+	# Les contrôles ancrés FILL utilisent déjà get_visible_rect() mais
+	# les GridContainer avec custom_minimum_size peuvent rester bloqués.
+	get_tree().root.reset_size()
 
 static func is_narrow_viewport() -> bool:
 	return DisplayServer.window_get_size().x < BREAKPOINT_NARROW
@@ -42,6 +53,13 @@ static func apply_expand_fill(control: Control, horizontal: bool = true, vertica
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if vertical:
 		control.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+## Force un recalcul complet du layout de la fenêtre.
+## À appeler après un changement de mode fenêtre (minimize/restore/maximize).
+static func force_layout_refresh() -> void:
+	var root := Engine.get_main_loop() as Window
+	if root:
+		root.reset_size()
 
 static func center_modal(panel: Control, min_size: Vector2 = Vector2(440, 240)) -> void:
 	panel.set_anchors_preset(Control.PRESET_CENTER)

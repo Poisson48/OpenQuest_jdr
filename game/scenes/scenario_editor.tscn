@@ -156,7 +156,7 @@ layout_mode = 2
 
 [node name="NpcPanel" type="PanelContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 240)
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"InsetPanel"
@@ -191,7 +191,7 @@ text = "+ Ajouter"
 
 [node name="NpcScroll" type="ScrollContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -265,7 +265,7 @@ autowrap_mode = 3
 
 [node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(420, 360)
+custom_minimum_size = Vector2(280, 240)
 layout_mode = 2
 size_flags_vertical = 3
 right_disconnects = true
