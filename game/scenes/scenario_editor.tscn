@@ -409,6 +409,15 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "+ Ajouter une branche"
 
+[node name="ConfirmDiscard" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Modifications non sauvegardées"
+initial_position = 2
+size = Vector2i(480, 140)
+dialog_text = "Vous avez des modifications non sauvegardées. Voulez-vous les perdre ?"
+ok_button_text = "Perdre les modifications"
+cancel_button_text = "Continuer l'édition"
+
 [node name="ConfirmDeleteScene" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Supprimer la scène"

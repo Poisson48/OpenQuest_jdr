@@ -33,6 +33,7 @@ var _rebuilding_graph: bool = false
 var _locked_roster: String = ""
 var _locked_format: String = ""
 var _dirty: bool = false
+var _pending_action: Callable = Callable()
 var _graph_popup: PopupMenu
 var _pending_focus_scene_id: String = ""
 var _graph_panning: bool = false
@@ -42,6 +43,7 @@ var _rebuild_scheduled: bool = false
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)
+	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnAddScene.pressed.connect(_on_add_scene_pressed)
 	%BtnAddNpc.pressed.connect(_on_add_npc_pressed)
@@ -1245,6 +1247,18 @@ func _validate_scenario(scenario: Dictionary) -> String:
 	return ""
 
 func _on_back_pressed() -> void:
+	if _dirty:
+		_pending_action = func(): _go_back()
+		%ConfirmDiscard.popup_centered()
+		return
+	_go_back()
+
+func _on_confirm_discard() -> void:
+	if _pending_action.is_valid():
+		_pending_action.call()
+		_pending_action = Callable()
+
+func _go_back() -> void:
 	var mode := "investigation" if str(_scenario.get("roster", "")) == "investigation" \
 		or str(_scenario.get("questFormat", "")) == "investigation" \
 		or _locked_roster == "investigation" else "adventure"

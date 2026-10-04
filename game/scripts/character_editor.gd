@@ -84,6 +84,7 @@ func _ready() -> void:
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnCancel.pressed.connect(_on_cancel_pressed)
 	%BtnCloseForm.pressed.connect(_on_cancel_pressed)
+	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
 	%BtnTierSimple.pressed.connect(func(): _begin_new_with_tier("simple"))
 	%BtnTierMedium.pressed.connect(func(): _begin_new_with_tier("medium"))
 	%BtnTierComplete.pressed.connect(func(): _begin_new_with_tier("complete"))
@@ -95,7 +96,7 @@ func _ready() -> void:
 	input_entity_type.item_selected.connect(func(_idx): _apply_entity_type_visibility())
 
 	for spin in [input_str, input_dex, input_con, input_int, input_wis, input_cha]:
-		spin.value_changed.connect(func(_v): _refresh_modifiers_label())
+		spin.value_changed.connect(func(_v): _refresh_modifiers_label(); _dirty = true)
 
 	GameData.characters_updated.connect(refresh_list)
 	GameData.bots_updated.connect(refresh_list)
@@ -533,6 +534,7 @@ func _collect_form_data() -> Dictionary:
 	return GameData.normalize_character(entity)
 
 func _on_save_pressed() -> void:
+	_dirty = false
 	var data: Dictionary = _collect_form_data()
 	if _is_bot_mode() or current_is_bot:
 		GameData.save_bot(data)
@@ -541,7 +543,17 @@ func _on_save_pressed() -> void:
 	form_panel.visible = false
 
 func _on_cancel_pressed() -> void:
-	form_panel.visible = false
+	if _dirty:
+		_pending_action = func(): form_panel.visible = false; _dirty = false
+		%ConfirmDiscard.popup_centered()
+	else:
+		form_panel.visible = false
+		_dirty = false
+
+func _on_confirm_discard() -> void:
+	if _pending_action.is_valid():
+		_pending_action.call()
+		_pending_action = Callable()
 	_set_tier_picker_visible(false)
 
 func _delete_entry(id: String, is_bot: bool) -> void:
@@ -553,5 +565,9 @@ func _delete_entry(id: String, is_bot: bool) -> void:
 		GameData.delete_character(id)
 
 func _on_back_pressed() -> void:
+	if _dirty:
+		_pending_action = func(): GameData.go_to_hub(hub_tab)
+		%ConfirmDiscard.popup_centered()
+		return
 	var hub_tab := "Enquête" if _locked_roster == "investigation" else "Aventures"
 	GameData.go_to_hub(hub_tab)
