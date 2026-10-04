@@ -2025,6 +2025,29 @@ func _on_dirty_changed(is_dirty: bool) -> void:
 		_dirty_lbl.text = "● non enregistré" if is_dirty else "✓ enregistré"
 		_dirty_lbl.add_theme_color_override("font_color",
 			ThemeColors.GOLD_LIGHT if is_dirty else ThemeColors.TEXT_MUTED)
+
+var _pending_action: Callable = Callable()
+
+func _confirm_discard_or(action: Callable) -> void:
+	var doc = _get_document()
+	if doc and doc.is_dirty():
+		_pending_action = action
+		var dlg := ConfirmationDialog.new()
+		dlg.title = "Modifications non sauvegardées"
+		dlg.dialog_text = "Vous avez des modifications non sauvegardées. Voulez-vous les perdre ?"
+		dlg.ok_button_text = "Perdre les modifications"
+		dlg.cancel_button_text = "Continuer l'édition"
+		dlg.confirmed.connect(func():
+			if _pending_action.is_valid():
+				_pending_action.call()
+				_pending_action = Callable()
+			dlg.queue_free()
+		)
+		dlg.canceled.connect(func(): dlg.queue_free())
+		get_tree().root.add_child(dlg)
+		dlg.popup_centered()
+	else:
+		action.call()
 	_refresh_status_badges()
 
 func _on_engine_token_moved(token_id: String, gx: float, gy: float) -> void:
