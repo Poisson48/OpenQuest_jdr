@@ -565,9 +565,9 @@ func _delete_entry(id: String, is_bot: bool) -> void:
 		GameData.delete_character(id)
 
 func _on_back_pressed() -> void:
+	var hub_tab := "Enquêtes" if _locked_roster == "investigation" else "Aventures"
 	if _dirty:
 		_pending_action = func(): GameData.go_to_hub(hub_tab)
 		%ConfirmDiscard.popup_centered()
 		return
-	var hub_tab := "Enquête" if _locked_roster == "investigation" else "Aventures"
 	GameData.go_to_hub(hub_tab)
