@@ -241,6 +241,17 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_text_button(plane_row, "Avant", func(): _apply({"layer": 5}, "Plan avant"))
 		_add_note("« Dressé » : pied au sol, face caméra. Alt+glisser pour dupliquer. Plan rapide = calque de profondeur.")
 		_proportions_button(elem)
+	elif kind == DocumentScript.KIND_MESH:
+		_section("Objet 3D")
+		_add_note(str(elem.get("asset", "")).get_file())
+		_spin(_row(), "Élévation", -2.0, 20.0, float(elem.get("elevation", 0.0)), 0.1,
+			func(v): _apply({"elevation": v}, "Élévation"))
+		_section("Plan rapide")
+		var plane_row := _row()
+		_text_button(plane_row, "Arrière", func(): _apply({"layer": 1}, "Plan arrière"))
+		_text_button(plane_row, "Médian", func(): _apply({"layer": 2}, "Plan médian"))
+		_text_button(plane_row, "Avant", func(): _apply({"layer": 5}, "Plan avant"))
+		_add_note("Mesh 3D posé sur la grille : échelle et rotation dans « Effets visuels ». Nouveaux modèles : Blender → GLB dans game/assets/objects3d/ (docs/BLENDER_PIPELINE.md).")
 	elif kind == DocumentScript.KIND_AREA:
 		_section("Lieu")
 		_category_selector(str(elem.get("category", "building")))

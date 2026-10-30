@@ -65,6 +65,26 @@ Le socle est donc **déjà à 70 %** de la cible : il manque principalement le *
 | **M4** | Preset caméra **2.5D** | style par défaut des nouvelles cartes, réglages tilt/FOV/parallaxe dans l'onglet Carte, vérrouillage de l'orbite en session | test `map_render_style_test` |
 | **M5** | Démo | une carte village 2.5D mêlant sol peint, props 2D et 3 objets 3D, livrée comme carte de démo | capture + smoke |
 
+**État au 30 octobre** : M1 en cours — document, outil éditeur, inspecteur, biblio et calque de rendu implémentés ; pipeline Blender en cours ; l'import d'assets 3D par l'utilisateur et le polish d'intégration visuelle restent à faire (M2/M3).
+
+---
+
+## 4 bis. Exigence produit : n'importe qui compose sa carte et son scénario
+
+La cible n'est pas un outil d'artiste 3D. **Un MJ doit pouvoir poser ses propres bâtiments et écrire son scénario sans Blender**, et les objets posés doivent **s'intégrer visuellement** au décor peint. Conséquences pour les assets et l'éditeur :
+
+| Exigence | Traduction technique |
+|---|---|
+| Poser un bâtiment en 2 clics | Bibliothèque à vignettes (Biblio → 🧊 Objets 3D), clic sur l'objet = outil armé, clic sur la carte = posé. Ghost sous le curseur avec la vraie vignette. |
+| Aucun réglage technique | Échelle/rotation/élévation dans l'inspecteur avec valeurs par défaut ; l'empreinte de sélection est **déduite de la boîte englobante du GLB** (pas de saisie). |
+| Pas de bâtiment flottant ou enterré | Origine au pied, pose automatique au sol, ombre de contact peinte sous l'objet (comme les découpes 2D). |
+| Intégration au décor peint | Palette et proportions imposées aux assets (guide de style), teinte d'ambiance appliquée aux meshes, pas d'ombres portées dures, rendu non photoréaliste. |
+| Assets fournis + assets perso | Bibliothèque livrée avec des prototypes couvrant village/donjon/extérieur ; **import GLB dans l'éditeur** (M3) avec vignette générée à l'import, sans passer par la ligne de commande. |
+| Scénario libre | Les objets posés sont des **données de carte** (schéma `meshes`) : scénario, sauvegarde, export JSON et session fonctionnent sans code. |
+| Cohérence 2D/3D | Un objet 3D et une découpe 2D à la même place doivent avoir la même échelle visuelle (1 case = 1 unité GLB) et la même lumière/teinte. |
+
+**Guide de style Blender (imposé aux assets livrés)** : low-poly lisible de dessus, palette terre/pierre/bois cohérente avec les fonds Valbois, matériaux mats sans reflets, base large et « jupe » de raccord au sol (pierre/herbe) pour éviter la coupure nette avec l'illustration, pas de transparence, budget < 5 000 tris, une seule texture d'atlas ou couleurs de matériaux, ombre de contact gérée côté moteur.
+
 **Règle de branche** : on ne merge pas le chantier table 3D/dés ici ; chaque milestone arrive avec son test headless (sans `--quit`) et ses captures quand c'est pertinent.
 
 ---

@@ -61,6 +61,11 @@ var _prop_size: float = 2.0
 var _prop_standing: bool = true
 var _prop_rotation: float = 0.0
 var _prop_category: String = "buildings"
+## Objets 3D (carte 2.5D) : mesh GLB sélectionné dans la bibliothèque.
+var _mesh_asset: String = ""
+var _mesh_scale: float = 1.0
+var _mesh_rotation: float = 0.0
+var _mesh_footprint_cache: Dictionary = {}
 var _last_saved_at: float = 0.0
 var _status_badges: HBoxContainer
 var _policy_chip: Label
@@ -1087,6 +1092,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_create_light(grid)
 	elif _tool == ToolsScript.PROP:
 		_create_prop(grid)
+	elif _tool == ToolsScript.MESH:
+		_create_mesh(grid)
 	_sync_engine()
 
 func _create_token(grid: Vector2) -> void:
@@ -1250,6 +1257,64 @@ func _create_prop(grid: Vector2) -> void:
 		"display": {"rotation": _prop_rotation},
 	}, DocumentScript.KIND_PROP, "Décor")
 	doc.select_only(id)
+
+## Pose un objet 3D générique (mesh GLB) sur la carte 2.5D.
+func _create_mesh(grid: Vector2) -> void:
+	if _mesh_asset.is_empty():
+		_set_status("Choisissez d'abord un objet 3D dans la bibliothèque (onglet Biblio → Objets 3D).")
+		return
+	var asset := AssetLibraryScript.get_object3d_asset(_mesh_asset)
+	var footprint := _mesh_footprint_cells(_mesh_asset)
+	var id: String = doc.add_element({
+		"x": grid.x, "y": grid.y,
+		"w": footprint.x, "h": footprint.y,
+		"asset": _mesh_asset,
+		"elevation": 0.0,
+		"label": str(asset.get("name", _mesh_asset.get_file().get_basename())),
+		"layer": 1,
+		"display": {"rotation": _mesh_rotation, "scale": _mesh_scale},
+	}, DocumentScript.KIND_MESH, "Objet 3D")
+	doc.select_only(id)
+
+## Empreinte au sol (en cases) déduite de la boîte englobante du GLB : le MJ
+## n'a aucune dimension à saisir et la sélection colle au modèle.
+func _mesh_footprint_cells(asset_path: String, scale_factor: float = -1.0) -> Vector2:
+	if asset_path.is_empty():
+		return Vector2.ONE
+	var factor := _mesh_scale if scale_factor < 0.0 else scale_factor
+	var cache_key := "%s|%.3f" % [asset_path, factor]
+	if _mesh_footprint_cache.has(cache_key):
+		return _mesh_footprint_cache[cache_key]
+	var out := Vector2.ONE
+	if ResourceLoader.exists(asset_path):
+		var packed = load(asset_path)
+		if packed is PackedScene:
+			var inst: Node = (packed as PackedScene).instantiate()
+			var bounds: Array = []
+			_collect_mesh_aabbs(inst, Transform3D.IDENTITY, bounds)
+			var first := true
+			var merged := AABB()
+			for aabb_variant in bounds:
+				var aabb: AABB = aabb_variant
+				merged = aabb if first else merged.merge(aabb)
+				first = false
+			if not first and merged.size.x > 0.0 and merged.size.z > 0.0:
+				out = Vector2(
+					maxf(0.5, merged.size.x * factor),
+					maxf(0.5, merged.size.z * factor)
+				)
+			inst.free()
+	_mesh_footprint_cache[cache_key] = out
+	return out
+
+func _collect_mesh_aabbs(node: Node, xform: Transform3D, out: Array) -> void:
+	var next_xform := xform
+	if node is Node3D:
+		next_xform = xform * (node as Node3D).transform
+	if node is MeshInstance3D:
+		out.append(next_xform * (node as MeshInstance3D).get_aabb())
+	for child in node.get_children():
+		_collect_mesh_aabbs(child, next_xform, out)
 
 func _create_note(grid: Vector2) -> void:
 	var id: String = doc.add_element({
@@ -1418,6 +1483,23 @@ func _refresh_asset_library() -> void:
 		)
 		_asset_category_row.add_child(btn)
 
+	# Catégorie spéciale : objets 3D livrés (GLB exportés de Blender).
+	var mesh_btn := Button.new()
+	mesh_btn.text = "🧊 Objets 3D"
+	mesh_btn.toggle_mode = true
+	mesh_btn.button_pressed = _prop_category == "objects3d"
+	mesh_btn.add_theme_font_size_override("font_size", 11)
+	mesh_btn.tooltip_text = "Meshes 3D posables (bâtiments, tours, ponts, rochers…)\nExport Blender : voir docs/BLENDER_PIPELINE.md"
+	mesh_btn.pressed.connect(func():
+		_prop_category = "objects3d"
+		_refresh_asset_library()
+	)
+	_asset_category_row.add_child(mesh_btn)
+
+	if _prop_category == "objects3d":
+		_refresh_object3d_library()
+		return
+
 	var assets: Array = AssetLibraryScript.list_assets(_prop_category)
 	if assets.is_empty():
 		_asset_hint.text = "Aucun décor dans « %s ». Importez des PNG détourés (fond transparent) : maisons, charrettes, tonneaux, arbres…" % \
@@ -1454,6 +1536,41 @@ func _refresh_asset_library() -> void:
 			_refresh_asset_library()
 		)
 		btn.add_child(remove)
+
+## Liste les meshes 3D livrés (res://assets/objects3d/<catégorie>/*.glb).
+func _refresh_object3d_library() -> void:
+	var assets: Array = AssetLibraryScript.list_object3d_assets()
+	if assets.is_empty():
+		_asset_hint.text = "Aucun objet 3D. Placez des .glb générés avec Blender dans game/assets/objects3d/<catégorie>/ (voir docs/BLENDER_PIPELINE.md)."
+		return
+	_asset_hint.text = "%d objet(s) 3D — cliquez pour armer l'outil, puis cliquez la carte." % assets.size()
+	for asset_variant in assets:
+		var asset: Dictionary = asset_variant
+		var path := str(asset.get("path", ""))
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(84, 92)
+		btn.tooltip_text = "%s\n%s\n%s" % [asset.get("name", ""), path.get_file(), path]
+		btn.toggle_mode = true
+		btn.button_pressed = path == _mesh_asset
+		var thumb: Texture2D = AssetLibraryScript.load_object3d_thumbnail(path)
+		if thumb != null:
+			btn.icon = thumb
+			btn.expand_icon = true
+			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		else:
+			btn.text = "🧊"
+		btn.add_theme_font_size_override("font_size", 10)
+		btn.pressed.connect(func(): _select_mesh_asset(asset))
+		_asset_grid.add_child(btn)
+
+func _select_mesh_asset(asset: Dictionary) -> void:
+	_mesh_asset = str(asset.get("path", ""))
+	_mesh_scale = 1.0
+	_mesh_rotation = 0.0
+	_set_tool(ToolsScript.MESH)
+	_refresh_asset_library()
+	_set_status("Objet 3D « %s » prêt — cliquez la carte." % asset.get("name", ""))
 
 func _select_prop_asset(asset: Dictionary) -> void:
 	_prop_asset = str(asset.get("path", ""))
@@ -1658,6 +1775,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			elif _tool == ToolsScript.PROP:
 				_prop_rotation = fmod(_prop_rotation + 90.0, 360.0)
 				_set_status("Rotation du décor : %d°" % int(_prop_rotation))
+				_refresh_ghost()
+			elif _tool == ToolsScript.MESH:
+				_mesh_rotation = fmod(_mesh_rotation + 90.0, 360.0)
+				_set_status("Rotation de l'objet 3D : %d°" % int(_mesh_rotation))
 				_refresh_ghost()
 			else:
 				_apply_shortcut_tool(key)
@@ -1867,6 +1988,14 @@ func _refresh_ghost() -> void:
 			"icon": _ghost_icon_for_tool(),
 			"kind": _tool,
 		}
+		if _tool == ToolsScript.MESH:
+			var mesh_footprint := _mesh_footprint_cells(_mesh_asset)
+			ghost["w"] = mesh_footprint.x
+			ghost["h"] = mesh_footprint.y
+			ghost["icon"] = "🧊"
+			ghost["rotation"] = _mesh_rotation
+			ghost["texture"] = null
+			ghost["standing"] = true
 		if _tool == ToolsScript.TOKEN:
 			ghost["color"] = MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]
 		elif _tool == ToolsScript.EFFECT:
@@ -2491,6 +2620,16 @@ func _rebuild_tool_options() -> void:
 			_refresh_ghost()
 		)
 		_option_note("Rotation : %d° (R pour pivoter)" % int(_prop_rotation))
+	elif _tool == ToolsScript.MESH:
+		if _mesh_asset.is_empty():
+			_option_note("Aucun objet 3D sélectionné. Ouvrez l'onglet Biblio → Objets 3D.")
+		else:
+			_option_note("Objet 3D : %s" % _mesh_asset.get_file())
+		_spin(_hbox(_tool_options), "Échelle", 0.1, 10.0, _mesh_scale, 0.1, func(v):
+			_mesh_scale = v
+			_refresh_ghost()
+		)
+		_option_note("Rotation : %d° (R pour pivoter)" % int(_mesh_rotation))
 	elif _tool == ToolsScript.AREA:
 		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)
 		var cat := OptionButton.new()

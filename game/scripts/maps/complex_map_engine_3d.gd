@@ -37,6 +37,7 @@ const MapElevations3DScript := preload("res://scripts/maps/map_layers/map_elevat
 const MapWalls3DScript := preload("res://scripts/maps/map_layers/map_walls_3d.gd")
 const MapLights3DScript := preload("res://scripts/maps/map_layers/map_lights_3d.gd")
 const MapProps3DScript := preload("res://scripts/maps/map_layers/map_props_3d.gd")
+const MapMeshes3DScript := preload("res://scripts/maps/map_layers/map_meshes_3d.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const MapAreasOverlayScript := preload("res://scripts/maps/map_areas_overlay.gd")
 const TableEnvironmentScript := preload("res://scripts/maps/map_layers/table_environment_3d.gd")
@@ -114,6 +115,7 @@ var _tokens_layer: Node3D
 var _effects_layer: Node3D
 var _fog_layer: Node3D
 var _props_layer: Node3D
+var _meshes_layer: Node3D
 var _walls_layer: Node3D
 var _lights_layer: Node3D
 var _sun: DirectionalLight3D
@@ -262,6 +264,10 @@ func _build_viewport_tree() -> void:
 	_props_layer = MapProps3DScript.new()
 	_props_layer.name = "Props"
 	_world.add_child(_props_layer)
+
+	_meshes_layer = MapMeshes3DScript.new()
+	_meshes_layer.name = "Meshes"
+	_world.add_child(_meshes_layer)
 
 	_walls_layer = MapWalls3DScript.new()
 	_walls_layer.name = "Walls"
@@ -619,6 +625,10 @@ func _rebuild_layers() -> void:
 	if _props_layer and _props_layer.has_method("configure"):
 		var props = map_data.get("props", [])
 		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+
+	if _meshes_layer and _meshes_layer.has_method("configure"):
+		var meshes = map_data.get("meshes", [])
+		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
 
 	if _walls_layer and _walls_layer.has_method("configure"):
 		var walls = map_data.get("walls", [])
@@ -1079,6 +1089,8 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 	if node == null:
 		if _props_layer and _props_layer.has_method("set_prop_position"):
 			_props_layer.set_prop_position(element_id, gx, gy)
+		if _meshes_layer and _meshes_layer.has_method("set_mesh_position"):
+			_meshes_layer.set_mesh_position(element_id, gx, gy)
 		if _lights_layer and _lights_layer.has_method("set_light_position"):
 			_lights_layer.set_light_position(element_id, gx, gy)
 		return
@@ -1104,6 +1116,8 @@ func refresh_night_light_mask(light_sources: Array, light_revealed: Array = []) 
 
 func has_element_node(element_id: String) -> bool:
 	if _props_layer and _props_layer.has_method("has_prop") and _props_layer.has_prop(element_id):
+		return true
+	if _meshes_layer and _meshes_layer.has_method("has_mesh") and _meshes_layer.has_mesh(element_id):
 		return true
 	return _token_nodes.has(element_id) or _effect_nodes.has(element_id) or _zone_nodes.has(element_id)
 

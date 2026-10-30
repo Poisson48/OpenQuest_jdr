@@ -28,9 +28,10 @@ const MEASURE := "measure"
 const TEMPLATE := "template"
 const AREA := "area"
 const PROP := "prop"
+const MESH := "mesh"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
-const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP]
+const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
 const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM, AREA]
@@ -90,6 +91,10 @@ const DEFS := [
 	{
 		"id": PROP, "icon": "🏚", "label": "Décor", "shortcut": "P", "group": "place",
 		"hint": "Clic : poser le décor sélectionné dans la bibliothèque (bâtiment, charrette, mobilier…). Molette + Maj : agrandir · R : pivoter.",
+	},
+	{
+		"id": MESH, "icon": "🧊", "label": "Objet 3D", "shortcut": "O", "group": "place",
+		"hint": "Clic : poser l'objet 3D sélectionné (GLB) — bâtiment, tour, pont, rocher. R : pivoter de 90° · Échelle dans les options.",
 	},
 	{
 		"id": AREA, "icon": "🏠", "label": "Lieu", "shortcut": "A", "group": "place",
@@ -253,7 +258,7 @@ const SHORTCUTS := [
 	{"keys": "Alt+glisser", "action": "Dupliquer en glissant"},
 	{"keys": "Page ↑ / ↓", "action": "Avancer / reculer d'un rang"},
 	{"keys": "F", "action": "Recadrer sur la sélection"},
-	{"keys": "V H 1..0 B G R T L M K E", "action": "Sélection directe d'un outil"},
+	{"keys": "V H 1..0 B G R T L M K E O", "action": "Sélection directe d'un outil"},
 ]
 
 static func shortcuts_text() -> String:

@@ -404,3 +404,75 @@ static func aspect_ratio(path: String) -> float:
 static func clear_caches() -> void:
 	_texture_cache.clear()
 	_thumbnail_cache.clear()
+
+# ===========================================================================
+# Objets 3D (carte 2.5D) — meshes livrés dans res://assets/objects3d/
+# ===========================================================================
+
+const OBJECTS3D_DIR := "res://assets/objects3d/"
+const OBJECT3D_EXTENSIONS := ["glb", "gltf"]
+
+static func object3d_thumb_path(path: String) -> String:
+	return path.get_basename() + "_thumb.png"
+
+static func _object3d_path_exists(path: String) -> bool:
+	if path.strip_edges().is_empty():
+		return false
+	return ResourceLoader.exists(path) or FileAccess.file_exists(path) \
+		or FileAccess.file_exists(ProjectSettings.globalize_path(path))
+
+## Tous les objets 3D livrés, par catégorie (buildings, props, vegetation…).
+## Chaque entrée : { id, name, category, path, thumb, kind: "mesh" }.
+static func list_object3d_assets() -> Array:
+	var out: Array = []
+	var root := DirAccess.open(OBJECTS3D_DIR)
+	if root == null:
+		return out
+	var categories: PackedStringArray = root.get_directories()
+	categories.sort()
+	for category_variant in categories:
+		var category_id := str(category_variant)
+		var cat_dir := OBJECTS3D_DIR + category_id + "/"
+		var dir := DirAccess.open(cat_dir)
+		if dir == null:
+			continue
+		var files: PackedStringArray = dir.get_files()
+		files.sort()
+		for file_variant in files:
+			var file_name := str(file_variant)
+			if not OBJECT3D_EXTENSIONS.has(file_name.get_extension().to_lower()):
+				continue
+			var path := cat_dir + file_name
+			var thumb := object3d_thumb_path(path)
+			out.append({
+				"id": "mesh3d-%s-%s" % [category_id, file_name.get_basename().to_lower()],
+				"name": file_name.get_basename().replace("_", " ").replace("-", " ").capitalize(),
+				"category": category_id,
+				"path": path,
+				"thumb": thumb if _object3d_path_exists(thumb) else "",
+				"kind": "mesh",
+			})
+	return out
+
+static func get_object3d_asset(asset_path: String) -> Dictionary:
+	for entry_variant in list_object3d_assets():
+		if str((entry_variant as Dictionary).get("path", "")) == asset_path:
+			return entry_variant
+	return {}
+
+## Vignette rendue par Blender (`<nom>_thumb.png`) ; retombe sur null si absente
+## (le bouton affiche alors l'icône de l'outil).
+static func load_object3d_thumbnail(path: String) -> Texture2D:
+	if path.strip_edges().is_empty():
+		return null
+	if _thumbnail_cache.has("3d:" + path):
+		var cached = _thumbnail_cache["3d:" + path]
+		if cached != null and is_instance_valid(cached):
+			return cached
+	var thumb := object3d_thumb_path(path)
+	if not _object3d_path_exists(thumb):
+		return null
+	var texture := load_texture(thumb)
+	if texture != null:
+		_thumbnail_cache["3d:" + path] = texture
+	return texture

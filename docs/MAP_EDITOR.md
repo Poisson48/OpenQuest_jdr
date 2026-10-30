@@ -110,6 +110,21 @@ seuls se déplacent à la souris pendant la partie, portent un portrait, un rayo
 de vision et une fiche. Un décor est du mobilier de scène, un token est un
 acteur.
 
+## 1 ter bis. Objets 3D : le versant mesh de la carte 2.5D
+
+La carte 2.5D mêle découpes 2D (décors, tokens) et **meshes 3D**. L'outil
+**🧊 Objet 3D** (`O`) pose un modèle `.glb` sur la grille : il écrit dans la
+section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
+
+- Les modèles vivent dans `game/assets/objects3d/<catégorie>/` (bâtiments,
+  props, végétation, terrain) ; ils sont listés dans **Biblio → 🧊 Objets 3D**.
+- Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
+  base, avant de l'objet vers `+Z`, transforms appliquées.
+- Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
+- Réglages : échelle et rotation dans « Effets visuels », élévation et plan
+  rapide dans l'inspecteur. Un objet 3D est **opaque** : il masque correctement
+  les découpes situées derrière lui.
+
 ## 1 quater. Style de rendu : diorama (défaut) ou VTT
 
 Chaque carte complexe a un **`renderStyle`** :
@@ -142,6 +157,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
 | Placer | 🧱 Mur | `8` | Trace un mur 3D qui projette de vraies ombres (`Maj` : contraint à l'axe) |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
+| Placer | 🧊 Objet 3D | `O` | Pose un mesh 3D (GLB exporté de Blender) : bâtiment, tour, pont, rocher. `R` : pivoter · échelle dans les options. |
 | Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |
 | Placer | 📝 Note MJ | `9` | Épingle une note visible du MJ uniquement |
 | Placer | 💡 Lumière | `0` | Pose une source lumineuse (torche, brasier) avec vacillement |
@@ -375,7 +391,7 @@ Fichiers : `game/assets/maps/valbois_village_night.png`, `place_du_marche_night.
 | `F` | Recadrer sur la sélection |
 | Molette | Zoom · clic milieu : déplacer la vue |
 | `Espace` maintenu | Navigation temporaire |
-| `V H 1..0 B G R T L M K E` | Sélection directe d'un outil |
+| `V H 1..0 B G R T L M K E O` | Sélection directe d'un outil |
 
 ---
 
@@ -390,6 +406,7 @@ scripts/maps/
 ├── map_asset_library.gd             # Bibliothèque de décors (import, index, vignettes)
 ├── map_layers/
 │   ├── map_props_3d.gd              # Décors images (dressés ou couchés au sol)
+│   ├── map_meshes_3d.gd             # Objets 3D (GLB) posés sur la grille
 │   ├── map_walls_3d.gd              # Murs volumétriques (ombres réelles)
 │   ├── map_lights_3d.gd             # Sources lumineuses + vacillement
 │   └── … (sol, grille, tokens, effets, zones, brouillard, élévations)
@@ -472,7 +489,7 @@ Un **lieu** (`kind: "area"`) porte en plus :
 
 Ajouts en version 3 : `walls`, `notes`, `layers`, `measure`. En version 4 :
 `areas` (les lieux), `props` (les décors) et `parentMapId` (la carte dont
-celle-ci est le zoom).
+celle-ci est le zoom). En version 5 : `meshes` (les objets 3D de la carte 2.5D).
 `MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
 
 ---
@@ -508,6 +525,7 @@ godot --headless --path game --script scripts/tests/map_vision_test.gd
 godot --headless --path game --script scripts/tests/map_areas_test.gd
 godot --headless --path game --script scripts/tests/map_props_test.gd
 godot --headless --path game --script scripts/tests/map_render_style_test.gd
+godot --headless --path game --script scripts/tests/map_mesh_test.gd
 godot --headless --path game --script scripts/tests/map_night_reveal_test.gd
 ```
 
@@ -543,6 +561,14 @@ l'outil dans l'éditeur réel.
 `map_render_style_test.gd` couvre la résolution `diorama`/`vtt`, le parallaxe,
 la teinte de profondeur, la priorité de rendu, et les matériaux des décors
 selon le style.
+
+`map_mesh_test.gd` couvre le type d'élément `mesh` (schéma 5, document,
+aller-retour de sérialisation, undo), le catalogue d'outils (touche `O`), la
+bibliothèque d'objets 3D (`list_object3d_assets`, vignettes) et la pose d'un
+objet 3D depuis l'éditeur réel.
+
+`map_meshes_3d_test.gd` couvre le calque de rendu `MapMeshes3D` (positions,
+échelle, rotation, masquage, fallback cube sans asset).
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc

@@ -39,17 +39,19 @@ const KIND_LIGHT := "light"
 const KIND_LINK := "link"
 const KIND_AREA := "area"
 const KIND_PROP := "prop"
+const KIND_MESH := "mesh"
 
 const ALL_KINDS := [
 	KIND_TOKEN, KIND_MARKER, KIND_EFFECT, KIND_ZONE, KIND_PLATFORM,
 	KIND_OVERLAY, KIND_WALL, KIND_NOTE, KIND_LIGHT, KIND_LINK, KIND_AREA,
-	KIND_PROP,
+	KIND_PROP, KIND_MESH,
 ]
 
 const KIND_ICONS := {
 	KIND_TOKEN: "🧍", KIND_MARKER: "📍", KIND_EFFECT: "✨", KIND_ZONE: "⭕",
 	KIND_PLATFORM: "🟫", KIND_OVERLAY: "🖼", KIND_WALL: "🧱", KIND_NOTE: "📝",
 	KIND_LIGHT: "💡", KIND_LINK: "🌀", KIND_AREA: "🏠", KIND_PROP: "🏚",
+	KIND_MESH: "🧊",
 }
 
 const KIND_LABELS := {
@@ -57,6 +59,7 @@ const KIND_LABELS := {
 	KIND_ZONE: "Zone", KIND_PLATFORM: "Plateforme", KIND_OVERLAY: "Calque image",
 	KIND_WALL: "Mur", KIND_NOTE: "Note MJ", KIND_LIGHT: "Lumière",
 	KIND_LINK: "Passage", KIND_AREA: "Lieu", KIND_PROP: "Décor",
+	KIND_MESH: "Objet 3D",
 }
 
 const DEFAULT_DISPLAY := {
@@ -129,6 +132,8 @@ func _ensure_editor_schema() -> void:
 		map_data["areas"] = []
 	if not map_data.has("props") or typeof(map_data["props"]) != TYPE_ARRAY:
 		map_data["props"] = []
+	if not map_data.has("meshes") or typeof(map_data["meshes"]) != TYPE_ARRAY:
+		map_data["meshes"] = []
 	if not map_data.has("backgroundTransform") or typeof(map_data["backgroundTransform"]) != TYPE_DICTIONARY:
 		map_data["backgroundTransform"] = {"offsetX": 0.0, "offsetY": 0.0, "scale": 1.0, "opacity": 1.0}
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
@@ -195,6 +200,9 @@ func _deserialize() -> void:
 	for prop in map_data.get("props", []):
 		if prop is Dictionary:
 			_ingest(prop, KIND_PROP, 1)
+	for mesh in map_data.get("meshes", []):
+		if mesh is Dictionary:
+			_ingest(mesh, KIND_MESH, 1)
 
 func _ingest_simple_markers() -> void:
 	## Les cartes 2D historiques stockent les marqueurs dans `markers`,
@@ -323,6 +331,10 @@ static func default_label(elem: Dictionary) -> String:
 			return str(elem.get("label", "Passage"))
 		KIND_AREA:
 			return "Lieu"
+		KIND_PROP:
+			return "Décor"
+		KIND_MESH:
+			return str(elem.get("asset", "")).get_file().get_basename().replace("_", " ").capitalize()
 		_:
 			return "Token"
 
@@ -339,6 +351,7 @@ func to_map_data() -> Dictionary:
 	var links: Array = []
 	var areas: Array = []
 	var props: Array = []
+	var meshes: Array = []
 	var simple_markers: Array = []
 	for id in _order:
 		var elem: Dictionary = _elements.get(id, {})
@@ -389,6 +402,8 @@ func to_map_data() -> Dictionary:
 				areas.append(payload)
 			KIND_PROP:
 				props.append(payload)
+			KIND_MESH:
+				meshes.append(payload)
 	var pd: Dictionary = play_defaults.duplicate(true)
 	pd["tokens"] = tokens
 	pd["effects"] = effects
@@ -406,6 +421,7 @@ func to_map_data() -> Dictionary:
 	out["locationLinks"] = links
 	out["areas"] = areas
 	out["props"] = props
+	out["meshes"] = meshes
 	out["markers"] = simple_markers
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
@@ -782,7 +798,7 @@ static func default_layer_for_kind(kind: String) -> int:
 	match kind:
 		KIND_OVERLAY:
 			return 1
-		KIND_PROP:
+		KIND_PROP, KIND_MESH:
 			return 1
 		KIND_PLATFORM, KIND_WALL, KIND_LIGHT:
 			return 2

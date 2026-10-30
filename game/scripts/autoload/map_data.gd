@@ -4,7 +4,7 @@ signal maps_updated
 
 const MAPS_PATH := "user://maps.json"
 const MAP_ASSETS_DIR := "user://map_assets/"
-const SCHEMA_VERSION := 4
+const SCHEMA_VERSION := 5
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
 const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
@@ -681,6 +681,9 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["areas"] = []
 	if not map_data.has("props") or typeof(map_data["props"]) != TYPE_ARRAY:
 		map_data["props"] = []
+	# Schéma 5 — objets 3D génériques (mix 2D/3D de la carte 2.5D).
+	if not map_data.has("meshes") or typeof(map_data["meshes"]) != TYPE_ARRAY:
+		map_data["meshes"] = []
 	if not map_data.has("parentMapId"):
 		map_data["parentMapId"] = ""
 	if not map_data.has("status") or str(map_data.get("status", "")).is_empty():
