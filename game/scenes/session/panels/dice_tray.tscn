@@ -112,6 +112,9 @@ theme_type_variation = &"InsetPanel"
 [node name="LblResult" type="Label" parent="Col/ResultFrame"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(120, 0)
 theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "Prêt à lancer les dés"
 autowrap_mode = 3
+max_lines_visible = 3
