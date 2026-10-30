@@ -464,6 +464,7 @@ layout_mode = 2
 
 [node name="GridCombat" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblHp" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]

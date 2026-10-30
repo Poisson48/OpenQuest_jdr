@@ -77,6 +77,8 @@ var current_is_bot: bool = false
 var _locked_roster: String = ""
 var _locked_entity_type: String = ""
 var _pending_new_tier: String = ""
+var _dirty: bool = false
+var _pending_action: Callable = Callable()
 
 func _ready() -> void:
 	%BtnBack.pressed.connect(_on_back_pressed)

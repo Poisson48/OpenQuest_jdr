@@ -2029,7 +2029,6 @@ func _on_dirty_changed(is_dirty: bool) -> void:
 var _pending_action: Callable = Callable()
 
 func _confirm_discard_or(action: Callable) -> void:
-	var doc = _get_document()
 	if doc and doc.is_dirty():
 		_pending_action = action
 		var dlg := ConfirmationDialog.new()
