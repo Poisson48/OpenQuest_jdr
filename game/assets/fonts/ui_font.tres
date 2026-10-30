@@ -1,0 +1,16 @@
+[gd_resource type="FontVariation" load_steps=3 format=3]
+
+; Police d'interface OpenQuest.
+; Base = Ringbearer Medium (décorative, cf. README.md du dossier).
+; Ringbearer ne couvre pas ← ✕ — ’ … · « » ni les emojis : les fallbacks
+; système prennent le relais pour éviter tout caractère manquant (tofu).
+
+[ext_resource type="FontFile" path="res://assets/fonts/ringbearer_medium.ttf" id="1_base"]
+
+[sub_resource type="SystemFont" id="SystemFont_fallback"]
+font_names = PackedStringArray("Noto Sans", "DejaVu Sans", "Liberation Sans", "Sans-Serif")
+allow_system_fallback = true
+
+[resource]
+base_font = ExtResource("1_base")
+fallbacks = Array[Font]([SubResource("SystemFont_fallback")])
