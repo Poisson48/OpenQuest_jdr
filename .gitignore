@@ -29,3 +29,7 @@ game/webrtc/
 # Profils de test et récupération de permissions (machine locale)
 .test_userdata/
 .acl-recovery/
+
+# Artefacts locaux de l'assistant de code
+.aider*
+aider.bat
