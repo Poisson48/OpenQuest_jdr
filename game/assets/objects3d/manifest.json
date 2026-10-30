@@ -1,0 +1,320 @@
+{
+  "generated_by": "tools/blender/build_prototypes.py",
+  "blender_version": "4.5.10 LTS",
+  "unit": "1 unite = 1 case de carte",
+  "forward_axis_gltf": "+Z",
+  "assets": [
+    {
+      "name": "maison",
+      "base": "maison",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/maison.glb",
+      "thumb": "buildings/maison_thumb.png",
+      "description": "Maison de village a colombages, toit a deux pans, cheminee. Maison de village (taille standard), toit terre cuite.",
+      "tags": [
+        "habitation",
+        "village",
+        "toit"
+      ],
+      "dimensions_cells": [
+        1.947,
+        1.808,
+        1.877
+      ],
+      "triangles": 1928,
+      "triangles_base": 964,
+      "vertices": 1048,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "maison_grande",
+      "base": "maison",
+      "variant": "grande",
+      "category": "buildings",
+      "glb": "buildings/maison_grande.glb",
+      "thumb": "buildings/maison_grande_thumb.png",
+      "description": "Maison de village a colombages, toit a deux pans, cheminee. Grande maison / auberge, toit terre cuite.",
+      "tags": [
+        "habitation",
+        "village",
+        "toit"
+      ],
+      "dimensions_cells": [
+        2.255,
+        2.097,
+        2.174
+      ],
+      "triangles": 2304,
+      "triangles_base": 1152,
+      "vertices": 1220,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "maison_petite",
+      "base": "maison",
+      "variant": "petite",
+      "category": "buildings",
+      "glb": "buildings/maison_petite.glb",
+      "thumb": "buildings/maison_petite_thumb.png",
+      "description": "Maison de village a colombages, toit a deux pans, cheminee. Petite maison de village, toit d'ardoise bleu-gris.",
+      "tags": [
+        "habitation",
+        "village",
+        "toit"
+      ],
+      "dimensions_cells": [
+        1.6,
+        1.486,
+        1.543
+      ],
+      "triangles": 1856,
+      "triangles_base": 928,
+      "vertices": 1012,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tour",
+      "base": "tour",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/tour.glb",
+      "thumb": "buildings/tour_thumb.png",
+      "description": "Tour de guet ronde crenelee, porte et meurtrieres. Tour de guet standard.",
+      "tags": [
+        "defense",
+        "guet",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.473,
+        1.33,
+        2.368
+      ],
+      "triangles": 1088,
+      "triangles_base": 544,
+      "vertices": 624,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tour_grande",
+      "base": "tour",
+      "variant": "grande",
+      "category": "buildings",
+      "glb": "buildings/tour_grande.glb",
+      "thumb": "buildings/tour_grande_thumb.png",
+      "description": "Tour de guet ronde crenelee, porte et meurtrieres. Tour de guet haute.",
+      "tags": [
+        "defense",
+        "guet",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.705,
+        1.54,
+        2.744
+      ],
+      "triangles": 1144,
+      "triangles_base": 572,
+      "vertices": 652,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "caisse",
+      "base": "caisse",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/caisse.glb",
+      "thumb": "props/caisse_thumb.png",
+      "description": "Caisse en bois renforcee, planche diagonale. Caisse standard.",
+      "tags": [
+        "mobilier",
+        "marchandise",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.066,
+        1.052,
+        0.762
+      ],
+      "triangles": 688,
+      "triangles_base": 344,
+      "vertices": 404,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "caisse_grande",
+      "base": "caisse",
+      "variant": "grande",
+      "category": "props",
+      "glb": "props/caisse_grande.glb",
+      "thumb": "props/caisse_grande_thumb.png",
+      "description": "Caisse en bois renforcee, planche diagonale. Grande caisse / caisse de cargaison.",
+      "tags": [
+        "mobilier",
+        "marchandise",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.337,
+        1.32,
+        0.954
+      ],
+      "triangles": 720,
+      "triangles_base": 360,
+      "vertices": 420,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "palissade",
+      "base": "palissade",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/palissade.glb",
+      "thumb": "props/palissade_thumb.png",
+      "description": "Palissade de planches pointees, deux traverses (module 2 cases).",
+      "tags": [
+        "defense",
+        "cloture",
+        "camp"
+      ],
+      "dimensions_cells": [
+        2.196,
+        0.51,
+        1.244
+      ],
+      "triangles": 620,
+      "triangles_base": 310,
+      "vertices": 378,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pont",
+      "base": "pont",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pont.glb",
+      "thumb": "props/pont_thumb.png",
+      "description": "Pont de pierre et bois, tablier sureleve et garde-corps.",
+      "tags": [
+        "passage",
+        "riviere",
+        "elevation"
+      ],
+      "dimensions_cells": [
+        2.64,
+        1.3,
+        1.094
+      ],
+      "triangles": 1880,
+      "triangles_base": 940,
+      "vertices": 1060,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "puits",
+      "base": "puits",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/puits.glb",
+      "thumb": "props/puits_thumb.png",
+      "description": "Puits de village en pierre, toit, seau et manivelle.",
+      "tags": [
+        "eau",
+        "village",
+        "point d'interet"
+      ],
+      "dimensions_cells": [
+        1.196,
+        1.021,
+        1.444
+      ],
+      "triangles": 816,
+      "triangles_base": 408,
+      "vertices": 464,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "rocher",
+      "base": "rocher",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/rocher.glb",
+      "thumb": "terrain/rocher_thumb.png",
+      "description": "Rocher basse-poly en trois blocs, taches de mousse.",
+      "tags": [
+        "nature",
+        "obstacle",
+        "decor"
+      ],
+      "dimensions_cells": [
+        1.448,
+        1.18,
+        0.866
+      ],
+      "triangles": 352,
+      "triangles_base": 176,
+      "vertices": 200,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "arbre",
+      "base": "arbre",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/arbre.glb",
+      "thumb": "vegetation/arbre_thumb.png",
+      "description": "Arbre feuillu a houppes irregulieres, tronc cylindrique. Arbre vert (standard).",
+      "tags": [
+        "nature",
+        "foret",
+        "decor"
+      ],
+      "dimensions_cells": [
+        1.03,
+        1.051,
+        2.103
+      ],
+      "triangles": 396,
+      "triangles_base": 198,
+      "vertices": 222,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "arbre_automne",
+      "base": "arbre",
+      "variant": "automne",
+      "category": "vegetation",
+      "glb": "vegetation/arbre_automne.glb",
+      "thumb": "vegetation/arbre_automne_thumb.png",
+      "description": "Arbre feuillu a houppes irregulieres, tronc cylindrique. Arbre d'automne (teintes ocre).",
+      "tags": [
+        "nature",
+        "foret",
+        "decor"
+      ],
+      "dimensions_cells": [
+        1.03,
+        1.051,
+        2.103
+      ],
+      "triangles": 396,
+      "triangles_base": 198,
+      "vertices": 222,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    }
+  ]
+}

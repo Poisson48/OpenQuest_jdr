@@ -48,15 +48,21 @@ var _nodes: Dictionary = {}
 ## Teinte d'ambiance du style de rendu (diorama/VTT), pour le fallback.
 var _atmosphere: Color = Color(0.10, 0.10, 0.14)
 var _has_atmosphere: bool = false
+## Rendu non éclairé : en 2.5D l'illustration porte déjà l'éclairage, et les
+## matériaux importés (PBR) assombriraient l'objet par rapport au décor peint.
+## Les couleurs/AO viennent des vertex colors exportés par Blender.
+var _unshaded: bool = true
 ## Texture radiale partagée par toutes les ombres de contact du calque.
 var _shadow_texture: GradientTexture2D = null
 
 ## Reconstruit le calque. `map_data` est accepté pour cohérence avec les autres
-## calques (MapProps3D) ; il ne sert ici qu'à la teinte d'ambiance du fallback.
+## calques (MapProps3D) ; il sert à la teinte d'ambiance du fallback et à savoir
+## si le style éclaire les objets (VTT) ou non (diorama/DD2, rendu peint).
 func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> void:
 	_cell_size = cell_size if cell_size > 0.0 else 1.0
 	_has_atmosphere = not map_data.is_empty()
 	_atmosphere = MapRenderStyleScript.atmosphere_color(map_data) if _has_atmosphere else Color(0.10, 0.10, 0.14)
+	_unshaded = not bool(MapRenderStyleScript.config(map_data).get("litProps", false))
 	for child in get_children():
 		remove_child(child)
 		child.free()
@@ -222,15 +228,38 @@ func _collect_mesh_aabbs(node: Node, xform: Transform3D, boxes: Array) -> void:
 		var child_xform := xform * (child as Node3D).transform if child is Node3D else xform
 		_collect_mesh_aabbs(child, child_xform, boxes)
 
-## Coupe les ombres et neutralise les collisions d'un sous-arbre d'asset.
+## Coupe les ombres, neutralise les collisions et, en 2.5D, passe les matériaux
+## importés en non éclairé : la palette et l'AO viennent de Blender (vertex
+## colors), l'illustration porte déjà la lumière. En VTT, on garde l'éclairage.
 func _sanitize_visual(node: Node) -> void:
 	if node is GeometryInstance3D:
 		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if node is CollisionObject3D:
 		(node as CollisionObject3D).collision_layer = 0
 		(node as CollisionObject3D).collision_mask = 0
+	if _unshaded and node is MeshInstance3D:
+		_apply_unshaded_materials(node as MeshInstance3D)
 	for child in node.get_children():
 		_sanitize_visual(child)
+
+## Duplique les matériaux par surface et les passe en `UNSHADED`, en activant
+## les vertex colors comme albédo (mottling + AO cuits par le pipeline Blender).
+## La duplication évite de modifier les ressources partagées entre instances.
+func _apply_unshaded_materials(mesh_instance: MeshInstance3D) -> void:
+	if mesh_instance.mesh == null:
+		return
+	var surface_count := mesh_instance.mesh.get_surface_count()
+	for i in range(surface_count):
+		var source := mesh_instance.get_active_material(i)
+		if source is StandardMaterial3D:
+			var material: StandardMaterial3D = (source as StandardMaterial3D).duplicate()
+			material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			material.vertex_color_use_as_albedo = true
+			material.cull_mode = BaseMaterial3D.CULL_BACK
+			mesh_instance.set_surface_override_material(i, material)
+		elif source != null:
+			# Matériau exotique : on le laisse tel quel plutôt que de le casser.
+			pass
 
 ## Repositionne un mesh sans reconstruire la scène (glisser en cours).
 func set_mesh_position(mesh_id: String, gx: float, gy: float) -> void:

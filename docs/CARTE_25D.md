@@ -65,7 +65,14 @@ Le socle est donc **déjà à 70 %** de la cible : il manque principalement le *
 | **M4** | Preset caméra **2.5D** | style par défaut des nouvelles cartes, réglages tilt/FOV/parallaxe dans l'onglet Carte, vérrouillage de l'orbite en session | test `map_render_style_test` |
 | **M5** | Démo | une carte village 2.5D mêlant sol peint, props 2D et 3 objets 3D, livrée comme carte de démo | capture + smoke |
 
-**État au 30 octobre** : M1 en cours — document, outil éditeur, inspecteur, biblio et calque de rendu implémentés ; pipeline Blender en cours ; l'import d'assets 3D par l'utilisateur et le polish d'intégration visuelle restent à faire (M2/M3).
+**État au 30 octobre** : **M1 livré** — type `mesh`, outil éditeur, biblio GLB, calque de rendu (ombre de contact, matériaux non éclairés), pipeline Blender et 13 assets prototypes. M2/M3 partiellement couverts (pose + biblio livrées ; import GLB utilisateur à faire). Captures : [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) (parcours de pose), [`carte_25d_mesh_demo.png`](./screenshots/carte_25d_mesh_demo.png) et [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) (rendu intégré).
+
+Tester dans l'éditeur :
+
+```powershell
+.\scripts\play-godot.ps1 res://scenes/debug/carte_25d_boot.tscn
+# puis : onglet Biblio → 🧊 Objets 3D → clic sur un objet → clic sur la carte
+```
 
 ---
 

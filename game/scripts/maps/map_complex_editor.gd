@@ -1469,6 +1469,19 @@ func _refresh_asset_library() -> void:
 	for child in _asset_grid.get_children():
 		child.queue_free()
 
+	# Catégorie spéciale en tête : objets 3D livrés (GLB exportés de Blender).
+	var mesh_btn := Button.new()
+	mesh_btn.text = "🧊 Objets 3D"
+	mesh_btn.toggle_mode = true
+	mesh_btn.button_pressed = _prop_category == "objects3d"
+	mesh_btn.add_theme_font_size_override("font_size", 11)
+	mesh_btn.tooltip_text = "Meshes 3D posables (bâtiments, tours, ponts, rochers…)\nExport Blender : voir docs/BLENDER_PIPELINE.md"
+	mesh_btn.pressed.connect(func():
+		_prop_category = "objects3d"
+		_refresh_asset_library()
+	)
+	_asset_category_row.add_child(mesh_btn)
+
 	for category_variant in AssetLibraryScript.CATEGORIES:
 		var category: Dictionary = category_variant
 		var category_id := str(category["id"])
@@ -1482,19 +1495,6 @@ func _refresh_asset_library() -> void:
 			_refresh_asset_library()
 		)
 		_asset_category_row.add_child(btn)
-
-	# Catégorie spéciale : objets 3D livrés (GLB exportés de Blender).
-	var mesh_btn := Button.new()
-	mesh_btn.text = "🧊 Objets 3D"
-	mesh_btn.toggle_mode = true
-	mesh_btn.button_pressed = _prop_category == "objects3d"
-	mesh_btn.add_theme_font_size_override("font_size", 11)
-	mesh_btn.tooltip_text = "Meshes 3D posables (bâtiments, tours, ponts, rochers…)\nExport Blender : voir docs/BLENDER_PIPELINE.md"
-	mesh_btn.pressed.connect(func():
-		_prop_category = "objects3d"
-		_refresh_asset_library()
-	)
-	_asset_category_row.add_child(mesh_btn)
 
 	if _prop_category == "objects3d":
 		_refresh_object3d_library()
