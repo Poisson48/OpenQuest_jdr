@@ -438,9 +438,9 @@ func configure(
 	_load_ambient_fx()
 	_load_elevations()
 	_sync_table_environment()
-	_apply_render_quality()
 	_apply_camera_perspective()
 	_apply_lighting()
+	_apply_render_quality()
 	_apply_atmosphere()
 	_sync_areas_overlay()
 	_hovered_area_id = ""
@@ -543,7 +543,11 @@ func _apply_render_quality() -> void:
 	env.adjustment_contrast = 1.06
 	env.adjustment_saturation = 1.08 if terrain else 1.0
 	if _sun != null:
+		# Le style 2.5D coupe les ombres par défaut ; sur un vrai terrain 3D on les
+		# réactive pour asseoir les constructions (qualité Dofus).
+		_sun.shadow_enabled = terrain and not table_view
 		_sun.shadow_blur = 1.25
+		_sun.shadow_bias = 0.04
 		_sun.directional_shadow_blend_splits = true
 
 func _load_ground(p_ground_mode: String = "") -> void:

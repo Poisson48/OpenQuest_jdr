@@ -23,7 +23,7 @@ func _run() -> void:
 	_assert("render_ssao", env.ssao_enabled)
 	_assert("render_glow", env.glow_enabled and env.glow_intensity > 0.0)
 	_assert("render_adjustments", env.adjustment_enabled and env.adjustment_contrast > 1.0)
-	_assert("render_sun", engine._sun != null and engine._sun.visible)
+	_assert("render_sun_shadows", engine._sun != null and engine._sun.shadow_enabled)
 	engine.queue_free()
 	await process_frame
 	if _failed:
