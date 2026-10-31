@@ -44,6 +44,7 @@ var _zone_w_spin: SpinBox
 var _zone_h_spin: SpinBox
 var _zone_name_input: LineEdit
 var _zone_theme_opt: OptionButton
+var _zone_theme_hint: Label
 var _resize_dialog: ConfirmationDialog
 var _resize_w_spin: SpinBox
 var _resize_h_spin: SpinBox
@@ -443,6 +444,13 @@ func _ensure_dialogs() -> void:
 		_zone_theme_opt.add_item(str(theme.get("label", theme.get("id", ""))), i)
 		_zone_theme_opt.set_item_metadata(i, str(theme.get("id", "empty")))
 	theme_row.add_child(_zone_theme_opt)
+	_zone_theme_hint = Label.new()
+	_zone_theme_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_zone_theme_hint.custom_minimum_size = Vector2(360, 34)
+	_zone_theme_hint.add_theme_font_size_override("font_size", 10)
+	_zone_theme_hint.text = MapThemePresets.description_for("empty")
+	zone_box.add_child(_zone_theme_hint)
+	_zone_theme_opt.item_selected.connect(_update_zone_theme_hint)
 	var size_row := HBoxContainer.new()
 	zone_box.add_child(size_row)
 	var w_label := Label.new()
@@ -583,6 +591,15 @@ func _apply_create_zone() -> void:
 		_zone_name_input.text = ""
 	if _zone_theme_opt != null:
 		_zone_theme_opt.select(0)
+	_update_zone_theme_hint(0)
+
+func _update_zone_theme_hint(index: int) -> void:
+	if _zone_theme_hint == null or _zone_theme_opt == null:
+		return
+	var theme_id := "empty"
+	if index >= 0 and index < _zone_theme_opt.item_count:
+		theme_id = str(_zone_theme_opt.get_item_metadata(index))
+	_zone_theme_hint.text = MapThemePresets.description_for(theme_id)
 
 func _open_rename() -> void:
 	_ensure_dialogs()

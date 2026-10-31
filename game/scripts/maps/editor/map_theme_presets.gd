@@ -32,6 +32,17 @@ static func label_for(theme_id: String) -> String:
 			return str(theme.get("label", theme_id))
 	return theme_id
 
+## Courte description affichée dans le dialogue de création de zone.
+static func description_for(theme_id: String) -> String:
+	match theme_id:
+		"village": return "Chemins en croix, place pavée et puits de départ."
+		"forest": return "Sentier de terre, arbres, rochers et lucioles."
+		"ruins": return "Dallage central, murs brisés, pluie et rochers."
+		"snow": return "Neige et congères aux coins, chute de neige, rochers."
+		"beach": return "Moitié sable, moitié herbe, quelques rochers."
+		"lake": return "Étang central, rive de sable, arbre et rocher."
+		_: return "Carte vierge en herbe, sans décor."
+
 ## Applique le thème à `map` (modifie terrainMaterials/Heights/ambientFx).
 static func apply(map: Dictionary, theme_id: String) -> void:
 	var w := int(map.get("width", 12))
