@@ -198,6 +198,17 @@ func _run() -> void:
 	_assert("mesh_room_walls", _meshes_with_asset(editor, wall_asset).size() > room_walls_before + 4)
 	_assert("mesh_room_selected", editor.doc.selection_size() >= 8)
 
+	# Toit 3D : grille de tuiles au-dessus de la pièce.
+	var roof_asset := "res://assets/objects3d/buildings/toit_2pentes.glb"
+	var roofs_before := _meshes_with_asset(editor, roof_asset).size()
+	editor._create_mesh_roof(Vector2(2.0, 14.0), Vector2(8.0, 18.0))
+	await process_frame
+	var roofs_after := _meshes_with_asset(editor, roof_asset)
+	_assert("mesh_roof_tiles", roofs_after.size() == roofs_before + 6)
+	if roofs_after.size() > roofs_before:
+		var roof_tile: Dictionary = roofs_after[roofs_before]
+		_assert("mesh_roof_elevation", is_equal_approx(float(roof_tile.get("elevation", 0.0)), 1.1))
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():

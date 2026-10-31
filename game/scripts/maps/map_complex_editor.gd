@@ -98,6 +98,7 @@ var _syncing: bool = false
 var _player_view: bool = false
 var _player_view_btn: Button
 var _light_place_radius: float = 3.0
+var _roof_height: float = 1.1
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -1206,6 +1207,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_wall_chain(from, to)
 	elif _tool == ToolsScript.ROOM_3D:
 		_create_mesh_room(from, to)
+	elif _tool == ToolsScript.ROOF_3D:
+		_create_mesh_roof(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1454,6 +1457,44 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	ids.append_array(doc.selection())
 	doc.set_selection(ids)
 	_set_status("Pièce 3D construite : 4 murs (angles par recouvrement).")
+
+## Couvre un rectangle avec des tuiles de toit 2 pans à la hauteur `_roof_height`.
+func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
+	var x0 := minf(from.x, to.x)
+	var x1 := maxf(from.x, to.x)
+	var y0 := minf(from.y, to.y)
+	var y1 := maxf(from.y, to.y)
+	var width := x1 - x0
+	var depth := y1 - y0
+	if width < 1.0 or depth < 1.0:
+		_set_status("Zone de toit trop petite.")
+		return
+	var asset := "res://assets/objects3d/buildings/toit_2pentes.glb"
+	var bounds := _mesh_bounds_cells(asset, 1.0)
+	var tile_w := maxf(1.0, bounds.x)
+	var tile_d := maxf(1.0, bounds.z)
+	var cols := maxi(1, int(ceil(width / tile_w)))
+	var rows := maxi(1, int(ceil(depth / tile_d)))
+	var step_x := width / float(cols)
+	var step_y := depth / float(rows)
+	var ids: Array = []
+	doc.begin_transaction()
+	for row in range(rows):
+		for col in range(cols):
+			var pos := Vector2(x0 + (float(col) + 0.5) * step_x,
+				y0 + (float(row) + 0.5) * step_y)
+			var id: String = doc.add_element({
+				"x": pos.x, "y": pos.y,
+				"w": tile_w, "h": tile_d,
+				"asset": asset,
+				"elevation": _roof_height, "followTerrain": false, "tiltToTerrain": false,
+				"label": "Toit 3D", "layer": 1,
+				"display": {"rotation": 0.0, "scale": 1.0},
+			}, DocumentScript.KIND_MESH, "Toit 3D")
+			ids.append(id)
+	doc.set_selection(ids)
+	doc.commit_transaction()
+	_set_status("Toit 3D : %d tuile(s), hauteur %.2f." % [ids.size(), _roof_height])
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
@@ -3492,6 +3533,9 @@ func _rebuild_tool_options() -> void:
 		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
 	elif _tool == ToolsScript.ROOM_3D:
 		_option_note("Glissez un rectangle : 4 murs + 4 coins pour une pièce fermée. Ajoutez ensuite portes, fenêtres et toit.")
+	elif _tool == ToolsScript.ROOF_3D:
+		_spin(_hbox(_tool_options), "Hauteur", 0.2, 10.0, _roof_height, 0.1, func(v): _roof_height = v)
+		_option_note("Glissez un rectangle au-dessus d'une pièce : génère une grille de tuiles de toit 2 pans.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:

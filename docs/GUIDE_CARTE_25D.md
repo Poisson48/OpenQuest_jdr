@@ -78,6 +78,8 @@ Outils terrain :
   façon Sims.
 - **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs qui
   se recouvrent aux angles), puis pose porte/fenêtre/auvent et un toit.
+- **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une
+  grille de tuiles de toit 2 pans à la hauteur réglée dans les options.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
