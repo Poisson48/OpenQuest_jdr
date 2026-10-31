@@ -28,6 +28,7 @@ signal area_activate_requested(area: Dictionary)
 signal table_dice_result(faces: Array, total: int, valid: bool)
 
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
+const MapBackdrop3DScript := preload("res://scripts/maps/map_layers/map_backdrop_3d.gd")
 const MapWater3DScript := preload("res://scripts/maps/map_layers/map_water_3d.gd")
 const MapAmbientFx3DScript := preload("res://scripts/maps/map_layers/map_ambient_fx_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
@@ -123,6 +124,8 @@ var _viewport: SubViewport
 var _camera: Camera3D
 var _world: Node3D
 var _world_env: WorldEnvironment
+## Fond de plateau derrière la carte (créé avant le sol, mode terrain3d seulement).
+var _backdrop_layer: Node3D
 var _ground: Node3D
 ## Calque d'eau (lacs/étangs) : instancié avec le viewport, sans rendu tant que
 ## `map_data["waterLevel"]` < 0 ou qu'aucune case n'est immergée.
@@ -200,6 +203,7 @@ func _build_viewport_tree() -> void:
 		_viewport_container = null
 		_viewport = null
 		_ground = null
+		_backdrop_layer = null
 		_water_layer = null
 		_ambient_fx_layer = null
 		_world = null
@@ -267,6 +271,10 @@ func _build_viewport_tree() -> void:
 	_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	_sun.directional_shadow_max_distance = 120.0
 	_world.add_child(_sun)
+
+	_backdrop_layer = MapBackdrop3DScript.new()
+	_backdrop_layer.name = "Backdrop"
+	_world.add_child(_backdrop_layer)
 
 	_ground = MapGround3DScript.new()
 	_ground.name = "Ground"
@@ -392,6 +400,7 @@ func configure(
 		snap_to_grid = not MapRenderStyleScript.is_diorama(p_map)
 
 	_load_ground()
+	_load_backdrop()
 	_load_water()
 	_load_ambient_fx()
 	_load_elevations()
@@ -522,6 +531,41 @@ func _load_ground(p_ground_mode: String = "") -> void:
 func _load_elevations() -> void:
 	if _elevations_layer and _elevations_layer.has_method("configure"):
 		_elevations_layer.configure(map_data, _cell_size)
+
+# ===========================================================================
+# Fond de plateau (backdrop) — derrière la carte 2.5D
+# ===========================================================================
+#
+# Grand plan procédural unshaded sous la jupe de falaise : évite le vide noir
+# autour de l'îlot. Visible uniquement en mode `terrain3d` (retiré en
+# illustrated). Aucune donnée de carte : dimensions + teinte de nuit suffisent.
+
+## Configure (ou retire) le fond de plateau selon le mode de sol.
+func _load_backdrop() -> void:
+	if _backdrop_layer == null or not is_instance_valid(_backdrop_layer):
+		return
+	if _ground_mode != MapData.GROUND_TERRAIN3D:
+		# Mode illustré : pas de terrain 3D, donc pas de fond de plateau.
+		_backdrop_layer.clear()
+		return
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	if _backdrop_layer.has_method("configure"):
+		_backdrop_layer.configure(w, h, _cell_size, MapData.is_night_mode(map_data))
+
+## Vrai si le fond de plateau est rendu.
+func is_backdrop_active() -> bool:
+	if _backdrop_layer == null or not is_instance_valid(_backdrop_layer):
+		return false
+	return _backdrop_layer.has_method("is_active") and _backdrop_layer.is_active()
+
+## Matériau (ShaderMaterial procédural) du fond, null s'il n'est pas rendu.
+func get_backdrop_material() -> ShaderMaterial:
+	if _backdrop_layer == null or not is_instance_valid(_backdrop_layer):
+		return null
+	if not _backdrop_layer.has_method("get_material") or not _backdrop_layer.is_active():
+		return null
+	return _backdrop_layer.get_material() as ShaderMaterial
 
 # ===========================================================================
 # Eau (lacs, étangs, douves) — `map_data["waterLevel"]`
@@ -711,6 +755,7 @@ func set_ground_mode(mode: String = "") -> void:
 		resolved = MapData.get_ground_mode(map_data)
 	_ground_mode = resolved
 	_load_ground(_ground_mode)
+	_load_backdrop()
 	_apply_camera_perspective()
 	_apply_atmosphere()
 	_apply_lighting()
@@ -778,6 +823,8 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		_ground.set_terrain_heights(_terrain_heights)
 	elif _ground.has_method("configure"):
 		_load_ground()
+	# Fond de plateau : dépend des dimensions, du mode de sol et de la nuit.
+	_load_backdrop()
 	# Eau : dépend du niveau (`waterLevel`), des hauteurs et du mode de sol.
 	_load_water()
 	# Ambiance animée : dépend de `ambientFx`, du mode de sol et de la nuit.
@@ -1065,6 +1112,8 @@ func _rebuild_layers() -> void:
 	_load_water()
 	# Ambiance : même logique (clé `ambientFx`).
 	_load_ambient_fx()
+	# Fond de plateau : dimensions/mode/nuit (no-op si inchangés).
+	_load_backdrop()
 
 func _clear_children(layer: Node, registry: Dictionary) -> void:
 	for child in layer.get_children():
