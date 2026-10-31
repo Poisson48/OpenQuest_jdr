@@ -161,9 +161,49 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.keycode == KEY_M:
 		_toggle_world_map()
 		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_G:
+		_focus_party()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_F:
+		stage.fit()
+		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_ESCAPE and _world_map != null and _world_map.visible:
 		_world_map.visible = false
 		get_viewport().set_input_as_handled()
+
+## Recentre la caméra sur le groupe (touche G), ou sur la carte si vide.
+func _focus_party() -> void:
+	if stage == null:
+		return
+	var map_id := _current_map_id()
+	var party_ids: Array = []
+	for member_variant in GameData.active_game.get("party", []):
+		if member_variant is Dictionary:
+			party_ids.append(str((member_variant as Dictionary).get("id", "")))
+	var points: Array = []
+	for token_variant in GameData.get_map_play_tokens(map_id):
+		if not token_variant is Dictionary:
+			continue
+		var token: Dictionary = token_variant
+		if str(token.get("kind", "")) != "member":
+			continue
+		if not party_ids.is_empty() and not party_ids.has(str(token.get("memberId", ""))):
+			continue
+		points.append(Vector2(float(token.get("x", 0.0)), float(token.get("y", 0.0))))
+	if points.is_empty():
+		stage.fit()
+		return
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for point_variant in points:
+		var point: Vector2 = point_variant
+		bounds = bounds.expand(point)
+	var center := bounds.get_center()
+	var half := maxf(3.0, maxf(bounds.size.x, bounds.size.y) * 0.5 + 3.0)
+	var focus := Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0)
+	if stage.has_method("focus_grid_rect"):
+		stage.focus_grid_rect(focus, 1.5)
+	else:
+		stage.fit()
 
 func _toggle_world_map() -> void:
 	if _world_map == null:
