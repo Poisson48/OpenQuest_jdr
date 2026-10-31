@@ -161,7 +161,8 @@ comme des rectangles à l'échelle, avec leur nom et leur taille (les zones
 peuvent avoir des **tailles différentes**). Voir
 [`MONDE_ZONES.md`](./MONDE_ZONES.md) pour le modèle complet.
 
-- **＋ Zone** : crée une carte 2.5D (terrain 3D) et la pose sous le monde.
+- **＋ Zone** : crée une carte 2.5D (terrain 3D) et la pose sous le monde, avec
+  un **nom libre** et une **taille** largeur × hauteur.
 - **Glisser** une zone : change sa position `zoneX/zoneY` sur le plan.
 - **Relier les bords** : détecte automatiquement les voisins qui partagent un
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
