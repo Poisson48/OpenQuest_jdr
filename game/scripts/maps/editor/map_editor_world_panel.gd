@@ -10,7 +10,7 @@ extends Control
 signal open_map_requested(map_id: String)
 
 const WorldZonesScript := preload("res://scripts/maps/world/world_zones.gd")
-const BAR_H := 104.0
+var _bar_h: float = 104.0
 const BASE_PX_PER_CELL := 99.0  # 1 case = BASE_PX_PER_CELL * zoom pixels
 const ZONE_COLORS := [
 	Color(0.28, 0.40, 0.24, 0.92),
@@ -27,6 +27,7 @@ var pan: Vector2 = Vector2.ZERO
 
 var _status_lbl: Label
 var _error_lbl: Label
+var _bar: HFlowContainer
 var _drag_active := false
 var _drag_zone_id := ""
 var _drag_start_screen := Vector2.ZERO
@@ -80,10 +81,12 @@ func _build_ui() -> void:
 	bar.offset_left = 6
 	bar.offset_right = -6
 	bar.offset_top = 6
-	bar.offset_bottom = 6 + BAR_H - 12
+	bar.offset_bottom = 6 + _bar_h - 12
 	bar.add_theme_constant_override("h_separation", 4)
 	bar.add_theme_constant_override("v_separation", 4)
 	add_child(bar)
+	_bar = bar
+	bar.resized.connect(_update_bar_height)
 
 	_button(bar, "＋ Zone", func(): _open_create_zone())
 	_button(bar, "Relier les bords", func(): auto_link())
@@ -107,7 +110,7 @@ func _build_ui() -> void:
 	_status_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_status_lbl.offset_left = 8
 	_status_lbl.offset_right = -8
-	_status_lbl.offset_top = BAR_H + 6
+	_status_lbl.offset_top = _bar_h + 6
 	_status_lbl.add_theme_font_size_override("font_size", 11)
 	_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status_lbl)
@@ -197,6 +200,19 @@ func _current_map_id() -> String:
 	if md == null:
 		return ""
 	return str(md.preview_map_id)
+
+## Recalcule la hauteur réelle de la barre (elle passe sur plusieurs lignes
+## quand le panneau Monde est étroit) et décale la grille + le statut.
+func _update_bar_height() -> void:
+	if _bar == null:
+		return
+	var target := maxf(104.0, _bar.size.y + 14.0)
+	if absf(target - _bar_h) <= 0.5:
+		return
+	_bar_h = target
+	if _status_lbl != null:
+		_status_lbl.offset_top = _bar_h + 6
+	queue_redraw()
 
 func _update_status() -> void:
 	if _status_lbl == null:
@@ -831,10 +847,10 @@ func _px_per_cell() -> float:
 	return BASE_PX_PER_CELL * zoom
 
 func _world_to_screen(cell: Vector2) -> Vector2:
-	return Vector2(0, BAR_H + 20) + pan + cell * _px_per_cell()
+	return Vector2(0, _bar_h + 20) + pan + cell * _px_per_cell()
 
 func _screen_to_world(pos: Vector2) -> Vector2:
-	return (pos - Vector2(0, BAR_H + 20) - pan) / maxf(0.001, _px_per_cell())
+	return (pos - Vector2(0, _bar_h + 20) - pan) / maxf(0.001, _px_per_cell())
 
 func _zone_rect(zone: Dictionary) -> Rect2:
 	return Rect2(Vector2(float(zone.get("x", 0.0)), float(zone.get("y", 0.0))),
@@ -850,11 +866,11 @@ func fit_view() -> void:
 	if size.x < 50.0 or size.y < 50.0:
 		# Le panneau n'est pas encore layouté : on recadrera au prochain resize.
 		return
-	var area := size - Vector2(20, BAR_H + 40)
+	var area := size - Vector2(20, _bar_h + 40)
 	zoom = clampf(minf(area.x / (float(bounds.size.x) * BASE_PX_PER_CELL),
 		area.y / (float(bounds.size.y) * BASE_PX_PER_CELL)), 0.02, 1.5)
 	var center := (Vector2(bounds.position) + Vector2(bounds.size) * 0.5) * _px_per_cell()
-	pan = (size * 0.5) - center - Vector2(0, (BAR_H + 20) * 0.5)
+	pan = (size * 0.5) - center - Vector2(0, (_bar_h + 20) * 0.5)
 	_has_fitted = true
 	queue_redraw()
 
