@@ -74,7 +74,7 @@ static func build_demo(md: Node) -> Dictionary:
 		var existing_world := str((existing_variant as Dictionary).get("worldId", ""))
 		if existing_world == "demo-valbois" or existing_world == "demo-iles":
 			md.delete_map(str((existing_variant as Dictionary).get("id", "")))
-	var map: Dictionary = md.create_complex_map("Démo 2.5D — objets 3D", "general", "local", 24, 16)
+	var map: Dictionary = md.create_complex_map("Village de Valbois", "general", "local", 24, 16)
 	if map.is_empty():
 		return {}
 	var map_id := str(map.get("id", ""))
