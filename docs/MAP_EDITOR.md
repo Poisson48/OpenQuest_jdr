@@ -357,10 +357,11 @@ Onglet **Carte** :
 - **Fond** : import PNG/JPEG/WebP (les dimensions de grille sont déduites de
   l'image), ajout de calques d'élévation, retrait du fond.
 - **Type de sol** : **Terrain 3D** (heightfield simple, relief peint à l'outil
-  ⛰, matières peintes à l'outil 🟫 Sol — herbe / terre / pierre — et objets 3D
-  adaptés au sol ; recommandé pour la carte 2.5D) ou **Fond illustré** (image
-  peinte à plat ; mode historique, aucune déformation). Un fond importé bascule
-  automatiquement en « Fond illustré ».
+  ⛰, matières peintes à l'outil 🟫 Sol — herbe / terre / pierre —, **jupe de
+  falaise** sur le pourtour et objets 3D adaptés au sol ; recommandé pour la
+  carte 2.5D) ou **Fond illustré** (image peinte à plat ; mode historique,
+  aucune déformation). Un fond importé bascule automatiquement en « Fond
+  illustré ».
 - **Eau (niveau)** : `-1` = aucune eau ; toute autre valeur est la hauteur du
   plan d'eau en cases. Les creux du relief sous ce niveau deviennent un étang /
   lac, avec rendu translucide animé, profondeur et écume de rive (mode Terrain 3D

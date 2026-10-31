@@ -30,6 +30,17 @@ class_name MapGround3D
 ## le shader de révélation jour/nuit avec masque de lumières. **Aucune
 ## déformation** : le relief n'est pas rendu, même si des hauteurs existent
 ## (elles restent des données logiques pour la pose des objets et le picking).
+##
+## **Jupe de falaise** (`terrain3d` uniquement) : un anneau de falaises
+## verticales sur le pourtour de la grille donne à la carte l'allure d'un
+## plateau/îlot (façon Dofus) au lieu de flotter sur le fond noir. Le sommet
+## suit exactement les hauteurs des sommets de bord, la paroi descend de
+## `CLIFF_DEPTH_CELLS` cases sous le niveau local, les normales pointent vers
+## l'extérieur et un matériau roche éclairé (rugosité 1, vertex colors en
+## strates) la rend lisible. Le sommet est décalé de `CLIFF_OUTSET_CELLS` vers
+## l'extérieur pour éviter le z-fighting avec le terrain. Aucune ombre portée.
+## Aucune jupe en mode `illustrated`, et elle se reconstruit avec le maillage
+## (configure / set_terrain_heights).
 
 const NIGHT_SHADER := preload("res://shaders/map_night_reveal.gdshader")
 const TERRAIN_SPLAT_SHADER := preload("res://shaders/terrain_splat.gdshader")
@@ -56,8 +67,22 @@ const TERRAIN_ROCK := Color(0.55, 0.54, 0.50)
 const TERRAIN_NIGHT_TINT := Color(0.32, 0.36, 0.48)
 ## Amplitude de la variation de couleur par sommet (±).
 const TERRAIN_VARIATION := 0.055
+## Jupe de falaise autour des cartes `terrain3d` (îlot façon Dofus).
+## Profondeur de la paroi sous le niveau local, en cases.
+const CLIFF_DEPTH_CELLS := 2.5
+## Décalage du sommet vers l'extérieur, en cases (anti z-fighting).
+const CLIFF_OUTSET_CELLS := 0.02
+## Couleur de base de la roche de falaise (brun-gris terreux).
+const CLIFF_ROCK := Color(0.38, 0.34, 0.29)
+## Roche éclaircie pour les strates.
+const CLIFF_ROCK_LIGHT := Color(0.54, 0.49, 0.42)
+## Éclaircissement des strates (maximum ajouté à la couleur de base).
+const CLIFF_STRATA_GAIN := 0.16
 
 var _mesh_instance: MeshInstance3D
+## Jupe de falaise : mesh séparé (matériau roche) construit en terrain3d.
+var _cliff_instance: MeshInstance3D
+var _cliff_active: bool = false
 var _extent: Vector2 = Vector2.ZERO
 var _light_mask_tex: ImageTexture
 ## Shader jour/nuit actif (mode `illustrated` uniquement).
@@ -95,6 +120,16 @@ func _ensure_mesh_instance() -> void:
 		return
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
+	_ensure_cliff_instance()
+
+func _ensure_cliff_instance() -> void:
+	if _cliff_instance != null and is_instance_valid(_cliff_instance):
+		return
+	_cliff_instance = MeshInstance3D.new()
+	_cliff_instance.name = "CliffSkirt"
+	_cliff_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_cliff_instance.visible = false
+	add_child(_cliff_instance)
 
 func configure(
 	texture: Texture2D,
@@ -233,6 +268,7 @@ func _apply_config() -> void:
 	if _cfg.is_empty():
 		return
 	_ensure_mesh_instance()
+	_ensure_cliff_instance()
 	var texture: Texture2D = _cfg.get("texture")
 	var night_texture: Texture2D = _cfg.get("night_texture")
 	var map_width: int = int(_cfg.get("map_width", 1))
@@ -264,9 +300,11 @@ func _apply_config() -> void:
 		if not _splat_active:
 			_splat_texture = null
 			_splat_image = null
+		_rebuild_cliff(cell_size, night_mode)
 		return
 
 	# Mode illustré (legacy) : quad plat, ratio du PNG, aucune déformation.
+	_clear_cliff()
 	_splat_active = false
 	_splat_texture = null
 	_splat_image = null
@@ -631,19 +669,7 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	heights.resize(count)
 	for j in range(rows):
 		for i in range(cols):
-			var total := 0.0
-			var samples := 0
-			for oy in range(-1, 1):
-				var cy := j + oy
-				if cy < 0 or cy >= h:
-					continue
-				for ox in range(-1, 1):
-					var cx := i + ox
-					if cx < 0 or cx >= w:
-						continue
-					total += _cell_height(cx, cy)
-					samples += 1
-			heights[j * cols + i] = total / float(maxi(1, samples))
+			heights[j * cols + i] = _vertex_height(i, j)
 
 	for j in range(rows):
 		for i in range(cols):
@@ -761,6 +787,24 @@ func _compute_terrain_bounds() -> void:
 		_terrain_min = minf(_terrain_min, v)
 		_terrain_max = maxf(_terrain_max, v)
 
+## Hauteur d'un **sommet** de la grille (en cases) : moyenne des cases adjacentes
+## (interpolation bilinéaire aux bords). Sert au terrain ET à la jupe de falaise,
+## pour que le sommet des falaises suive exactement les hauteurs de bord.
+func _vertex_height(i: int, j: int) -> float:
+	var total := 0.0
+	var samples := 0
+	for oy in range(-1, 1):
+		var cy := j + oy
+		if cy < 0 or cy >= _terrain_h:
+			continue
+		for ox in range(-1, 1):
+			var cx := i + ox
+			if cx < 0 or cx >= _terrain_w:
+				continue
+			total += _cell_height(cx, cy)
+			samples += 1
+	return total / float(maxi(1, samples))
+
 func _cell_height(cx: int, cy: int) -> float:
 	if _terrain_w <= 0 or _terrain_h <= 0:
 		return 0.0
@@ -793,6 +837,207 @@ func count_cells_below(level: float) -> int:
 			if _cell_height(x, y) < level - TERRAIN_RELIEF_EPSILON:
 				count += 1
 	return count
+
+# ===========================================================================
+# Jupe de falaise (îlot façon Dofus) — terrain3d uniquement
+# ===========================================================================
+
+## Vrai si la jupe de falaise est rendue (mode terrain3d uniquement).
+func is_cliff_skirt_active() -> bool:
+	return _cliff_active
+
+## Profondeur de la falaise sous le niveau local, en cases.
+func get_cliff_depth() -> float:
+	return CLIFF_DEPTH_CELLS
+
+## Profondeur de la falaise en unités monde (cases × cell_size).
+func get_cliff_depth_world() -> float:
+	return CLIFF_DEPTH_CELLS * maxf(0.0, float(_cfg.get("cell_size", 1.0)))
+
+## Nœud de la jupe de falaise (null tant que rien n'est construit).
+func get_cliff_mesh_instance() -> MeshInstance3D:
+	return _cliff_instance
+
+## Maillage de la jupe (null en mode illustré / sans terrain).
+func get_cliff_mesh() -> ArrayMesh:
+	if _cliff_instance == null:
+		return null
+	return _cliff_instance.mesh as ArrayMesh
+
+## Nombre de sommets du maillage de falaise (0 si aucune jupe).
+func get_cliff_vertex_count() -> int:
+	var mesh := get_cliff_mesh()
+	if mesh == null or mesh.get_surface_count() == 0:
+		return 0
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	return verts.size()
+
+## Matériau de la jupe (StandardMaterial3D éclairé, roche + strates).
+func get_cliff_material() -> StandardMaterial3D:
+	if _cliff_instance == null:
+		return null
+	return _cliff_instance.material_override as StandardMaterial3D
+
+## Reconstruit la jupe de falaise (appelé à chaque reconstruction du sol).
+func _rebuild_cliff(cell_size: float, night_mode: bool) -> void:
+	if _cliff_instance == null or not is_instance_valid(_cliff_instance):
+		return
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		_clear_cliff()
+		return
+	var mesh := _make_cliff_mesh(cell_size)
+	if mesh == null:
+		_clear_cliff()
+		return
+	_cliff_instance.mesh = mesh
+	_cliff_instance.position = Vector3.ZERO
+	_cliff_instance.rotation_degrees = Vector3.ZERO
+	_cliff_instance.material_override = _make_cliff_material(night_mode)
+	_cliff_instance.visible = true
+	_cliff_active = true
+
+func _clear_cliff() -> void:
+	_cliff_active = false
+	if _cliff_instance != null and is_instance_valid(_cliff_instance):
+		_cliff_instance.mesh = null
+		_cliff_instance.visible = false
+
+## Anneau de falaises : 4 bandes verticales le long des bords de la grille.
+## Le sommet de chaque bande reprend exactement les hauteurs des sommets de bord
+## du terrain (`_vertex_height`), la paroi descend de `CLIFF_DEPTH_CELLS` cases.
+## Les sommets sont décalés de `CLIFF_OUTSET_CELLS` vers l'extérieur (z-fighting)
+## et les normales pointent vers l'extérieur de la carte.
+func _make_cliff_mesh(cell_size: float) -> ArrayMesh:
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return null
+	var depth := CLIFF_DEPTH_CELLS * cell_size
+	var outset := CLIFF_OUTSET_CELLS * cell_size
+	# Arrays simples (référence) : convertis en Packed*Array au commit.
+	var verts: Array = []
+	var normals: Array = []
+	var colors: Array = []
+	var indices: Array = []
+	_append_cliff_side(verts, normals, colors, indices, "north", cell_size, depth, outset)
+	_append_cliff_side(verts, normals, colors, indices, "south", cell_size, depth, outset)
+	_append_cliff_side(verts, normals, colors, indices, "west", cell_size, depth, outset)
+	_append_cliff_side(verts, normals, colors, indices, "east", cell_size, depth, outset)
+	if verts.is_empty():
+		return null
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array(verts)
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array(normals)
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray(colors)
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(indices)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+## Ajoute une bande de falaise (un côté de la carte) aux tableaux de géométrie.
+func _append_cliff_side(
+	verts: Array,
+	normals: Array,
+	colors: Array,
+	indices: Array,
+	side: String,
+	cell_size: float,
+	depth: float,
+	outset: float
+) -> void:
+	var horizontal := side == "north" or side == "south"
+	var segment_count := _terrain_w if horizontal else _terrain_h
+	# On déborde d'un échantillon de chaque côté pour couvrir les coins.
+	var sample_count := segment_count + 3
+	var normal := Vector3.ZERO
+	match side:
+		"north":
+			normal = Vector3(0.0, 0.0, -1.0)
+		"south":
+			normal = Vector3(0.0, 0.0, 1.0)
+		"west":
+			normal = Vector3(-1.0, 0.0, 0.0)
+		"east":
+			normal = Vector3(1.0, 0.0, 0.0)
+	var first_index := verts.size()
+	for s in range(sample_count):
+		var along := s - 1
+		var along_pos := 0.0
+		var top_y := 0.0
+		# Décalage d'un échantillon hors carte aux deux extrémités.
+		if along < 0:
+			along_pos = -outset
+		elif along > segment_count:
+			along_pos = float(segment_count) * cell_size + outset
+		else:
+			along_pos = float(along) * cell_size
+		if horizontal:
+			var edge_j := 0 if side == "north" else _terrain_h
+			top_y = _vertex_height(clampi(along, 0, _terrain_w), edge_j) * cell_size
+		else:
+			var edge_i := 0 if side == "west" else _terrain_w
+			top_y = _vertex_height(edge_i, clampi(along, 0, _terrain_h)) * cell_size
+		var top_pos := _cliff_side_position(side, along_pos, top_y, outset, cell_size)
+		var bottom_pos := Vector3(top_pos.x, top_y - depth, top_pos.z)
+		verts.append(top_pos)
+		verts.append(bottom_pos)
+		normals.append(normal)
+		normals.append(normal)
+		colors.append(_cliff_vertex_color(top_y, 0.0, along))
+		colors.append(_cliff_vertex_color(top_y - depth, 1.0, along))
+	for s in range(sample_count - 1):
+		var t0 := first_index + s * 2
+		var b0 := t0 + 1
+		var t1 := t0 + 2
+		var b1 := t0 + 3
+		indices.append(t0)
+		indices.append(b0)
+		indices.append(t1)
+		indices.append(b0)
+		indices.append(b1)
+		indices.append(t1)
+
+## Position monde d'un sommet de bande de falaise (X/Z selon le côté, Y fourni).
+func _cliff_side_position(side: String, along_pos: float, top_y: float, outset: float, cell_size: float) -> Vector3:
+	match side:
+		"north":
+			return Vector3(along_pos, top_y, -outset)
+		"south":
+			return Vector3(along_pos, top_y, float(_terrain_h) * cell_size + outset)
+		"west":
+			return Vector3(-outset, top_y, along_pos)
+		"east":
+			return Vector3(float(_terrain_w) * cell_size + outset, top_y, along_pos)
+	return Vector3(along_pos, top_y, 0.0)
+
+## Couleur d'une strate de falaise : roche brun-gris éclaircie par des strates
+## horizontales douces, assombrie en profondeur.
+func _cliff_vertex_color(world_y: float, depth_frac: float, along: int) -> Color:
+	var strata := sin(world_y * 4.5 + float(along) * 0.8) * 0.5 + 0.5
+	var col := CLIFF_ROCK.lerp(CLIFF_ROCK_LIGHT, strata * 0.65)
+	var shade := lerpf(1.0, 0.68, clampf(depth_frac, 0.0, 1.0))
+	col = Color(col.r * shade, col.g * shade, col.b * shade, 1.0)
+	var variation := _terrain_variation(along, int(world_y * 2.0)) * CLIFF_STRATA_GAIN * 0.25
+	if variation > 0.0:
+		col = col.lightened(variation)
+	else:
+		col = col.darkened(-variation)
+	col.a = 1.0
+	return col
+
+## Matériau de la jupe : roche éclairée, vertex colors (strates), cull désactivé.
+func _make_cliff_material(night_mode: bool) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = TERRAIN_NIGHT_TINT if night_mode else Color.WHITE
+	mat.roughness = 1.0
+	mat.metallic = 0.0
+	mat.metallic_specular = 0.1
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return mat
 
 func get_map_extent() -> Vector2:
 	return _extent
