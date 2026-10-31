@@ -136,6 +136,7 @@ func _ready() -> void:
 	help_text.text = """[center][b]Aide de session[/b][/center]
 
 [b]Déplacements[/b]
+• Outil [b]Pas[/b] (D) : clic sur une case = déplacer le personnage sélectionné.
 • Glisser un pion vers un bord de carte change de zone.
 • Sorties cliquables en haut à gauche (fondu vers la zone voisine).
 • Boutons [b]Groupe[/b] (G) et [b]Monde[/b] (M) dans la barre.
@@ -255,6 +256,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif key.keycode == KEY_C:
 		if _minimap_panel != null:
 			_minimap_panel.visible = not _minimap_panel.visible
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_D:
+		_tool = SessionToolRegistry.make(SessionToolRegistry.MOVE)
+		refresh()
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_H:
 		if _help_overlay != null:
@@ -686,10 +691,41 @@ func _on_cell_clicked(x: int, y: int) -> void:
 
 func _on_grid_clicked(gx: float, gy: float, tool: Dictionary) -> void:
 	var map_id := _current_map_id()
-	if map_id.is_empty() or not SessionToolRegistry.is_place_tool(tool if not tool.is_empty() else _tool):
+	if map_id.is_empty():
+		return
+	var effective := tool if not tool.is_empty() else _tool
+	if str(effective.get("mode", "")) == SessionToolRegistry.MOVE:
+		_move_selected_token(gx, gy)
+		return
+	if not SessionToolRegistry.is_place_tool(effective):
 		return
 	GameData.apply_complex_map_click(map_id, gx, gy, tool)
 	refresh()
+
+## Outil « Déplacer » : clic vers une case pour le personnage sélectionné
+## (sinon le personnage actif du tour). Le franchissement de bord reste géré.
+func _move_selected_token(gx: float, gy: float) -> void:
+	var map_id := _current_map_id()
+	if map_id.is_empty():
+		return
+	var token_id := GameData.get_selected_token_id(map_id)
+	if token_id.is_empty():
+		var active: Dictionary = GameData.get_active_member()
+		var member_id := str(active.get("id", ""))
+		if member_id.is_empty():
+			notice_requested.emit("Sélectionnez un personnage à déplacer.")
+			return
+		for tok_variant in GameData.get_map_play_tokens(map_id):
+			if not tok_variant is Dictionary:
+				continue
+			var tok: Dictionary = tok_variant
+			if str(tok.get("kind", "")) == "member" and str(tok.get("memberId", "")) == member_id:
+				token_id = str(tok.get("id", ""))
+				break
+	if token_id.is_empty():
+		notice_requested.emit("Sélectionnez un personnage à déplacer.")
+		return
+	_on_token_moved(token_id, gx, gy)
 
 func _on_inspect_requested(info: Dictionary) -> void:
 	var map_id := _current_map_id()

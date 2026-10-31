@@ -39,6 +39,7 @@ func rebuild(context: Dictionary) -> void:
 		_add_separator()
 
 	_add_tool(SessionToolRegistry.SELECT, SessionToolRegistry.make(SessionToolRegistry.SELECT), tool)
+	_add_tool(SessionToolRegistry.MOVE, SessionToolRegistry.make(SessionToolRegistry.MOVE), tool)
 	if is_gm:
 		_add_separator()
 		_add_member_tools(context, tool)

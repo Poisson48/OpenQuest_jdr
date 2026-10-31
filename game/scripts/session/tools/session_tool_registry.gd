@@ -8,6 +8,7 @@ class_name SessionToolRegistry
 ## se contente de lire ce catalogue ; elle ne décide de rien.
 
 const SELECT := "select"
+const MOVE := "move"
 const MEMBER := "member"
 const MARKER := "marker"
 const EFFECT := "effect"
@@ -24,6 +25,11 @@ const DEFS := [
 		"id": SELECT, "label": "Sélection", "glyph": "Sél", "group": "base",
 		"modes": ["simple", "complex"], "gm_only": false,
 		"hint": "Clic : inspecter. Glisser un jeton ou un décor : le déplacer. Double-clic : entrer dans un lieu.",
+	},
+	{
+		"id": MOVE, "label": "Déplacer", "glyph": "Pas", "group": "base",
+		"modes": ["simple", "complex"], "gm_only": false,
+		"hint": "Clic : déplacer le personnage sélectionné (ou actif) vers la case cliquée.",
 	},
 	{
 		"id": MEMBER, "label": "Personnage", "glyph": "PJ", "group": "place",
