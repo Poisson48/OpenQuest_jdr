@@ -219,6 +219,15 @@ func _run() -> void:
 	if fences_after.size() > fences_before:
 		var fence_display: Dictionary = fences_after[fences_before].get("display", {})
 		_assert("mesh_fence_rotation", absf(float(fence_display.get("rotation", 0.0))) < 1.0)
+
+	# Chemin de terre (largeur 2).
+	editor._path_width = 2
+	editor._path_material = 1
+	editor._create_path(Vector2(2.0, 2.0), Vector2(8.0, 2.0))
+	var path_mats: Array = editor.doc.map_data.get("terrainMaterials", [])
+	var path_w := int(editor.doc.map_data.get("width", 1))
+	_assert("mesh_path_painted", path_mats.size() > 2 * path_w + 5
+		and int(path_mats[2 * path_w + 5]) == 1 and int(path_mats[3 * path_w + 5]) == 1)
 	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame

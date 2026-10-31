@@ -137,6 +137,8 @@ var _floor_material: int = 2
 var _floor_flatten: bool = true
 var _furnish_preset: String = "salle"
 var _fence_asset: String = "res://assets/objects3d/props/barriere.glb"
+var _path_width: int = 1
+var _path_material: int = 1
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -1253,6 +1255,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_house(from, to)
 	elif _tool == ToolsScript.FENCE_3D:
 		_create_mesh_fence(from, to)
+	elif _tool == ToolsScript.PATH_3D:
+		_create_path(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1528,7 +1532,33 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_roof_height = previous_roof
 	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
 ## qui laissent une ouverture, puis la porte est posée dans le passage.
-## Clôture modulaire le long d'un tracé (barrière / clôture / palissade).
+## Chemin de terre : peint les cases le long du tracé, largeur réglable.
+func _create_path(from: Vector2, to: Vector2) -> void:
+	var w := int(doc.map_data.get("width", 0))
+	var h := int(doc.map_data.get("height", 0))
+	var dx := to.x - from.x
+	var dy := to.y - from.y
+	var steps := maxi(1, int(ceil(maxf(absf(dx), absf(dy)) * 2.0)))
+	var touched := {}
+	for i in range(steps + 1):
+		var t := float(i) / float(steps)
+		var cx := int(round(from.x + dx * t))
+		var cy := int(round(from.y + dy * t))
+		for ox in range(-_path_width + 1, _path_width):
+			for oy in range(-_path_width + 1, _path_width):
+				var px := cx + ox
+				var py := cy + oy
+				if px < 0 or py < 0 or px >= w or py >= h:
+					continue
+				touched[Vector2i(px, py)] = true
+	if touched.is_empty():
+		return
+	doc.begin_transaction()
+	for cell_variant in touched.keys():
+		var cell: Vector2i = cell_variant
+		doc.set_terrain_material(cell.x, cell.y, _path_material, "Chemin")
+	doc.commit_transaction()
+	_set_status("Chemin : %d case(s) peinte(s)." % touched.size())
 func _create_mesh_fence(from: Vector2, to: Vector2) -> void:
 	var delta := to - from
 	var total := delta.length()
@@ -3866,6 +3896,18 @@ func _rebuild_tool_options() -> void:
 		fence_opt.item_selected.connect(func(index: int): _fence_asset = str(fence_opt.get_item_metadata(index)))
 		_tool_options.add_child(fence_opt)
 		_option_note("Glissez le long d'une limite : clôture modulaire alignée au terrain.")
+	elif _tool == ToolsScript.PATH_3D:
+		_spin(_hbox(_tool_options), "Largeur", 1, 4, float(_path_width), 1, func(v): _path_width = int(v))
+		var path_opt := OptionButton.new()
+		for i in range(FLOOR_MATERIALS.size()):
+			var path_mat: Dictionary = FLOOR_MATERIALS[i]
+			path_opt.add_item(str(path_mat["label"]), i)
+			path_opt.set_item_metadata(i, int(path_mat["id"]))
+			if int(path_mat["id"]) == _path_material:
+				path_opt.select(i)
+		path_opt.item_selected.connect(func(index: int): _path_material = int(path_opt.get_item_metadata(index)))
+		_tool_options.add_child(path_opt)
+		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
