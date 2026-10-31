@@ -75,6 +75,22 @@ func _run() -> void:
 				help_img.save_png(help_out)
 				print("  capture: ", help_out)
 			workspace._help_overlay.visible = false
+		# Outil Pas + curseur de survol sur une case.
+		workspace._tool = SessionToolRegistry.make(SessionToolRegistry.MOVE)
+		workspace.refresh()
+		for _i in range(8):
+			await process_frame
+		var engine = workspace.stage._complex
+		if engine != null:
+			engine._update_move_pointer(engine.size * 0.5)
+			for _i in range(4):
+				await process_frame
+			var pas_img: Image = get_root().get_texture().get_image()
+			if pas_img != null:
+				pas_img.convert(Image.FORMAT_RGBA8)
+				var pas_out := copy_dir.path_join("session_pas.png")
+				pas_img.save_png(pas_out)
+				print("  capture: ", pas_out)
 	session.queue_free()
 	await process_frame
 	print("session_monde_shot_test:PASS")
