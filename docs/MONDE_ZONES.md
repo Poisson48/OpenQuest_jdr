@@ -119,7 +119,10 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 - Le brouillard de monde masque les zones non découvertes ; découvre une zone en y entrant.
 - Implémentation : `WorldNavigation` (bords), `GameData.transition_map_edge`
   (transfert du token), `GameData.enter_world_zone` + `world_map_overlay.gd`
-  (carte du monde, découverte persistante `discoveredZones`, voyage rapide).
+  (carte du monde, découverte persistante `discoveredZones`, voyage rapide,
+  fondu noir + titre de zone).
+- Démo session : `scenes/debug/carte_25d_session_boot.tscn` (monde 5 zones,
+  groupe dans le village, figurines 3D) — capture `session_monde_25d.png`.
 
 ---
 

@@ -76,6 +76,14 @@ Tester dans l'éditeur :
 # ou : ＋ Importer un GLB… pour ajouter son propre bâtiment
 ```
 
+Tester le **monde en session** (5 zones reliées, figurines 3D, carte du monde M) :
+
+```powershell
+.\scripts\play-godot.ps1 res://scenes/debug/carte_25d_session_boot.tscn
+```
+
+Capture : [`session_monde_25d.png`](./screenshots/session_monde_25d.png).
+
 ---
 
 ## 4 bis. Exigence produit : n'importe qui compose sa carte et son scénario

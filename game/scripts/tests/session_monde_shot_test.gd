@@ -1,0 +1,55 @@
+extends SceneTree
+
+## Capture de la session « monde 2.5D » (village + groupe en figurines 3D).
+## Non headless : nécessite un rendu réel.
+
+func _init() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	await process_frame
+	var copy_dir := ProjectSettings.globalize_path("res://").rstrip("/").get_base_dir().path_join("docs/screenshots")
+	var md = get_root().get_node("MapData")
+	var gd = get_root().get_node("GameData")
+	var boot: GDScript = load("res://scripts/debug/carte_25d_boot.gd")
+	var demo: Dictionary = boot.build_demo(md)
+	var village: Dictionary = demo.get("map", {})
+	var village_id := str(village.get("id", ""))
+	var ids: Array = []
+	for map_variant in demo.get("world_maps", []):
+		ids.append(str((map_variant as Dictionary).get("id", "")))
+	var party := [
+		{"id": "hero-aria", "name": "Aria", "class": "Aventurière", "hp": 12, "ac": 14,
+			"isPlayer": true, "portrait": "", "image": "", "stats": {}},
+		{"id": "hero-bran", "name": "Bran", "class": "Garde", "hp": 15, "ac": 16,
+			"isPlayer": true, "portrait": "", "image": "", "stats": {}},
+	]
+	gd.create_new_game("demo-valbois", "solo", "human", "oneshot", party, ids)
+	gd.ensure_map_play_state()
+	gd.active_game["currentMapId"] = village_id
+	gd.active_game["mapNavigation"] = {
+		"view": "local", "worldMapId": null, "localMapId": village_id, "worldCell": null,
+	}
+	gd.save_active_game()
+	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
+	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
+
+	var session: Node = (load("res://scenes/session/session.tscn") as PackedScene).instantiate()
+	get_root().add_child(session)
+	if session is Control:
+		(session as Control).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for _i in range(40):
+		await process_frame
+	var img: Image = get_root().get_texture().get_image()
+	if img == null:
+		printerr("  FAIL capture")
+		quit(1)
+		return
+	img.convert(Image.FORMAT_RGBA8)
+	var out := copy_dir.path_join("session_monde_25d.png")
+	img.save_png(out)
+	print("  capture: ", out, " (", img.get_width(), "x", img.get_height(), ")")
+	session.queue_free()
+	await process_frame
+	print("session_monde_shot_test:PASS")
+	quit(0)
