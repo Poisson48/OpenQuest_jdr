@@ -60,6 +60,21 @@ func _run() -> void:
 	var out := copy_dir.path_join("session_monde_25d.png")
 	img.save_png(out)
 	print("  capture: ", out, " (", img.get_width(), "x", img.get_height(), ")")
+	# Aide de session (touche H).
+	var workspaces := session.find_children("*", "MapWorkspacePanel", true, false)
+	if not workspaces.is_empty():
+		var workspace = workspaces[0]
+		if workspace._help_overlay != null:
+			workspace._help_overlay.visible = true
+			for _i in range(8):
+				await process_frame
+			var help_img: Image = get_root().get_texture().get_image()
+			if help_img != null:
+				help_img.convert(Image.FORMAT_RGBA8)
+				var help_out := copy_dir.path_join("session_aide.png")
+				help_img.save_png(help_out)
+				print("  capture: ", help_out)
+			workspace._help_overlay.visible = false
 	session.queue_free()
 	await process_frame
 	print("session_monde_shot_test:PASS")

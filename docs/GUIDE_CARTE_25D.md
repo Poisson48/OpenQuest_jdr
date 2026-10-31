@@ -83,6 +83,7 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
   aperçus des sols/bâtiments, « Vous êtes ici », voyage rapide par clic).
 - **G** recentre la caméra sur le groupe (ou bouton **Groupe** dans la barre), **F** recadre toute la carte.
 - **N** affiche/masque les noms flottants ; **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
+- **H** ouvre l'**aide des raccourcis** de session (Échap pour fermer).
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :
   fondu noir + nom de la zone.
 - Les membres sans portrait sont rendus en **figurines 3D par classe**

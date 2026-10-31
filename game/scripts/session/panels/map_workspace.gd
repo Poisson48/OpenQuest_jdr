@@ -36,6 +36,7 @@ var _fade: ColorRect
 var _transitioning: bool = false
 var _zone_title_lbl: Label
 var _zone_new_lbl: Label
+var _help_overlay: PanelContainer
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -100,6 +101,50 @@ func _ready() -> void:
 	_exits_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	_exits_lbl.add_theme_constant_override("shadow_offset_y", 1)
 	exits_panel.add_child(_exits_lbl)
+
+	# Aide des raccourcis de session (touche H), centrée et compacte.
+	var help_center := CenterContainer.new()
+	help_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	help_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(help_center)
+	_help_overlay = PanelContainer.new()
+	_help_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_help_overlay.custom_minimum_size = Vector2(560, 520)
+	var help_style := StyleBoxFlat.new()
+	help_style.bg_color = Color(0.04, 0.04, 0.05, 0.94)
+	help_style.border_color = Color(0.85, 0.72, 0.42, 0.8)
+	help_style.set_border_width_all(1)
+	help_style.set_corner_radius_all(10)
+	help_style.set_content_margin_all(16)
+	_help_overlay.add_theme_stylebox_override("panel", help_style)
+	help_center.add_child(_help_overlay)
+	var help_text := RichTextLabel.new()
+	help_text.bbcode_enabled = true
+	help_text.scroll_active = true
+	help_text.fit_content = false
+	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help_text.custom_minimum_size = Vector2(520, 480)
+	help_text.text = """[center][b]Aide de session[/b][/center]
+
+[b]Déplacements[/b]
+• Glisser un pion vers un bord de carte change de zone.
+• Boutons [b]Groupe[/b] (G) et [b]Monde[/b] (M) dans la barre.
+
+[b]Carte du monde[/b]
+• [b]M[/b] ouvre/ferme la carte du monde.
+• Clic sur une zone découverte : voyage rapide.
+• Survol : nom et taille de la zone.
+
+[b]Caméra[/b]
+• Molette ou [b]+ / −[/b] : zoom.
+• [b]G[/b] : recentrer sur le groupe · [b]F[/b] : cadrer la carte.
+• [b]1-9[/b] : changer de carte/zone.
+
+[b]Divers[/b]
+• [b]N[/b] : afficher/masquer les noms des figurines.
+• [b]H[/b] ou [b]Échap[/b] : fermer cette aide."""
+	_help_overlay.add_child(help_text)
+	_help_overlay.visible = false
 
 	# Carte du monde de session (touche M) : superposée à toute la fenêtre.
 	_world_map = WorldMapOverlayScript.new()
@@ -168,6 +213,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_F:
 		stage.fit()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_H:
+		if _help_overlay != null:
+			_help_overlay.visible = not _help_overlay.visible
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_ESCAPE and _help_overlay != null and _help_overlay.visible:
+		_help_overlay.visible = false
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_N:
 		# Afficher/masquer les noms flottants des figurines.
