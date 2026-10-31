@@ -191,15 +191,11 @@ func _run() -> void:
 	await process_frame
 	_assert("mesh_wall_tool_drag", _meshes_with_asset(editor, wall_asset).size() > ui_walls_before)
 
-	# Pièce 3D : quatre murs + quatre coins.
-	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
+	# Pièce 3D : quatre murs qui se recouvrent aux angles.
 	var room_walls_before := _meshes_with_asset(editor, wall_asset).size()
-	var room_corners_before := _meshes_with_asset(editor, corner_asset).size()
 	editor._create_mesh_room(Vector2(2.0, 14.0), Vector2(8.0, 18.0))
 	await process_frame
-	_assert("mesh_room_walls", _meshes_with_asset(editor, wall_asset).size() > room_walls_before)
-	_assert("mesh_room_corners",
-		_meshes_with_asset(editor, corner_asset).size() == room_corners_before + 4)
+	_assert("mesh_room_walls", _meshes_with_asset(editor, wall_asset).size() > room_walls_before + 4)
 	_assert("mesh_room_selected", editor.doc.selection_size() >= 8)
 
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.

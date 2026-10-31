@@ -1434,7 +1434,7 @@ func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
 	doc.commit_transaction()
 	_set_status("Mur 3D : %d segment(s) de %.2f case(s)." % [count, segment_len])
 
-## Construit une pièce fermée : quatre rangées de murs + quatre coins.
+## Construit une pièce fermée : quatre rangées de murs qui se recouvrent aux angles.
 func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
@@ -1452,25 +1452,8 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	ids.append_array(doc.selection())
 	_create_mesh_wall_chain(Vector2(x0, y1), Vector2(x0, y0))
 	ids.append_array(doc.selection())
-	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
-	var corners := [
-		[Vector2(x0, y0), 0.0], [Vector2(x1, y0), 90.0],
-		[Vector2(x1, y1), 180.0], [Vector2(x0, y1), 270.0],
-	]
-	for corner_variant in corners:
-		var corner: Array = corner_variant
-		var pos: Vector2 = corner[0]
-		var id: String = doc.add_element({
-			"x": pos.x, "y": pos.y,
-			"w": 2.1, "h": 1.69,
-			"asset": corner_asset,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
-			"label": "Coin de mur 3D", "layer": 1,
-			"display": {"rotation": float(corner[1]), "scale": 1.0},
-		}, DocumentScript.KIND_MESH, "Coin de mur 3D")
-		ids.append(id)
 	doc.set_selection(ids)
-	_set_status("Pièce 3D construite : 4 murs + 4 coins.")
+	_set_status("Pièce 3D construite : 4 murs (angles par recouvrement).")
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
