@@ -72,6 +72,7 @@ var _prop_category: String = "buildings"
 var _mesh_asset: String = ""
 var _mesh_scale: float = 1.0
 var _mesh_rotation: float = 0.0
+var _mesh_snap_modules: bool = true
 var _mesh_footprint_cache: Dictionary = {}
 ## Dialogue d'import de modèles 3D (GLB/glTF) pour la bibliothèque d'objets.
 var _mesh_import_dialog: FileDialog
@@ -1346,19 +1347,83 @@ func _create_mesh(grid: Vector2) -> void:
 	var asset := AssetLibraryScript.get_object3d_asset(_mesh_asset)
 	var bounds := _mesh_bounds_cells(_mesh_asset)
 	var footprint := Vector2(maxf(0.5, bounds.x), maxf(0.5, bounds.z))
+	var placement := {"x": grid.x, "y": grid.y, "elevation": 0.0, "rotation": _mesh_rotation}
+	if _mesh_snap_modules:
+		var snapped := _snap_module_placement(_mesh_asset, grid)
+		if not snapped.is_empty():
+			placement = snapped
 	var id: String = doc.add_element({
-		"x": grid.x, "y": grid.y,
+		"x": placement["x"], "y": placement["y"],
 		"w": footprint.x, "h": footprint.y,
 		"sizeX": footprint.x, "sizeY": maxf(0.2, bounds.y), "sizeZ": footprint.y,
 		"asset": _mesh_asset,
-		"elevation": 0.0,
+		"elevation": float(placement.get("elevation", 0.0)),
 		"followTerrain": true,
 		"tiltToTerrain": _mesh_tilt_default(asset),
 		"label": str(asset.get("name", _mesh_asset.get_file().get_basename())),
 		"layer": 1,
-		"display": {"rotation": _mesh_rotation, "scale": _mesh_scale},
+		"display": {"rotation": float(placement.get("rotation", _mesh_rotation)), "scale": _mesh_scale},
 	}, DocumentScript.KIND_MESH, "Objet 3D")
 	doc.select_only(id)
+	if placement.has("snapped_to"):
+		_set_status("Module aimanté sur « %s »." % str(placement.get("snapped_to", "bâtiment")))
+
+## Positionne automatiquement un module de toit/façade sur le bâtiment le plus
+## proche (manifeste Blender : anchor `roof` / `wall`, dimensions, hauteur).
+func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
+	var meta: Dictionary = AssetLibraryScript.get_object3d_meta(asset_path)
+	if meta.is_empty():
+		return {}
+	var anchor := str(meta.get("anchor", "base"))
+	if anchor != "roof" and anchor != "wall":
+		return {}
+	var best: Dictionary = {}
+	var best_distance := 999.0
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		var other_path := str(elem.get("asset", ""))
+		var other_meta: Dictionary = AssetLibraryScript.get_object3d_meta(other_path)
+		if other_meta.is_empty():
+			continue
+		if str(other_meta.get("anchor", "base")) != "base":
+			continue
+		if str(other_meta.get("category", "")) != "buildings":
+			continue
+		var other_name := str(other_meta.get("name", "")).to_lower()
+		if other_name.begins_with("toit") or other_name.begins_with("cheminee") \
+				or other_name.begins_with("clocheton") or other_name.begins_with("pnj_"):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var distance := center.distance_to(grid)
+		if distance < best_distance:
+			best_distance = distance
+			best = elem
+	if best.is_empty() or best_distance > 9.0:
+		return {}
+	var dims: Array = meta.get("dimensions_cells", [1.0, 1.0, 0.8])
+	var mod_depth := float(dims[1]) if dims.size() > 1 else 1.0
+	var mod_height := float(dims[2]) if dims.size() > 2 else 0.8
+	var building_h := float(best.get("sizeY", 1.5))
+	var building_h_foot := float(best.get("h", 1.0))
+	var label := str(best.get("label", best.get("asset", "")))
+	if anchor == "roof":
+		return {
+			"x": float(best.get("x", grid.x)),
+			"y": float(best.get("y", grid.y)),
+			"elevation": maxf(0.2, building_h - mod_height * 0.2),
+			"rotation": 0.0,
+			"snapped_to": label,
+		}
+	# Façade : côté sud (+Y) du bâtiment, à hauteur de mur.
+	return {
+		"x": float(best.get("x", grid.x)),
+		"y": float(best.get("y", grid.y)) + building_h_foot * 0.5 + mod_depth * 0.5,
+		"elevation": 0.0,
+		"rotation": 0.0,
+		"snapped_to": label,
+	}
 
 ## Dimensions (en cases) de la boîte englobante du GLB, échelle de pose incluse.
 func _mesh_bounds_cells(asset_path: String, scale_factor: float = -1.0) -> Vector3:
@@ -2981,6 +3046,12 @@ func _rebuild_tool_options() -> void:
 			_mesh_scale = v
 			_refresh_ghost()
 		)
+		var snap_chk := CheckBox.new()
+		snap_chk.text = "Aimantation aux bâtiments"
+		snap_chk.button_pressed = _mesh_snap_modules
+		snap_chk.tooltip_text = "Toits et façades se posent automatiquement sur le bâtiment le plus proche."
+		snap_chk.toggled.connect(func(on): _mesh_snap_modules = on)
+		_tool_options.add_child(snap_chk)
 		_option_note("Rotation : %d° (R pour pivoter)" % int(_mesh_rotation))
 	elif _tool == ToolsScript.AREA:
 		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)

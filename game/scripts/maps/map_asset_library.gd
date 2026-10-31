@@ -480,6 +480,9 @@ static func _scan_object3d_root(root_path: String, user_asset: bool, out: Array,
 
 ## Tous les objets 3D connus (livrés + utilisateur), par catégorie puis nom.
 ## Chaque entrée : { id, name, category, path, thumb, kind: "mesh", user: bool }.
+const OBJECTS3D_MANIFEST := "res://assets/objects3d/manifest.json"
+static var _object3d_manifest_cache: Dictionary = {}
+
 static func list_object3d_assets() -> Array:
 	var out: Array = []
 	var seen: Dictionary = {}
@@ -501,6 +504,37 @@ static func get_object3d_asset(asset_path: String) -> Dictionary:
 		if str((entry_variant as Dictionary).get("path", "")) == asset_path:
 			return entry_variant
 	return {}
+
+## Métadonnées du manifeste Blender (anchor, dimensions_cells, hauteur de pose)
+## pour un modèle livré. `{}` si le modèle n'est pas dans le manifeste.
+static func get_object3d_meta(asset_path: String) -> Dictionary:
+	var manifest := _load_object3d_manifest()
+	var normalized := asset_path.replace("\\", "/")
+	var filename := normalized.get_file()
+	for entry_variant in manifest.get("assets", []):
+		if not entry_variant is Dictionary:
+			continue
+		var entry: Dictionary = entry_variant
+		var glb := str(entry.get("glb", "")).replace("\\", "/")
+		if glb.is_empty():
+			continue
+		if normalized.ends_with("/" + glb) or filename == glb.get_file():
+			return entry
+	return {}
+
+static func _load_object3d_manifest() -> Dictionary:
+	if not _object3d_manifest_cache.is_empty():
+		return _object3d_manifest_cache
+	if not FileAccess.file_exists(OBJECTS3D_MANIFEST):
+		_object3d_manifest_cache = {"assets": []}
+		return _object3d_manifest_cache
+	var text := FileAccess.get_file_as_string(OBJECTS3D_MANIFEST)
+	var parsed = JSON.parse_string(text)
+	if parsed is Dictionary:
+		_object3d_manifest_cache = parsed
+	else:
+		_object3d_manifest_cache = {"assets": []}
+	return _object3d_manifest_cache
 
 ## Copie un GLB/GLTF dans user://map_assets/objects3d/<catégorie>/ et renvoie
 ## l'entrée créée (`{}` en cas d'échec). `source_path` peut être un chemin

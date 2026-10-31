@@ -127,6 +127,10 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   l'inspecteur ou par la poignée de coin de la sélection (la taille est déduite
   de l'AABB du GLB à la pose). **Rotation** : champ de l'inspecteur, boutons
   −90°/+90°, ou poignée de rotation au-dessus de la sélection.
+- **Aimantation des modules** : les toits (`anchor="roof"`) et façades
+  (`anchor="wall"`) se posent automatiquement sur le **bâtiment le plus proche**
+  (élévation/hauteur déduites du manifeste Blender), via la case « Aimantation
+  aux bâtiments » des options de l'outil Objet 3D.
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
