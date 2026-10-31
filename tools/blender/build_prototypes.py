@@ -1403,6 +1403,485 @@ def build_enseigne(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
+# Kit v4 : bâtiments varies, détails de toit, figurines PNJ
+# --------------------------------------------------------------------------- #
+
+
+def _npc_base(mats: Mats, seed: int, radius: float = 0.34) -> list[bpy.types.Object]:
+    """Socle rond discret (sans jupe) : utilisable en intérieur comme en extérieur."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_cylinder("socle", radius, 0.06, (0, 0, 0.03), mats["stone_dark"], vertices=12))
+    parts.append(
+        add_cylinder("socle_top", radius - 0.035, 0.02, (0, 0, 0.07), mats["stone_light"], vertices=12)
+    )
+    return parts
+
+
+def _npc_face(parts: list[bpy.types.Object], mats: Mats, z: float) -> None:
+    """Yeux et nez peints pour donner un visage aux figurines."""
+    for x in (-0.055, 0.055):
+        parts.append(add_box("eye", (0.028, 0.018, 0.028), (x, -0.125, z + 0.01), mats["iron_dark"]))
+    parts.append(add_box("nose", (0.028, 0.035, 0.025), (0, -0.145, z - 0.02), mats["skin_dark"]))
+
+
+def build_forge(mats: Mats) -> list[bpy.types.Object]:
+    """Forge de forgeron (~2,3 cases) : pierre, toit, grosse cheminée, enclume."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.50, 2.25), mats["grass"], seed=201)
+    ]
+    parts.append(add_box("plinth", (1.95, 1.70, 0.16), (0, 0, 0.08), mats["stone_dark"]))
+    parts.append(add_box("walls", (1.80, 1.55, 1.05), (0, 0, 0.16 + 0.525), mats["stone"]))
+    for x in (-0.85, 0.85):
+        for y in (-0.72, 0.72):
+            parts.append(add_box("post", (0.10, 0.10, 1.05), (x, y, 0.685), mats["wood_dark"]))
+    parts.append(add_box("belt", (1.86, 1.62, 0.09), (0, 0, 0.92), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=2.00, depth=1.85, height=0.62, base_z=1.21, material=mats["roof_slate"])
+    )
+    parts.append(add_box("eave", (2.06, 0.10, 0.10), (0, -0.78, 1.17), mats["wood_dark"]))
+    parts.append(add_box("ridge", (1.94, 0.11, 0.08), (0, 0, 1.81), mats["iron_dark"]))
+    # Grosse cheminée de forge.
+    parts.append(add_box("chimney", (0.42, 0.42, 1.25), (0.55, 0.30, 1.85), mats["stone"]))
+    parts.append(add_box("chimney_cap", (0.50, 0.50, 0.08), (0.55, 0.30, 2.51), mats["stone_dark"]))
+    # Gueule de forge chaude et linteau.
+    parts.append(add_box("forge_mouth", (0.55, 0.10, 0.45), (0, -0.80, 0.58), mats["ember"]))
+    parts.append(add_box("lintel", (0.66, 0.12, 0.10), (0, -0.80, 0.86), mats["stone_light"]))
+    parts.append(add_box("door", (0.34, 0.08, 0.62), (0.60, -0.80, 0.47), mats["wood_dark"]))
+    # Enclume sur billot + tonnelet de trempe.
+    parts.append(add_cylinder("stump", 0.16, 0.28, (-0.58, -0.92, 0.14), mats["wood_dark"], vertices=8))
+    parts.append(add_box("anvil_body", (0.30, 0.16, 0.10), (-0.58, -0.92, 0.33), mats["iron_dark"]))
+    parts.append(
+        add_cone(
+            "anvil_horn", 0.055, 0.16, (-0.40, -0.92, 0.35), mats["metal"], vertices=6,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    parts.append(add_cylinder("quench", 0.13, 0.26, (0.72, -0.86, 0.13), mats["wood"], vertices=10))
+    parts.append(add_cylinder("quench_water", 0.11, 0.03, (0.72, -0.86, 0.265), mats["water"], vertices=10))
+    return parts
+
+
+def build_chapelle(mats: Mats) -> list[bpy.types.Object]:
+    """Petite chapelle de village (~2,3 cases) : clocher, flèche, vitraux."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.35, 2.65), mats["grass"], seed=202)
+    ]
+    parts.append(add_box("plinth", (1.90, 2.20, 0.16), (0, 0, 0.08), mats["stone_dark"]))
+    parts.append(add_box("nave", (1.55, 1.95, 1.45), (0, 0, 0.16 + 0.725), mats["stone"]))
+    parts.append(
+        gable_roof("roof", width=1.85, depth=2.25, height=0.58, base_z=1.61, material=mats["roof_slate"])
+    )
+    parts.append(add_box("ridge", (1.70, 0.10, 0.07), (0, 0, 2.17), mats["iron_dark"]))
+    # Clocher sur l'angle avant gauche.
+    parts.append(add_box("tower", (0.62, 0.62, 2.10), (-0.55, -0.80, 1.21), mats["stone"]))
+    parts.append(add_box("tower_rim", (0.70, 0.70, 0.10), (-0.55, -0.80, 2.31), mats["stone_light"]))
+    parts.append(add_box("bell_arch", (0.22, 0.06, 0.32), (-0.55, -1.12, 2.03), mats["iron_dark"]))
+    parts.append(add_box("bell", (0.13, 0.09, 0.20), (-0.55, -1.13, 1.98), mats["metal"]))
+    parts.append(
+        add_cone(
+            "spire", 0.46, 0.72, (-0.55, -0.80, 2.72), mats["roof_slate"], vertices=4,
+            rotation=(0.0, 0.0, math.pi * 0.25),
+        )
+    )
+    parts.append(add_box("cross_v", (0.04, 0.04, 0.30), (-0.55, -0.80, 3.23), mats["metal"]))
+    parts.append(add_box("cross_h", (0.18, 0.04, 0.04), (-0.55, -0.80, 3.31), mats["metal"]))
+    # Entrée, marches, vitraux.
+    parts.append(add_box("door", (0.34, 0.08, 0.62), (0.28, -1.01, 0.47), mats["wood_dark"]))
+    parts.append(add_box("door_frame", (0.42, 0.10, 0.07), (0.28, -1.01, 0.82), mats["stone_light"]))
+    parts.append(add_box("step", (0.52, 0.30, 0.07), (0.28, -1.13, 0.035), mats["stone_dark"]))
+    for x in (-0.18, 0.52):
+        parts.append(add_box("stained_glass", (0.16, 0.06, 0.32), (x, -1.01, 0.95), mats["glow"]))
+        parts.append(add_box("glass_frame", (0.20, 0.08, 0.05), (x, -1.01, 1.13), mats["stone_light"]))
+    parts.append(add_box("side_window", (0.06, 0.16, 0.30), (0.79, 0.20, 0.95), mats["glow"]))
+    return parts
+
+
+def build_grange(mats: Mats) -> list[bpy.types.Object]:
+    """Grange à colombages (~2,9 x 3,2 cases) : grandes portes, toit de bois."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.95, 3.20), mats["grass"], seed=203)
+    ]
+    parts.append(add_box("plinth", (2.55, 2.85, 0.22), (0, 0, 0.11), mats["stone_dark"]))
+    parts.append(add_box("body", (2.42, 2.70, 1.45), (0, 0, 0.945), mats["wood"]))
+    # Bardage : planches verticales sur la façade avant.
+    for index in range(9):
+        x = -1.04 + index * 0.26
+        material = mats["wood_light"] if index % 2 == 0 else mats["wood"]
+        parts.append(add_box("plank", (0.24, 0.05, 1.33), (x, -1.37, 0.945), material))
+    for x in (-1.20, 1.20):
+        for y in (-1.34, 1.34):
+            parts.append(add_box("corner_post", (0.12, 0.12, 1.45), (x, y, 0.945), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=2.80, depth=3.10, height=0.78, base_z=1.67, material=mats["roof_dark"])
+    )
+    parts.append(add_box("ridge", (2.66, 0.12, 0.09), (0, 0, 2.41), mats["wood_dark"]))
+    # Grande porte à double battant + croisillons.
+    parts.append(add_box("door", (1.10, 0.08, 1.15), (0, -1.40, 0.80), mats["wood_dark"]))
+    parts.append(add_box("door_beam", (1.16, 0.06, 0.09), (0, -1.44, 1.38), mats["wood"]))
+    for rotation in (0.6, -0.6):
+        parts.append(
+            add_box("door_brace", (1.25, 0.05, 0.08), (0, -1.45, 0.80), mats["wood"], rotation=(0.0, rotation, 0.0))
+        )
+    # Petite lucarne de fenil côté droit.
+    parts.append(add_box("loft_door", (0.34, 0.06, 0.34), (1.21, -0.40, 1.42), mats["wood_light"]))
+    return parts
+
+
+def build_ecurie(mats: Mats) -> list[bpy.types.Object]:
+    """Écurie ouverte (~2,9 x 2,4 cases) : stalles, auvent, abreuvoir."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.95, 2.45), mats["grass"], seed=204)
+    ]
+    parts.append(add_box("plinth", (2.55, 2.10, 0.16), (0, 0, 0.08), mats["stone_dark"]))
+    parts.append(add_box("back_wall", (2.45, 0.16, 1.45), (0, 1.00, 0.885), mats["plaster"]))
+    for x in (-1.20, 1.20):
+        parts.append(add_box("side_wall", (0.14, 1.95, 1.45), (x, -0.05, 0.885), mats["wood"]))
+    for x in (-1.05, -0.35, 0.35, 1.05):
+        parts.append(add_box("front_post", (0.12, 0.12, 1.55), (x, -0.95, 0.935), mats["wood_dark"]))
+    for x in (-0.40, 0.40):
+        parts.append(add_box("stall_divider", (0.08, 1.20, 1.10), (x, 0.10, 0.71), mats["wood"]))
+    for y in (-0.88, 0.30):
+        parts.append(add_box("tie_beam", (2.30, 0.10, 0.12), (0, y, 1.60), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=2.75, depth=2.30, height=0.65, base_z=1.66, material=mats["roof"])
+    )
+    parts.append(add_box("ridge", (2.62, 0.11, 0.08), (0, 0, 2.29), mats["wood_dark"]))
+    # Abreuvoir et foin.
+    parts.append(add_box("trough", (0.90, 0.28, 0.18), (0.60, -0.65, 0.25), mats["wood_dark"]))
+    parts.append(add_box("trough_water", (0.80, 0.20, 0.03), (0.60, -0.65, 0.355), mats["water"]))
+    parts.append(add_box("hay", (0.55, 0.35, 0.30), (-0.72, -0.58, 0.31), mats["hay"]))
+    parts.append(add_box("hay_top", (0.50, 0.30, 0.08), (-0.72, -0.58, 0.50), mats["hay_light"]))
+    return parts
+
+
+def build_maison_etage(mats: Mats) -> list[bpy.types.Object]:
+    """Maison à étage (~2 x 2 cases) : encorbellement, colombages, toit."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.30, 2.10), mats["grass"], seed=205)
+    ]
+    parts.append(add_box("plinth", (2.00, 1.80, 0.16), (0, 0, 0.08), mats["stone_dark"]))
+    parts.append(add_box("ground", (1.75, 1.55, 1.15), (0, 0, 0.735), mats["plaster"]))
+    parts.append(add_box("belt", (1.88, 1.68, 0.10), (0, 0, 1.35), mats["wood_dark"]))
+    parts.append(add_box("upper", (1.92, 1.72, 0.95), (0, 0, 1.885), mats["plaster_light"]))
+    for x in (-0.90, 0.90):
+        for y in (-0.81, 0.81):
+            parts.append(add_box("upper_post", (0.09, 0.09, 0.95), (x, y, 1.885), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=2.12, depth=1.96, height=0.55, base_z=2.36, material=mats["roof"])
+    )
+    parts.append(add_box("eave", (2.18, 0.10, 0.09), (0, -0.82, 2.32), mats["wood_dark"]))
+    parts.append(add_box("ridge", (2.00, 0.11, 0.08), (0, 0, 2.88), mats["wood_dark"]))
+    parts.append(add_box("chimney", (0.22, 0.22, 0.75), (0.58, 0.28, 2.72), mats["stone"]))
+    parts.append(add_box("chimney_cap", (0.28, 0.28, 0.07), (0.58, 0.28, 3.11), mats["stone_dark"]))
+    # Porte et fenêtres (deux niveaux).
+    parts.append(add_box("door", (0.32, 0.08, 0.62), (-0.25, -0.80, 0.47), mats["wood_dark"]))
+    parts.append(add_box("step", (0.46, 0.24, 0.06), (-0.25, -0.90, 0.03), mats["stone_dark"]))
+    for x in (0.20, 0.55):
+        parts.append(add_box("window_low", (0.22, 0.06, 0.24), (x, -0.80, 0.98), mats["glow"]))
+        parts.append(add_box("shutter", (0.06, 0.05, 0.28), (x - 0.16, -0.81, 0.98), mats["wood"]))
+        parts.append(add_box("shutter", (0.06, 0.05, 0.28), (x + 0.16, -0.81, 0.98), mats["wood"]))
+    for x in (-0.50, 0.32):
+        parts.append(add_box("window_up", (0.22, 0.06, 0.24), (x, -0.89, 1.80), mats["glow"]))
+        parts.append(add_box("window_frame", (0.28, 0.07, 0.05), (x, -0.89, 1.95), mats["wood_dark"]))
+    parts.append(add_box("side_window", (0.06, 0.22, 0.24), (0.98, 0.10, 1.80), mats["glow"]))
+    return parts
+
+
+def build_manoir(mats: Mats) -> list[bpy.types.Object]:
+    """Manoir / petit château (~3,5 x 2,9 cases) : tourelle, aile, porche."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (3.50, 2.95), mats["grass"], seed=206)
+    ]
+    parts.append(add_box("plinth", (2.65, 2.25, 0.18), (0, 0, 0.09), mats["stone_dark"]))
+    parts.append(add_box("ground", (2.30, 1.90, 1.05), (0, 0, 0.705), mats["stone"]))
+    parts.append(add_box("upper", (2.20, 1.80, 1.00), (0, 0, 1.73), mats["plaster"]))
+    parts.append(
+        gable_roof("roof", width=2.55, depth=2.15, height=0.85, base_z=2.23, material=mats["roof_slate"])
+    )
+    parts.append(add_box("ridge", (2.40, 0.12, 0.09), (0, 0, 3.03), mats["iron_dark"]))
+    # Tourelle d'angle.
+    parts.append(add_cylinder("turret", 0.44, 2.45, (-1.15, -0.72, 1.405), mats["stone"], vertices=12))
+    parts.append(add_cylinder("turret_rim", 0.50, 0.10, (-1.15, -0.72, 2.65), mats["stone_light"], vertices=12))
+    parts.append(
+        add_cone(
+            "turret_roof", 0.53, 0.85, (-1.15, -0.72, 3.10), mats["roof_slate"], vertices=12
+        )
+    )
+    parts.append(
+        add_ico_sphere("finial", 0.08, (-1.15, -0.72, 3.55), mats["metal"], subdivisions=1)
+    )
+    # Aile basse.
+    parts.append(add_box("wing", (0.80, 1.45, 1.35), (1.52, 0.25, 0.855), mats["plaster"]))
+    parts.append(
+        gable_roof("wing_roof", width=1.00, depth=1.65, height=0.45, base_z=1.53, material=mats["roof_slate"])
+    )
+    parts.append(add_box("wing_ridge", (0.90, 0.10, 0.07), (1.52, 0.25, 1.94), mats["iron_dark"]))
+    # Porche d'entrée et marches.
+    parts.append(add_box("porch", (0.95, 0.45, 0.95), (0, -1.05, 0.475), mats["stone_light"]))
+    parts.append(add_box("porch_roof", (1.10, 0.60, 0.12), (0, -1.05, 1.00), mats["stone"]))
+    parts.append(add_box("steps", (1.15, 0.55, 0.10), (0, -1.32, 0.05), mats["stone_dark"]))
+    parts.append(add_box("door", (0.40, 0.08, 0.68), (0, -1.29, 0.44), mats["wood_dark"]))
+    # Fenêtres, bannières.
+    for x in (-0.72, -0.25, 0.32, 0.80):
+        parts.append(add_box("window", (0.20, 0.06, 0.30), (x, -0.98, 1.72), mats["glow"]))
+        parts.append(add_box("window_frame", (0.26, 0.07, 0.05), (x, -0.98, 1.89), mats["stone_light"]))
+    for x in (-0.95, 0.95):
+        parts.append(add_box("banner", (0.20, 0.05, 0.60), (x, -0.92, 1.62), mats["cloth"]))
+        parts.append(add_box("banner_bar", (0.28, 0.06, 0.05), (x, -0.92, 1.94), mats["metal"]))
+    parts.append(add_box("turret_slit", (0.07, 0.10, 0.28), (-1.15, -1.15, 1.55), mats["iron_dark"]))
+    return parts
+
+
+def build_tour_guet_bois(mats: Mats) -> list[bpy.types.Object]:
+    """Tour de guet en bois (~1,8 case, 3,6 de haut) : plateforme, garde-corps."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.85, 1.85), mats["grass"], seed=207)
+    ]
+    for x in (-0.55, 0.55):
+        for y in (-0.55, 0.55):
+            parts.append(add_box("leg", (0.14, 0.14, 2.30), (x, y, 1.15), mats["wood_dark"]))
+    # Contreventements en X sur les quatre faces (longue barre verticale inclinee).
+    for y in (-0.56, 0.56):
+        for angle in (0.8, -0.8):
+            parts.append(
+                add_box("brace", (0.07, 0.07, 1.45), (0, y, 1.15), mats["wood"], rotation=(0.0, angle, 0.0))
+            )
+    for x in (-0.56, 0.56):
+        for angle in (0.8, -0.8):
+            parts.append(
+                add_box("brace", (0.07, 0.07, 1.45), (x, 0, 1.15), mats["wood"], rotation=(angle, 0.0, 0.0))
+            )
+    parts.append(add_box("platform", (1.55, 1.55, 0.14), (0, 0, 2.44), mats["wood"]))
+    for x in (-0.62, 0.62):
+        for y in (-0.62, 0.62):
+            parts.append(add_box("rail_post", (0.07, 0.07, 0.55), (x, y, 2.78), mats["wood_dark"]))
+    for x in (-0.62, 0.62):
+        parts.append(add_box("rail", (0.06, 1.32, 0.08), (x, 0, 3.02), mats["wood_light"]))
+        parts.append(add_box("rail_mid", (0.06, 1.32, 0.06), (x, 0, 2.86), mats["wood_dark"]))
+    for y in (-0.62, 0.62):
+        parts.append(add_box("rail", (1.32, 0.06, 0.08), (0, y, 3.02), mats["wood_light"]))
+        parts.append(add_box("rail_mid", (1.32, 0.06, 0.06), (0, y, 2.86), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=1.70, depth=1.70, height=0.42, base_z=3.10, material=mats["roof_slate"])
+    )
+    # Échelle d'accès.
+    for x in (-0.12, 0.12):
+        parts.append(add_box("ladder_rail", (0.05, 0.05, 2.30), (x, -0.66, 1.15), mats["wood"]))
+    for index in range(6):
+        parts.append(add_box("ladder_rung", (0.30, 0.05, 0.05), (0, -0.66, 0.35 + index * 0.35), mats["wood_dark"]))
+    return parts
+
+
+def build_marche_couvert(mats: Mats) -> list[bpy.types.Object]:
+    """Marché couvert (~3,2 x 2,7 cases) : poteaux, toit, étals, lanternes."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (3.15, 2.70), mats["dirt"], seed=208)
+    ]
+    parts.append(add_box("floor", (2.90, 2.45, 0.06), (0, 0, 0.03), mats["stone_dark"]))
+    for x in (-1.15, 0.0, 1.15):
+        for y in (-1.00, 1.00):
+            parts.append(add_box("post", (0.13, 0.13, 2.25), (x, y, 1.125), mats["wood_dark"]))
+    for y in (-1.00, 1.00):
+        parts.append(add_box("beam", (2.90, 0.12, 0.14), (0, y, 2.28), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=3.05, depth=2.60, height=0.62, base_z=2.31, material=mats["roof"])
+    )
+    parts.append(add_box("ridge", (2.90, 0.12, 0.09), (0, 0, 2.88), mats["wood_dark"]))
+    # Deux étals sous le marché.
+    for x in (-0.72, 0.72):
+        parts.append(add_box("stall_top", (0.95, 0.55, 0.10), (x, -0.52, 0.88), mats["wood_light"]))
+        for leg_x in (-0.35, 0.35):
+            parts.append(add_box("stall_leg", (0.08, 0.45, 0.85), (x + leg_x, -0.52, 0.425), mats["wood_dark"]))
+    goods = [
+        (-0.95, -0.45, 0.20, "glow"),
+        (-0.55, -0.55, 0.16, "leaf"),
+        (0.55, -0.50, 0.18, "roof_dark"),
+        (0.95, -0.42, 0.22, "wood"),
+    ]
+    for gx, gy, size, material_key in goods:
+        parts.append(add_box("goods", (size, size, size), (gx, gy, 0.98 + size * 0.5), mats[material_key]))
+    # Lanternes suspendues.
+    for x in (-0.62, 0.62):
+        parts.append(add_cylinder("lamp_rope", 0.012, 0.28, (x, 0, 2.10), mats["wood_dark"], vertices=5))
+        parts.append(add_box("lamp", (0.14, 0.14, 0.20), (x, 0, 1.90), mats["lamp"]))
+        parts.append(add_box("lamp_cap", (0.18, 0.18, 0.04), (x, 0, 2.02), mats["iron_dark"]))
+    return parts
+
+
+def build_toit_lucarne(mats: Mats) -> list[bpy.types.Object]:
+    """Élément de toit à lucarne + cheminée, posable sur un bâtiment (~1,5 case)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(
+        gable_roof("roof", width=1.50, depth=1.10, height=0.55, base_z=0.0, material=mats["roof_slate"])
+    )
+    parts.append(add_box("ridge", (1.36, 0.10, 0.07), (0, 0, 0.52), mats["iron_dark"]))
+    # Lucarne sur le pan avant (-Y).
+    parts.append(add_box("dormer", (0.42, 0.30, 0.42), (0.25, -0.20, 0.30), mats["plaster_light"]))
+    parts.append(add_box("dormer_window", (0.26, 0.06, 0.26), (0.25, -0.36, 0.32), mats["glow"]))
+    parts.append(
+        gable_roof("dormer_roof", width=0.55, depth=0.45, height=0.20, base_z=0.50, material=mats["roof_slate"])
+    )
+    # Cheminée.
+    parts.append(add_box("chimney", (0.20, 0.20, 0.60), (-0.42, 0.18, 0.50), mats["stone"]))
+    parts.append(add_box("chimney_cap", (0.26, 0.26, 0.06), (-0.42, 0.18, 0.82), mats["stone_dark"]))
+    return parts
+
+
+def build_fontaine(mats: Mats) -> list[bpy.types.Object]:
+    """Fontaine de place (~2 cases) : bassin octogonal, colonne, vasque."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.15, 2.15), mats["grass"], seed=209)
+    ]
+    parts.append(add_cylinder("base", 0.95, 0.10, (0, 0, 0.05), mats["stone_dark"], vertices=8))
+    parts.append(add_cylinder("basin", 0.85, 0.30, (0, 0, 0.25), mats["stone"], vertices=8))
+    parts.append(add_cylinder("rim", 0.90, 0.10, (0, 0, 0.45), mats["stone_light"], vertices=8))
+    parts.append(add_cylinder("water", 0.70, 0.04, (0, 0, 0.44), mats["water"], vertices=8))
+    parts.append(add_cylinder("column", 0.16, 0.85, (0, 0, 0.90), mats["stone"], vertices=8))
+    parts.append(add_cylinder("bowl", 0.45, 0.10, (0, 0, 1.10), mats["stone_light"], vertices=10))
+    parts.append(add_cylinder("bowl_water", 0.34, 0.03, (0, 0, 1.16), mats["water"], vertices=10))
+    parts.append(add_ico_sphere("finial", 0.11, (0, 0, 1.28), mats["stone_light"], subdivisions=1))
+    # Becs d'eau.
+    for index, angle in enumerate((0.0, math.pi * 0.5, math.pi, math.pi * 1.5)):
+        x = math.cos(angle) * 0.22
+        y = math.sin(angle) * 0.22
+        parts.append(
+            add_cylinder(
+                "spout", 0.03, 0.26, (x, y, 0.62), mats["metal"], vertices=6,
+                rotation=(math.pi * 0.5, 0.0, angle),
+            )
+        )
+    return parts
+
+
+def build_puits_couvert(mats: Mats) -> list[bpy.types.Object]:
+    """Puits couvert (~1,8 case) : margelle, quatre poteaux, toit, poulie."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (1.80, 1.80), mats["dirt"], seed=210)
+    ]
+    parts.append(add_box("plinth", (1.30, 1.30, 0.12), (0, 0, 0.06), mats["stone_dark"]))
+    parts.append(add_cylinder("curb", 0.55, 0.60, (0, 0, 0.42), mats["stone"], vertices=8))
+    parts.append(add_cylinder("rim", 0.60, 0.08, (0, 0, 0.76), mats["stone_light"], vertices=8))
+    parts.append(add_cylinder("water", 0.42, 0.04, (0, 0, 0.73), mats["water"], vertices=8))
+    for x in (-0.45, 0.45):
+        for y in (-0.45, 0.45):
+            parts.append(add_box("post", (0.10, 0.10, 1.05), (x, y, 1.325), mats["wood_dark"]))
+    parts.append(
+        gable_roof("roof", width=1.45, depth=1.35, height=0.40, base_z=1.85, material=mats["roof"])
+    )
+    parts.append(add_box("ridge", (1.30, 0.10, 0.07), (0, 0, 2.23), mats["wood_dark"]))
+    parts.append(
+        add_cylinder(
+            "axle", 0.05, 1.05, (0, 0, 1.35), mats["wood"], vertices=8,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    parts.append(
+        add_cylinder(
+            "pulley", 0.16, 0.07, (0.30, 0, 1.35), mats["wood_dark"], vertices=10,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    parts.append(add_cylinder("rope", 0.012, 0.42, (0, 0, 1.12), mats["wood_dark"], vertices=5))
+    parts.append(add_cylinder("bucket", 0.10, 0.17, (0, 0, 0.86), mats["wood"], vertices=8))
+    parts.append(add_box("crank", (0.05, 0.22, 0.05), (0.60, 0.06, 1.35), mats["metal"]))
+    return parts
+
+
+# --------------------------------------------------------------------------- #
+# Figurines PNJ (~1 case, socle rond discret)
+# --------------------------------------------------------------------------- #
+
+
+def build_pnj_aventurier(mats: Mats) -> list[bpy.types.Object]:
+    """PNJ aventurier : cape verte, épée dans le dos, sacoche."""
+    parts = _npc_base(mats, seed=211)
+    for x in (-0.10, 0.10):
+        parts.append(add_box("leg", (0.12, 0.14, 0.34), (x, 0, 0.26), mats["roof_slate"]))
+        parts.append(add_box("boot", (0.13, 0.21, 0.10), (x, -0.03, 0.10), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.34, 0.21, 0.34), (0, 0, 0.60), mats["leaf"]))
+    parts.append(add_box("belt", (0.36, 0.23, 0.06), (0, 0, 0.44), mats["wood_dark"]))
+    parts.append(add_box("buckle", (0.06, 0.03, 0.05), (0, -0.12, 0.44), mats["glow"]))
+    for x in (-0.22, 0.22):
+        parts.append(add_box("arm", (0.10, 0.13, 0.30), (x, 0, 0.62), mats["leaf"]))
+        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.45), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.925), mats["skin"], subdivisions=1, scale=(0.95, 0.95, 1.0)))
+    parts.append(add_ico_sphere("hair", 0.14, (0, 0.02, 0.965), mats["hair"], subdivisions=1, scale=(1.0, 0.95, 0.6)))
+    _npc_face(parts, mats, 0.925)
+    # Cape.
+    parts.append(add_box("cloak", (0.30, 0.07, 0.52), (0, 0.15, 0.55), mats["leaf_dark"], rotation=(-0.10, 0.0, 0.0)))
+    parts.append(add_box("cloak_pin", (0.08, 0.05, 0.06), (0, 0.04, 0.78), mats["glow"]))
+    # Épée dans le dos + sacoche.
+    parts.append(add_box("sword_blade", (0.05, 0.02, 0.55), (0.20, 0.19, 0.79), mats["metal"], rotation=(0.30, 0.0, 0.25)))
+    parts.append(add_box("sword_hilt", (0.12, 0.03, 0.04), (0.13, 0.16, 0.51), mats["wood_dark"], rotation=(0.30, 0.0, 0.25)))
+    parts.append(add_box("satchel", (0.16, 0.11, 0.16), (-0.22, 0.06, 0.42), mats["wood"]))
+    return parts
+
+
+def build_pnj_marchand(mats: Mats) -> list[bpy.types.Object]:
+    """PNJ marchand : chapeau large, tunique ocre, bourse et ballot."""
+    parts = _npc_base(mats, seed=212)
+    for x in (-0.11, 0.11):
+        parts.append(add_box("leg", (0.13, 0.15, 0.30), (x, 0, 0.24), mats["wood"]))
+        parts.append(add_box("boot", (0.14, 0.21, 0.10), (x, -0.03, 0.09), mats["wood_dark"]))
+    parts.append(add_box("belly", (0.42, 0.28, 0.40), (0, 0, 0.57), mats["glow"]))
+    parts.append(add_box("belt", (0.44, 0.30, 0.07), (0, 0, 0.40), mats["wood_dark"]))
+    parts.append(add_box("strap", (0.07, 0.30, 0.05), (0.10, 0.01, 0.66), mats["wood_dark"], rotation=(0.0, 0.0, 0.55)))
+    for x in (-0.25, 0.25):
+        parts.append(add_box("arm", (0.11, 0.14, 0.28), (x, 0, 0.58), mats["glow"]))
+        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.42), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.14, (0, 0, 0.90), mats["skin"], subdivisions=1, scale=(1.0, 1.0, 0.98)))
+    parts.append(add_ico_sphere("beard", 0.11, (0, -0.07, 0.84), mats["hair"], subdivisions=1, scale=(0.9, 0.75, 0.8)))
+    _npc_face(parts, mats, 0.90)
+    parts.append(add_cylinder("hat_brim", 0.23, 0.035, (0, 0, 1.05), mats["wood"], vertices=12))
+    parts.append(add_cylinder("hat_crown", 0.13, 0.13, (0, 0, 1.13), mats["wood_dark"], vertices=10))
+    parts.append(add_cylinder("hat_band", 0.135, 0.03, (0, 0, 1.07), mats["roof_dark"], vertices=10))
+    # Bourse et ballot de marchandise.
+    parts.append(add_ico_sphere("purse", 0.09, (0.18, -0.14, 0.38), mats["cloth"], subdivisions=1, scale=(1.0, 0.9, 0.9)))
+    parts.append(add_box("bundle", (0.26, 0.24, 0.22), (-0.24, 0.16, 0.42), mats["cloth"]))
+    parts.append(add_box("bundle_strap", (0.28, 0.03, 0.24), (-0.24, 0.16, 0.42), mats["wood_dark"]))
+    return parts
+
+
+def build_pnj_garde(mats: Mats) -> list[bpy.types.Object]:
+    """PNJ garde : casque, lance, bouclier, tabard."""
+    parts = _npc_base(mats, seed=213)
+    for x in (-0.11, 0.11):
+        parts.append(add_box("leg", (0.13, 0.14, 0.32), (x, 0, 0.25), mats["roof_slate"]))
+        parts.append(add_box("boot", (0.14, 0.21, 0.10), (x, -0.03, 0.09), mats["iron_dark"]))
+    parts.append(add_box("torso", (0.36, 0.23, 0.36), (0, 0, 0.60), mats["metal"]))
+    parts.append(add_box("tabard", (0.24, 0.04, 0.34), (0, -0.13, 0.58), mats["cloth"]))
+    parts.append(add_box("belt", (0.38, 0.25, 0.06), (0, 0, 0.43), mats["wood_dark"]))
+    for x in (-0.24, 0.24):
+        parts.append(add_box("arm", (0.11, 0.14, 0.30), (x, 0, 0.61), mats["metal"]))
+        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.44), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.92), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("helmet", 0.145, (0, 0, 0.955), mats["metal"], subdivisions=1, scale=(1.0, 1.0, 0.85)))
+    _npc_face(parts, mats, 0.92)
+    parts.append(add_box("nasal", (0.035, 0.05, 0.14), (0, -0.13, 0.90), mats["iron_dark"]))
+    parts.append(add_box("plume", (0.05, 0.22, 0.05), (0, 0.02, 1.10), mats["cloth"]))
+    # Bouclier (cercle vertical côté gauche) + emblème.
+    parts.append(
+        add_cylinder(
+            "shield", 0.19, 0.05, (-0.31, -0.16, 0.56), mats["metal"], vertices=10,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    parts.append(
+        add_cylinder(
+            "shield_boss", 0.06, 0.07, (-0.31, -0.20, 0.56), mats["glow"], vertices=8,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    # Lance.
+    parts.append(add_cylinder("spear_shaft", 0.022, 1.45, (0.25, -0.02, 0.85), mats["wood"], vertices=6))
+    parts.append(
+        add_cone("spear_tip", 0.055, 0.20, (0.25, -0.02, 1.66), mats["metal"], vertices=6)
+    )
+    parts.append(add_box("spear_grip", (0.04, 0.04, 0.10), (0.25, -0.02, 0.95), mats["cloth"]))
+    return parts
+
+
+# --------------------------------------------------------------------------- #
 # Declarations des assets
 # --------------------------------------------------------------------------- #
 
@@ -1714,6 +2193,104 @@ ASSETS: list[AssetSpec] = [
         "Enseigne de taverne suspendue, potence fer et panneau peint (~2,6 cases de haut).",
         ("taverne", "signalisation", "exterieur"),
         anchor="wall",
+    ),
+    AssetSpec(
+        "forge",
+        "buildings",
+        build_forge,
+        "Forge de forgeron (~2,3 cases) : pierre, grosse cheminee, enclume et tonnelet.",
+        ("forge", "artisan", "village"),
+    ),
+    AssetSpec(
+        "chapelle",
+        "buildings",
+        build_chapelle,
+        "Petite chapelle (~2,3 cases) : clocher, fleche, vitraux et croix.",
+        ("culte", "village", "clocher"),
+    ),
+    AssetSpec(
+        "grange",
+        "buildings",
+        build_grange,
+        "Grange a colombages (~2,9 x 3,2 cases) : grandes portes, bardage, toit de bois.",
+        ("ferme", "stockage", "village"),
+    ),
+    AssetSpec(
+        "ecurie",
+        "buildings",
+        build_ecurie,
+        "Ecurie ouverte (~2,9 x 2,4 cases) : stalles, auvent, abreuvoir et foin.",
+        ("ferme", "chevaux", "village"),
+    ),
+    AssetSpec(
+        "maison_etage",
+        "buildings",
+        build_maison_etage,
+        "Maison a etage (~2 x 2 cases) : encorbellement, colombages, toit et cheminee.",
+        ("habitation", "village", "etage"),
+    ),
+    AssetSpec(
+        "manoir",
+        "buildings",
+        build_manoir,
+        "Manoir / petit chateau (~3,5 x 2,9 cases) : tourelle, aile basse, porche, bannieres.",
+        ("noble", "chateau", "village"),
+    ),
+    AssetSpec(
+        "tour_guet_bois",
+        "buildings",
+        build_tour_guet_bois,
+        "Tour de guet en bois (~1,8 case, 3,6 de haut) : plateforme, garde-corps, echelle.",
+        ("defense", "guet", "bois"),
+    ),
+    AssetSpec(
+        "marche_couvert",
+        "buildings",
+        build_marche_couvert,
+        "Marche couvert (~3,2 x 2,7 cases) : poteaux, toit, deux etals, lanternes.",
+        ("commerce", "marche", "village"),
+    ),
+    AssetSpec(
+        "toit_lucarne",
+        "buildings",
+        build_toit_lucarne,
+        "Element de toit a lucarne et cheminee (~1,5 case), posable sur un batiment.",
+        ("toit", "detail", "village"),
+    ),
+    AssetSpec(
+        "fontaine",
+        "props",
+        build_fontaine,
+        "Fontaine de place (~2 cases) : bassin octogonal, colonne, vasque et becs d'eau.",
+        ("eau", "place", "village"),
+    ),
+    AssetSpec(
+        "puits_couvert",
+        "props",
+        build_puits_couvert,
+        "Puits couvert (~1,8 case) : margelle, quatre poteaux, toit, poulie et seau.",
+        ("eau", "cour", "village"),
+    ),
+    AssetSpec(
+        "pnj_aventurier",
+        "props",
+        build_pnj_aventurier,
+        "Figurine PNJ aventurier (~1 case) : cape, epee dans le dos, sacoche.",
+        ("pnj", "figurine", "token"),
+    ),
+    AssetSpec(
+        "pnj_marchand",
+        "props",
+        build_pnj_marchand,
+        "Figurine PNJ marchand (~1 case) : chapeau large, bourse et ballot.",
+        ("pnj", "figurine", "token"),
+    ),
+    AssetSpec(
+        "pnj_garde",
+        "props",
+        build_pnj_garde,
+        "Figurine PNJ garde (~1 case) : casque, lance, bouclier et tabard.",
+        ("pnj", "figurine", "token"),
     ),
 ]
 

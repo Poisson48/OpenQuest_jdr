@@ -38,10 +38,10 @@ Tous les scripts sont **offline** : aucune texture importée, aucun télécharge
 aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
 générées par du bruit périodique (numpy + Pillow).
 
-Le pipeline couvre désormais le **kit v3** (intérieur de taverne, donjon,
-petits décors), le **kit enrichi v2** (murs, mobilier urbain, étal de marché,
-charrette, foin) et les **textures de sol tuilables** (herbe, terre/chemin,
-pavé de pierre).
+Le pipeline couvre désormais le **kit v4** (bâtiments variés, détails de toit,
+figurines PNJ), le **kit v3** (intérieur de taverne, donjon, petits décors), le
+**kit enrichi v2** (murs, mobilier urbain, étal de marché, charrette, foin) et
+les **textures de sol tuilables** (herbe, terre/chemin, pavé de pierre).
 
 ---
 
@@ -51,7 +51,7 @@ pavé de pierre).
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 30 modèles + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 44 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
 ├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
@@ -63,12 +63,16 @@ game/assets/objects3d/
 ├── manifest.json           # métadonnées générées (nom, dims, tris, tags)
 ├── _planche_assets.png     # planche de contrôle v1
 ├── _planche_assets2.png    # planche v2 (historique)
-├── _planche_assets3.png    # planche courante v3 (sols + 35 objets)
-├── buildings/              # maison*, tour*, mur, mur_coin, herse
+├── _planche_assets3.png    # planche v3 (historique)
+├── _planche_assets4.png    # planche courante v4 (sols + 49 objets)
+├── buildings/              # maison*, tour*, mur, mur_coin, herse, forge, chapelle,
+│                           #   grange, ecurie, maison_etage, manoir, tour_guet_bois,
+│                           #   marche_couvert, toit_lucarne
 ├── props/                  # pont, caisse*, palissade, puits, barriere, etal_marche,
 │                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin,
 │                           #   table_tabourets, comptoir, tonneau_couche, tapis, lit,
-│                           #   torche_murale, chaine_murale, sarcophage, pile_os, enseigne
+│                           #   torche_murale, chaine_murale, sarcophage, pile_os, enseigne,
+│                           #   fontaine, puits_couvert, pnj_aventurier, pnj_marchand, pnj_garde
 ├── vegetation/             # arbre, arbre_automne, buisson
 └── terrain/                # rocher
 
@@ -90,6 +94,8 @@ game/assets/terrain/
 | **Échelle** | 1 unité Blender = **1 case de carte** |
 | **Origine** | **centre de la base**, base posée à `z = 0` (sol) |
 | **Objets muraux** | origine au **pied du mur** (`z = 0`, mur en `+Y`) : géométrie suspendue au-dessus du sol (torche, chaîne, enseigne) |
+| **Élément de toit** | `toit_lucarne` : origine à la **base du toit** (`z = 0`), pas de dalle, à poser au sommet d'un bâtiment |
+| **Figurines PNJ** | socle rond discret (`anchor="base"`), pas de jupe : utilisables en intérieur comme en extérieur |
 | **Axes Blender** | `+Z` = haut, face avant de l'objet vers `-Y` |
 | **Axes glTF/Godot** | export `export_yup=True` : `+Y` = haut, face avant vers **`+Z`** |
 | **Transforms** | rotation/scale à 1, location à 0 : tout est cuit dans le mesh |
@@ -259,7 +265,7 @@ sont générées et nommées (`maison_petite`, `maison`, `maison_grande`,
 Ces dimensions incluent le contour (+0,014 de chaque côté) et la jupe. Le
 manifeste et le récapitulatif de `run_build.ps1` les affichent. Les objets
 muraux du kit v3 sont listés en §5.2 avec, en plus, leur **hauteur au-dessus du
-pied du mur**.
+pied du mur** ; le kit v4 (bâtiments et figurines) est en §5.3.
 
 ### 5.1 Kit enrichi v2 (10 objets)
 
@@ -321,6 +327,39 @@ Notes :
   opaque (pas de feuille alpha, pas de transparence) ;
 * les dalles de raccord intérieures (bois/pierre) évitent la coupure nette avec
   le sol peint.
+
+### 5.3 Kit v4 (14 objets) — bâtiments variés, toit, figurines PNJ
+
+Quatrième passe : varier le village et peupler les lieux. Les 8 bâtiments sont
+volontairement distincts en silhouette et en toiture (tuile, ardoise, bois) ;
+les figurines font ~1 case avec un socle rond discret.
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `forge` | buildings | 2.45 × 2.17 × 2.57 | 2 068 | Forge : pierre, grosse cheminée, enclume, tonnelet |
+| `chapelle` | buildings | 2.58 × 2.62 × 3.40 | 1 648 | Chapelle : clocher, flèche, vitraux, croix |
+| `grange` | buildings | 2.93 × 3.18 × 2.48 | 2 488 | Grange à colombages, grandes portes |
+| `ecurie` | buildings | 2.88 × 2.51 × 2.35 | 2 208 | Écurie ouverte : stalles, abreuvoir, foin |
+| `maison_etage` | buildings | 2.24 × 2.05 × 3.17 | 2 128 | Maison à étage, encorbellement |
+| `manoir` | buildings | 3.94 × 3.13 × 3.66 | 3 036 | Manoir / petit château : tourelle, aile, porche |
+| `tour_guet_bois` | buildings | 1.91 × 1.93 × 3.54 | 2 392 | Tour de guet bois : plateforme, échelle |
+| `marche_couvert` | buildings | 3.15 × 2.74 × 2.96 | 1 808 | Marché couvert : poteaux, toit, étals, lanternes |
+| `toit_lucarne` | buildings | 1.53 × 1.13 × 0.87 | 372 | Élément de toit à lucarne + cheminée, posable |
+| `fontaine` | props | 2.10 × 2.29 × 1.41 | 1 064 | Fontaine : bassin octogonal, colonne, vasque |
+| `puits_couvert` | props | 1.69 × 1.71 × 2.29 | 1 400 | Puits couvert : margelle, 4 poteaux, poulie |
+| `pnj_aventurier` | props | 0.70 × 0.70 × 1.08 | 776 | Figurine PNJ aventurier (cape, épée, sacoche) |
+| `pnj_marchand` | props | 0.74 × 0.70 × 1.21 | 944 | Figurine PNJ marchand (chapeau, bourse, ballot) |
+| `pnj_garde` | props | 0.85 × 0.70 × 1.78 | 956 | Figurine PNJ garde (casque, lance, bouclier) |
+
+Notes :
+
+* **toit_lucarne** est un **module de toit** : origine à la base du toit, pas de
+  dalle de sol, à poser au sommet d'un bâtiment pour varier les toitures ;
+* **figurines PNJ** : socle rond discret sans jupe (utilisables en intérieur),
+  visages peints (yeux/nez), couleurs distinctes (vert, ocre, acier/rouge) ;
+  hauteurs 1,08 à 1,78 case (la lance du garde dépasse) ;
+* les bâtiments gardent la **jupe d'herbe** extérieure et le pipeline complet
+  (AO + mottling, contour encre, dalles intérieures pour les meubles).
 
 ---
 
@@ -512,12 +551,12 @@ Planche de contrôle courante (tous les kits + textures de sol) :
 
 ```powershell
 python tools/blender/make_contact_sheet.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
 ```
 
-La seconde ajoute une rangée de textures de sol : `_planche_assets3.png`
-(38 cases : 3 sols + 35 objets). `_planche_assets.png` et
-`_planche_assets2.png` restent les planches historiques v1/v2. Les objets
+La seconde ajoute une rangée de textures de sol : `_planche_assets4.png`
+(52 cases : 3 sols + 49 objets). `_planche_assets.png`, `_planche_assets2.png`
+et `_planche_assets3.png` restent les planches historiques v1/v2/v3. Les objets
 muraux y affichent leur hauteur au pied du mur, l'AABB seule ne mesurant que la
 géométrie suspendue.
 
@@ -598,6 +637,11 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
    manifeste pour afficher l'empreinte et la hauteur de pose.
 10. **Intérieurs** : poser les meubles de taverne/donjon sur leurs dalles
    (bois/pierre) ; l'ombre de contact reste moteur, comme pour les extérieurs.
+11. **Bâtiments v4** : varier les silhouettes et les toitures ; `toit_lucarne`
+   se pose au sommet d'un bâtiment (origine à la base du toit, pas de dalle).
+12. **Figurines PNJ** : socle rond, origine au pied ; échelle ~1 case. Elles
+   peuvent être traitées comme des props (bibliothèque) ou des tokens (calque
+   personnages), avec la même ombre de contact moteur.
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -664,13 +708,13 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets 3D | 35 (30 modèles + 5 variantes) |
-| Triangles / asset | 308 → **2 536** max (contour inclus), budget 5 000 |
-| Triangles total | **35 108** |
-| GLB / asset | ~33 → ~189 Ko (vertex colors + contour) |
+| Assets 3D | 49 (44 modèles + 5 variantes) |
+| Triangles / asset | 308 → **3 036** max (contour inclus), budget 5 000 |
+| Triangles total | **58 396** |
+| GLB / asset | ~33 → ~219 Ko (vertex colors + contour) |
 | Vignette / asset | ~111 → ~195 Ko (512 RGBA) |
 | Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
-| Planches | `_planche_assets3.png` (38 cases), historique `_planche_assets{,2}.png`, `_planche_terrain.png` |
+| Planches | `_planche_assets4.png` (52 cases), historiques `_planche_assets{,2,3}.png`, `_planche_terrain.png` |
 
 Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
 skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
@@ -699,7 +743,7 @@ dans les GLB).
 
 # Textures de sol tuilables seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
 
 # Build complet sans les textures (Pillow absent par ex.)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
@@ -865,6 +909,8 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 - [ ] palette Valbois, matériaux mats/opaques, pas de texture ni d'alpha ;
 - [ ] jupe de raccord au sol présente (sauf exception documentée) ;
 - [ ] objets muraux : `anchor="wall"`, mur en `+Y`, origine au pied du mur ;
+- [ ] `toit_lucarne` : pas de dalle de sol, origine à la base du toit ;
+- [ ] figurines PNJ : socle rond, pas de jupe, visage lisible, ~1 case ;
 - [ ] contour `*_outline` présent, matériaux `doubleSided: false` ;
 - [ ] `COLOR_0` présent sur le mesh principal ;
 - [ ] GLB + vignette 512 générés, vignette lisible et cadrée ;
@@ -911,3 +957,8 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 * Les vignettes d'objets ajourés (herse, chaîne) sont cadrées sur l'objet
   entier : le centre de l'image peut être transparent, c'est normal (le contrôle
   qualité mesure la couverture de la zone centrale, pas un pixel).
+* Les bâtiments v4 à toiture large (écurie, marché couvert) sont vus de dessus :
+  le toit masque une partie de l'intérieur sur les vignettes, c'est attendu.
+* Les figurines PNJ sont volontairement très low-poly (~0,4–0,5 k tris) : à
+  l'échelle d'une case, les visages sont suggérés (yeux/nez peints) et non
+  sculptés ; les détails fins (armes, sacs) restent des volumes simples.

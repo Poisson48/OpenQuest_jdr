@@ -122,6 +122,15 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "mur_coin", "x": 13.0, "y": 11.2, "rotation": 0.0, "w": 1.0, "h": 1.0},
 		{"name": "enseigne", "x": 8.6, "y": 5.2, "rotation": 0.0, "w": 1.0, "h": 1.0},
 		{"name": "buisson", "x": 4.2, "y": 9.6, "rotation": 0.0, "w": 1.2, "h": 1.0},
+		# Kit 4 : bâtiments variés et figurines PNJ.
+		{"name": "chapelle", "x": 3.0, "y": 3.0, "rotation": 0.0, "w": 2.6, "h": 2.6},
+		{"name": "forge", "x": 18.6, "y": 12.6, "rotation": 0.0, "w": 2.4, "h": 2.2},
+		{"name": "maison_etage", "x": 20.2, "y": 4.4, "rotation": 0.0, "w": 2.2, "h": 2.0},
+		{"name": "grange", "x": 2.4, "y": 12.8, "rotation": 0.0, "w": 2.9, "h": 3.2},
+		{"name": "fontaine", "x": 11.4, "y": 7.2, "rotation": 0.0, "w": 2.1, "h": 2.3},
+		{"name": "pnj_marchand", "x": 10.2, "y": 8.2, "rotation": 0.0, "w": 0.8, "h": 0.8},
+		{"name": "pnj_aventurier", "x": 7.6, "y": 7.6, "rotation": 0.0, "w": 0.8, "h": 0.8},
+		{"name": "pnj_garde", "x": 13.6, "y": 6.4, "rotation": 0.0, "w": 0.9, "h": 0.8},
 	]
 	var meshes: Array = []
 	for entry in placements:
@@ -184,6 +193,10 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "enseigne", "x": 8.5, "y": 4.5},
 				{"name": "buisson", "x": 11.0, "y": 9.5},
 				{"name": "buisson", "x": 2.0, "y": 2.5},
+				{"name": "marche_couvert", "x": 10.5, "y": 8.8},
+				{"name": "fontaine", "x": 6.5, "y": 5.5},
+				{"name": "pnj_marchand", "x": 5.0, "y": 7.5},
+				{"name": "pnj_garde", "x": 9.0, "y": 3.5},
 			],
 		},
 		{
@@ -196,6 +209,7 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "botte_foin", "x": 2.5, "y": 6.0},
 				{"name": "buisson", "x": 2.0, "y": 2.0},
 				{"name": "buisson", "x": 7.0, "y": 10.0},
+				{"name": "tour_guet_bois", "x": 9.5, "y": 3.0},
 			],
 		},
 		{
@@ -211,6 +225,8 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "tapis", "x": 2.6, "y": 3.2},
 				{"name": "lit", "x": 8.4, "y": 6.6},
 				{"name": "lanterne", "x": 4.5, "y": 1.2},
+				{"name": "pnj_aventurier", "x": 2.8, "y": 5.4},
+				{"name": "pnj_marchand", "x": 6.2, "y": 5.4},
 			],
 		},
 		{

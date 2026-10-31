@@ -5,6 +5,110 @@
   "forward_axis_gltf": "+Z",
   "assets": [
     {
+      "name": "chapelle",
+      "base": "chapelle",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/chapelle.glb",
+      "thumb": "buildings/chapelle_thumb.png",
+      "description": "Petite chapelle (~2,3 cases) : clocher, fleche, vitraux et croix.",
+      "tags": [
+        "culte",
+        "village",
+        "clocher"
+      ],
+      "dimensions_cells": [
+        2.578,
+        2.62,
+        3.402
+      ],
+      "height_above_floor": 3.402,
+      "anchor": "base",
+      "triangles": 1648,
+      "triangles_base": 824,
+      "vertices": 896,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "ecurie",
+      "base": "ecurie",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/ecurie.glb",
+      "thumb": "buildings/ecurie_thumb.png",
+      "description": "Ecurie ouverte (~2,9 x 2,4 cases) : stalles, auvent, abreuvoir et foin.",
+      "tags": [
+        "ferme",
+        "chevaux",
+        "village"
+      ],
+      "dimensions_cells": [
+        2.876,
+        2.505,
+        2.354
+      ],
+      "height_above_floor": 2.354,
+      "anchor": "base",
+      "triangles": 2208,
+      "triangles_base": 1104,
+      "vertices": 1180,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "forge",
+      "base": "forge",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/forge.glb",
+      "thumb": "buildings/forge_thumb.png",
+      "description": "Forge de forgeron (~2,3 cases) : pierre, grosse cheminee, enclume et tonnelet.",
+      "tags": [
+        "forge",
+        "artisan",
+        "village"
+      ],
+      "dimensions_cells": [
+        2.449,
+        2.17,
+        2.572
+      ],
+      "height_above_floor": 2.572,
+      "anchor": "base",
+      "triangles": 2068,
+      "triangles_base": 1034,
+      "vertices": 1114,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "grange",
+      "base": "grange",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/grange.glb",
+      "thumb": "buildings/grange_thumb.png",
+      "description": "Grange a colombages (~2,9 x 3,2 cases) : grandes portes, bardage, toit de bois.",
+      "tags": [
+        "ferme",
+        "stockage",
+        "village"
+      ],
+      "dimensions_cells": [
+        2.933,
+        3.182,
+        2.479
+      ],
+      "height_above_floor": 2.479,
+      "anchor": "base",
+      "triangles": 2488,
+      "triangles_base": 1244,
+      "vertices": 1332,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "herse",
       "base": "herse",
       "variant": "base",
@@ -53,6 +157,32 @@
       "triangles": 1928,
       "triangles_base": 964,
       "vertices": 1048,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "maison_etage",
+      "base": "maison_etage",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/maison_etage.glb",
+      "thumb": "buildings/maison_etage_thumb.png",
+      "description": "Maison a etage (~2 x 2 cases) : encorbellement, colombages, toit et cheminee.",
+      "tags": [
+        "habitation",
+        "village",
+        "etage"
+      ],
+      "dimensions_cells": [
+        2.241,
+        2.046,
+        3.167
+      ],
+      "height_above_floor": 3.167,
+      "anchor": "base",
+      "triangles": 2128,
+      "triangles_base": 1064,
+      "vertices": 1168,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -109,6 +239,58 @@
       "outline": true
     },
     {
+      "name": "manoir",
+      "base": "manoir",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/manoir.glb",
+      "thumb": "buildings/manoir_thumb.png",
+      "description": "Manoir / petit chateau (~3,5 x 2,9 cases) : tourelle, aile basse, porche, bannieres.",
+      "tags": [
+        "noble",
+        "chateau",
+        "village"
+      ],
+      "dimensions_cells": [
+        3.937,
+        3.133,
+        3.658
+      ],
+      "height_above_floor": 3.658,
+      "anchor": "base",
+      "triangles": 3036,
+      "triangles_base": 1518,
+      "vertices": 1632,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "marche_couvert",
+      "base": "marche_couvert",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/marche_couvert.glb",
+      "thumb": "buildings/marche_couvert_thumb.png",
+      "description": "Marche couvert (~3,2 x 2,7 cases) : poteaux, toit, deux etals, lanternes.",
+      "tags": [
+        "commerce",
+        "marche",
+        "village"
+      ],
+      "dimensions_cells": [
+        3.15,
+        2.736,
+        2.958
+      ],
+      "height_above_floor": 2.958,
+      "anchor": "base",
+      "triangles": 1808,
+      "triangles_base": 904,
+      "vertices": 1016,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "mur",
       "base": "mur",
       "variant": "base",
@@ -161,6 +343,32 @@
       "outline": true
     },
     {
+      "name": "toit_lucarne",
+      "base": "toit_lucarne",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_lucarne.glb",
+      "thumb": "buildings/toit_lucarne_thumb.png",
+      "description": "Element de toit a lucarne et cheminee (~1,5 case), posable sur un batiment.",
+      "tags": [
+        "toit",
+        "detail",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.528,
+        1.126,
+        0.872
+      ],
+      "height_above_floor": 0.872,
+      "anchor": "base",
+      "triangles": 372,
+      "triangles_base": 186,
+      "vertices": 214,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "tour",
       "base": "tour",
       "variant": "base",
@@ -209,6 +417,32 @@
       "triangles": 1144,
       "triangles_base": 572,
       "vertices": 652,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tour_guet_bois",
+      "base": "tour_guet_bois",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/tour_guet_bois.glb",
+      "thumb": "buildings/tour_guet_bois_thumb.png",
+      "description": "Tour de guet en bois (~1,8 case, 3,6 de haut) : plateforme, garde-corps, echelle.",
+      "tags": [
+        "defense",
+        "guet",
+        "bois"
+      ],
+      "dimensions_cells": [
+        1.912,
+        1.928,
+        3.544
+      ],
+      "height_above_floor": 3.544,
+      "anchor": "base",
+      "triangles": 2392,
+      "triangles_base": 1196,
+      "vertices": 1336,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -473,6 +707,32 @@
       "outline": true
     },
     {
+      "name": "fontaine",
+      "base": "fontaine",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/fontaine.glb",
+      "thumb": "props/fontaine_thumb.png",
+      "description": "Fontaine de place (~2 cases) : bassin octogonal, colonne, vasque et becs d'eau.",
+      "tags": [
+        "eau",
+        "place",
+        "village"
+      ],
+      "dimensions_cells": [
+        2.104,
+        2.285,
+        1.414
+      ],
+      "height_above_floor": 1.414,
+      "anchor": "base",
+      "triangles": 1064,
+      "triangles_base": 532,
+      "vertices": 584,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "lanterne",
       "base": "lanterne",
       "variant": "base",
@@ -603,6 +863,84 @@
       "outline": true
     },
     {
+      "name": "pnj_aventurier",
+      "base": "pnj_aventurier",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_aventurier.glb",
+      "thumb": "props/pnj_aventurier_thumb.png",
+      "description": "Figurine PNJ aventurier (~1 case) : cape, epee dans le dos, sacoche.",
+      "tags": [
+        "pnj",
+        "figurine",
+        "token"
+      ],
+      "dimensions_cells": [
+        0.701,
+        0.701,
+        1.083
+      ],
+      "height_above_floor": 1.083,
+      "anchor": "base",
+      "triangles": 776,
+      "triangles_base": 388,
+      "vertices": 480,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_garde",
+      "base": "pnj_garde",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_garde.glb",
+      "thumb": "props/pnj_garde_thumb.png",
+      "description": "Figurine PNJ garde (~1 case) : casque, lance, bouclier et tabard.",
+      "tags": [
+        "pnj",
+        "figurine",
+        "token"
+      ],
+      "dimensions_cells": [
+        0.851,
+        0.701,
+        1.783
+      ],
+      "height_above_floor": 1.783,
+      "anchor": "base",
+      "triangles": 956,
+      "triangles_base": 478,
+      "vertices": 578,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_marchand",
+      "base": "pnj_marchand",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_marchand.glb",
+      "thumb": "props/pnj_marchand_thumb.png",
+      "description": "Figurine PNJ marchand (~1 case) : chapeau large, bourse et ballot.",
+      "tags": [
+        "pnj",
+        "figurine",
+        "token"
+      ],
+      "dimensions_cells": [
+        0.739,
+        0.701,
+        1.213
+      ],
+      "height_above_floor": 1.213,
+      "anchor": "base",
+      "triangles": 944,
+      "triangles_base": 472,
+      "vertices": 568,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "pont",
       "base": "pont",
       "variant": "base",
@@ -651,6 +989,32 @@
       "triangles": 816,
       "triangles_base": 408,
       "vertices": 464,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "puits_couvert",
+      "base": "puits_couvert",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/puits_couvert.glb",
+      "thumb": "props/puits_couvert_thumb.png",
+      "description": "Puits couvert (~1,8 case) : margelle, quatre poteaux, toit, poulie et seau.",
+      "tags": [
+        "eau",
+        "cour",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.692,
+        1.705,
+        2.289
+      ],
+      "height_above_floor": 2.289,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 764,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },

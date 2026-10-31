@@ -105,6 +105,10 @@ DEFAULT_PALETTE: dict[str, str] = {
     "flame_core": "#e8a94e",
     "iron_dark": "#3d4043",
     "ember": "#7a4024",
+    # Kit v4 : figurines PNJ (peau, cheveux) et accents.
+    "skin": "#c79a6b",
+    "skin_dark": "#a87c50",
+    "hair": "#4b3626",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.

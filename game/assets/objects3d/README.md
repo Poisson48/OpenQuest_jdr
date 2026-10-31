@@ -10,6 +10,10 @@ vertex colors, contour encre et raccord au sol.
 Le kit est complété par les **textures de sol tuilables**
 [`game/assets/terrain/`](../terrain/README.md) (herbe, terre/chemin, pavé).
 
+Le kit v4 ajoute 8 bâtiments variés (forge, chapelle, grange, écurie, maison à
+étage, manoir, tour de guet bois, marché couvert), 3 détails (toit à lucarne,
+fontaine, puits couvert) et **3 figurines PNJ** (aventurier, marchand, garde).
+
 > Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
 > `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
 > modifier les scripts puis régénérer.
@@ -33,6 +37,8 @@ Le kit est complété par les **textures de sol tuilables**
 | Sol extérieur | **jupe de raccord** herbe/terre très plate, débordant du bâti |
 | Sol intérieur | **dalle plate** bois (taverne) ou pierre (donjon) sous le meuble |
 | Objets muraux | origine au **pied du mur** (z=0), géométrie suspendue au-dessus ; le côté `+Y` est le mur |
+| Élément de toit | `toit_lucarne` : origine à la **base du toit** (z=0), sans dalle, à poser au sommet d'un bâtiment |
+| Figurines PNJ | **socle rond discret**, pas de jupe (utilisables en intérieur comme en extérieur) |
 | Émission | seuls la lanterne (`lamp`) et la torche (`flame`/`flame_core`) sont émissives |
 | Caméra/lumière | **jamais exportées** dans le GLB |
 | Vignette | `<nom>_thumb.png` 512×512, fond transparent, cadrage 3/4 identique pour tous |
@@ -43,7 +49,7 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-35 assets (30 modèles + 5 variantes de taille/teinte), **35 108 triangles** au
+49 assets (44 modèles + 5 variantes de taille/teinte), **58 396 triangles** au
 total, 2 536 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 Pour les objets muraux, la hauteur indiquée `h sol` est la distance depuis le
 pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
@@ -94,6 +100,25 @@ pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
 | `pile_os` | 1.32 × 1.06 × 0.41 | 984 (492+492) | Pile d'os et de crânes |
 | `enseigne` | 1.04 × 1.00 × 1.08 · **h sol 2.53** | 1 080 (540+540) | Enseigne de taverne suspendue (potence + panneau peint) |
 
+### Kit village v4 — bâtiments variés & figurines — `buildings/` / `props/`
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `forge` | buildings | 2.45 × 2.17 × 2.57 | 2 068 | Forge : pierre, grosse cheminée, enclume, tonnelet |
+| `chapelle` | buildings | 2.58 × 2.62 × 3.40 | 1 648 | Chapelle de village : clocher, flèche, vitraux |
+| `grange` | buildings | 2.93 × 3.18 × 2.48 | 2 488 | Grange à colombages, grandes portes |
+| `ecurie` | buildings | 2.88 × 2.51 × 2.35 | 2 208 | Écurie ouverte : stalles, abreuvoir, foin |
+| `maison_etage` | buildings | 2.24 × 2.05 × 3.17 | 2 128 | Maison à étage avec encorbellement |
+| `manoir` | buildings | 3.94 × 3.13 × 3.66 | 3 036 | Manoir / petit château : tourelle, aile, porche |
+| `tour_guet_bois` | buildings | 1.91 × 1.93 × 3.54 | 2 392 | Tour de guet en bois : plateforme, échelle |
+| `marche_couvert` | buildings | 3.15 × 2.74 × 2.96 | 1 808 | Marché couvert : poteaux, toit, étals, lanternes |
+| `toit_lucarne` | buildings | 1.53 × 1.13 × 0.87 | 372 | Élément de toit à lucarne + cheminée (posé sur un bâtiment) |
+| `fontaine` | props | 2.10 × 2.29 × 1.41 | 1 064 | Fontaine de place : bassin, colonne, vasque |
+| `puits_couvert` | props | 1.69 × 1.71 × 2.29 | 1 400 | Puits couvert : margelle, 4 poteaux, poulie |
+| `pnj_aventurier` | props | 0.70 × 0.70 × 1.08 | 776 | Figurine PNJ aventurier (cape, épée, sacoche) |
+| `pnj_marchand` | props | 0.74 × 0.70 × 1.21 | 944 | Figurine PNJ marchand (chapeau, bourse, ballot) |
+| `pnj_garde` | props | 0.85 × 0.70 × 1.78 | 956 | Figurine PNJ garde (casque, lance, bouclier) |
+
 ### Végétation — `vegetation/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
@@ -112,9 +137,9 @@ Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
 pied du mur éventuelle, ancre, triangles, description) — il est **informatif** :
 l'éditeur peut scanner les dossiers.
-`_planche_assets3.png` est la planche de contrôle courante (textures de sol +
-35 objets). `_planche_assets.png` et `_planche_assets2.png` sont les planches
-historiques des kits v1 et v2.
+`_planche_assets4.png` est la planche de contrôle courante (textures de sol +
+49 objets). `_planche_assets.png`, `_planche_assets2.png` et
+`_planche_assets3.png` sont les planches historiques des kits v1, v2 et v3.
 
 ---
 
@@ -152,6 +177,10 @@ Points d'intégration importants :
 - **Objets muraux** (`torche_murale`, `chaine_murale`, `enseigne`) : l'origine
   est au pied du mur, la géométrie est suspendue au-dessus. Tourner l'objet
   pour que son côté `+Y` (le mur) soit contre le mur de la scène.
+- **Élément de toit** (`toit_lucarne`) : à poser au sommet d'un bâtiment, origine
+  à la base du toit ; pas de dalle de sol.
+- **Figurines PNJ** : socle rond, origine au pied ; elles peuvent servir de
+  props ou de tokens (échelle ~1 case, hauteurs 1,1 à 1,8).
 - **Contour** : le GLB contient deux meshes (`<nom>` et `<nom>_outline`).
   Mettre `cast_shadow = SHADOW_CASTING_SETTING_OFF` sur `*_outline`.
 - **Vertex colors** : `COLOR_0` multiplie la couleur de base. Godot 4
@@ -186,7 +215,7 @@ Points d'intégration importants :
 
 # Textures de sol seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
 ```
 
 Appel direct sans le wrapper :
