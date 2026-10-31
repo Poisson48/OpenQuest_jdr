@@ -43,6 +43,7 @@ var _zone_dialog: ConfirmationDialog
 var _zone_w_spin: SpinBox
 var _zone_h_spin: SpinBox
 var _zone_name_input: LineEdit
+var _zone_theme_opt: OptionButton
 var _resize_dialog: ConfirmationDialog
 var _resize_w_spin: SpinBox
 var _resize_h_spin: SpinBox
@@ -235,7 +236,7 @@ func _update_status() -> void:
 # ===========================================================================
 
 ## Crée une nouvelle carte 2.5D de taille libre et la pose à droite du monde.
-func create_zone(width: int = 12, height: int = 9, title: String = "") -> void:
+func create_zone(width: int = 12, height: int = 9, title: String = "", theme_id: String = "empty") -> void:
 	var md = get_node_or_null("/root/MapData")
 	if md == null:
 		return
@@ -255,6 +256,7 @@ func create_zone(width: int = 12, height: int = 9, title: String = "") -> void:
 	map["groundMode"] = "terrain3d"
 	map["backgroundImage"] = ""
 	map["worldId"] = _current_world_id() if not _current_world_id().is_empty() else "monde"
+	MapThemePresets.apply(map, theme_id)
 	var zone: Dictionary = WorldZonesScript.map_to_zone_patch({
 		"id": map_id, "title": clean_title, "x": pos.x, "y": pos.y,
 		"w": width, "h": height, "edges": {},
@@ -429,6 +431,18 @@ func _ensure_dialogs() -> void:
 	_zone_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_zone_name_input.placeholder_text = "ex. Clairière des Brumes"
 	name_row.add_child(_zone_name_input)
+	var theme_row := HBoxContainer.new()
+	zone_box.add_child(theme_row)
+	var theme_label := Label.new()
+	theme_label.text = "Thème"
+	theme_row.add_child(theme_label)
+	_zone_theme_opt = OptionButton.new()
+	_zone_theme_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in range(MapThemePresets.THEMES.size()):
+		var theme: Dictionary = MapThemePresets.THEMES[i]
+		_zone_theme_opt.add_item(str(theme.get("label", theme.get("id", ""))), i)
+		_zone_theme_opt.set_item_metadata(i, str(theme.get("id", "empty")))
+	theme_row.add_child(_zone_theme_opt)
 	var size_row := HBoxContainer.new()
 	zone_box.add_child(size_row)
 	var w_label := Label.new()
@@ -557,13 +571,18 @@ func _open_create_zone() -> void:
 	_ensure_dialogs()
 	if _zone_name_input != null:
 		_zone_name_input.text = ""
-	_zone_dialog.popup_centered(Vector2i(380, 230))
+	_zone_dialog.popup_centered(Vector2i(400, 290))
 
 func _apply_create_zone() -> void:
 	var custom_title := _zone_name_input.text if _zone_name_input != null else ""
-	create_zone(int(_zone_w_spin.value), int(_zone_h_spin.value), custom_title)
+	var theme_id := "empty"
+	if _zone_theme_opt != null and _zone_theme_opt.selected >= 0:
+		theme_id = str(_zone_theme_opt.get_item_metadata(_zone_theme_opt.selected))
+	create_zone(int(_zone_w_spin.value), int(_zone_h_spin.value), custom_title, theme_id)
 	if _zone_name_input != null:
 		_zone_name_input.text = ""
+	if _zone_theme_opt != null:
+		_zone_theme_opt.select(0)
 
 func _open_rename() -> void:
 	_ensure_dialogs()
