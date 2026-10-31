@@ -213,6 +213,21 @@ func _add_figurine_visuals() -> bool:
 	var center := aabb.get_center()
 	fig.position = Vector3(-center.x * factor, -aabb.position.y * factor, -center.z * factor)
 	add_child(fig)
+	# Nom flottant au-dessus de la figurine (façon Dofus).
+	var label_text := str(token_data.get("label", "")).strip_edges()
+	if not label_text.is_empty():
+		var name_label := Label3D.new()
+		name_label.text = label_text
+		name_label.font_size = 64
+		name_label.outline_size = 15
+		name_label.pixel_size = 0.0045
+		name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		name_label.no_depth_test = true
+		name_label.render_priority = 12
+		name_label.modulate = Color(1.0, 0.97, 0.88, 0.95)
+		name_label.outline_modulate = Color(0, 0, 0, 0.85)
+		name_label.position = Vector3(0, cell_size * 1.7, 0)
+		add_child(name_label)
 	# Socle coloré du joueur (identification).
 	var base := MeshInstance3D.new()
 	var base_mesh := CylinderMesh.new()

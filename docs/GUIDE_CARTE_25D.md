@@ -82,7 +82,8 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
   fondu noir + nom de la zone.
 - Les membres sans portrait sont rendus en **figurines 3D par classe**
   (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise),
-  les créatures (gobelin, squelette) par leur nom.
+  avec leur **nom flottant** au-dessus ; les créatures (gobelin, squelette) par
+  leur nom.
 
 ## 6. Sauvegarde et limites
 
