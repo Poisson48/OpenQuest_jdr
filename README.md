@@ -122,7 +122,15 @@ godot --headless --path game -s res://scripts/tests/valbois_player_hud_test.gd
 
 Suites utiles : `map_*`, `world_*`, `session_*`, `quest_navigation_test`,
 `scenario_editor_test`, `valbois_*`.
-`user_flow_test` est connu pour échouer (cherche encore une carte simple là où Valbois est complexe).
+Le runner reconnaît les tests historiques qui écrivent un JSON (`"ok": true`) ou
+`ALL_OK=true`.
+
+**Échecs connus, hors parcours carte 2.5D** :
+- `webrtc_pooling_e2e_test` : nécessite le serveur de pooling LAN.
+- `valbois_diorama_setup` : dépend d'assets Valbois absents de cette branche.
+- `semantic_move_test` : s'appuie sur le scénario `demo-couronne-fracturee`, retiré
+  du catalogue.
+- `user_flow_test` : cherche encore une carte simple là où Valbois est complexe.
 
 ---
 

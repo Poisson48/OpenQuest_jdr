@@ -84,8 +84,8 @@ foreach ($test in $tests) {
     $stderr = if (Test-Path $errFile) { Get-Content $errFile -Raw -ErrorAction SilentlyContinue } else { '' }
     $combined = "$stdout`n$stderr"
 
-    $hasPass = $combined -match '(?m)\bPASS\b'
-    $hasFail = $combined -match '(?m)\bFAIL\b'
+    $hasPass = $combined -match '(?m)(\bPASS\b|"passed"\s*:\s*true|"ok"\s*:\s*true|ALL_OK\s*=\s*true)'
+    $hasFail = $combined -match '(?m)(\bFAIL\b|"passed"\s*:\s*false|"ok"\s*:\s*false|ALL_OK\s*=\s*false)'
     $ok = ($code -eq 0) -and $hasPass -and (-not $hasFail)
 
     if (-not $ok) {
