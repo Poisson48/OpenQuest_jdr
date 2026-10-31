@@ -89,6 +89,8 @@ Outils terrain :
   dallage, toit et porte au centre du mur avant.
 - **Outil 🪟 Fenêtre 3D** : clique sur un mur ; pose une fenêtre à volets sur la
   façade extérieure (murs hauts recommandés).
+- **Outil 🪑 Meubler** : clique dans une pièce ; pose un ensemble de mobilier
+  (salle commune, chambre, comptoir, campement) aligné au sol.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

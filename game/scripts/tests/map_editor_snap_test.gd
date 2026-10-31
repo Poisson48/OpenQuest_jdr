@@ -199,6 +199,15 @@ func _run() -> void:
 	editor._insert_window(Vector2(float(window_wall.get("x", 0.0)), float(window_wall.get("y", 0.0))))
 	await process_frame
 	_assert("mesh_window_created", _meshes_with_asset(editor, window_path_ui).size() == window_count + 1)
+
+	# Mobilier : ensemble de salle commune posé autour d'un point.
+	var mesh_count_before_furnish: int = editor.doc.elements_of_kind("mesh").size()
+	editor._furnish_preset = "salle"
+	editor._insert_furniture(Vector2(6.0, 15.0))
+	await process_frame
+	_assert("mesh_furniture_created",
+		editor.doc.elements_of_kind("mesh").size() >= mesh_count_before_furnish + 2)
+	_assert("mesh_furniture_selected", editor.doc.selection_size() >= 2)
 	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame

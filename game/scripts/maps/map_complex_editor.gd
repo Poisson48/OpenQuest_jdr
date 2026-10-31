@@ -40,6 +40,23 @@ const FLOOR_MATERIALS := [
 	{"label": "Pierre", "id": 2}, {"label": "Terre", "id": 1},
 	{"label": "Herbe", "id": 0}, {"label": "Sable", "id": 4}, {"label": "Neige", "id": 3},
 ]
+const FURNITURE_PRESETS := [
+	{"id": "salle", "label": "Salle commune", "items": [
+		["table_tabourets", 0.0, 0.0, 0.0], ["banc", 1.9, 0.7, 90.0],
+		["tonneau", -1.7, 0.8, 0.0], ["tapis", 0.0, 1.5, 0.0],
+	]},
+	{"id": "chambre", "label": "Chambre", "items": [
+		["lit", 0.0, 0.0, 0.0], ["caisse", 1.6, 0.6, 0.0], ["tapis", -1.2, 1.0, 0.0],
+	]},
+	{"id": "comptoir", "label": "Comptoir", "items": [
+		["comptoir", 0.0, 0.0, 0.0], ["tonneau", -1.5, 0.8, 0.0],
+		["tonneau_couche", 1.5, 0.8, 20.0], ["banniere", 0.0, -1.4, 0.0],
+	]},
+	{"id": "campement", "label": "Campement", "items": [
+		["botte_foin", 0.0, 0.0, 0.0], ["tas_de_bois", 1.4, 0.6, 0.0],
+		["banc", -1.3, 0.7, 90.0], ["tonneau", 0.2, 1.5, 0.0],
+	]},
+]
 
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
@@ -114,6 +131,7 @@ var _roof_height: float = 1.1
 var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
 var _floor_flatten: bool = true
+var _furnish_preset: String = "salle"
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -1265,6 +1283,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_insert_door(grid)
 	elif _tool == ToolsScript.WINDOW_3D:
 		_insert_window(grid)
+	elif _tool == ToolsScript.FURNISH_3D:
+		_insert_furniture(grid)
 	elif _tool == ToolsScript.MARKER:
 		_create_marker(grid)
 	elif _tool == ToolsScript.EFFECT:
@@ -1501,7 +1521,40 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_roof_height = previous_roof
 	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
 ## qui laissent une ouverture, puis la porte est posée dans le passage.
-## Pose une fenêtre à volets sur le mur 3D le plus proche (façade extérieure).
+## Pose un ensemble de mobilier à l'endroit cliqué.
+func _insert_furniture(grid: Vector2) -> void:
+	var preset: Dictionary = {}
+	for preset_variant in FURNITURE_PRESETS:
+		var candidate: Dictionary = preset_variant
+		if str(candidate["id"]) == _furnish_preset:
+			preset = candidate
+			break
+	if preset.is_empty():
+		return
+	var ids: Array = []
+	doc.begin_transaction()
+	for item_variant in preset.get("items", []):
+		var item: Array = item_variant
+		var asset_name := str(item[0])
+		var path := "res://assets/objects3d/props/%s.glb" % asset_name
+		if not ResourceLoader.exists(path):
+			path = "res://assets/objects3d/vegetation/%s.glb" % asset_name
+		if not ResourceLoader.exists(path):
+			continue
+		var bounds := _mesh_bounds_cells(path, 1.0)
+		var pos := Vector2(grid.x + float(item[1]), grid.y + float(item[2]))
+		var id: String = doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": maxf(0.4, bounds.x), "h": maxf(0.4, bounds.z),
+			"asset": path, "elevation": 0.0,
+			"followTerrain": true, "tiltToTerrain": false,
+			"label": asset_name.capitalize(), "layer": 1,
+			"display": {"rotation": float(item[3]), "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Mobilier")
+		ids.append(id)
+	doc.set_selection(ids)
+	doc.commit_transaction()
+	_set_status("Meublé : %s (%d objets)." % [str(preset["label"]), ids.size()])
 func _insert_window(grid: Vector2) -> void:
 	var wall: Dictionary = {}
 	var best := 2.5
@@ -3754,6 +3807,19 @@ func _rebuild_tool_options() -> void:
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, en une seule action.")
 	elif _tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
+	elif _tool == ToolsScript.FURNISH_3D:
+		var furnish_opt := OptionButton.new()
+		for i in range(FURNITURE_PRESETS.size()):
+			var furn: Dictionary = FURNITURE_PRESETS[i]
+			furnish_opt.add_item(str(furn["label"]), i)
+			furnish_opt.set_item_metadata(i, str(furn["id"]))
+			if str(furn["id"]) == _furnish_preset:
+				furnish_opt.select(i)
+		furnish_opt.item_selected.connect(func(index: int):
+			_furnish_preset = str(furnish_opt.get_item_metadata(index))
+		)
+		_tool_options.add_child(furnish_opt)
+		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
