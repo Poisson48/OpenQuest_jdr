@@ -21,12 +21,16 @@ var marker_box: VBoxContainer
 var effect_list: VBoxContainer
 var tile_box: VBoxContainer
 var template_list: VBoxContainer
+var asset_search: LineEdit
+var asset_filter_row: HFlowContainer
 var widgets: Dictionary = {}
 
 func _ready() -> void:
 	asset_hint = %LblAssetHint
 	asset_category_row = %AssetCategoryRow
 	asset_grid = %AssetGrid
+	asset_search = %AssetSearch
+	asset_filter_row = %AssetFilterRow
 	member_grid = %MemberGrid
 	marker_box = %MarkerBox
 	effect_list = %EffectList

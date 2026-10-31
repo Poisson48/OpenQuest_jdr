@@ -21,6 +21,20 @@ theme_type_variation = &"CaptionLabel"
 autowrap_mode = 3
 text = ""
 
+[node name="AssetSearch" type="LineEdit" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+placeholder_text = "Rechercher un objet 3D…"
+clear_button_enabled = true
+
+[node name="AssetFilterRow" type="HFlowContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+
 [node name="AssetCatScroll" type="ScrollContainer" parent="."]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2

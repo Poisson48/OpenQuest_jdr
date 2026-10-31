@@ -119,6 +119,10 @@ var _tool_options: VBoxContainer
 var _history_list: VBoxContainer
 var _template_list: VBoxContainer
 var _asset_grid: GridContainer
+var _asset_search: LineEdit
+var _asset_filter_row: HFlowContainer
+var _object3d_filter: String = "all"
+var _object3d_search: String = ""
 var _asset_category_row: HBoxContainer
 var _asset_dialog: FileDialog
 var _asset_hint: Label
@@ -657,6 +661,14 @@ func _bind_library_tab() -> void:
 	_asset_hint = _library_panel.asset_hint
 	_asset_category_row = _library_panel.asset_category_row
 	_asset_grid = _library_panel.asset_grid
+	_asset_search = _library_panel.asset_search
+	_asset_filter_row = _library_panel.asset_filter_row
+	if _asset_search != null:
+		_asset_search.text_changed.connect(func(text):
+			_object3d_search = text.strip_edges().to_lower()
+			if _prop_category == "objects3d":
+				_refresh_asset_library()
+		)
 	_effect_list = _library_panel.effect_list
 	_template_list = _library_panel.template_list
 	_settings_widgets["member_grid"] = _library_panel.member_grid
@@ -1556,6 +1568,13 @@ func _refresh_asset_library() -> void:
 		child.queue_free()
 	for child in _asset_grid.get_children():
 		child.queue_free()
+	var objects_mode := _prop_category == "objects3d"
+	if _asset_search != null:
+		_asset_search.visible = objects_mode
+	if _asset_filter_row != null:
+		_asset_filter_row.visible = objects_mode
+		for child in _asset_filter_row.get_children():
+			child.queue_free()
 
 	# Catégorie spéciale en tête : objets 3D livrés (GLB exportés de Blender).
 	var mesh_btn := Button.new()
@@ -1585,6 +1604,7 @@ func _refresh_asset_library() -> void:
 		_asset_category_row.add_child(btn)
 
 	if _prop_category == "objects3d":
+		_build_object3d_filters()
 		_refresh_object3d_library()
 		return
 
@@ -1625,6 +1645,72 @@ func _refresh_asset_library() -> void:
 		)
 		btn.add_child(remove)
 
+## Filtres rapides de la bibliothèque 3D (bâtiments, toits, personnages…).
+const OBJECT3D_FILTERS := [
+	["all", "Tous"],
+	["buildings", "Bâtiments"],
+	["roofs", "Toits & façades"],
+	["characters", "Personnages"],
+	["nature", "Nature"],
+	["interiors", "Intérieurs"],
+	["furniture", "Mobilier"],
+]
+
+func _build_object3d_filters() -> void:
+	if _asset_filter_row == null:
+		return
+	for entry in OBJECT3D_FILTERS:
+		var filter_id := str(entry[0])
+		var btn := Button.new()
+		btn.text = str(entry[1])
+		btn.toggle_mode = true
+		btn.button_pressed = _object3d_filter == filter_id
+		btn.add_theme_font_size_override("font_size", 10)
+		btn.pressed.connect(func():
+			_object3d_filter = filter_id
+			_refresh_asset_library()
+		)
+		_asset_filter_row.add_child(btn)
+
+func _object3d_filter_matches(asset: Dictionary) -> bool:
+	var path := str(asset.get("path", ""))
+	var name := str(asset.get("name", "")).to_lower()
+	var file := path.get_file().get_basename().to_lower()
+	if not _object3d_search.is_empty():
+		var haystack := "%s %s" % [name, file]
+		if not haystack.contains(_object3d_search):
+			return false
+	if _object3d_filter == "all":
+		return true
+	var is_character := file.begins_with("pnj_")
+	var roof_prefixes := ["toit_", "cheminee", "clocheton", "colombage", "porte_", "fenetre_", "balcon", "auvent", "escalier_"]
+	var is_roof := false
+	for prefix in roof_prefixes:
+		if file.begins_with(str(prefix)):
+			is_roof = true
+			break
+	var interior_names := [
+		"table_tabourets", "comptoir", "tapis", "lit", "tonneau_couche",
+		"sarcophage", "pile_os", "herse", "chaine_murale", "torche_murale",
+	]
+	var is_interior := file in interior_names
+	var is_nature := path.contains("/vegetation/") or path.contains("/terrain/")
+	var is_building := path.contains("/buildings/") and not is_roof and not is_character
+	match _object3d_filter:
+		"characters":
+			return is_character
+		"roofs":
+			return is_roof
+		"interiors":
+			return is_interior
+		"nature":
+			return is_nature
+		"buildings":
+			return is_building
+		"furniture":
+			return not is_character and not is_roof and not is_interior and not is_nature and not is_building
+	return true
+
 ## Liste les meshes 3D livrés et importés par l'utilisateur
 ## (res://assets/objects3d/<catégorie>/*.glb + user://map_assets/objects3d/...).
 func _refresh_object3d_library() -> void:
@@ -1638,7 +1724,11 @@ func _refresh_object3d_library() -> void:
 		add_child(_mesh_import_dialog)
 
 	var assets: Array = AssetLibraryScript.list_object3d_assets()
-	_asset_hint.text = "%d objet(s) 3D — cliquez pour armer l'outil, puis cliquez la carte." % assets.size() if not assets.is_empty() \
+	var filtered: Array = []
+	for asset_variant in assets:
+		if _object3d_filter_matches(asset_variant as Dictionary):
+			filtered.append(asset_variant)
+	_asset_hint.text = "%d / %d objet(s) 3D — cliquez pour armer l'outil, puis cliquez la carte." % [filtered.size(), assets.size()] if not assets.is_empty() \
 		else "Aucun objet 3D. Cliquez « Importer un GLB… » ou déposez des .glb dans game/assets/objects3d/."
 
 	var import_btn := Button.new()
@@ -1649,7 +1739,7 @@ func _refresh_object3d_library() -> void:
 	import_btn.pressed.connect(func(): _mesh_import_dialog.popup_centered(Vector2i(900, 620)))
 	_asset_grid.add_child(import_btn)
 
-	for asset_variant in assets:
+	for asset_variant in filtered:
 		var asset: Dictionary = asset_variant
 		var path := str(asset.get("path", ""))
 		var btn := Button.new()

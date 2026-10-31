@@ -117,7 +117,9 @@ La carte 2.5D mêle découpes 2D (décors, tokens) et **meshes 3D**. L'outil
 section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
 
 - Les modèles vivent dans `game/assets/objects3d/<catégorie>/` (bâtiments,
-  props, végétation, terrain) ; ils sont listés dans **Biblio → 🧊 Objets 3D**.
+  props, végétation, terrain) ; ils sont listés dans **Biblio → 🧊 Objets 3D**
+  avec une **recherche** et des **filtres** (Tous, Bâtiments, Toits & façades,
+  Personnages, Nature, Intérieurs, Mobilier).
 - **＋ Importer un GLB…** ajoute un modèle `.glb`/`.gltf` à la bibliothèque de
   l'utilisateur (`user://map_assets/objects3d/imports/`), avec vignette générée
   automatiquement. Aucun outil externe requis pour ajouter ses propres bâtiments.
