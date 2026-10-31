@@ -48,6 +48,10 @@ var _link_dialog: ConfirmationDialog
 var _link_side_opt: OptionButton
 var _link_target_opt: OptionButton
 var _link_offset_spin: SpinBox
+var hover_zone_id: String = ""
+var _unlink_dialog: ConfirmationDialog
+var _pending_unlink_zone: String = ""
+var _pending_unlink_side: String = ""
 var _assign_dialog: ConfirmationDialog
 var _assign_opt: OptionButton
 var _editor_root: Control
@@ -199,6 +203,10 @@ func _update_status() -> void:
 			str(sel.get("title", "")), int(sel.get("w", 0)), int(sel.get("h", 0)),
 			int(sel.get("x", 0)), int(sel.get("y", 0)),
 		]
+	var hover := _zone_by_id(hover_zone_id)
+	if not hover.is_empty():
+		extra += " · survol : %s (%d×%d)" % [
+			str(hover.get("title", "")), int(hover.get("w", 0)), int(hover.get("h", 0))]
 	_status_lbl.text = "%d zone(s) · molette = zoom · glisser = déplacer une zone · double-clic = ouvrir%s" % [zones.size(), extra]
 
 # ===========================================================================
@@ -492,6 +500,11 @@ func _ensure_dialogs() -> void:
 	assign_box.add_child(_assign_opt)
 	_assign_dialog.confirmed.connect(_apply_assign)
 
+	_unlink_dialog = ConfirmationDialog.new()
+	_unlink_dialog.title = "Retirer le lien"
+	add_child(_unlink_dialog)
+	_unlink_dialog.confirmed.connect(_apply_unlink)
+
 func _open_create_zone() -> void:
 	_ensure_dialogs()
 	_zone_dialog.popup_centered(Vector2i(360, 180))
@@ -604,6 +617,33 @@ func _open_link(prefill_zone_id: String = "", prefill_side: String = "") -> void
 	_link_side_opt.select(side_index)
 	_link_offset_spin.value = int(existing.get("offset", 0))
 	_link_dialog.popup_centered(Vector2i(460, 240))
+
+## Clic droit sur un point d'accroche lié : propose de retirer le lien.
+func _open_unlink(zone_id: String, side: String) -> void:
+	_ensure_dialogs()
+	var zone := _zone_by_id(zone_id)
+	if zone.is_empty():
+		return
+	var edges: Dictionary = zone.get("edges", {}) if zone.get("edges") is Dictionary else {}
+	var edge: Dictionary = edges.get(side, {}) if edges.get(side) is Dictionary else {}
+	if str(edge.get("target", "")).is_empty():
+		return
+	_pending_unlink_zone = zone_id
+	_pending_unlink_side = side
+	var target := _zone_by_id(str(edge.get("target", "")))
+	_unlink_dialog.dialog_text = "Retirer le lien %s de « %s » vers « %s » ?" % [
+		side, str(zone.get("title", "")), str(target.get("title", edge.get("target", "")))]
+	_unlink_dialog.popup_centered(Vector2i(480, 150))
+
+func _apply_unlink() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or _pending_unlink_zone.is_empty():
+		return
+	md.set_zone_edge(_pending_unlink_zone, _pending_unlink_side, "")
+	refresh()
+	show_status("Lien %s retiré." % _pending_unlink_side)
+	_pending_unlink_zone = ""
+	_pending_unlink_side = ""
 
 func _apply_link() -> void:
 	var md = get_node_or_null("/root/MapData")
@@ -752,6 +792,9 @@ func _draw() -> void:
 		if str(zone.get("id", "")) == current_id:
 			draw_rect(rect, Color(0.55, 0.85, 1.0, 0.9), false, 2.0)
 			draw_circle(rect.get_center(), 4.5, Color(0.55, 0.85, 1.0))
+		# Survol : liseré clair.
+		if str(zone.get("id", "")) == hover_zone_id and not selected:
+			draw_rect(rect, Color(0.85, 0.93, 1.0, 0.9), false, 1.5)
 		# Nom + taille (si assez de place).
 		if rect.size.x > 70.0 and rect.size.y > 32.0:
 			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 32.0)), Color(0.02, 0.02, 0.02, 0.5), true)
@@ -902,6 +945,13 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE or mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+				var edge_hit := _edge_marker_hit(mb.position)
+				if not edge_hit.is_empty():
+					selected_id = str(edge_hit.get("zone_id", ""))
+					_open_unlink(selected_id, str(edge_hit.get("side", "")))
+					accept_event()
+					return
 			if mb.pressed:
 				_drag_start_screen = mb.position
 			else:
@@ -955,6 +1005,19 @@ func _gui_input(event: InputEvent) -> void:
 			pan += motion.relative
 			_drag_start_screen = motion.position
 			queue_redraw()
+		else:
+			var hovered := _zone_at_screen(motion.position)
+			var new_hover := "" if hovered.is_empty() else str(hovered.get("id", ""))
+			if new_hover != hover_zone_id:
+				hover_zone_id = new_hover
+				_update_status()
+				queue_redraw()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT and not hover_zone_id.is_empty():
+		hover_zone_id = ""
+		_update_status()
+		queue_redraw()
 
 func _zone_at_screen(pos: Vector2) -> Dictionary:
 	for i in range(zones.size() - 1, -1, -1):

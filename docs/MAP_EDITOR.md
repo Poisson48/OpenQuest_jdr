@@ -166,7 +166,9 @@ peuvent avoir des **tailles différentes**). Voir
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
 - **Lier…** : crée un lien de bord manuel (bord, zone cible, décalage), ou
   retire le lien en laissant la cible vide. Les **points d'accroche** autour des
-  zones sont cliquables : un clic ouvre directement l'édition du lien de ce bord.
+  zones sont cliquables : un clic ouvre l'édition du lien de ce bord, un
+  **clic droit** sur un bord déjà lié propose de retirer le lien.
+- **Survol** d'une zone : liseré clair + détail dans la ligne d'état.
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
