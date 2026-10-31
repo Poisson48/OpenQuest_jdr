@@ -20,6 +20,7 @@ func _run() -> void:
 	var wanted := {
 		"Taverne du Corbeau": "carte_25d_taverne.png",
 		"Donjon de Valbois": "carte_25d_donjon.png",
+		"Forêt de l'Ouest": "carte_25d_foret.png",
 	}
 	var world_maps: Array = demo.get("world_maps", [])
 	for title in wanted:

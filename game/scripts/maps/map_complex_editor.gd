@@ -608,6 +608,7 @@ func _bind_settings_tab() -> void:
 	_settings_panel.fog_reveal_all_pressed.connect(func(): doc.reveal_all_fog())
 	_settings_panel.render_style_changed.connect(_on_render_style_changed)
 	_settings_panel.ground_mode_changed.connect(_on_ground_mode_changed)
+	_settings_panel.water_changed.connect(_on_water_changed)
 	_settings_panel.perspective_changed.connect(_on_perspective_changed)
 	_settings_panel.atmosphere_changed.connect(_on_atmosphere_changed)
 	_settings_panel.lighting_changed.connect(_on_lighting_changed)
@@ -2414,6 +2415,7 @@ func _sync_settings_ui() -> void:
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
 	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
+	_set_spin("water_level", float(doc.map_data.get("waterLevel", -1.0)))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -2479,6 +2481,17 @@ func _on_ground_mode_changed() -> void:
 	doc.set_meta_values({"groundMode": mode}, "Type de sol")
 	_sync_engine(true)
 	_set_status("Sol : %s" % ("terrain 3D" if mode == "terrain3d" else "fond illustré plat"))
+
+func _on_water_changed() -> void:
+	if _syncing:
+		return
+	var level := _get_spin("water_level")
+	doc.set_meta_values({"waterLevel": level}, "Niveau d'eau")
+	_sync_engine()
+	if level >= 0.0:
+		_set_status("Eau : niveau %.1f case(s) — les creux du relief sont immergés." % level)
+	else:
+		_set_status("Eau désactivée.")
 
 func _on_atmosphere_changed() -> void:
 	if _syncing:

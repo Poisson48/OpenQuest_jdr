@@ -771,5 +771,28 @@ func _cell_height(cx: int, cy: int) -> float:
 		return 0.0
 	return float(_terrain_heights[idx])
 
+## Hauteur du terrain (en cases) d'une case de la grille — exposée pour les
+## calques qui doivent détecter une immersion (eau) ou poser des objets.
+## 0 hors carte / sans données de relief.
+func get_cell_height(cx: int, cy: int) -> float:
+	return _cell_height(cx, cy)
+
+## Copie des hauteurs par case ([] si la carte n'en fournit pas).
+func get_terrain_heights() -> Array:
+	return _terrain_heights.duplicate()
+
+## Taille de la grille du sol en cases.
+func get_terrain_size() -> Vector2i:
+	return Vector2i(_terrain_w, _terrain_h)
+
+## Nombre de cases dont la hauteur est sous `level` (immersion, en cases).
+func count_cells_below(level: float) -> int:
+	var count := 0
+	for y in range(_terrain_h):
+		for x in range(_terrain_w):
+			if _cell_height(x, y) < level - TERRAIN_RELIEF_EPSILON:
+				count += 1
+	return count
+
 func get_map_extent() -> Vector2:
 	return _extent

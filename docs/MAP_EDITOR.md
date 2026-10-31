@@ -348,6 +348,10 @@ Onglet **Carte** :
   adaptés au sol ; recommandé pour la carte 2.5D) ou **Fond illustré** (image
   peinte à plat ; mode historique, aucune déformation). Un fond importé bascule
   automatiquement en « Fond illustré ».
+- **Eau (niveau)** : `-1` = aucune eau ; toute autre valeur est la hauteur du
+  plan d'eau en cases. Les creux du relief sous ce niveau deviennent un étang /
+  lac, avec rendu translucide animé, profondeur et écume de rive (mode Terrain 3D
+  uniquement).
 - **Style de rendu** : **Diorama 2.5D** (défaut — fond peint + découpes) ou
   **VTT 3D** (battlemap tactique avec ombres et murs volumétriques).
 - **Dimensions** : redimensionnement non destructif — le terrain existant est

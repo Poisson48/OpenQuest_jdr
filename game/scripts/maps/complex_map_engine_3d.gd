@@ -28,6 +28,7 @@ signal area_activate_requested(area: Dictionary)
 signal table_dice_result(faces: Array, total: int, valid: bool)
 
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
+const MapWater3DScript := preload("res://scripts/maps/map_layers/map_water_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
 const MapToken3DScript := preload("res://scripts/maps/map_layers/map_token_3d.gd")
 const MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.gd")
@@ -122,6 +123,11 @@ var _camera: Camera3D
 var _world: Node3D
 var _world_env: WorldEnvironment
 var _ground: Node3D
+## Calque d'eau (lacs/étangs) : instancié avec le viewport, sans rendu tant que
+## `map_data["waterLevel"]` < 0 ou qu'aucune case n'est immergée.
+var _water_layer: Node3D
+## Niveau d'eau courant, en cases (même repère que terrainHeights) ; -1 = aucune.
+var _water_level: float = -1.0
 var _elevations_layer: Node3D
 var _grid_layer: Node3D
 var _zones_layer: Node3D
@@ -189,6 +195,7 @@ func _build_viewport_tree() -> void:
 		_viewport_container = null
 		_viewport = null
 		_ground = null
+		_water_layer = null
 		_world = null
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -258,6 +265,10 @@ func _build_viewport_tree() -> void:
 	_ground = MapGround3DScript.new()
 	_ground.name = "Ground"
 	_world.add_child(_ground)
+
+	_water_layer = MapWater3DScript.new()
+	_water_layer.name = "Water"
+	_world.add_child(_water_layer)
 
 	_elevations_layer = MapElevations3DScript.new()
 	_elevations_layer.name = "Elevations"
@@ -371,6 +382,7 @@ func configure(
 		snap_to_grid = not MapRenderStyleScript.is_diorama(p_map)
 
 	_load_ground()
+	_load_water()
 	_load_elevations()
 	_sync_table_environment()
 	_apply_camera_perspective()
@@ -499,6 +511,56 @@ func _load_ground(p_ground_mode: String = "") -> void:
 func _load_elevations() -> void:
 	if _elevations_layer and _elevations_layer.has_method("configure"):
 		_elevations_layer.configure(map_data, _cell_size)
+
+# ===========================================================================
+# Eau (lacs, étangs, douves) — `map_data["waterLevel"]`
+# ===========================================================================
+#
+# Contrat de données : `map_data["waterLevel"]` = float en **cases**, même
+# repère que `terrainHeights`. `-1.0` (défaut) = pas d'eau ; toute valeur >= 0
+# affiche un plan d'eau si au moins une case de terrain est sous ce niveau.
+# Le calque n'est rendu qu'en mode `terrain3d` ; en `illustrated` il est retiré.
+
+## Lit `waterLevel` et configure (ou retire) le calque d'eau.
+func _load_water() -> void:
+	_water_level = float(map_data.get("waterLevel", -1.0))
+	if _water_layer == null or not is_instance_valid(_water_layer):
+		return
+	if _ground_mode != MapData.GROUND_TERRAIN3D:
+		# Mode illustré : pas de vrai terrain, donc pas d'eau 3D.
+		_water_layer.clear()
+		return
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	var night_mode := MapData.is_night_mode(map_data)
+	if _water_layer.has_method("configure"):
+		_water_layer.configure(w, h, _cell_size, _water_level, _terrain_heights, night_mode)
+
+## Change le niveau d'eau **sans toucher au document** (outils/tests ; l'éditeur
+## passera par `refresh_terrain(map_data)`). Niveau en cases ; < 0 retire l'eau.
+func set_water_level(level: float) -> void:
+	_water_level = float(level)
+	if _water_layer == null or not is_instance_valid(_water_layer):
+		return
+	if map_data.is_empty() or _ground_mode != MapData.GROUND_TERRAIN3D:
+		_water_layer.clear()
+		return
+	if _water_layer.has_method("configure"):
+		var w: int = int(map_data.get("width", 16))
+		var h: int = int(map_data.get("height", 12))
+		_water_layer.configure(
+			w, h, _cell_size, _water_level, _terrain_heights, MapData.is_night_mode(map_data)
+		)
+
+## Niveau d'eau courant, en cases (-1 = pas d'eau).
+func get_water_level() -> float:
+	return _water_level
+
+## Vrai si un plan d'eau est effectivement rendu.
+func is_water_active() -> bool:
+	if _water_layer == null or not is_instance_valid(_water_layer):
+		return false
+	return _water_layer.has_method("is_active") and _water_layer.is_active()
 
 # ===========================================================================
 # Relief de terrain (M6) — adaptation des constructions au sol
@@ -656,6 +718,8 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		_ground.set_terrain_heights(_terrain_heights)
 	elif _ground.has_method("configure"):
 		_load_ground()
+	# Eau : dépend du niveau (`waterLevel`), des hauteurs et du mode de sol.
+	_load_water()
 	var w: int = int(map_data.get("width", 16))
 	var h: int = int(map_data.get("height", 12))
 	var map_size := Vector2i(w, h)
@@ -928,6 +992,8 @@ func _rebuild_layers() -> void:
 	# pour couvrir les cas où seules les données de carte ont bougé.
 	if _ground != null and is_instance_valid(_ground) and _ground.has_method("set_terrain_materials"):
 		_ground.set_terrain_materials(_terrain_materials)
+	# Eau : même logique (niveau/hauteurs lus dans map_data, no-op si inchangés).
+	_load_water()
 
 func _clear_children(layer: Node, registry: Dictionary) -> void:
 	for child in layer.get_children():

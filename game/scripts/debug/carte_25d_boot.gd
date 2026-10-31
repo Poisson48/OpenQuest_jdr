@@ -266,6 +266,21 @@ static func build_demo(md: Node) -> Dictionary:
 		elif str(spec["title"]).contains("Donjon"):
 			style = "dungeon"
 		sub["terrainMaterials"] = _demo_materials(int(spec["w"]), int(spec["h"]), style)
+		# Étang en forêt : dépression douce + plan d'eau.
+		if style == "forest":
+			var w_sub := int(spec["w"])
+			var h_sub := int(spec["h"])
+			var pond_center := Vector2(2.2, 9.0)
+			var pond := []
+			pond.resize(w_sub * h_sub)
+			pond.fill(0.0)
+			for cy in range(h_sub):
+				for cx in range(w_sub):
+					var dp := Vector2(cx, cy).distance_to(pond_center)
+					if dp < 2.6:
+						pond[cy * w_sub + cx] = -0.75 * (1.0 - dp / 2.6)
+			sub["terrainHeights"] = pond
+			sub["waterLevel"] = -0.25
 		var sub_meshes: Array = []
 		for m_variant in spec.get("meshes", []):
 			var m: Dictionary = m_variant

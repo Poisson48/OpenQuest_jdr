@@ -15,6 +15,7 @@ signal fog_hide_all_pressed
 signal fog_reveal_all_pressed
 signal render_style_changed
 signal ground_mode_changed
+signal water_changed
 signal perspective_changed
 signal atmosphere_changed
 signal lighting_changed
@@ -92,11 +93,26 @@ func _ready() -> void:
 	])
 	widgets["ground_mode"] = ground_opt
 	ground_opt.item_selected.connect(func(_i): ground_mode_changed.emit())
+	# Niveau d'eau : -1 = pas d'eau, >= 0 = plan d'eau (lac / étang).
+	var water_lbl := Label.new()
+	water_lbl.text = "Eau (niveau)"
+	add_child(water_lbl)
+	var water_spin := SpinBox.new()
+	water_spin.min_value = -1.0
+	water_spin.max_value = 8.0
+	water_spin.step = 0.1
+	water_spin.value = -1.0
+	water_spin.tooltip_text = "-1 = aucune eau ; sinon hauteur du plan d'eau en cases (les creux du relief deviennent un lac)."
+	add_child(water_spin)
+	widgets["water_level"] = water_spin
+	water_spin.value_changed.connect(func(_v): water_changed.emit())
 	var style_node := find_child("LblStyle", true, false)
 	if style_node is Node:
 		var style_index := style_node.get_index()
 		move_child(ground_lbl, style_index)
 		move_child(ground_opt, style_index + 1)
+		move_child(water_lbl, style_index + 2)
+		move_child(water_spin, style_index + 3)
 
 	%BtnImportBg.pressed.connect(func(): import_background_pressed.emit())
 	%BtnImportOverlay.pressed.connect(func(): import_overlay_pressed.emit())
