@@ -56,25 +56,28 @@ func _run() -> void:
 		var engine = workspace.stage._complex
 		_assert("move_hover_layer", engine != null and engine._move_hover_layer != null)
 		var before: Vector2i = gd.get_member_token_position(village_id, "move-aria")
-		workspace._on_grid_clicked(4.0, 4.0, {"mode": SessionToolRegistry.MOVE})
+		workspace._on_grid_clicked(10.0, 12.0, {"mode": SessionToolRegistry.MOVE})
 		await process_frame
 		var after: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		_assert("move_tool_moved", after != before)
-		_assert("move_tool_target", after.x == 4 and after.y == 4)
+		_assert("move_tool_target", after.x == 10 and after.y == 12)
 		workspace._move_selected_step(Vector2i(1, 0))
 		await process_frame
 		var stepped: Vector2i = gd.get_member_token_position(village_id, "move-aria")
-		_assert("move_arrow_step", stepped.x == 5 and stepped.y == 4)
+		_assert("move_arrow_step", stepped.x == 11 and stepped.y == 12)
+		# Un bâtiment 3D bloque le déplacement.
+		_assert("move_building_blocked", workspace._cell_blocked_by_building(village_id, 7.0, 6.0))
+		_assert("move_open_cell", not workspace._cell_blocked_by_building(village_id, 10.0, 12.0))
 		# Une case occupée par une autre figurine refuse le déplacement.
 		gd.active_game["party"].append({
 			"id": "move-bran", "name": "Bran", "class": "Garde", "hp": 15, "isPlayer": true,
 			"portrait": "", "image": "", "stats": {},
 		})
-		gd.place_complex_member_token(village_id, 6.0, 4.0, "move-bran")
-		workspace._on_grid_clicked(6.0, 4.0, {"mode": SessionToolRegistry.MOVE})
+		gd.place_complex_member_token(village_id, 12.0, 12.0, "move-bran")
+		workspace._on_grid_clicked(12.0, 12.0, {"mode": SessionToolRegistry.MOVE})
 		await process_frame
 		var blocked: Vector2i = gd.get_member_token_position(village_id, "move-aria")
-		_assert("move_blocked_occupied", blocked.x == 5 and blocked.y == 4)
+		_assert("move_blocked_occupied", blocked.x == 11 and blocked.y == 12)
 		# Clic PNJ : bulle de dialogue.
 		_assert("npc_line_marchand", workspace._npc_line("Marchand").contains("marchandises"))
 		workspace._on_token_selected("tok-npc-test")

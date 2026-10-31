@@ -768,6 +768,9 @@ func _move_selected_token(gx: float, gy: float) -> void:
 	if _cell_has_other_token(map_id, gx, gy, token_id):
 		notice_requested.emit("Cette case est déjà occupée.")
 		return
+	if _cell_blocked_by_building(map_id, gx, gy):
+		notice_requested.emit("Un mur ou un bâtiment bloque le passage.")
+		return
 	_on_token_moved(token_id, gx, gy)
 
 func _selected_token_for_move(map_id: String) -> String:
@@ -806,9 +809,44 @@ func _move_selected_step(direction: Vector2i) -> void:
 	if _cell_has_other_token(map_id, float(target.x), float(target.y), token_id):
 		notice_requested.emit("Cette case est déjà occupée.")
 		return
+	if _cell_blocked_by_building(map_id, float(target.x), float(target.y)):
+		notice_requested.emit("Un mur ou un bâtiment bloque le passage.")
+		return
 	_on_token_moved(token_id, float(target.x), float(target.y))
 
-## Vrai si une autre figurine occupe déjà la case (marge 0,6 case).
+## Vrai si une figurine est bloquée par un mur/bâtiment 3D à cette case.
+func _cell_blocked_by_building(map_id: String, gx: float, gy: float) -> bool:
+	var map := MapData.get_by_id(map_id)
+	if map.is_empty():
+		return false
+	for mesh_variant in map.get("meshes", []):
+		if not mesh_variant is Dictionary:
+			continue
+		var mesh: Dictionary = mesh_variant
+		var path := str(mesh.get("asset", ""))
+		if not path.contains("/buildings/"):
+			continue
+		var file_name := path.get_file().to_lower()
+		if file_name.begins_with("toit") or file_name.begins_with("cheminee") \
+				or file_name.begins_with("clocheton") or file_name.begins_with("porte_") \
+				or file_name.begins_with("fenetre") or file_name.begins_with("auvent") \
+				or file_name.begins_with("balcon") or file_name.begins_with("colombage") \
+				or file_name.begins_with("escalier"):
+			continue
+		var width := float(mesh.get("w", 0.0))
+		var depth := float(mesh.get("h", 0.0))
+		if width <= 0.0 or depth <= 0.0:
+			continue
+		var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
+		var rotation := deg_to_rad(float(display.get("rotation", 0.0)))
+		var offset := Vector2(gx - float(mesh.get("x", 0.0)), gy - float(mesh.get("y", 0.0)))
+		var along := Vector2(cos(rotation), sin(rotation))
+		var front := Vector2(-sin(rotation), cos(rotation))
+		var local_x := absf(offset.dot(along))
+		var local_y := absf(offset.dot(front))
+		if local_x <= width * 0.5 + 0.15 and local_y <= depth * 0.5 + 0.15:
+			return true
+	return false
 func _cell_has_other_token(map_id: String, gx: float, gy: float, exclude_id: String) -> bool:
 	for tok_variant in GameData.get_map_play_tokens(map_id):
 		if not tok_variant is Dictionary:
