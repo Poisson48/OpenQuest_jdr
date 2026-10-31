@@ -567,17 +567,19 @@ func _apply_assign() -> void:
 	else:
 		show_status("Assignation impossible.")
 
-func _open_link() -> void:
+func _open_link(prefill_zone_id: String = "", prefill_side: String = "") -> void:
 	_ensure_dialogs()
-	var zone := _zone_by_id(selected_id)
+	var zone_id := prefill_zone_id if not prefill_zone_id.is_empty() else selected_id
+	var zone := _zone_by_id(zone_id)
 	if zone.is_empty():
 		show_status("Sélectionnez d'abord une zone.")
 		return
+	selected_id = zone_id
 	_link_target_opt.clear()
 	for other_variant in zones:
 		var other: Dictionary = other_variant
 		var other_id := str(other.get("id", ""))
-		if other_id == selected_id:
+		if other_id == zone_id:
 			continue
 		var index := _link_target_opt.item_count
 		_link_target_opt.add_item(str(other.get("title", other_id)), index)
@@ -585,8 +587,22 @@ func _open_link() -> void:
 	if _link_target_opt.item_count == 0:
 		show_status("Aucune autre zone à relier.")
 		return
-	_link_side_opt.select(2)  # Est par défaut.
-	_link_offset_spin.value = 0
+	var side_order := ["north", "south", "east", "west"]
+	var side_index := 2  # Est par défaut.
+	if not prefill_side.is_empty():
+		var found := side_order.find(prefill_side)
+		if found >= 0:
+			side_index = found
+	var edges: Dictionary = zone.get("edges", {}) if zone.get("edges") is Dictionary else {}
+	var existing: Dictionary = edges.get(prefill_side, {}) if edges.get(prefill_side) is Dictionary else {}
+	var existing_target := str(existing.get("target", ""))
+	if not existing_target.is_empty():
+		for i in range(_link_target_opt.item_count):
+			if str(_link_target_opt.get_item_metadata(i)) == existing_target:
+				_link_target_opt.select(i)
+				break
+	_link_side_opt.select(side_index)
+	_link_offset_spin.value = int(existing.get("offset", 0))
 	_link_dialog.popup_centered(Vector2i(460, 240))
 
 func _apply_link() -> void:
@@ -826,11 +842,11 @@ func _draw_grid(bounds: Rect2i) -> void:
 func _draw_edges(zone: Dictionary, rect: Rect2) -> void:
 	var edges: Dictionary = zone.get("edges", {}) if zone.get("edges") is Dictionary else {}
 	var color := Color(0.98, 0.82, 0.35, 0.9)
+	var idle_color := Color(0.9, 0.82, 0.6, 0.28)
 	var center := rect.get_center()
 	for side in ["north", "south", "east", "west"]:
 		var edge: Dictionary = edges.get(side, {}) if edges.get(side) is Dictionary else {}
-		if str(edge.get("target", "")).is_empty():
-			continue
+		var linked := not str(edge.get("target", "")).is_empty()
 		var p1 := center
 		var p2 := center
 		match str(side):
@@ -846,8 +862,29 @@ func _draw_edges(zone: Dictionary, rect: Rect2) -> void:
 			"west":
 				p1 = rect.position + Vector2(0, rect.size.y * 0.5)
 				p2 = p1 + Vector2(-6, 0)
-		draw_line(p1, p2, color, 2.0)
-		draw_circle(p2, 2.5, color)
+		if linked:
+			draw_line(p1, p2, color, 2.0)
+			draw_circle(p2, 3.0, color)
+		else:
+			# Point d'accroche discret : cliquez-le pour créer un lien sur ce bord.
+			draw_circle(p2, 2.0, idle_color)
+
+## Détecte le point d'accroche de bord sous le curseur (clic création/édition de lien).
+func _edge_marker_hit(pos: Vector2) -> Dictionary:
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		var rect := Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
+			Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
+		var markers := {
+			"north": rect.position + Vector2(rect.size.x * 0.5, -6),
+			"south": rect.position + Vector2(rect.size.x * 0.5, rect.size.y + 6),
+			"east": rect.position + Vector2(rect.size.x + 6, rect.size.y * 0.5),
+			"west": rect.position + Vector2(-6, rect.size.y * 0.5),
+		}
+		for side in markers:
+			if pos.distance_to(markers[side]) <= 10.0:
+				return {"zone_id": str(zone.get("id", "")), "side": str(side)}
+	return {}
 
 # ===========================================================================
 # Entrée souris
@@ -877,6 +914,13 @@ func _gui_input(event: InputEvent) -> void:
 					if not dbl.is_empty():
 						selected_id = str(dbl.get("id", ""))
 						open_selected()
+					accept_event()
+					return
+				# Point d'accroche de bord : ouvre directement l'édition du lien.
+				var edge_hit := _edge_marker_hit(mb.position)
+				if not edge_hit.is_empty():
+					selected_id = str(edge_hit.get("zone_id", ""))
+					_open_link(selected_id, str(edge_hit.get("side", "")))
 					accept_event()
 					return
 				var hit := _zone_at_screen(mb.position)

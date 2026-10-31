@@ -165,7 +165,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Relier les bords** : détecte automatiquement les voisins qui partagent un
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
 - **Lier…** : crée un lien de bord manuel (bord, zone cible, décalage), ou
-  retire le lien en laissant la cible vide.
+  retire le lien en laissant la cible vide. Les **points d'accroche** autour des
+  zones sont cliquables : un clic ouvre directement l'édition du lien de ce bord.
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
