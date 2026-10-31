@@ -48,6 +48,8 @@ Raccourcis de lancement :
 # Carte 2.5D / monde de zones
 .\scripts\play-godot.ps1 res://scenes/debug/carte_25d_boot.tscn          # éditeur + monde de démo
 .\scripts\play-godot.ps1 res://scenes/debug/carte_25d_session_boot.tscn  # session sur le monde de démo
+.\scripts\play-godot.ps1 res://scenes/debug/construction_demo.tscn      # démo construction (maisons, toits, clôtures)
+.\scripts\play-godot.ps1 res://scenes/debug/auvent_demo.tscn           # démo auvent de façade
 ```
 
 ---

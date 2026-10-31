@@ -12,6 +12,9 @@ session**. Il suppose la branche `feat/carte-2.5d-editeur`.
 
 # Session monde (7 zones reliées, figurines, carte du monde)
 .\scripts\play-godot.ps1 res://scenes/debug/carte_25d_session_boot.tscn
+
+# Démo construction (maisons, toits, fenêtres, clôtures, chemins)
+.\scripts\play-godot.ps1 res://scenes/debug/construction_demo.tscn
 ```
 
 La démo éditeur construit un monde de 7 zones (village, place, forêt avec
