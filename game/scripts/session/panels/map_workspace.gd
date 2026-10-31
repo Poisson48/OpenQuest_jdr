@@ -72,18 +72,31 @@ func _ready() -> void:
 	%BtnEmptyMaps.pressed.connect(_on_empty_maps_pressed)
 
 	# Boussole de sorties (zones voisines) + rappel carte du monde.
+	var exits_panel := PanelContainer.new()
+	exits_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var exits_style := StyleBoxFlat.new()
+	exits_style.bg_color = Color(0.03, 0.03, 0.035, 0.62)
+	exits_style.corner_radius_top_left = 7
+	exits_style.corner_radius_top_right = 7
+	exits_style.corner_radius_bottom_left = 7
+	exits_style.corner_radius_bottom_right = 7
+	exits_style.content_margin_left = 9
+	exits_style.content_margin_right = 9
+	exits_style.content_margin_top = 4
+	exits_style.content_margin_bottom = 4
+	exits_panel.add_theme_stylebox_override("panel", exits_style)
+	exits_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	exits_panel.offset_left = 12
+	exits_panel.offset_top = 8
+	stage.add_child(exits_panel)
 	_exits_lbl = Label.new()
 	_exits_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_exits_lbl.add_theme_font_size_override("font_size", 12)
-	_exits_lbl.add_theme_color_override("font_color", Color(1.0, 0.93, 0.75, 0.92))
+	_exits_lbl.add_theme_color_override("font_color", Color(1.0, 0.93, 0.75, 0.95))
 	_exits_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	_exits_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	_exits_lbl.add_theme_constant_override("shadow_offset_y", 1)
-	_exits_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_exits_lbl.offset_left = 12
-	_exits_lbl.offset_right = -12
-	_exits_lbl.offset_top = 8
-	stage.add_child(_exits_lbl)
+	exits_panel.add_child(_exits_lbl)
 
 	# Carte du monde de session (touche M) : superposée à toute la fenêtre.
 	_world_map = WorldMapOverlayScript.new()
