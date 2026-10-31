@@ -1408,12 +1408,14 @@ func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
 	var building_h := float(best.get("sizeY", 1.5))
 	var building_h_foot := float(best.get("h", 1.0))
 	var label := str(best.get("label", best.get("asset", "")))
+	var building_display: Dictionary = best.get("display", {}) if best.get("display") is Dictionary else {}
+	var building_rotation := float(building_display.get("rotation", 0.0))
 	if anchor == "roof":
 		return {
 			"x": float(best.get("x", grid.x)),
 			"y": float(best.get("y", grid.y)),
 			"elevation": maxf(0.2, building_h - mod_height * 0.2),
-			"rotation": 0.0,
+			"rotation": building_rotation,
 			"snapped_to": label,
 		}
 	# Façade : côté sud (+Y) du bâtiment, à hauteur de mur.
@@ -1421,7 +1423,7 @@ func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
 		"x": float(best.get("x", grid.x)),
 		"y": float(best.get("y", grid.y)) + building_h_foot * 0.5 + mod_depth * 0.5,
 		"elevation": 0.0,
-		"rotation": 0.0,
+		"rotation": building_rotation,
 		"snapped_to": label,
 	}
 

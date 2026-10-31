@@ -63,6 +63,26 @@ func _run() -> void:
 	if flat_roofs.size() == 2:
 		_assert("flat_roof_ground", is_equal_approx(float(flat_roofs[1].get("elevation", 0.0)), 0.0))
 
+	# Un module aimanté hérite de la rotation du bâtiment.
+	editor.doc.add_element({
+		"x": 14.0, "y": 14.0, "w": 2.0, "h": 1.8,
+		"sizeX": 1.95, "sizeY": 1.88, "sizeZ": 1.81,
+		"asset": "res://assets/objects3d/buildings/maison.glb",
+		"elevation": 0.0, "followTerrain": true,
+		"label": "Maison test", "layer": 1,
+		"display": {"rotation": 90.0},
+	}, "mesh", "Objet 3D")
+	editor._mesh_snap_modules = true
+	editor._mesh_asset = roof_path
+	editor._create_mesh(Vector2(14.0, 14.0))
+	await process_frame
+	var rotated_roofs := _meshes_with_asset(editor, roof_path)
+	_assert("rotated_roof_created", rotated_roofs.size() == 3)
+	if rotated_roofs.size() == 3:
+		var display: Dictionary = rotated_roofs[2].get("display", {})
+		_assert("rotated_roof_inherits", is_equal_approx(float(display.get("rotation", 0.0)), 90.0))
+		_assert("rotated_roof_at_building", absf(float(rotated_roofs[2].get("x", 0.0)) - 14.0) < 1.0)
+
 	editor.queue_free()
 	await process_frame
 	if _failed:

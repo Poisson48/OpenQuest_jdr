@@ -129,8 +129,9 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   −90°/+90°, ou poignée de rotation au-dessus de la sélection.
 - **Aimantation des modules** : les toits (`anchor="roof"`) et façades
   (`anchor="wall"`) se posent automatiquement sur le **bâtiment le plus proche**
-  (élévation/hauteur déduites du manifeste Blender), via la case « Aimantation
-  aux bâtiments » des options de l'outil Objet 3D.
+  (élévation/hauteur déduites du manifeste Blender, **rotation du bâtiment
+  héritée**), via la case « Aimantation aux bâtiments » des options de l'outil
+  Objet 3D.
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
