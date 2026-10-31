@@ -1882,6 +1882,463 @@ def build_pnj_garde(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
+# Kit v5 : environnement — relief, forêt, berges, eau
+# --------------------------------------------------------------------------- #
+
+
+def build_falaise(mats: Mats) -> list[bpy.types.Object]:
+    """Falaise rocheuse (module 2x2 cases) avec plateau herbeux."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.28, 2.28), mats["grass"], seed=301)
+    ]
+    # Masse rocheuse principale + second étage.
+    parts.append(
+        add_ico_sphere(
+            "rock_base", 1.02, (0, 0, 0.52), mats["stone"], subdivisions=2,
+            scale=(1.05, 1.00, 0.72), jitter=0.10, seed=302,
+        )
+    )
+    parts.append(
+        add_ico_sphere(
+            "rock_upper", 0.80, (0.22, 0.16, 1.12), mats["stone_light"], subdivisions=1,
+            scale=(1.02, 0.95, 0.78), jitter=0.07, seed=303,
+        )
+    )
+    parts.append(
+        add_ico_sphere(
+            "rock_side", 0.52, (-0.72, -0.42, 0.42), mats["stone_dark"], subdivisions=1,
+            scale=(1.0, 0.9, 0.85), jitter=0.05, seed=304,
+        )
+    )
+    # Plateaux rocheux et couverture d'herbe.
+    parts.append(add_cylinder("plateau", 0.86, 0.16, (0.10, -0.04, 1.42), mats["stone"], vertices=10))
+    parts.append(add_cylinder("plateau_grass", 0.84, 0.05, (0.10, -0.04, 1.51), mats["grass"], vertices=10))
+    # Dalles rocheuses en saillie sur la face avant.
+    parts.append(
+        add_ico_sphere(
+            "ledge_low", 0.55, (-0.15, -0.72, 0.52), mats["stone_dark"], subdivisions=1,
+            scale=(1.65, 0.55, 0.28), jitter=0.03, seed=305,
+        )
+    )
+    parts.append(
+        add_ico_sphere(
+            "ledge_high", 0.44, (0.34, -0.55, 0.92), mats["stone_light"], subdivisions=1,
+            scale=(1.35, 0.60, 0.28), jitter=0.03, seed=306,
+        )
+    )
+    # Touffes d'herbe et petits rochers sur le plateau.
+    for index, (x, y, radius, material) in enumerate(
+        ((0.38, -0.28, 0.16, "leaf_dark"), (-0.30, 0.10, 0.14, "leaf"), (0.02, -0.52, 0.12, "leaf_light"))
+    ):
+        parts.append(
+            add_ico_sphere(
+                f"tuft_{index}", radius, (x, y, 1.56), mats[material], subdivisions=1,
+                scale=(1.0, 1.0, 0.55), jitter=0.03, seed=310 + index,
+            )
+        )
+    parts.append(
+        add_ico_sphere("top_rock", 0.13, (-0.55, -0.36, 1.58), mats["stone"], subdivisions=1,
+                       scale=(1.1, 0.9, 0.7), jitter=0.03, seed=320)
+    )
+    return parts
+
+
+def build_gros_rocher(mats: Mats) -> list[bpy.types.Object]:
+    """Gros rocher (~1,9 case) en trois blocs avec mousse."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.98, 1.78), mats["grass"], seed=331)
+    ]
+    parts.append(
+        add_ico_sphere(
+            "rock_main", 0.78, (0, 0, 0.54), mats["stone"], subdivisions=2,
+            scale=(1.12, 0.96, 0.82), jitter=0.09, seed=332,
+        )
+    )
+    parts.append(
+        add_ico_sphere(
+            "rock_side", 0.46, (0.62, 0.16, 0.30), mats["stone_light"], subdivisions=1,
+            scale=(1.05, 0.92, 0.80), jitter=0.06, seed=333,
+        )
+    )
+    parts.append(
+        add_ico_sphere(
+            "rock_small", 0.30, (-0.55, -0.24, 0.22), mats["stone_dark"], subdivisions=1,
+            scale=(1.0, 0.95, 0.85), jitter=0.05, seed=334,
+        )
+    )
+    # Mousse sur le sommet.
+    for index, (x, y, z, radius, material_key) in enumerate(
+        ((0.05, -0.05, 1.02, 0.24, "leaf_dark"), (-0.28, 0.22, 0.86, 0.16, "leaf"))
+    ):
+        parts.append(
+            add_ico_sphere(
+                f"moss_{index}", radius, (x, y, z), mats[material_key], subdivisions=1,
+                scale=(1.5, 1.2, 0.45), jitter=0.02, seed=340 + index,
+            )
+        )
+    return parts
+
+
+def build_arbre_majestueux(mats: Mats) -> list[bpy.types.Object]:
+    """Grand arbre majestueux (~2,4 cases de large, 4,2 de haut)."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.45, 2.45), mats["grass"], seed=351)
+    ]
+    parts.append(add_cylinder("trunk", 0.30, 2.00, (0, 0, 1.00), mats["wood_dark"], vertices=8))
+    parts.append(
+        add_cone("trunk_top", 0.28, 0.85, (0, 0, 2.10), mats["wood_dark"], vertices=8, radius2=0.16)
+    )
+    # Racines et branches.
+    for index, angle in enumerate((0.0, math.pi * 0.5, math.pi, math.pi * 1.5)):
+        parts.append(
+            add_cone(
+                f"root_{index}", 0.12, 0.55,
+                (math.cos(angle) * 0.34, math.sin(angle) * 0.34, 0.22),
+                mats["wood_dark"], vertices=5,
+                rotation=(math.sin(angle) * 0.9, math.cos(angle) * 0.9, 0.0),
+            )
+        )
+    for index, angle in enumerate((0.6, 2.4, 4.2)):
+        parts.append(
+            add_cylinder(
+                f"branch_{index}", 0.09, 0.95,
+                (math.cos(angle) * 0.70, math.sin(angle) * 0.70, 2.35),
+                mats["wood"], vertices=6,
+                rotation=(math.sin(angle) * 0.8, -math.cos(angle) * 0.8, 0.0),
+            )
+        )
+    # Houppier en quatre masses.
+    canopies = [
+        (0.0, 0.0, 2.95, 0.95, "leaf", (1.10, 1.05, 0.82)),
+        (0.62, 0.18, 3.38, 0.72, "leaf_light", (1.05, 1.0, 0.9)),
+        (-0.58, -0.12, 3.22, 0.68, "leaf_dark", (1.0, 1.0, 0.88)),
+        (0.08, 0.24, 3.85, 0.55, "leaf_light", (1.0, 1.0, 0.9)),
+    ]
+    for index, (x, y, z, radius, material_key, scale) in enumerate(canopies):
+        parts.append(
+            add_ico_sphere(
+                f"canopy_{index}", radius, (x, y, z), mats[material_key], subdivisions=1,
+                scale=scale, jitter=0.05, seed=360 + index,
+            )
+        )
+    return parts
+
+
+def build_haie(mats: Mats) -> list[bpy.types.Object]:
+    """Haie taillée (module 2 cases) en masses de feuillage."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.30, 0.85), mats["grass"], seed=371)
+    ]
+    for index in range(7):
+        x = -0.90 + index * 0.30
+        material_key = ("leaf", "leaf_light", "leaf_dark")[index % 3]
+        parts.append(
+            add_ico_sphere(
+                f"hedge_{index}", 0.36, (x, 0.02 * ((-1) ** index), 0.54),
+                mats[material_key], subdivisions=1,
+                scale=(1.0, 0.88, 0.92), jitter=0.04, seed=380 + index,
+            )
+        )
+    # Petites touches claires au sommet.
+    for index, x in enumerate((-0.62, 0.10, 0.70)):
+        parts.append(
+            add_ico_sphere(
+                f"hedge_top_{index}", 0.13, (x, 0.0, 0.84), mats["leaf_light"],
+                subdivisions=1, scale=(1.2, 1.0, 0.6), jitter=0.02, seed=390 + index,
+            )
+        )
+    return parts
+
+
+def build_bosquet(mats: Mats) -> list[bpy.types.Object]:
+    """Bosquet / taillis (~2,4 cases) : trois jeunes arbres et sous-bois."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.40, 2.30), mats["grass"], seed=401)
+    ]
+    trees = [
+        (-0.62, -0.18, 1.30, 0.55, "leaf"),
+        (0.48, 0.28, 1.55, 0.62, "leaf_light"),
+        (0.05, -0.58, 1.15, 0.48, "leaf_dark"),
+    ]
+    for index, (x, y, trunk_height, radius, material_key) in enumerate(trees):
+        parts.append(
+            add_cylinder(f"trunk_{index}", 0.10, trunk_height, (x, y, trunk_height * 0.5), mats["wood_dark"], vertices=6)
+        )
+        parts.append(
+            add_ico_sphere(
+                f"canopy_{index}", radius, (x, y, trunk_height + radius * 0.55),
+                mats[material_key], subdivisions=1, scale=(1.05, 1.0, 0.9), jitter=0.05,
+                seed=410 + index,
+            )
+        )
+    for index, (x, y, radius) in enumerate(((-0.05, 0.22, 0.22), (0.32, -0.10, 0.18), (-0.42, 0.38, 0.16))):
+        parts.append(
+            add_ico_sphere(
+                f"undergrowth_{index}", radius, (x, y, radius * 0.7), mats["leaf_dark"],
+                subdivisions=1, scale=(1.1, 1.0, 0.75), jitter=0.03, seed=420 + index,
+            )
+        )
+    return parts
+
+
+def build_roseaux(mats: Mats) -> list[bpy.types.Object]:
+    """Roseaux de berge (~1,3 case) sur une plaque de terre humide."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (1.35, 1.15), mats["dirt"], seed=431)
+    ]
+    stems = [
+        (-0.34, -0.18, 1.20, 0.10), (-0.18, 0.10, 1.45, 0.05), (0.02, -0.22, 1.10, -0.08),
+        (0.18, 0.16, 1.55, 0.12), (0.32, -0.06, 1.30, -0.05), (-0.28, 0.26, 1.00, 0.06),
+        (0.12, -0.12, 1.40, -0.10), (0.40, 0.22, 1.15, 0.04),
+    ]
+    for index, (x, y, height, lean) in enumerate(stems):
+        parts.append(
+            add_cylinder(
+                f"stem_{index}", 0.018, height, (x, y, height * 0.5),
+                mats["reed"], vertices=5, rotation=(lean, -lean * 0.6, 0.0),
+            )
+        )
+        parts.append(
+            add_cone(
+                f"seed_{index}", 0.045, 0.22, (x + lean * height * 0.4, y - lean * height * 0.2, height + 0.06),
+                mats["hay_dark"] if index % 2 == 0 else mats["hay"], vertices=5,
+            )
+        )
+        # Lame de feuille.
+        parts.append(
+            add_box(
+                f"blade_{index}", (0.025, 0.010, 0.45),
+                (x - 0.06, y + 0.05, height * 0.45),
+                mats["leaf"], rotation=(0.15, 0.25, 0.0),
+            )
+        )
+    return parts
+
+
+def build_ponton(mats: Mats) -> list[bpy.types.Object]:
+    """Ponton / embarcadère en bois (~2,2 x 0,95 case), sur l'eau."""
+    parts: list[bpy.types.Object] = []
+    # Pilotis dans l'eau.
+    for x in (-0.92, 0.0, 0.92):
+        for y in (-0.34, 0.34):
+            parts.append(add_box("post", (0.13, 0.13, 0.95), (x, y, 0.475), mats["wood_dark"]))
+    # Structure et tablier de planches.
+    for y in (-0.34, 0.34):
+        parts.append(add_box("stringer", (2.20, 0.10, 0.10), (0, y, 0.42), mats["wood_dark"]))
+    for index in range(7):
+        x = -0.96 + index * 0.32
+        material = mats["wood"] if index % 2 == 0 else mats["wood_light"]
+        parts.append(add_box("plank", (0.30, 0.88, 0.06), (x, 0, 0.50), material))
+    # Poteaux d'amarrage aux extrémités.
+    for x in (-1.02, 1.02):
+        parts.append(add_box("mooring_post", (0.16, 0.16, 1.20), (x, 0.36, 0.60), mats["wood_dark"]))
+        parts.append(add_box("mooring_cap", (0.20, 0.20, 0.07), (x, 0.36, 1.23), mats["wood"]))
+    # Rouleau de corde sur le ponton.
+    parts.append(
+        add_torus(
+            "rope_coil", 0.11, 0.035, (-0.62, 0.16, 0.55), mats["hay_dark"],
+            major_segments=8, minor_segments=4, rotation=(0.0, 0.0, 0.0),
+        )
+    )
+    return parts
+
+
+def build_barque(mats: Mats) -> list[bpy.types.Object]:
+    """Petite barque creuse (~1,9 x 0,9 case) avec rames, posée sur l'eau."""
+    import bmesh
+
+    parts: list[bpy.types.Object] = []
+    outline = [
+        (-0.90, 0.02),
+        (-0.62, -0.30),
+        (-0.10, -0.36),
+        (0.45, -0.33),
+        (0.90, 0.00),
+        (0.45, 0.33),
+        (-0.10, 0.36),
+        (-0.62, 0.30),
+    ]
+
+    def ring(scale: float, z: float) -> list[tuple[float, float, float]]:
+        return [(x * scale, y * scale, z) for x, y in outline]
+
+    count = len(outline)
+    vertices = ring(0.42, 0.08) + ring(1.0, 0.44) + ring(0.82, 0.44) + ring(0.55, 0.16)
+    outer_bottom = 0
+    outer_top = count
+    inner_top = count * 2
+    inner_floor = count * 3
+    faces: list[tuple[int, ...]] = []
+    # Coque extérieure + fond.
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((outer_bottom + index, outer_bottom + nxt, outer_top + nxt, outer_top + index))
+    faces.append(tuple(reversed(range(outer_bottom, outer_bottom + count))))
+    # Paroi intérieure + plancher.
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((inner_top + index, inner_top + nxt, inner_floor + nxt, inner_floor + index))
+    faces.append(tuple(range(inner_floor, inner_floor + count)))
+    # Bau (rebord) entre coque et paroi intérieure.
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((outer_top + index, outer_top + nxt, inner_top + nxt, inner_top + index))
+    hull = add_mesh("hull", vertices, faces, mats["wood"])
+    bm = bmesh.new()
+    bm.from_mesh(hull.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(hull.data)
+    bm.free()
+    parts.append(hull)
+    # Plat-bord en bois sombre.
+    for index in range(count):
+        x0, y0 = outline[index]
+        x1, y1 = outline[(index + 1) % count]
+        length = math.hypot(x1 - x0, y1 - y0) * 1.04
+        angle = math.atan2(y1 - y0, x1 - x0)
+        parts.append(
+            add_box(
+                "gunwale", (length, 0.07, 0.05),
+                ((x0 + x1) * 0.5, (y0 + y1) * 0.5, 0.455), mats["wood_dark"],
+                rotation=(0.0, 0.0, angle),
+            )
+        )
+    # Plancher intérieur et bancs.
+    parts.append(add_box("floor", (1.10, 0.50, 0.03), (0, 0, 0.17), mats["wood_dark"]))
+    for x in (-0.32, 0.28):
+        parts.append(add_box("seat", (0.16, 0.60, 0.05), (x, 0, 0.33), mats["wood_light"]))
+    # Deux rames.
+    parts.append(
+        add_cylinder(
+            "oar_long", 0.022, 1.20, (0.05, -0.10, 0.47), mats["wood_light"], vertices=6,
+            rotation=(0.0, math.pi * 0.5, 0.20),
+        )
+    )
+    parts.append(add_box("oar_blade", (0.18, 0.10, 0.02), (0.68, -0.22, 0.47), mats["wood"]))
+    parts.append(
+        add_cylinder(
+            "oar_short", 0.022, 0.95, (0.52, 0.0, 0.48), mats["wood_light"], vertices=6,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    parts.append(add_box("oar_blade", (0.02, 0.10, 0.16), (0.52, 0.44, 0.48), mats["wood"]))
+    parts.append(
+        add_torus("rope", 0.08, 0.022, (0.70, 0.0, 0.47), mats["hay_dark"], major_segments=8, minor_segments=4)
+    )
+    return parts
+
+
+def build_nenuphars(mats: Mats) -> list[bpy.types.Object]:
+    """Touffe de nénuphars flottants (~1,4 x 1,0 case)."""
+    parts: list[bpy.types.Object] = []
+    pads = [
+        (-0.42, -0.18, 0.24, "leaf"),
+        (-0.10, 0.12, 0.20, "leaf_light"),
+        (0.24, -0.20, 0.22, "leaf_dark"),
+        (0.48, 0.14, 0.17, "leaf"),
+        (0.06, -0.34, 0.16, "leaf_light"),
+        (-0.34, 0.30, 0.15, "leaf_dark"),
+        (0.42, 0.36, 0.13, "leaf"),
+    ]
+    for index, (x, y, radius, material_key) in enumerate(pads):
+        parts.append(
+            add_cylinder(f"pad_{index}", radius, 0.016, (x, y, 0.012), mats[material_key], vertices=8)
+        )
+    flowers = [(-0.16, 0.02, 0.08), (0.28, -0.10, 0.07), (0.50, 0.22, 0.06)]
+    for index, (x, y, z) in enumerate(flowers):
+        parts.append(add_cylinder("flower_stem", 0.012, 0.06, (x, y, z), mats["leaf_dark"], vertices=5))
+        parts.append(
+            add_ico_sphere(
+                f"flower_{index}", 0.055, (x, y, z + 0.04), mats["blossom"], subdivisions=1,
+                scale=(1.0, 1.0, 0.7), jitter=0.01, seed=460 + index,
+            )
+        )
+        parts.append(add_ico_sphere("flower_core", 0.022, (x, y, z + 0.065), mats["glow"], subdivisions=1))
+    return parts
+
+
+def build_banniere(mats: Mats) -> list[bpy.types.Object]:
+    """Bannière / étendard sur mât (~1,1 case, 2,9 de haut)."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.15, 0.95), mats["grass"], seed=471)
+    ]
+    parts.append(add_cylinder("base", 0.22, 0.12, (0, 0, 0.06), mats["stone_dark"], vertices=8))
+    parts.append(add_cylinder("base_top", 0.17, 0.06, (0, 0, 0.15), mats["stone_light"], vertices=8))
+    parts.append(add_cylinder("pole", 0.055, 2.75, (0, 0, 1.45), mats["wood_dark"], vertices=8))
+    parts.append(add_box("crossbar", (0.95, 0.07, 0.07), (0.30, 0, 2.62), mats["wood"]))
+    parts.append(add_ico_sphere("finial", 0.075, (0, 0, 2.87), mats["metal"], subdivisions=1))
+    # Bannière principale (coton rouge sombre) + emblème losange.
+    parts.append(add_box("banner", (0.72, 0.03, 1.05), (0.36, 0, 2.05), mats["cloth"]))
+    parts.append(add_box("banner_bar", (0.78, 0.04, 0.06), (0.36, 0, 2.56), mats["wood_dark"]))
+    parts.append(
+        add_box("emblem", (0.26, 0.02, 0.26), (0.36, -0.02, 2.06), mats["glow"], rotation=(0.0, 0.0, math.pi * 0.25))
+    )
+    for index in range(3):
+        parts.append(add_box("fringe", (0.20, 0.02, 0.10), (0.36 + (index - 1) * 0.22, 0, 1.48), mats["glow"]))
+    # Fanion secondaire côté opposé.
+    parts.append(add_box("pennant", (0.20, 0.03, 0.42), (-0.20, 0, 2.40), mats["plaster_light"]))
+    parts.append(add_box("pennant_bar", (0.24, 0.04, 0.05), (-0.20, 0, 2.60), mats["wood_dark"]))
+    return parts
+
+
+def build_cloture_basse(mats: Mats) -> list[bpy.types.Object]:
+    """Clôture basse (module 2 cases), plus légère que barrière/palissade."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.15, 0.42), mats["grass"], seed=481)
+    ]
+    for index in range(5):
+        x = -0.88 + index * 0.44
+        parts.append(add_box("post", (0.10, 0.10, 0.62), (x, 0, 0.31), mats["wood_dark"]))
+        parts.append(add_box("post_cap", (0.13, 0.13, 0.05), (x, 0, 0.635), mats["wood_light"]))
+    for z in (0.25, 0.47):
+        parts.append(add_box("rail", (1.92, 0.07, 0.10), (0, 0, z), mats["wood"]))
+    parts.append(
+        add_box("brace", (0.62, 0.05, 0.07), (0.46, 0.055, 0.36), mats["wood_dark"], rotation=(0.0, 0.0, 0.42))
+    )
+    return parts
+
+
+def build_tas_de_bois(mats: Mats) -> list[bpy.types.Object]:
+    """Tas de bois (~1,3 x 0,95 case) : bûches empilées et hache plantée."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.35, 0.95), mats["grass"], seed=491)
+    ]
+    logs = [
+        (-0.26, 0.11), (0.0, 0.11), (0.26, 0.11),
+        (-0.13, 0.29), (0.13, 0.29),
+        (0.0, 0.47),
+    ]
+    for index, (y, z) in enumerate(logs):
+        parts.append(
+            add_cylinder(
+                f"log_{index}", 0.10, 0.95, (0, y, z), mats["wood_dark"], vertices=8,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+        for x in (-0.48, 0.48):
+            parts.append(
+                add_cylinder(
+                    "log_end", 0.095, 0.02, (x, y, z), mats["wood_light"], vertices=8,
+                    rotation=(0.0, math.pi * 0.5, 0.0),
+                )
+            )
+    # Hache plantée dans la bûche du haut.
+    parts.append(
+        add_cylinder(
+            "axe_handle", 0.022, 0.52, (0.20, 0.0, 0.72), mats["wood"], vertices=6,
+            rotation=(0.10, 0.10, 0.18),
+        )
+    )
+    parts.append(
+        add_box(
+            "axe_head", (0.20, 0.05, 0.10), (0.21, 0.0, 0.96), mats["iron_dark"],
+            rotation=(0.10, 0.10, 0.18),
+        )
+    )
+    return parts
+
+
+# --------------------------------------------------------------------------- #
 # Declarations des assets
 # --------------------------------------------------------------------------- #
 
@@ -2291,6 +2748,90 @@ ASSETS: list[AssetSpec] = [
         build_pnj_garde,
         "Figurine PNJ garde (~1 case) : casque, lance, bouclier et tabard.",
         ("pnj", "figurine", "token"),
+    ),
+    AssetSpec(
+        "falaise",
+        "terrain",
+        build_falaise,
+        "Falaise rocheuse (module 2x2 cases) : masse rocheuse, strates, plateau herbeux.",
+        ("relief", "rocher", "bord"),
+    ),
+    AssetSpec(
+        "gros_rocher",
+        "terrain",
+        build_gros_rocher,
+        "Gros rocher (~1,9 case) en trois blocs avec mousse.",
+        ("relief", "rocher", "obstacle"),
+    ),
+    AssetSpec(
+        "arbre_majestueux",
+        "vegetation",
+        build_arbre_majestueux,
+        "Grand arbre majestueux (~2,4 cases, 4,2 de haut) : racines, branches, large houppier.",
+        ("nature", "arbre", "foret"),
+    ),
+    AssetSpec(
+        "haie",
+        "vegetation",
+        build_haie,
+        "Haie taillee (module 2 cases) en masses de feuillage.",
+        ("nature", "cloture", "jardin"),
+    ),
+    AssetSpec(
+        "bosquet",
+        "vegetation",
+        build_bosquet,
+        "Bosquet / taillis (~2,4 cases) : trois jeunes arbres et sous-bois.",
+        ("nature", "foret", "decor"),
+    ),
+    AssetSpec(
+        "roseaux",
+        "vegetation",
+        build_roseaux,
+        "Roseaux de berge (~1,3 case) sur terre humide : tiges, epis, feuilles.",
+        ("nature", "eau", "berge"),
+    ),
+    AssetSpec(
+        "ponton",
+        "props",
+        build_ponton,
+        "Ponton / embarcadere en bois (~2,2 x 0,95 case), pilotis et corde.",
+        ("eau", "passage", "quai"),
+    ),
+    AssetSpec(
+        "barque",
+        "props",
+        build_barque,
+        "Petite barque (~1,9 x 0,9 case) : coque, bancs, rames et corde.",
+        ("eau", "embarcation", "etang"),
+    ),
+    AssetSpec(
+        "nenuphars",
+        "vegetation",
+        build_nenuphars,
+        "Touffe de nenuphars flottants (~1,4 x 1,0 case) : feuilles et fleurs.",
+        ("eau", "nature", "etang"),
+    ),
+    AssetSpec(
+        "banniere",
+        "props",
+        build_banniere,
+        "Banniere / etendard sur mat (~2,9 de haut) : embleme et fanion.",
+        ("village", "decor", "place"),
+    ),
+    AssetSpec(
+        "cloture_basse",
+        "props",
+        build_cloture_basse,
+        "Cloture basse (module 2 cases) : poteaux et deux lisses.",
+        ("cloture", "chemin", "campagne"),
+    ),
+    AssetSpec(
+        "tas_de_bois",
+        "props",
+        build_tas_de_bois,
+        "Tas de bois (~1,3 x 0,95 case) : buches empilees et hache plantee.",
+        ("campagne", "bois", "decor"),
     ),
 ]
 

@@ -38,10 +38,11 @@ Tous les scripts sont **offline** : aucune texture importée, aucun télécharge
 aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
 générées par du bruit périodique (numpy + Pillow).
 
-Le pipeline couvre désormais le **kit v4** (bâtiments variés, détails de toit,
-figurines PNJ), le **kit v3** (intérieur de taverne, donjon, petits décors), le
-**kit enrichi v2** (murs, mobilier urbain, étal de marché, charrette, foin) et
-les **textures de sol tuilables** (herbe, terre/chemin, pavé de pierre).
+Le pipeline couvre désormais le **kit v5** (relief, forêt, berges, eau), le
+**kit v4** (bâtiments variés, détails de toit, figurines PNJ), le **kit v3**
+(intérieur de taverne, donjon, petits décors), le **kit enrichi v2** (murs,
+mobilier urbain, étal de marché, charrette, foin) et les **textures de sol
+tuilables** (herbe, terre/chemin, pavé de pierre).
 
 ---
 
@@ -51,7 +52,7 @@ les **textures de sol tuilables** (herbe, terre/chemin, pavé de pierre).
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 44 modèles + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 56 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
 ├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
@@ -64,7 +65,8 @@ game/assets/objects3d/
 ├── _planche_assets.png     # planche de contrôle v1
 ├── _planche_assets2.png    # planche v2 (historique)
 ├── _planche_assets3.png    # planche v3 (historique)
-├── _planche_assets4.png    # planche courante v4 (sols + 49 objets)
+├── _planche_assets4.png    # planche v4 (historique)
+├── _planche_assets5.png    # planche courante v5 (sols + 61 objets)
 ├── buildings/              # maison*, tour*, mur, mur_coin, herse, forge, chapelle,
 │                           #   grange, ecurie, maison_etage, manoir, tour_guet_bois,
 │                           #   marche_couvert, toit_lucarne
@@ -73,8 +75,9 @@ game/assets/objects3d/
 │                           #   table_tabourets, comptoir, tonneau_couche, tapis, lit,
 │                           #   torche_murale, chaine_murale, sarcophage, pile_os, enseigne,
 │                           #   fontaine, puits_couvert, pnj_aventurier, pnj_marchand, pnj_garde
-├── vegetation/             # arbre, arbre_automne, buisson
-└── terrain/                # rocher
+├── vegetation/             # arbre, arbre_automne, buisson, arbre_majestueux,
+│                           #   haie, bosquet, roseaux, nenuphars
+└── terrain/                # rocher, falaise, gros_rocher
 
 game/assets/terrain/
 ├── README.md               # usage des textures de sol
@@ -96,6 +99,7 @@ game/assets/terrain/
 | **Objets muraux** | origine au **pied du mur** (`z = 0`, mur en `+Y`) : géométrie suspendue au-dessus du sol (torche, chaîne, enseigne) |
 | **Élément de toit** | `toit_lucarne` : origine à la **base du toit** (`z = 0`), pas de dalle, à poser au sommet d'un bâtiment |
 | **Figurines PNJ** | socle rond discret (`anchor="base"`), pas de jupe : utilisables en intérieur comme en extérieur |
+| **Objets d'eau** | `ponton`, `barque`, `nenuphars` : pas de jupe, origine au niveau de l'eau (`z = 0`) |
 | **Axes Blender** | `+Z` = haut, face avant de l'objet vers `-Y` |
 | **Axes glTF/Godot** | export `export_yup=True` : `+Y` = haut, face avant vers **`+Z`** |
 | **Transforms** | rotation/scale à 1, location à 0 : tout est cuit dans le mesh |
@@ -361,6 +365,36 @@ Notes :
 * les bâtiments gardent la **jupe d'herbe** extérieure et le pipeline complet
   (AO + mottling, contour encre, dalles intérieures pour les meubles).
 
+### 5.4 Kit v5 (12 objets) — environnement, relief, eau
+
+Cinquième passe : donner du relief et de la vie aux bords de terrain et d'eau
+(forêt, étang, bords de zone). Pas de bâtiment ici, uniquement des modules
+d'environnement.
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `falaise` | terrain | 2.32 × 2.31 × 2.00 | 1 552 | Module 2×2 de falaise : roche, dalles, plateau herbeux |
+| `gros_rocher` | terrain | 2.12 × 1.88 × 1.36 | 620 | Gros rocher en trois blocs avec mousse |
+| `arbre_majestueux` | vegetation | 2.52 × 2.29 × 4.43 | 1 580 | Grand arbre : racines, branches, large houppier |
+| `haie` | vegetation | 2.47 × 0.90 × 0.95 | 520 | Haie taillée (module 2 cases) |
+| `bosquet` | vegetation | 2.41 × 2.37 × 2.48 | 1 004 | Bosquet : trois jeunes arbres et sous-bois |
+| `roseaux` | vegetation | 1.44 × 1.17 × 1.74 | 1 088 | Roseaux de berge : tiges, épis, feuilles |
+| `ponton` | props | 2.26 × 0.92 × 1.28 | 984 | Ponton sur pilotis, planches, corde |
+| `barque` | props | 1.88 × 0.98 × 0.50 | 952 | Barque creuse : coque, bancs, rames, corde |
+| `nenuphars` | vegetation | 1.33 × 1.01 × 0.19 | 728 | Touffe de nénuphars flottants et fleurs |
+| `banniere` | props | 1.34 × 0.89 × 2.97 | 712 | Bannière sur mât : emblème et fanion |
+| `cloture_basse` | props | 2.21 × 0.41 × 0.68 | 624 | Clôture basse (module 2 cases) |
+| `tas_de_bois` | props | 1.38 × 1.00 × 1.04 | 1 360 | Bûches empilées et hache plantée |
+
+Notes :
+
+* **falaise** est un module 2×2 : plateau herbeux au sommet, faces rocheuses sur
+  les côtés, à poser en bord de relief (pas de dalle intérieure) ;
+* **objets d'eau** : `ponton`, `barque` et `nenuphars` n'ont pas de jupe et sont
+  calés sur le niveau de l'eau (`z = 0`) ; le plan d'eau est animé côté moteur ;
+* **barque** creuse (coque, bau, bancs, rames) ; **nénuphars** plats sans alpha ;
+* **bannière** non émissive, drapée sur mât avec emblème peint.
+
 ---
 
 ## 6. Générer les prototypes
@@ -551,12 +585,12 @@ Planche de contrôle courante (tous les kits + textures de sol) :
 
 ```powershell
 python tools/blender/make_contact_sheet.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
 ```
 
-La seconde ajoute une rangée de textures de sol : `_planche_assets4.png`
-(52 cases : 3 sols + 49 objets). `_planche_assets.png`, `_planche_assets2.png`
-et `_planche_assets3.png` restent les planches historiques v1/v2/v3. Les objets
+La seconde ajoute une rangée de textures de sol : `_planche_assets5.png`
+(64 cases : 3 sols + 61 objets). `_planche_assets.png` à
+`_planche_assets4.png` restent les planches historiques v1→v4. Les objets
 muraux y affichent leur hauteur au pied du mur, l'AABB seule ne mesurant que la
 géométrie suspendue.
 
@@ -642,6 +676,9 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
 12. **Figurines PNJ** : socle rond, origine au pied ; échelle ~1 case. Elles
    peuvent être traitées comme des props (bibliothèque) ou des tokens (calque
    personnages), avec la même ombre de contact moteur.
+13. **Environnement v5** : poser `falaise` en bord de relief ; les objets d'eau
+   (`ponton`, `barque`, `nenuphars`) se placent au niveau du plan d'eau animé,
+   sans jupe ; `arbre_majestueux` et `bosquet` servent de masses forestières.
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -708,13 +745,13 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets 3D | 49 (44 modèles + 5 variantes) |
+| Assets 3D | 61 (56 modèles + 5 variantes) |
 | Triangles / asset | 308 → **3 036** max (contour inclus), budget 5 000 |
-| Triangles total | **58 396** |
+| Triangles total | **70 120** |
 | GLB / asset | ~33 → ~219 Ko (vertex colors + contour) |
 | Vignette / asset | ~111 → ~195 Ko (512 RGBA) |
 | Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
-| Planches | `_planche_assets4.png` (52 cases), historiques `_planche_assets{,2,3}.png`, `_planche_terrain.png` |
+| Planches | `_planche_assets5.png` (64 cases), historiques `_planche_assets{,2,3,4}.png`, `_planche_terrain.png` |
 
 Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
 skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
@@ -743,7 +780,7 @@ dans les GLB).
 
 # Textures de sol tuilables seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
 
 # Build complet sans les textures (Pillow absent par ex.)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
@@ -911,6 +948,7 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 - [ ] objets muraux : `anchor="wall"`, mur en `+Y`, origine au pied du mur ;
 - [ ] `toit_lucarne` : pas de dalle de sol, origine à la base du toit ;
 - [ ] figurines PNJ : socle rond, pas de jupe, visage lisible, ~1 case ;
+- [ ] objets d'eau : pas de jupe, origine au niveau de l'eau (z=0) ;
 - [ ] contour `*_outline` présent, matériaux `doubleSided: false` ;
 - [ ] `COLOR_0` présent sur le mesh principal ;
 - [ ] GLB + vignette 512 générés, vignette lisible et cadrée ;
@@ -962,3 +1000,8 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 * Les figurines PNJ sont volontairement très low-poly (~0,4–0,5 k tris) : à
   l'échelle d'une case, les visages sont suggérés (yeux/nez peints) et non
   sculptés ; les détails fins (armes, sacs) restent des volumes simples.
+* Les objets d'eau (`ponton`, `barque`, `nenuphars`) flottent au niveau du plan
+  d'eau : sans animation moteur, ils apparaissent posés sur le sol. Le ponton
+  n'a pas de rambarde pour rester lisible et léger.
+* La falaise est un module de relief 2×2 : elle ne gère pas de transitions
+  douces avec les cases voisines (à composer côté éditeur/moteur).

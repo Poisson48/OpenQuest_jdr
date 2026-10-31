@@ -473,6 +473,58 @@
       "outline": true
     },
     {
+      "name": "banniere",
+      "base": "banniere",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/banniere.glb",
+      "thumb": "props/banniere_thumb.png",
+      "description": "Banniere / etendard sur mat (~2,9 de haut) : embleme et fanion.",
+      "tags": [
+        "village",
+        "decor",
+        "place"
+      ],
+      "dimensions_cells": [
+        1.345,
+        0.887,
+        2.969
+      ],
+      "height_above_floor": 2.969,
+      "anchor": "base",
+      "triangles": 712,
+      "triangles_base": 356,
+      "vertices": 412,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "barque",
+      "base": "barque",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/barque.glb",
+      "thumb": "props/barque_thumb.png",
+      "description": "Petite barque (~1,9 x 0,9 case) : coque, bancs, rames et corde.",
+      "tags": [
+        "eau",
+        "embarcation",
+        "etang"
+      ],
+      "dimensions_cells": [
+        1.884,
+        0.982,
+        0.501
+      ],
+      "height_above_floor": 0.501,
+      "anchor": "base",
+      "triangles": 952,
+      "triangles_base": 476,
+      "vertices": 540,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "barriere",
       "base": "barriere",
       "variant": "base",
@@ -625,6 +677,32 @@
       "triangles": 1208,
       "triangles_base": 604,
       "vertices": 668,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "cloture_basse",
+      "base": "cloture_basse",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/cloture_basse.glb",
+      "thumb": "props/cloture_basse_thumb.png",
+      "description": "Cloture basse (module 2 cases) : poteaux et deux lisses.",
+      "tags": [
+        "cloture",
+        "chemin",
+        "campagne"
+      ],
+      "dimensions_cells": [
+        2.21,
+        0.414,
+        0.678
+      ],
+      "height_above_floor": 0.678,
+      "anchor": "base",
+      "triangles": 624,
+      "triangles_base": 312,
+      "vertices": 368,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -967,6 +1045,32 @@
       "outline": true
     },
     {
+      "name": "ponton",
+      "base": "ponton",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/ponton.glb",
+      "thumb": "props/ponton_thumb.png",
+      "description": "Ponton / embarcadere en bois (~2,2 x 0,95 case), pilotis et corde.",
+      "tags": [
+        "eau",
+        "passage",
+        "quai"
+      ],
+      "dimensions_cells": [
+        2.256,
+        0.916,
+        1.281
+      ],
+      "height_above_floor": 1.281,
+      "anchor": "base",
+      "triangles": 984,
+      "triangles_base": 492,
+      "vertices": 568,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "puits",
       "base": "puits",
       "variant": "base",
@@ -1097,6 +1201,32 @@
       "outline": true
     },
     {
+      "name": "tas_de_bois",
+      "base": "tas_de_bois",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/tas_de_bois.glb",
+      "thumb": "props/tas_de_bois_thumb.png",
+      "description": "Tas de bois (~1,3 x 0,95 case) : buches empilees et hache plantee.",
+      "tags": [
+        "campagne",
+        "bois",
+        "decor"
+      ],
+      "dimensions_cells": [
+        1.379,
+        0.996,
+        1.041
+      ],
+      "height_above_floor": 1.041,
+      "anchor": "base",
+      "triangles": 1360,
+      "triangles_base": 680,
+      "vertices": 764,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "tonneau",
       "base": "tonneau",
       "variant": "base",
@@ -1171,6 +1301,58 @@
       "triangles": 308,
       "triangles_base": 154,
       "vertices": 190,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "falaise",
+      "base": "falaise",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/falaise.glb",
+      "thumb": "terrain/falaise_thumb.png",
+      "description": "Falaise rocheuse (module 2x2 cases) : masse rocheuse, strates, plateau herbeux.",
+      "tags": [
+        "relief",
+        "rocher",
+        "bord"
+      ],
+      "dimensions_cells": [
+        2.32,
+        2.31,
+        2.004
+      ],
+      "height_above_floor": 2.004,
+      "anchor": "base",
+      "triangles": 1552,
+      "triangles_base": 776,
+      "vertices": 824,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "gros_rocher",
+      "base": "gros_rocher",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/gros_rocher.glb",
+      "thumb": "terrain/gros_rocher_thumb.png",
+      "description": "Gros rocher (~1,9 case) en trois blocs avec mousse.",
+      "tags": [
+        "relief",
+        "rocher",
+        "obstacle"
+      ],
+      "dimensions_cells": [
+        2.121,
+        1.884,
+        1.364
+      ],
+      "height_above_floor": 1.364,
+      "anchor": "base",
+      "triangles": 620,
+      "triangles_base": 310,
+      "vertices": 334,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -1253,6 +1435,58 @@
       "outline": true
     },
     {
+      "name": "arbre_majestueux",
+      "base": "arbre_majestueux",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/arbre_majestueux.glb",
+      "thumb": "vegetation/arbre_majestueux_thumb.png",
+      "description": "Grand arbre majestueux (~2,4 cases, 4,2 de haut) : racines, branches, large houppier.",
+      "tags": [
+        "nature",
+        "arbre",
+        "foret"
+      ],
+      "dimensions_cells": [
+        2.519,
+        2.292,
+        4.429
+      ],
+      "height_above_floor": 4.429,
+      "anchor": "base",
+      "triangles": 1580,
+      "triangles_base": 790,
+      "vertices": 846,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "bosquet",
+      "base": "bosquet",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/bosquet.glb",
+      "thumb": "vegetation/bosquet_thumb.png",
+      "description": "Bosquet / taillis (~2,4 cases) : trois jeunes arbres et sous-bois.",
+      "tags": [
+        "nature",
+        "foret",
+        "decor"
+      ],
+      "dimensions_cells": [
+        2.407,
+        2.37,
+        2.48
+      ],
+      "height_above_floor": 2.48,
+      "anchor": "base",
+      "triangles": 1004,
+      "triangles_base": 502,
+      "vertices": 542,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "buisson",
       "base": "buisson",
       "variant": "base",
@@ -1275,6 +1509,84 @@
       "triangles": 492,
       "triangles_base": 246,
       "vertices": 290,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "haie",
+      "base": "haie",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/haie.glb",
+      "thumb": "vegetation/haie_thumb.png",
+      "description": "Haie taillee (module 2 cases) en masses de feuillage.",
+      "tags": [
+        "nature",
+        "cloture",
+        "jardin"
+      ],
+      "dimensions_cells": [
+        2.465,
+        0.904,
+        0.951
+      ],
+      "height_above_floor": 0.951,
+      "anchor": "base",
+      "triangles": 520,
+      "triangles_base": 260,
+      "vertices": 304,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "nenuphars",
+      "base": "nenuphars",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/nenuphars.glb",
+      "thumb": "vegetation/nenuphars_thumb.png",
+      "description": "Touffe de nenuphars flottants (~1,4 x 1,0 case) : feuilles et fleurs.",
+      "tags": [
+        "eau",
+        "nature",
+        "etang"
+      ],
+      "dimensions_cells": [
+        1.332,
+        1.012,
+        0.186
+      ],
+      "height_above_floor": 0.186,
+      "anchor": "base",
+      "triangles": 728,
+      "triangles_base": 364,
+      "vertices": 428,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "roseaux",
+      "base": "roseaux",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/roseaux.glb",
+      "thumb": "vegetation/roseaux_thumb.png",
+      "description": "Roseaux de berge (~1,3 case) sur terre humide : tiges, epis, feuilles.",
+      "tags": [
+        "nature",
+        "eau",
+        "berge"
+      ],
+      "dimensions_cells": [
+        1.436,
+        1.174,
+        1.744
+      ],
+      "height_above_floor": 1.744,
+      "anchor": "base",
+      "triangles": 1088,
+      "triangles_base": 544,
+      "vertices": 644,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     }

@@ -109,6 +109,9 @@ DEFAULT_PALETTE: dict[str, str] = {
     "skin": "#c79a6b",
     "skin_dark": "#a87c50",
     "hair": "#4b3626",
+    # Kit v5 : fleurs de nenuphar / roseaux.
+    "blossom": "#c08a86",
+    "reed": "#8f9a5e",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.

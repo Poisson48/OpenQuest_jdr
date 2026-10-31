@@ -14,6 +14,10 @@ Le kit v4 ajoute 8 bâtiments variés (forge, chapelle, grange, écurie, maison 
 étage, manoir, tour de guet bois, marché couvert), 3 détails (toit à lucarne,
 fontaine, puits couvert) et **3 figurines PNJ** (aventurier, marchand, garde).
 
+Le kit v5 apporte l'**environnement** : falaise 2×2, gros rocher, arbre
+majestueux, haie, bosquet, roseaux, ponton, barque, nénuphars, bannière,
+clôture basse et tas de bois.
+
 > Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
 > `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
 > modifier les scripts puis régénérer.
@@ -36,6 +40,7 @@ fontaine, puits couvert) et **3 figurines PNJ** (aventurier, marchand, garde).
 | Contour | coque inversée `*_outline` en encre sombre (double le nombre de triangles) |
 | Sol extérieur | **jupe de raccord** herbe/terre très plate, débordant du bâti |
 | Sol intérieur | **dalle plate** bois (taverne) ou pierre (donjon) sous le meuble |
+| Objets d'eau | `ponton`, `barque`, `nenuphars` : **pas de jupe**, origine au niveau de l'eau (z=0) |
 | Objets muraux | origine au **pied du mur** (z=0), géométrie suspendue au-dessus ; le côté `+Y` est le mur |
 | Élément de toit | `toit_lucarne` : origine à la **base du toit** (z=0), sans dalle, à poser au sommet d'un bâtiment |
 | Figurines PNJ | **socle rond discret**, pas de jupe (utilisables en intérieur comme en extérieur) |
@@ -49,7 +54,7 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-49 assets (44 modèles + 5 variantes de taille/teinte), **58 396 triangles** au
+61 assets (56 modèles + 5 variantes de taille/teinte), **70 120 triangles** au
 total, 2 536 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 Pour les objets muraux, la hauteur indiquée `h sol` est la distance depuis le
 pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
@@ -119,6 +124,23 @@ pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
 | `pnj_marchand` | props | 0.74 × 0.70 × 1.21 | 944 | Figurine PNJ marchand (chapeau, bourse, ballot) |
 | `pnj_garde` | props | 0.85 × 0.70 × 1.78 | 956 | Figurine PNJ garde (casque, lance, bouclier) |
 
+### Kit environnement v5 — relief, forêt, eau — `terrain/` / `vegetation/` / `props/`
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `falaise` | terrain | 2.32 × 2.31 × 2.00 | 1 552 | Module 2×2 de falaise : roche, dalles, plateau herbeux |
+| `gros_rocher` | terrain | 2.12 × 1.88 × 1.36 | 620 | Gros rocher en trois blocs avec mousse |
+| `arbre_majestueux` | vegetation | 2.52 × 2.29 × 4.43 | 1 580 | Grand arbre : racines, branches, large houppier |
+| `haie` | vegetation | 2.47 × 0.90 × 0.95 | 520 | Haie taillée (module 2 cases) |
+| `bosquet` | vegetation | 2.41 × 2.37 × 2.48 | 1 004 | Bosquet : trois jeunes arbres et sous-bois |
+| `roseaux` | vegetation | 1.44 × 1.17 × 1.74 | 1 088 | Roseaux de berge : tiges, épis, feuilles |
+| `ponton` | props | 2.26 × 0.92 × 1.28 | 984 | Ponton sur pilotis, planches, corde |
+| `barque` | props | 1.88 × 0.98 × 0.50 | 952 | Barque creuse : coque, bancs, rames, corde |
+| `nenuphars` | vegetation | 1.33 × 1.01 × 0.19 | 728 | Touffe de nénuphars flottants et fleurs |
+| `banniere` | props | 1.34 × 0.89 × 2.97 | 712 | Bannière sur mât : emblème et fanion |
+| `cloture_basse` | props | 2.21 × 0.41 × 0.68 | 624 | Clôture basse (module 2 cases) |
+| `tas_de_bois` | props | 1.38 × 1.00 × 1.04 | 1 360 | Bûches empilées et hache plantée |
+
 ### Végétation — `vegetation/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
@@ -137,9 +159,9 @@ Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
 pied du mur éventuelle, ancre, triangles, description) — il est **informatif** :
 l'éditeur peut scanner les dossiers.
-`_planche_assets4.png` est la planche de contrôle courante (textures de sol +
-49 objets). `_planche_assets.png`, `_planche_assets2.png` et
-`_planche_assets3.png` sont les planches historiques des kits v1, v2 et v3.
+`_planche_assets5.png` est la planche de contrôle courante (textures de sol +
+61 objets). `_planche_assets.png` à `_planche_assets4.png` sont les planches
+historiques des kits v1 à v4.
 
 ---
 
@@ -181,6 +203,10 @@ Points d'intégration importants :
   à la base du toit ; pas de dalle de sol.
 - **Figurines PNJ** : socle rond, origine au pied ; elles peuvent servir de
   props ou de tokens (échelle ~1 case, hauteurs 1,1 à 1,8).
+- **Objets d'eau** (`ponton`, `barque`, `nenuphars`) : pas de jupe ; poser à la
+  surface de l'eau (origine z=0 = niveau de l'eau), le moteur anime le plan d'eau.
+- **Falaise** : module 2×2 à poser en bord de relief ; le plateau herbeux est
+  au sommet, les faces rocheuses sur les côtés.
 - **Contour** : le GLB contient deux meshes (`<nom>` et `<nom>_outline`).
   Mettre `cast_shadow = SHADOW_CASTING_SETTING_OFF` sur `*_outline`.
 - **Vertex colors** : `COLOR_0` multiplie la couleur de base. Godot 4
@@ -215,7 +241,7 @@ Points d'intégration importants :
 
 # Textures de sol seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets4.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
 ```
 
 Appel direct sans le wrapper :

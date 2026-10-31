@@ -131,6 +131,12 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "pnj_marchand", "x": 10.2, "y": 8.2, "rotation": 0.0, "w": 0.8, "h": 0.8},
 		{"name": "pnj_aventurier", "x": 7.6, "y": 7.6, "rotation": 0.0, "w": 0.8, "h": 0.8},
 		{"name": "pnj_garde", "x": 13.6, "y": 6.4, "rotation": 0.0, "w": 0.9, "h": 0.8},
+		# Kit 5 : environnement et habillage.
+		{"name": "banniere", "x": 5.0, "y": 2.2, "rotation": 0.0, "w": 1.3, "h": 0.9},
+		{"name": "gros_rocher", "x": 21.6, "y": 2.0, "rotation": 20.0, "w": 2.1, "h": 1.9},
+		{"name": "haie", "x": 6.2, "y": 13.2, "rotation": 0.0, "w": 2.5, "h": 0.9},
+		{"name": "tas_de_bois", "x": 16.6, "y": 10.8, "rotation": 0.0, "w": 1.4, "h": 1.0},
+		{"name": "cloture_basse", "x": 20.4, "y": 8.8, "rotation": 0.0, "w": 2.2, "h": 0.4},
 	]
 	var meshes: Array = []
 	for entry in placements:
@@ -146,7 +152,7 @@ static func build_demo(md: Node) -> Dictionary:
 			"x": float(entry["x"]), "y": float(entry["y"]),
 			"w": float(entry.get("w", 1.0)), "h": float(entry.get("h", 1.0)),
 			"asset": asset_path,
-			"elevation": 0.0,
+			"elevation": float(entry.get("elevation", 0.0)),
 			"followTerrain": true,
 			"tiltToTerrain": tilts,
 			"label": asset_name.capitalize(),
@@ -210,6 +216,15 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "buisson", "x": 2.0, "y": 2.0},
 				{"name": "buisson", "x": 7.0, "y": 10.0},
 				{"name": "tour_guet_bois", "x": 9.5, "y": 3.0},
+				# Kit 5 : environnement de forêt et d'étang.
+				{"name": "arbre_majestueux", "x": 10.3, "y": 6.4, "w": 2.5, "h": 2.3},
+				{"name": "bosquet", "x": 4.0, "y": 2.0, "w": 2.4, "h": 2.4},
+				{"name": "falaise", "x": 9.4, "y": 10.2, "w": 2.3, "h": 2.3},
+				{"name": "roseaux", "x": 4.2, "y": 6.6, "w": 1.4, "h": 1.2},
+				{"name": "ponton", "x": 3.8, "y": 7.6, "w": 2.3, "h": 0.9, "elevation": 0.28},
+				{"name": "barque", "x": 2.4, "y": 8.8, "rotation": 30.0, "w": 1.9, "h": 1.0, "elevation": 0.52},
+				{"name": "nenuphars", "x": 1.2, "y": 8.3, "w": 1.3, "h": 1.0, "elevation": 0.16},
+				{"name": "nenuphars", "x": 3.0, "y": 9.6, "w": 1.3, "h": 1.0, "elevation": 0.21},
 			],
 		},
 		{
@@ -294,7 +309,7 @@ static func build_demo(md: Node) -> Dictionary:
 				"x": float(m.get("x", 0.0)), "y": float(m.get("y", 0.0)),
 				"w": 1.0, "h": 1.0,
 				"asset": path,
-				"elevation": 0.0,
+				"elevation": float(m.get("elevation", 0.0)),
 				"followTerrain": true,
 				"tiltToTerrain": str(m.get("name", "")).begins_with("arbre") or str(m.get("name", "")) == "rocher",
 				"label": str(m.get("name", "")).capitalize(),
