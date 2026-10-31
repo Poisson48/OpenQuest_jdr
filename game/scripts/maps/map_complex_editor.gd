@@ -1652,16 +1652,68 @@ func _insert_window(grid: Vector2) -> void:
 		back_offset = maxf(0.0, win_bounds.size.z * 0.5)
 	var center := Vector2(float(wall.get("x", grid.x)), float(wall.get("y", grid.y)))
 	var offset := depth * 0.5 + back_offset
+	var wall_asset := str(wall.get("asset", ""))
+	var wall_length := float(wall.get("sizeX", 0.0))
+	if wall_length <= 0.0:
+		wall_length = natural.x
+	var wall_height := float(wall.get("sizeY", 0.0))
+	if wall_height <= 0.0:
+		wall_height = natural.y
+	var window_bottom := 1.0
+	var window_top := window_bottom + win_bounds.size.y
+	var gap := win_bounds.size.x + 0.2
+	var can_cut := wall_height >= window_top + 0.15 and wall_length >= gap + 0.2
+	if can_cut:
+		var wall_id := str(wall.get("id", ""))
+		var follow := bool(wall.get("followTerrain", true))
+		var elevation := float(wall.get("elevation", 0.0))
+		var layer := int(wall.get("layer", 1))
+		var along := Vector2(cos(rad), sin(rad))
+		var piece_len := (wall_length - gap) * 0.5
+		doc.begin_transaction()
+		doc.remove_element(wall_id)
+		for side in [-1.0, 1.0]:
+			var pos := center + along * (float(side) * (gap * 0.5 + piece_len * 0.5))
+			doc.add_element({
+				"x": pos.x, "y": pos.y, "w": piece_len, "h": depth,
+				"sizeX": piece_len, "sizeY": wall_height, "sizeZ": depth,
+				"asset": wall_asset, "elevation": elevation,
+				"followTerrain": follow, "tiltToTerrain": false,
+				"label": "Mur 3D", "layer": layer,
+				"display": {"rotation": rotation, "scale": 1.0},
+			}, DocumentScript.KIND_MESH, "Mur 3D")
+		# Appui sous la fenêtre.
+		doc.add_element({
+			"x": center.x, "y": center.y, "w": gap, "h": depth,
+			"sizeX": gap, "sizeY": window_bottom, "sizeZ": depth,
+			"asset": wall_asset, "elevation": elevation,
+			"followTerrain": follow, "tiltToTerrain": false,
+			"label": "Mur 3D", "layer": layer,
+			"display": {"rotation": rotation, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Mur 3D")
+		# Linteau au-dessus.
+		var lintel_h := wall_height - window_top
+		if lintel_h > 0.05:
+			doc.add_element({
+				"x": center.x, "y": center.y, "w": gap, "h": depth,
+				"sizeX": gap, "sizeY": lintel_h, "sizeZ": depth,
+				"asset": wall_asset, "elevation": elevation + window_top,
+				"followTerrain": follow, "tiltToTerrain": false,
+				"label": "Mur 3D", "layer": layer,
+				"display": {"rotation": rotation, "scale": 1.0},
+			}, DocumentScript.KIND_MESH, "Mur 3D")
 	var id: String = doc.add_element({
 		"x": center.x + front.x * offset, "y": center.y + front.y * offset,
 		"w": win_bounds.size.x, "h": win_bounds.size.z,
-		"asset": window_asset, "elevation": 0.0,
+		"asset": window_asset, "elevation": window_bottom - win_bounds.position.y if can_cut else 0.0,
 		"followTerrain": bool(wall.get("followTerrain", true)), "tiltToTerrain": false,
 		"label": "Fenêtre à volets", "layer": int(wall.get("layer", 1)),
 		"display": {"rotation": rotation, "scale": 1.0},
 	}, DocumentScript.KIND_MESH, "Fenêtre")
+	if can_cut:
+		doc.commit_transaction()
 	doc.select_only(id)
-	_set_status("Fenêtre 3D posée sur la façade.")
+	_set_status("Fenêtre 3D posée%s." % (" avec ouverture réelle" if can_cut else " sur la façade (mur trop bas pour une ouverture)"))
 
 func _insert_door(grid: Vector2) -> void:
 	var wall: Dictionary = {}

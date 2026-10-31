@@ -228,7 +228,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | ▦ Dallage | — | Clic-glisser dans une pièce : sol **pierre/terre/herbe/sable/neige** et nivellement du terrain |
 | Placer | 🚪 Porte 3D | — | Clic sur un **mur 3D** : ouvre une baie (deux montants) et insère une porte à auvent |
 | Placer | 🏡 Maison rapide | — | Clic-glisser un rectangle : **murs + dallage + toit + porte** en une passe, hauteur de murs réglable |
-| Placer | 🪟 Fenêtre 3D | — | Clic sur un **mur 3D** : pose une fenêtre à volets sur la façade extérieure |
+| Placer | 🪟 Fenêtre 3D | — | Clic sur un **mur 3D** : fenêtre à volets sur la façade, avec **ouverture réelle** (appui + linteau) si le mur est assez haut |
 | Placer | 🪑 Meubler | — | Clic dans une pièce : ensemble **salle commune / chambre / comptoir / campement** |
 | Placer | 🪵 Clôture | — | Clic-glisser : clôture modulaire **barrière / clôture basse / palissade** le long du tracé |
 | Placer | 🛤 Chemin | — | Clic-glisser : chemin peint au sol (terre/autre matière), largeur réglable |

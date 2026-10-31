@@ -90,8 +90,9 @@ Outils terrain :
   montants laissant une ouverture, et une porte à auvent est insérée.
 - **Outil 🏡 Maison rapide** : glisse un rectangle ; construit d'un coup murs,
   dallage, toit et porte au centre du mur avant.
-- **Outil 🪟 Fenêtre 3D** : clique sur un mur ; pose une fenêtre à volets sur la
-  façade extérieure (murs hauts recommandés).
+- **Outil 🪟 Fenêtre 3D** : clique sur un mur ; fenêtre à volets sur la façade.
+  Sur un mur **assez haut**, une **ouverture réelle** est découpée (appui +
+  linteau) ; sinon la fenêtre reste appliquée sur la façade.
 - **Outil 🪑 Meubler** : clique dans une pièce ; pose un ensemble de mobilier
   (salle commune, chambre, comptoir, campement) aligné au sol.
 - **Outil 🪵 Clôture** : glisse le long d'une limite ; pose une clôture

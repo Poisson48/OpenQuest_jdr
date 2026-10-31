@@ -178,6 +178,15 @@ func _run() -> void:
 	var tall_walls := _meshes_with_asset(editor, wall_asset)
 	var tall_wall: Dictionary = tall_walls[tall_walls.size() - 1]
 	_assert("mesh_wall_height", is_equal_approx(float(tall_wall.get("sizeY", 0.0)), 2.2))
+	# Fenêtre avec ouverture réelle dans un mur assez haut.
+	var tall_walls_before_window := _meshes_with_asset(editor, wall_asset).size()
+	var tall_windows_before := _meshes_with_asset(editor, "res://assets/objects3d/buildings/fenetre_volets.glb").size()
+	editor._insert_window(Vector2(float(tall_wall.get("x", 0.0)), float(tall_wall.get("y", 0.0))))
+	await process_frame
+	_assert("mesh_window_cut_walls",
+		_meshes_with_asset(editor, wall_asset).size() >= tall_walls_before_window + 3)
+	_assert("mesh_window_cut_created",
+		_meshes_with_asset(editor, "res://assets/objects3d/buildings/fenetre_volets.glb").size() == tall_windows_before + 1)
 	editor._wall_height = 1.3
 
 	# Porte 3D : ouverture dans un mur (deux montants + porte).
