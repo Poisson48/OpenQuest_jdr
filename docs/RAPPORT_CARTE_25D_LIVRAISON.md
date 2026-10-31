@@ -154,7 +154,11 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 [`carte_25d_etang.png`](./screenshots/carte_25d_etang.png) ·
 [`carte_25d_ruines.png`](./screenshots/carte_25d_ruines.png) ·
 [`session_monde_25d.png`](./screenshots/session_monde_25d.png) ·
-[`session_carte_monde.png`](./screenshots/session_carte_monde.png)
+[`session_carte_monde.png`](./screenshots/session_carte_monde.png) ·
+[`session_pas.png`](./screenshots/session_pas.png) ·
+[`session_npc.png`](./screenshots/session_npc.png) ·
+[`session_aide.png`](./screenshots/session_aide.png) ·
+[`carte_25d_monde_iles.png`](./screenshots/carte_25d_monde_iles.png)
 
 Guides : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) ·
 [CARTE_25D.md](./CARTE_25D.md) · [MONDE_ZONES.md](./MONDE_ZONES.md) ·
