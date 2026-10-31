@@ -76,6 +76,8 @@ Outils terrain :
   modulaires** (`mur.glb`) orientés et alignés au terrain ; les façades (porte,
   fenêtre, auvent) peuvent ensuite s'aimanter dessus. Base de construction libre
   façon Sims.
+- **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs + 4
+  coins), puis pose porte/fenêtre/auvent et un toit.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

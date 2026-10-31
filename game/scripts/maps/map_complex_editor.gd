@@ -1204,6 +1204,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_wall(from, to)
 	elif _tool == ToolsScript.MESH_WALL:
 		_create_mesh_wall_chain(from, to)
+	elif _tool == ToolsScript.ROOM_3D:
+		_create_mesh_room(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1431,6 +1433,44 @@ func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	doc.commit_transaction()
 	_set_status("Mur 3D : %d segment(s) de %.2f case(s)." % [count, segment_len])
+
+## Construit une pièce fermée : quatre rangées de murs + quatre coins.
+func _create_mesh_room(from: Vector2, to: Vector2) -> void:
+	var x0 := minf(from.x, to.x)
+	var x1 := maxf(from.x, to.x)
+	var y0 := minf(from.y, to.y)
+	var y1 := maxf(from.y, to.y)
+	if x1 - x0 < 1.5 or y1 - y0 < 1.5:
+		_set_status("Pièce trop petite (minimum 1,5 × 1,5).")
+		return
+	var ids: Array = []
+	_create_mesh_wall_chain(Vector2(x0, y0), Vector2(x1, y0))
+	ids.append_array(doc.selection())
+	_create_mesh_wall_chain(Vector2(x1, y0), Vector2(x1, y1))
+	ids.append_array(doc.selection())
+	_create_mesh_wall_chain(Vector2(x1, y1), Vector2(x0, y1))
+	ids.append_array(doc.selection())
+	_create_mesh_wall_chain(Vector2(x0, y1), Vector2(x0, y0))
+	ids.append_array(doc.selection())
+	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
+	var corners := [
+		[Vector2(x0, y0), 0.0], [Vector2(x1, y0), 90.0],
+		[Vector2(x1, y1), 180.0], [Vector2(x0, y1), 270.0],
+	]
+	for corner_variant in corners:
+		var corner: Array = corner_variant
+		var pos: Vector2 = corner[0]
+		var id: String = doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": 2.1, "h": 1.69,
+			"asset": corner_asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Coin de mur 3D", "layer": 1,
+			"display": {"rotation": float(corner[1]), "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Coin de mur 3D")
+		ids.append(id)
+	doc.set_selection(ids)
+	_set_status("Pièce 3D construite : 4 murs + 4 coins.")
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
@@ -3467,6 +3507,8 @@ func _rebuild_tool_options() -> void:
 			_line_row(_hbox(_tool_options), "Dialogue", _token_dialogue, func(text): _token_dialogue = text)
 	elif _tool == ToolsScript.MESH_WALL:
 		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
+	elif _tool == ToolsScript.ROOM_3D:
+		_option_note("Glissez un rectangle : 4 murs + 4 coins pour une pièce fermée. Ajoutez ensuite portes, fenêtres et toit.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
