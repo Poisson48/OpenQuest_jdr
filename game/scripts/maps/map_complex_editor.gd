@@ -30,6 +30,17 @@ const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 
+const ROOF_STYLES := [
+	{"label": "Tuiles (2 pans)", "path": "res://assets/objects3d/buildings/toit_2pentes.glb"},
+	{"label": "Chaume", "path": "res://assets/objects3d/buildings/toit_chaume.glb"},
+	{"label": "Croupe", "path": "res://assets/objects3d/buildings/toit_croupe.glb"},
+	{"label": "Appentis", "path": "res://assets/objects3d/buildings/toit_appentis.glb"},
+]
+const FLOOR_MATERIALS := [
+	{"label": "Pierre", "id": 2}, {"label": "Terre", "id": 1},
+	{"label": "Herbe", "id": 0}, {"label": "Sable", "id": 4}, {"label": "Neige", "id": 3},
+]
+
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
 const SAVE_INTERVAL := "interval"
@@ -99,6 +110,8 @@ var _player_view: bool = false
 var _player_view_btn: Button
 var _light_place_radius: float = 3.0
 var _roof_height: float = 1.1
+var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
+var _floor_material: int = 2
 var _floor_flatten: bool = true
 
 # --- Interaction --------------------------------------------------------------
@@ -1472,7 +1485,7 @@ func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
 	if width < 1.0 or depth < 1.0:
 		_set_status("Zone de toit trop petite.")
 		return
-	var asset := "res://assets/objects3d/buildings/toit_2pentes.glb"
+	var asset := _roof_asset
 	var bounds := _mesh_bounds_cells(asset, 1.0)
 	var tile_w := maxf(1.0, bounds.x)
 	var tile_d := maxf(1.0, bounds.z)
@@ -1513,12 +1526,19 @@ func _create_floor(from: Vector2, to: Vector2) -> void:
 	doc.begin_transaction()
 	for cy in range(y0, y1 + 1):
 		for cx in range(x0, x1 + 1):
-			doc.set_terrain_material(cx, cy, 2, "Dallage")
+			doc.set_terrain_material(cx, cy, _floor_material, "Dallage")
 			if _floor_flatten:
 				doc.set_terrain_height(cx, cy, 0.0, "Dallage")
 			count += 1
 	doc.commit_transaction()
-	_set_status("Dallage : %d case(s) en pierre%s." % [count, ", sol nivelé" if _floor_flatten else ""])
+	_set_status("Dallage : %d case(s) en %s%s." % [count, _floor_material_label(), ", sol nivelé" if _floor_flatten else ""])
+
+func _floor_material_label() -> String:
+	for material_variant in FLOOR_MATERIALS:
+		var material: Dictionary = material_variant
+		if int(material["id"]) == _floor_material:
+			return str(material["label"]).to_lower()
+	return "pierre"
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
@@ -3558,9 +3578,27 @@ func _rebuild_tool_options() -> void:
 	elif _tool == ToolsScript.ROOM_3D:
 		_option_note("Glissez un rectangle : 4 murs + 4 coins pour une pièce fermée. Ajoutez ensuite portes, fenêtres et toit.")
 	elif _tool == ToolsScript.ROOF_3D:
+		var roof_opt := OptionButton.new()
+		for i in range(ROOF_STYLES.size()):
+			var roof_style: Dictionary = ROOF_STYLES[i]
+			roof_opt.add_item(str(roof_style["label"]), i)
+			roof_opt.set_item_metadata(i, str(roof_style["path"]))
+			if str(roof_style["path"]) == _roof_asset:
+				roof_opt.select(i)
+		roof_opt.item_selected.connect(func(index: int): _roof_asset = str(roof_opt.get_item_metadata(index)))
+		_tool_options.add_child(roof_opt)
 		_spin(_hbox(_tool_options), "Hauteur", 0.2, 10.0, _roof_height, 0.1, func(v): _roof_height = v)
 		_option_note("Glissez un rectangle au-dessus d'une pièce : génère une grille de tuiles de toit 2 pans.")
 	elif _tool == ToolsScript.FLOOR_3D:
+		var floor_opt := OptionButton.new()
+		for i in range(FLOOR_MATERIALS.size()):
+			var floor_mat: Dictionary = FLOOR_MATERIALS[i]
+			floor_opt.add_item(str(floor_mat["label"]), i)
+			floor_opt.set_item_metadata(i, int(floor_mat["id"]))
+			if int(floor_mat["id"]) == _floor_material:
+				floor_opt.select(i)
+		floor_opt.item_selected.connect(func(index: int): _floor_material = int(floor_opt.get_item_metadata(index)))
+		_tool_options.add_child(floor_opt)
 		var flatten_chk := CheckBox.new()
 		flatten_chk.text = "Niveler le sol"
 		flatten_chk.button_pressed = _floor_flatten

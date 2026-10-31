@@ -220,6 +220,22 @@ func _run() -> void:
 	_assert("mesh_floor_flattened", floor_heights.size() > 16 * 15 + 3
 		and is_equal_approx(float(floor_heights[15 * floor_w + 3]), 0.0))
 
+	# Matière de dallage au choix (terre).
+	editor._floor_material = 1
+	editor._create_floor(Vector2(10.0, 15.0), Vector2(12.0, 17.0))
+	var earth_mats: Array = editor.doc.map_data.get("terrainMaterials", [])
+	_assert("mesh_floor_material_choice", earth_mats.size() > 15 * 16 + 10
+		and int(earth_mats[15 * floor_w + 10]) == 1)
+	editor._floor_material = 2
+
+	# Style de toit au choix (chaume).
+	var thatch_asset := "res://assets/objects3d/buildings/toit_chaume.glb"
+	editor._roof_asset = thatch_asset
+	var thatch_before := _meshes_with_asset(editor, thatch_asset).size()
+	editor._create_mesh_roof(Vector2(10.0, 3.0), Vector2(14.0, 6.0))
+	_assert("mesh_roof_style_choice", _meshes_with_asset(editor, thatch_asset).size() > thatch_before)
+	editor._roof_asset = "res://assets/objects3d/buildings/toit_2pentes.glb"
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():
