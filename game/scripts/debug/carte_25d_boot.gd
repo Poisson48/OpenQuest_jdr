@@ -197,6 +197,9 @@ static func build_demo(md: Node) -> Dictionary:
 	var extra_specs := [
 		{
 			"title": "Place du Marché", "w": 14, "h": 12, "x": 25, "y": 0,
+			"markers": [
+				{"id": "mk-fontaine", "type": "poi", "label": "Fontaine", "x": 4.0, "y": 5.0},
+			],
 			"meshes": [
 				{"name": "puits", "x": 4.0, "y": 5.0},
 				{"name": "caisse", "x": 7.0, "y": 7.0},
@@ -216,6 +219,10 @@ static func build_demo(md: Node) -> Dictionary:
 		},
 		{
 			"title": "Forêt de l'Ouest", "w": 12, "h": 12, "x": 0, "y": 17,
+			"markers": [
+				{"id": "mk-etang", "type": "poi", "label": "Étang", "x": 2.2, "y": 9.0},
+				{"id": "mk-gobelin", "type": "danger", "label": "Gobelin", "x": 7.0, "y": 6.0},
+			],
 			"meshes": [
 				{"name": "arbre", "x": 3.0, "y": 3.0},
 				{"name": "arbre_automne", "x": 8.0, "y": 6.0},
@@ -238,6 +245,9 @@ static func build_demo(md: Node) -> Dictionary:
 		},
 		{
 			"title": "Taverne du Corbeau", "w": 10, "h": 8, "x": 39, "y": 0,
+			"markers": [
+				{"id": "mk-comptoir", "type": "poi", "label": "Comptoir", "x": 7.8, "y": 1.6},
+			],
 			"meshes": [
 				{"name": "mur", "x": 1.5, "y": 0.0},
 				{"name": "mur", "x": 4.0, "y": 0.0},
@@ -255,6 +265,10 @@ static func build_demo(md: Node) -> Dictionary:
 		},
 		{
 			"title": "Donjon de Valbois", "w": 9, "h": 9, "x": 25, "y": 12,
+			"markers": [
+				{"id": "mk-tresor", "type": "treasure", "label": "Trésor", "x": 4.5, "y": 7.5},
+				{"id": "mk-piege", "type": "danger", "label": "Piège", "x": 7.5, "y": 4.0},
+			],
 			"meshes": [
 				{"name": "mur", "x": 1.5, "y": 0.6},
 				{"name": "mur", "x": 4.0, "y": 0.6},
@@ -271,6 +285,9 @@ static func build_demo(md: Node) -> Dictionary:
 		},
 		{
 			"title": "Camp des Bûcherons", "w": 10, "h": 8, "x": 39, "y": 8,
+			"markers": [
+				{"id": "mk-bucheron", "type": "npc", "label": "Bûcheron", "x": 2.5, "y": 2.5},
+			],
 			"meshes": [
 				{"name": "grange", "x": 2.5, "y": 2.5},
 				{"name": "tas_de_bois", "x": 6.8, "y": 2.8},
@@ -284,6 +301,9 @@ static func build_demo(md: Node) -> Dictionary:
 		},
 		{
 			"title": "Ruines de l'Ouest", "w": 12, "h": 10, "x": 13, "y": 16,
+			"markers": [
+				{"id": "mk-tresor-ruines", "type": "treasure", "label": "Trésor enfoui", "x": 7.0, "y": 6.0},
+			],
 			"meshes": [
 				{"name": "mur", "x": 2.5, "y": 3.0},
 				{"name": "mur_coin", "x": 5.5, "y": 3.0},
@@ -313,6 +333,8 @@ static func build_demo(md: Node) -> Dictionary:
 		sub["zoneY"] = int(spec["y"])
 		sub["zoneW"] = int(spec["w"])
 		sub["zoneH"] = int(spec["h"])
+		if spec.get("markers") is Array:
+			sub["markers"] = (spec["markers"] as Array).duplicate(true)
 		var style := "place" if str(spec["title"]).contains("Place") else "forest"
 		if str(spec["title"]).contains("Taverne"):
 			style = "tavern"
