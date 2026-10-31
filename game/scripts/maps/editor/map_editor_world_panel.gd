@@ -64,6 +64,7 @@ var _pending_unlink_side: String = ""
 var _assign_dialog: ConfirmationDialog
 var _world_export_dialog: FileDialog
 var _world_import_dialog: FileDialog
+var _import_as_new_world: bool = false
 var _assign_opt: OptionButton
 var _editor_root: Control
 var _fullscreen: bool = false
@@ -113,7 +114,8 @@ func _build_ui() -> void:
 	_button(bar, "Dupliquer", func(): duplicate_selected())
 	_button(bar, "Assigner…", func(): _open_assign())
 	_button(bar, "Exporter…", func(): _open_world_export())
-	_button(bar, "Importer…", func(): _open_world_import())
+	_button(bar, "Importer…", func(): _open_world_import(false))
+	_button(bar, "Importer (nouveau)…", func(): _open_world_import(true))
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
@@ -899,9 +901,11 @@ func _on_world_export_selected(path: String) -> void:
 	file.close()
 	show_status("Monde exporté (%d zones) : %s" % [(bundle.get("zones", []) as Array).size(), save_path])
 
-## Importe un bundle de monde comme zones du monde courant.
-func _open_world_import() -> void:
+## Importe un bundle de monde comme zones du monde courant (ou nouveau monde).
+func _open_world_import(as_new_world: bool = false) -> void:
 	_ensure_dialogs()
+	_import_as_new_world = as_new_world
+	_world_import_dialog.title = "Importer comme nouveau monde" if as_new_world else "Importer dans le monde courant"
 	_world_import_dialog.popup_centered_ratio(0.6)
 
 func _on_world_import_selected(path: String) -> void:
@@ -916,18 +920,25 @@ func _on_world_import_selected(path: String) -> void:
 	if not parsed is Dictionary:
 		show_status("JSON invalide : monde attendu.")
 		return
-	var world_id := _current_world_id()
-	if world_id.is_empty():
+	var world_id := "" if _import_as_new_world else _current_world_id()
+	if world_id.is_empty() and not _import_as_new_world:
 		world_id = "monde"
 	var imported: Dictionary = md.import_world_bundle(parsed, world_id)
 	var imported_ids: Array = imported.get("mapIds", [])
 	if imported_ids.is_empty():
 		show_status("Aucune zone importée.")
 		return
+	if _import_as_new_world:
+		_view_world_id = str(imported.get("worldId", ""))
 	selected_id = str(imported_ids[0])
+	var was_new := _import_as_new_world
+	_import_as_new_world = false
 	refresh()
 	fit_view()
-	show_status("Monde importé : %d zone(s)." % imported_ids.size())
+	if was_new:
+		show_status("Nouveau monde importé : %d zone(s)." % imported_ids.size())
+	else:
+		show_status("Monde importé : %d zone(s)." % imported_ids.size())
 
 func _open_link(prefill_zone_id: String = "", prefill_side: String = "") -> void:
 	_ensure_dialogs()

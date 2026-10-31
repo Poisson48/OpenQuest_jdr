@@ -193,6 +193,7 @@ peuvent avoir des **tailles différentes**). Voir
 - **Exporter… / Importer…** : exporte le monde complet (toutes ses zones + leurs
   liens, avec son nom) en JSON, ou réimporte un bundle comme zones du monde
   courant (ids régénérés, liens internes remappés, nom conservé).
+- **Importer (nouveau)…** : importe un bundle comme **nouveau monde** indépendant.
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
 - **⤢ Plein écran** : affiche la vue Monde sur tout l'éditeur (Échap ou
   « Réduire » pour revenir à l'onglet).
