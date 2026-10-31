@@ -283,6 +283,7 @@ func _create_new_world() -> void:
 	create_zone(12, 9, "Zone de départ", "empty")
 	fit_view()
 	show_status("Nouveau monde créé : %s." % _view_world_id)
+	_open_world_title()
 
 func _open_delete_world() -> void:
 	_ensure_dialogs()
