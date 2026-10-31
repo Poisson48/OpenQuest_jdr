@@ -44,6 +44,10 @@ var _zone_h_spin: SpinBox
 var _resize_dialog: ConfirmationDialog
 var _resize_w_spin: SpinBox
 var _resize_h_spin: SpinBox
+var _link_dialog: ConfirmationDialog
+var _link_side_opt: OptionButton
+var _link_target_opt: OptionButton
+var _link_offset_spin: SpinBox
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -69,6 +73,7 @@ func _build_ui() -> void:
 
 	_button(bar, "＋ Zone", func(): _open_create_zone())
 	_button(bar, "Relier les bords", func(): auto_link())
+	_button(bar, "Lier…", func(): _open_link())
 	_button(bar, "Valider", func(): validate_world())
 	_button(bar, "Ouvrir", func(): open_selected())
 	_button(bar, "Renommer", func(): _open_rename())
@@ -352,6 +357,41 @@ func _ensure_dialogs() -> void:
 	row_h.add_child(_resize_h_spin)
 	_resize_dialog.confirmed.connect(_apply_resize)
 
+	_link_dialog = ConfirmationDialog.new()
+	_link_dialog.title = "Lier une zone"
+	add_child(_link_dialog)
+	var link_box := VBoxContainer.new()
+	link_box.custom_minimum_size = Vector2(340, 150)
+	_link_dialog.add_child(link_box)
+	var side_row := HBoxContainer.new()
+	link_box.add_child(side_row)
+	var side_lbl := Label.new()
+	side_lbl.text = "Bord"
+	side_row.add_child(side_lbl)
+	_link_side_opt = OptionButton.new()
+	side_row.add_child(_link_side_opt)
+	for side_entry in [["north", "Nord"], ["south", "Sud"], ["east", "Est"], ["west", "Ouest"]]:
+		var idx := _link_side_opt.item_count
+		_link_side_opt.add_item(str(side_entry[1]), idx)
+		_link_side_opt.set_item_metadata(idx, str(side_entry[0]))
+	var target_row := HBoxContainer.new()
+	link_box.add_child(target_row)
+	var target_lbl := Label.new()
+	target_lbl.text = "Vers"
+	target_row.add_child(target_lbl)
+	_link_target_opt = OptionButton.new()
+	target_row.add_child(_link_target_opt)
+	var offset_row := HBoxContainer.new()
+	link_box.add_child(offset_row)
+	var offset_lbl := Label.new()
+	offset_lbl.text = "Décalage"
+	offset_row.add_child(offset_lbl)
+	_link_offset_spin = SpinBox.new()
+	_link_offset_spin.min_value = -32
+	_link_offset_spin.max_value = 32
+	offset_row.add_child(_link_offset_spin)
+	_link_dialog.confirmed.connect(_apply_link)
+
 func _open_create_zone() -> void:
 	_ensure_dialogs()
 	_zone_dialog.popup_centered(Vector2i(360, 180))
@@ -384,6 +424,42 @@ func _apply_rename() -> void:
 	md.update_map(map)
 	refresh()
 	show_status("Zone renommée : %s" % new_title)
+
+func _open_link() -> void:
+	_ensure_dialogs()
+	var zone := _zone_by_id(selected_id)
+	if zone.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	_link_target_opt.clear()
+	for other_variant in zones:
+		var other: Dictionary = other_variant
+		var other_id := str(other.get("id", ""))
+		if other_id == selected_id:
+			continue
+		var index := _link_target_opt.item_count
+		_link_target_opt.add_item(str(other.get("title", other_id)), index)
+		_link_target_opt.set_item_metadata(index, other_id)
+	if _link_target_opt.item_count == 0:
+		show_status("Aucune autre zone à relier.")
+		return
+	_link_side_opt.select(2)  # Est par défaut.
+	_link_offset_spin.value = 0
+	_link_dialog.popup_centered(Vector2i(460, 240))
+
+func _apply_link() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or selected_id.is_empty():
+		return
+	if _link_side_opt.selected < 0 or _link_target_opt.selected < 0:
+		return
+	var side := str(_link_side_opt.get_item_metadata(_link_side_opt.selected))
+	var target_id := str(_link_target_opt.get_item_metadata(_link_target_opt.selected))
+	if md.set_zone_edge(selected_id, side, target_id, int(_link_offset_spin.value)):
+		refresh()
+		show_status("Lien %s → %s posé." % [side, target_id])
+	else:
+		show_status("Lien impossible.")
 
 func _open_resize() -> void:
 	_ensure_dialogs()

@@ -158,6 +158,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Glisser** une zone : change sa position `zoneX/zoneY` sur le plan.
 - **Relier les bords** : détecte automatiquement les voisins qui partagent un
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
+- **Lier…** : crée un lien de bord manuel (bord, zone cible, décalage), ou
+  retire le lien en laissant la cible vide.
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et

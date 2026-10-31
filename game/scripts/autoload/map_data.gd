@@ -1390,6 +1390,24 @@ func duplicate_complex_map(map_id: String, new_title: String = "", offset_x: int
 	save_maps()
 	return copy
 
+## Écrit (ou retire si `target_id` est vide) un lien de bord manuel d'une zone.
+func set_zone_edge(map_id: String, side: String, target_id: String, offset: int = 0) -> bool:
+	if not side in ["north", "south", "east", "west"]:
+		return false
+	var map: Dictionary = get_by_id(map_id)
+	if map.is_empty():
+		return false
+	if not target_id.is_empty() and get_by_id(target_id).is_empty():
+		return false
+	var edges: Dictionary = map.get("edges", {}) if map.get("edges") is Dictionary else {}
+	if target_id.is_empty():
+		edges.erase(side)
+	else:
+		edges[side] = {"target": target_id, "offset": int(offset)}
+	map["edges"] = edges
+	update_map(map)
+	return true
+
 func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():

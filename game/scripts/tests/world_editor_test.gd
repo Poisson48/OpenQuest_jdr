@@ -119,6 +119,17 @@ func _run() -> void:
 				_assert("world_duplicate_edges", (dup.get("edges", {}) as Dictionary).is_empty())
 				panel.refresh()
 				_assert("world_duplicate_panel", panel.zones.size() >= before + 2)
+			# Lien de bord manuel (éditeur « Lier… »).
+			var other_id := str((maps[1] as Dictionary).get("id", ""))
+			_assert("world_manual_link", md.set_zone_edge(created_id, "north", other_id, 2))
+			var linked_map: Dictionary = md.get_by_id(created_id)
+			var north: Dictionary = (linked_map.get("edges", {}) as Dictionary).get("north", {})
+			_assert("world_manual_link_target", str(north.get("target", "")) == other_id)
+			_assert("world_manual_link_offset", int(north.get("offset", -99)) == 2)
+			_assert("world_manual_unlink", md.set_zone_edge(created_id, "north", ""))
+			var unlinked: Dictionary = md.get_by_id(created_id)
+			_assert("world_manual_unlink_effect",
+				not (unlinked.get("edges", {}) as Dictionary).has("north"))
 
 		# Ouvrir la zone sélectionnée émet open_map_requested.
 		var opened := {"map_id": ""}
