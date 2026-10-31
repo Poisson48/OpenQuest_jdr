@@ -37,7 +37,10 @@ def load_font(size: int) -> ImageFont.FreeTypeFont:
             return ImageFont.truetype(candidate, size)
         except OSError:
             continue
-    return ImageFont.load_default(size=size)
+    try:
+        return ImageFont.load_default(size=size)
+    except TypeError:  # Pillow < 10
+        return ImageFont.load_default()
 
 
 def load_assets(root: Path) -> list[dict]:
@@ -101,7 +104,9 @@ def draw_asset(
     dims = asset.get("dimensions_cells") or [0, 0, 0]
     triangles = asset.get("triangles", 0)
     dims_text = " × ".join(f"{value:g}" for value in dims) if any(dims) else ""
-    meta = f"{category} · {dims_text} cases · {triangles} tris" if dims_text else category
+    meta = str(asset.get("meta") or "")
+    if not meta:
+        meta = f"{category} · {dims_text} cases · {triangles} tris" if dims_text else category
 
     label_y = y + height - 46
     draw.text(
@@ -119,16 +124,53 @@ def draw_asset(
     return True
 
 
+def load_terrain_tiles(root: Path) -> list[dict]:
+    """Entrées spéciales pour la rangée de textures de sol."""
+    tiles = []
+    labels = {
+        "grass": "herbe",
+        "dirt": "terre / chemin",
+        "stone": "pavé de pierre",
+    }
+    for name, label in labels.items():
+        thumb = root / f"{name}_thumb.png"
+        if thumb.is_file():
+            tiles.append(
+                {
+                    "name": f"sol · {label}",
+                    "category": "terrain",
+                    "thumb": thumb.name,
+                    "kind": "tile",
+                    "dimensions_cells": [0, 0, 0],
+                    "triangles": 0,
+                    "meta": f"terrain · {name}.png 512² · tuilable",
+                }
+            )
+    return tiles
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Planche de controle des vignettes 3D.")
     parser.add_argument("--root", default=str(OBJECTS3D_ROOT))
     parser.add_argument("--out", default=None)
     parser.add_argument("--cols", type=int, default=5)
     parser.add_argument("--cell", type=int, default=280)
+    parser.add_argument("--terrain", action="store_true", help="Ajoute les textures de sol.")
+    parser.add_argument("--terrain-root", default=None)
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
     assets = load_assets(root)
+    if args.terrain:
+        terrain_root = Path(args.terrain_root).resolve() if args.terrain_root else REPO_ROOT / "game" / "assets" / "terrain"
+        tiles = load_terrain_tiles(terrain_root)
+        if not tiles:
+            print(f"[warn] aucune vignette terrain dans {terrain_root}")
+        assets = tiles + assets
+        # Les tuiles de sol sont cherchées à part : on expose leur racine.
+        terrain_thumb_root = terrain_root
+    else:
+        terrain_thumb_root = None
     if not assets:
         print(f"[ERREUR] aucun asset dans {root}")
         return 2
@@ -167,7 +209,8 @@ def main() -> int:
         box = (x + 6, y + 6, cell - 12, cell - 12)
         if col > 0:
             draw.line([(x, y + 10), (x, y + cell - 14)], fill=(200, 189, 166, 120), width=1)
-        if not draw_asset(sheet, draw, asset, root, box):
+        asset_root = terrain_thumb_root if asset.get("kind") == "tile" and terrain_thumb_root else root
+        if not draw_asset(sheet, draw, asset, asset_root, box):
             missing += 1
 
     draw.text(

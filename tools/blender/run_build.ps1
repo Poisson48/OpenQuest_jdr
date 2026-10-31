@@ -15,7 +15,9 @@
     Chemin complet de blender.exe.
 
 .PARAMETER Only
-    Ne regenerer que certains assets (noms de base ou variantes : maison, tour_grande...).
+    Ne regenerer que certains assets (noms de base ou variantes).
+    Syntaxe PowerShell : -Only maison,tour_grande (liste separee par des virgules),
+    ou -Only "maison tour_grande".
 
 .PARAMETER Engine
     Moteur de rendu des vignettes : eevee (defaut, OK en headless) ou cycles (CPU).
@@ -32,11 +34,18 @@
 .PARAMETER SkipVerify
     Saute le controle qualite (deconseille).
 
+.PARAMETER SkipTerrainTextures
+    Ne regenere pas les textures de sol (game/assets/terrain) ni la planche enrichie.
+
+.PARAMETER PythonExe
+    Python avec Pillow, pour les textures de sol et la planche de vignettes.
+    Sinon detection : $env:OQ_PYTHON, python, python3.
+
 .EXAMPLE
     .\tools\blender\run_build.ps1
 
 .EXAMPLE
-    .\tools\blender\run_build.ps1 -Only maison tour -Engine cycles -Samples 24
+    .\tools\blender\run_build.ps1 -Only maison,tour -Engine cycles -Samples 24
 
 .EXAMPLE
     .\tools\blender\run_build.ps1 -BlenderExe "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
@@ -50,10 +59,21 @@ param(
     [int]$Samples = 32,
     [int]$ThumbSize = 512,
     [switch]$SkipThumbs,
-    [switch]$SkipVerify
+    [switch]$SkipVerify,
+    [switch]$SkipTerrainTextures,
+    [string]$PythonExe
 )
 
 $ErrorActionPreference = 'Stop'
+
+$onlyItems = @()
+if ($Only) {
+    foreach ($item in $Only) {
+        foreach ($part in ($item -split '[,\s]+')) {
+            if ($part) { $onlyItems += $part }
+        }
+    }
+}
 
 $scriptDir = $PSScriptRoot
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $scriptDir '..\..')).Path
@@ -96,6 +116,10 @@ function Invoke-BlenderStep {
 
     Write-Host ''
     Write-Host "== $Label ==" -ForegroundColor Cyan
+    # Les outils natifs écrivent des warnings sur stderr : ne pas les traiter
+    # comme des erreurs PowerShell (le vrai code de sortie est $LASTEXITCODE).
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     $processArgs = @('--background', '--python-exit-code', '1') + $Arguments
     & $blender @processArgs 2>&1 |
         Tee-Object -FilePath $LogPath |
@@ -110,6 +134,57 @@ function Invoke-BlenderStep {
         } |
         Out-Host
     $exitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorAction
+    if ($exitCode -ne 0) {
+        Write-Host "[ECHEC] $Label (code $exitCode) - log: $LogPath" -ForegroundColor Red
+    }
+    return $exitCode
+}
+
+function Resolve-PythonPath {
+    param([string]$Explicit)
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    if ($Explicit) { $candidates.Add($Explicit) }
+    if ($env:OQ_PYTHON) { $candidates.Add($env:OQ_PYTHON) }
+    foreach ($name in @('python', 'python3')) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        if ($command) { $candidates.Add($command.Source) }
+    }
+
+    foreach ($candidate in $candidates) {
+        if (-not $candidate) { continue }
+        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
+        $previousErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $candidate -c "import PIL" *> $null
+        }
+        catch {
+            # Python present mais Pillow absent : on continue la recherche.
+        }
+        $probeExit = $LASTEXITCODE
+        $ErrorActionPreference = $previousErrorAction
+        if ($probeExit -eq 0) { return $candidate }
+    }
+    return $null
+}
+
+function Invoke-PythonStep {
+    param(
+        [string]$Label,
+        [string]$PythonPath,
+        [string[]]$Arguments,
+        [string]$LogPath
+    )
+
+    Write-Host ''
+    Write-Host "== $Label ==" -ForegroundColor Cyan
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & $PythonPath @Arguments 2>&1 | Tee-Object -FilePath $LogPath | Out-Host
+    $exitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorAction
     if ($exitCode -ne 0) {
         Write-Host "[ECHEC] $Label (code $exitCode) - log: $LogPath" -ForegroundColor Red
     }
@@ -141,9 +216,9 @@ $buildArguments = @(
     '--samples', "$Samples",
     '--thumb-size', "$ThumbSize"
 )
-if ($Only -and $Only.Count -gt 0) {
+if ($onlyItems.Count -gt 0) {
     $buildArguments += '--only'
-    $buildArguments += $Only
+    $buildArguments += $onlyItems
 }
 if ($SkipThumbs) {
     $buildArguments += '--no-thumbs'
@@ -218,9 +293,9 @@ $verifyExit = 0
 if (-not $SkipVerify) {
     $verifyLog = [System.IO.Path]::GetTempFileName()
     $verifyArguments = @('--python', $verifyScript, '--', '--root', $outRoot)
-    if ($Only -and $Only.Count -gt 0) {
+    if ($onlyItems.Count -gt 0) {
         $verifyArguments += '--only'
-        $verifyArguments += $Only
+        $verifyArguments += $onlyItems
     }
     if ($SkipThumbs) {
         $verifyArguments += '--skip-thumbs'
@@ -228,20 +303,77 @@ if (-not $SkipVerify) {
     $verifyExit = Invoke-BlenderStep -Label 'Controle qualite (GLB + vignettes)' -Arguments $verifyArguments -LogPath $verifyLog
 }
 
+# ---------------------------------------------------------------------------
+# Textures de sol tuilables + planche enrichie (Python + Pillow)
+# ---------------------------------------------------------------------------
+$terrainExit = 0
+$sheetExit = 0
+$pythonPath = $null
+$terrainRoot = Join-Path $repoRoot 'game\assets\terrain'
+$sheetPath = Join-Path $outRoot '_planche_assets2.png'
+
+if (-not $SkipTerrainTextures) {
+    $pythonPath = Resolve-PythonPath -Explicit $PythonExe
+    if (-not $pythonPath) {
+        Write-Host ''
+        Write-Host '[warn] Python + Pillow introuvable : textures de sol et planche non regenerees.' -ForegroundColor Yellow
+        Write-Host '       pip install pillow, ou passez -PythonExe "C:\...\python.exe".' -ForegroundColor Yellow
+    }
+    else {
+        Write-Host ''
+        Write-Host " Python : $pythonPath"
+
+        $terrainLog = [System.IO.Path]::GetTempFileName()
+        $terrainExit = Invoke-PythonStep -Label 'Textures de sol tuilables (512x512 seamless)' `
+            -PythonPath $pythonPath `
+            -Arguments @((Join-Path $scriptDir 'make_terrain_textures.py'), '--out-root', $terrainRoot) `
+            -LogPath $terrainLog
+
+        if ($terrainExit -eq 0) {
+            $sheetLog = [System.IO.Path]::GetTempFileName()
+            $sheetExit = Invoke-PythonStep -Label 'Planche de controle enrichie' `
+                -PythonPath $pythonPath `
+                -Arguments @(
+                    (Join-Path $scriptDir 'make_contact_sheet.py'),
+                    '--out', $sheetPath,
+                    '--terrain',
+                    '--terrain-root', $terrainRoot
+                ) `
+                -LogPath $sheetLog
+        }
+
+        if (Test-Path -LiteralPath (Join-Path $terrainRoot 'grass.png')) {
+            Write-Host ''
+            Write-Host '== Textures de sol ==' -ForegroundColor Cyan
+            Get-ChildItem -LiteralPath $terrainRoot -Filter '*.png' -File |
+                Sort-Object Name |
+                ForEach-Object { "  {0,-24} {1,8:N1} Ko" -f $_.Name, ($_.Length / 1KB) }
+        }
+        if (Test-Path -LiteralPath $sheetPath) {
+            Write-Host ("  planche enrichie : {0}" -f $sheetPath)
+        }
+    }
+}
+
 Write-Host ''
 Write-Host ('=' * 78) -ForegroundColor DarkGray
 $buildOk = ($buildExit -eq 0 -and $missing -eq 0)
 $verifyOk = ($SkipVerify -or $verifyExit -eq 0)
-if ($buildOk -and $verifyOk) {
+$terrainOk = ($SkipTerrainTextures -or $terrainExit -eq 0)
+$sheetOk = ($SkipTerrainTextures -or $sheetExit -eq 0)
+if ($buildOk -and $verifyOk -and $terrainOk -and $sheetOk) {
     Write-Host ' RESULTAT : OK - assets generes et verifies.' -ForegroundColor Green
     Write-Host " $($glbFiles.Count) GLB, $($thumbFiles.Count) vignettes dans game/assets/objects3d/"
-    Write-Host ' Planche de vignettes : python tools/blender/make_contact_sheet.py' -ForegroundColor DarkGray
+    if (-not $SkipTerrainTextures) {
+        Write-Host " textures de sol + planche : game/assets/terrain/, $sheetPath"
+    }
+    Write-Host ' Planche de vignettes : python tools/blender/make_contact_sheet.py --terrain' -ForegroundColor DarkGray
     Write-Host ('=' * 78) -ForegroundColor DarkGray
     exit 0
 }
 
 Write-Host ' RESULTAT : ECHEC' -ForegroundColor Red
-Write-Host ("  build={0} fichiers_manquants={1} verification={2}" -f $buildExit, $missing, $verifyExit)
+Write-Host ("  build={0} fichiers_manquants={1} verification={2} textures={3} planche={4}" -f $buildExit, $missing, $verifyExit, $terrainExit, $sheetExit)
 Write-Host "  log du build : $buildLog"
 Write-Host ('=' * 78) -ForegroundColor DarkGray
 exit 1

@@ -77,6 +77,54 @@
       "outline": true
     },
     {
+      "name": "mur",
+      "base": "mur",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/mur.glb",
+      "thumb": "buildings/mur_thumb.png",
+      "description": "Mur de pierre droit (~2 cases) : assises decalees et dalles de couronnement.",
+      "tags": [
+        "defense",
+        "enceinte",
+        "village"
+      ],
+      "dimensions_cells": [
+        2.363,
+        0.697,
+        1.298
+      ],
+      "triangles": 784,
+      "triangles_base": 392,
+      "vertices": 464,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "mur_coin",
+      "base": "mur_coin",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/mur_coin.glb",
+      "thumb": "buildings/mur_coin_thumb.png",
+      "description": "Coin de mur en L (~1,8 case) pour fermer une enceinte.",
+      "tags": [
+        "defense",
+        "enceinte",
+        "angle"
+      ],
+      "dimensions_cells": [
+        2.101,
+        1.689,
+        1.294
+      ],
+      "triangles": 1336,
+      "triangles_base": 668,
+      "vertices": 808,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "tour",
       "base": "tour",
       "variant": "base",
@@ -121,6 +169,78 @@
       "triangles": 1144,
       "triangles_base": 572,
       "vertices": 652,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "banc",
+      "base": "banc",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/banc.glb",
+      "thumb": "props/banc_thumb.png",
+      "description": "Banc en bois (~1,1 case) pour place ou jardin.",
+      "tags": [
+        "mobilier",
+        "village",
+        "repos"
+      ],
+      "dimensions_cells": [
+        1.321,
+        0.676,
+        0.978
+      ],
+      "triangles": 488,
+      "triangles_base": 244,
+      "vertices": 280,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "barriere",
+      "base": "barriere",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/barriere.glb",
+      "thumb": "props/barriere_thumb.png",
+      "description": "Barriere en bois (module 2 cases) : poteaux, lisses et jambe de force.",
+      "tags": [
+        "cloture",
+        "chemin",
+        "campagne"
+      ],
+      "dimensions_cells": [
+        2.104,
+        0.437,
+        0.938
+      ],
+      "triangles": 496,
+      "triangles_base": 248,
+      "vertices": 288,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "botte_foin",
+      "base": "botte_foin",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/botte_foin.glb",
+      "thumb": "props/botte_foin_thumb.png",
+      "description": "Botte de foin liee (~0,9 case), brins qui depassent.",
+      "tags": [
+        "campagne",
+        "ferme",
+        "decor"
+      ],
+      "dimensions_cells": [
+        1.1,
+        0.85,
+        0.667
+      ],
+      "triangles": 548,
+      "triangles_base": 274,
+      "vertices": 320,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -173,6 +293,78 @@
       "outline": true
     },
     {
+      "name": "charrette",
+      "base": "charrette",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/charrette.glb",
+      "thumb": "props/charrette_thumb.png",
+      "description": "Charrette en bois (~1,5 case) : caisse, roues, essieu et brancards.",
+      "tags": [
+        "transport",
+        "marchandise",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.608,
+        1.744,
+        0.94
+      ],
+      "triangles": 1208,
+      "triangles_base": 604,
+      "vertices": 668,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "etal_marche",
+      "base": "etal_marche",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/etal_marche.glb",
+      "thumb": "props/etal_marche_thumb.png",
+      "description": "Etal de marche (~2 cases) : comptoir, auvent a rayures et marchandises.",
+      "tags": [
+        "commerce",
+        "marche",
+        "village"
+      ],
+      "dimensions_cells": [
+        1.962,
+        1.527,
+        2.004
+      ],
+      "triangles": 1792,
+      "triangles_base": 896,
+      "vertices": 1020,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "lanterne",
+      "base": "lanterne",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/lanterne.glb",
+      "thumb": "props/lanterne_thumb.png",
+      "description": "Lanterne sur poteau (~2,3 cases de haut), fanal a vitres chaudes.",
+      "tags": [
+        "eclairage",
+        "rue",
+        "village"
+      ],
+      "dimensions_cells": [
+        0.84,
+        0.835,
+        2.303
+      ],
+      "triangles": 396,
+      "triangles_base": 198,
+      "vertices": 250,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "palissade",
       "base": "palissade",
       "variant": "base",
@@ -193,6 +385,30 @@
       "triangles": 620,
       "triangles_base": 310,
       "vertices": 378,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "panneau",
+      "base": "panneau",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/panneau.glb",
+      "thumb": "props/panneau_thumb.png",
+      "description": "Panneau indicateur en bois (~1,9 case de haut), deux fleches.",
+      "tags": [
+        "signalisation",
+        "chemin",
+        "village"
+      ],
+      "dimensions_cells": [
+        0.865,
+        0.782,
+        2.014
+      ],
+      "triangles": 344,
+      "triangles_base": 172,
+      "vertices": 196,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -241,6 +457,30 @@
       "triangles": 816,
       "triangles_base": 408,
       "vertices": 464,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tonneau",
+      "base": "tonneau",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/tonneau.glb",
+      "thumb": "props/tonneau_thumb.png",
+      "description": "Tonneau en bois cercle de metal (~0,8 case).",
+      "tags": [
+        "mobilier",
+        "marchandise",
+        "village"
+      ],
+      "dimensions_cells": [
+        0.917,
+        0.914,
+        0.843
+      ],
+      "triangles": 648,
+      "triangles_base": 324,
+      "vertices": 352,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },

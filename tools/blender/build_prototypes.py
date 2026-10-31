@@ -1,4 +1,4 @@
-﻿"""Genere les prototypes low-poly de la carte 2.5D (GLB + vignettes).
+"""Genere les prototypes low-poly de la carte 2.5D (GLB + vignettes).
 
 Tout est procedural et offline : aucune texture, aucun telechargement, aucun
 asset externe. Chaque objet est assemble a partir de primitives (boites,
@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -476,6 +477,412 @@ def build_puits(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
+# Kit enrichi v2 : murs, mobilier urbain, marche, charrette, foin
+# --------------------------------------------------------------------------- #
+
+
+def _arrow_board(
+    name: str,
+    *,
+    length: float,
+    height: float,
+    thickness: float,
+    material: bpy.types.Material,
+    origin: tuple[float, float, float],
+    rotation_z: float = 0.0,
+) -> bpy.types.Object:
+    """Panneau en forme de flèche (prisme fermé), orienté dans le plan XZ local."""
+    import bmesh
+
+    shape = [
+        (-length * 0.5, -height * 0.5),
+        (length * 0.5 - height * 0.75, -height * 0.5),
+        (length * 0.5, 0.0),
+        (length * 0.5 - height * 0.75, height * 0.5),
+        (-length * 0.5, height * 0.5),
+    ]
+    cos_a = math.cos(rotation_z)
+    sin_a = math.sin(rotation_z)
+    half_t = thickness * 0.5
+    vertices: list[tuple[float, float, float]] = []
+    for local_y in (-half_t, half_t):
+        for local_x, local_z in shape:
+            vertices.append(
+                (
+                    origin[0] + local_x * cos_a - local_y * sin_a,
+                    origin[1] + local_x * sin_a + local_y * cos_a,
+                    origin[2] + local_z,
+                )
+            )
+    count = len(shape)
+    faces: list[tuple[int, ...]] = [tuple(range(count)), tuple(range(count, 2 * count))[::-1]]
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((index, nxt, count + nxt, count + index))
+    board = add_mesh(name, vertices, faces, material)
+    bm = bmesh.new()
+    bm.from_mesh(board.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(board.data)
+    bm.free()
+    return board
+
+
+def _stone_wall_parts(
+    mats: Mats,
+    *,
+    length: float,
+    location: tuple[float, float],
+    rotation_z: float = 0.0,
+) -> list[bpy.types.Object]:
+    """Tronçon de mur en pierre : socle, assises décalées, dalles de couronnement."""
+    parts: list[bpy.types.Object] = []
+    cos_a = math.cos(rotation_z)
+    sin_a = math.sin(rotation_z)
+    depth = 0.46
+
+    def place(dx: float, z: float, size: tuple[float, float, float], material):
+        x = location[0] + dx * cos_a
+        y = location[1] + dx * sin_a
+        return add_box(
+            "wall_block", size, (x, y, z), material, rotation=(0.0, 0.0, rotation_z)
+        )
+
+    parts.append(
+        add_box(
+            "wall_plinth",
+            (length + 0.10, depth + 0.12, 0.16),
+            (location[0], location[1], 0.08),
+            mats["stone_dark"],
+            rotation=(0.0, 0.0, rotation_z),
+        )
+    )
+
+    course_patterns = [
+        (0.16, 0.38, [0.55, 0.48, 0.52, 0.45, 0.50]),
+        (0.54, 0.34, [0.42, 0.58, 0.46, 0.55, 0.49]),
+        (0.88, 0.28, [0.60, 0.44, 0.52, 0.47, 0.47]),
+    ]
+    for course_index, (z_base, block_height, pattern) in enumerate(course_patterns):
+        total = sum(pattern)
+        widths = [w / total * length for w in pattern]
+        offset = -length * 0.5 + (0.0 if course_index % 2 == 0 else length * 0.09)
+        materials = [mats["stone"], mats["stone_light"], mats["stone_dark"]]
+        for block_index, width in enumerate(widths):
+            remaining = length * 0.5 - offset
+            if remaining <= 0.05:
+                break
+            width = min(width, remaining)
+            if width < 0.07:
+                break
+            x_center = offset + width * 0.5
+            material = materials[(course_index + block_index) % 3]
+            parts.append(
+                place(
+                    x_center,
+                    z_base + block_height * 0.5,
+                    (width - 0.018, depth, block_height),
+                    material,
+                )
+            )
+            offset += width
+
+    # Dalles de couronnement.
+    cap_count = 3
+    cap_width = length / cap_count
+    for index in range(cap_count):
+        dx = -length * 0.5 + cap_width * (index + 0.5)
+        parts.append(
+            place(
+                dx,
+                1.16 + 0.055,
+                (cap_width - 0.02, depth + 0.14, 0.11),
+                mats["stone_light"],
+            )
+        )
+    return parts
+
+
+def build_mur(mats: Mats) -> list[bpy.types.Object]:
+    """Mur de pierre droit (~2 cases) : assises, socle et dalles de couronnement."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.32, 0.66), mats["grass"], seed=41)
+    ]
+    parts.extend(_stone_wall_parts(mats, length=2.10, location=(0.0, 0.0)))
+    return parts
+
+
+def build_mur_coin(mats: Mats) -> list[bpy.types.Object]:
+    """Coin de mur en L (~1,8 case d'emprise) : deux tronçons à 90°."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.98, 1.82), mats["grass"], seed=42)
+    ]
+    parts.extend(
+        _stone_wall_parts(mats, length=1.55, location=(-0.02, -0.52), rotation_z=0.0)
+    )
+    parts.extend(
+        _stone_wall_parts(
+            mats, length=1.25, location=(0.75, 0.10), rotation_z=math.pi * 0.5
+        )
+    )
+    return parts
+
+
+def build_barriere(mats: Mats) -> list[bpy.types.Object]:
+    """Barrière en bois (module 2 cases) : poteaux, deux lisses et jambe de force."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.10, 0.44), mats["grass"], seed=43)
+    ]
+    for x in (-0.80, 0.0, 0.80):
+        parts.append(add_box("post", (0.13, 0.13, 0.86), (x, 0, 0.43), mats["wood_dark"]))
+        parts.append(add_box("post_cap", (0.18, 0.18, 0.06), (x, 0, 0.89), mats["wood"]))
+    parts.append(add_box("rail_low", (1.92, 0.09, 0.14), (0, 0, 0.32), mats["wood"]))
+    parts.append(add_box("rail_high", (1.92, 0.09, 0.14), (0, 0, 0.64), mats["wood_light"]))
+    parts.append(
+        add_box(
+            "brace",
+            (0.76, 0.06, 0.10),
+            (0.40, 0.055, 0.48),
+            mats["wood_dark"],
+            rotation=(0.0, 0.0, 0.32),
+        )
+    )
+    return parts
+
+
+def build_etal_marche(mats: Mats) -> list[bpy.types.Object]:
+    """Étal de marché (~2 cases) : comptoir, auvent à rayures, marchandises."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (2.02, 1.58), mats["dirt"], seed=44)
+    ]
+    for x in (-0.72, 0.72):
+        for y in (-0.52, 0.52):
+            parts.append(add_box("post", (0.10, 0.10, 1.92), (x, y, 0.96), mats["wood_dark"]))
+    # Comptoir.
+    parts.append(add_box("counter_top", (1.58, 0.92, 0.09), (0, 0, 0.80), mats["wood_light"]))
+    parts.append(add_box("counter_front", (1.58, 0.06, 0.62), (0, -0.46, 0.38), mats["wood"]))
+    parts.append(add_box("counter_back", (1.58, 0.06, 0.62), (0, 0.46, 0.38), mats["wood_dark"]))
+    for x in (-0.60, 0.60):
+        parts.append(add_box("counter_leg", (0.10, 0.78, 0.70), (x, 0, 0.35), mats["wood_dark"]))
+    # Auvent à rayures incliné vers l'avant (-Y).
+    stripe_materials = [mats["cloth"], mats["plaster_light"]]
+    stripe_width = 0.24
+    for index in range(8):
+        x = -0.84 + index * stripe_width
+        parts.append(
+            add_box(
+                "awning_stripe",
+                (stripe_width - 0.012, 1.20, 0.04),
+                (x, -0.03, 1.84),
+                stripe_materials[index % 2],
+                rotation=(0.21, 0.0, 0.0),
+            )
+        )
+        parts.append(
+            add_box(
+                "awning_valance",
+                (stripe_width - 0.012, 0.03, 0.17),
+                (x, -0.66, 1.70),
+                stripe_materials[index % 2],
+            )
+        )
+    # Marchandises sur le comptoir.
+    goods = [
+        (-0.44, 0.10, 0.24, mats["glow"]),
+        (-0.10, 0.04, 0.18, mats["leaf"]),
+        (0.18, -0.12, 0.22, mats["wood"]),
+        (0.46, 0.06, 0.20, mats["roof_dark"]),
+    ]
+    for gx, gy, size, material in goods:
+        parts.append(add_box("goods", (size, size, size), (gx, gy, 0.85 + size * 0.5), material))
+    parts.append(
+        add_cylinder("barrel_small", 0.10, 0.19, (0.28, -0.30, 0.92), mats["wood_dark"], vertices=8)
+    )
+    return parts
+
+
+def build_tonneau(mats: Mats) -> list[bpy.types.Object]:
+    """Tonneau en bois cerclé de métal (~0,8 case)."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (0.98, 0.98), mats["dirt"], seed=45)
+    ]
+    parts.append(add_cylinder("barrel_body", 0.36, 0.78, (0, 0, 0.39), mats["wood"], vertices=12))
+    for z in (0.10, 0.39, 0.68):
+        parts.append(add_cylinder("barrel_band", 0.378, 0.055, (0, 0, z), mats["metal"], vertices=12))
+    parts.append(add_cylinder("barrel_lid", 0.33, 0.05, (0, 0, 0.80), mats["wood_light"], vertices=12))
+    parts.append(add_cylinder("barrel_rim", 0.362, 0.035, (0, 0, 0.775), mats["wood_dark"], vertices=12))
+    return parts
+
+
+def build_lanterne(mats: Mats) -> list[bpy.types.Object]:
+    """Lanterne sur poteau (~2,3 cases de haut) : socle, mât, fanal à vitres."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (0.78, 0.78), mats["dirt"], seed=46)
+    ]
+    parts.append(add_box("base", (0.34, 0.34, 0.14), (0, 0, 0.07), mats["stone_dark"]))
+    parts.append(add_box("base_step", (0.26, 0.26, 0.08), (0, 0, 0.17), mats["stone"]))
+    parts.append(add_box("post", (0.10, 0.10, 2.05), (0, 0, 1.19), mats["wood_dark"]))
+    parts.append(add_box("bracket", (0.34, 0.08, 0.08), (0.12, 0, 2.18), mats["metal"]))
+    # Fanal suspendu.
+    parts.append(add_box("lantern_top", (0.28, 0.28, 0.06), (0.26, 0, 2.10), mats["metal"]))
+    parts.append(add_box("lantern_bottom", (0.28, 0.28, 0.06), (0.26, 0, 1.78), mats["metal"]))
+    for dx in (-0.11, 0.11):
+        for dy in (-0.11, 0.11):
+            parts.append(
+                add_box("lantern_post", (0.035, 0.035, 0.30), (0.26 + dx, dy, 1.94), mats["metal"])
+            )
+    parts.append(add_box("lantern_glass", (0.20, 0.20, 0.24), (0.26, 0, 1.94), mats["lamp"]))
+    parts.append(
+        add_cone(
+            "lantern_cap",
+            0.20,
+            0.15,
+            (0.26, 0, 2.205),
+            mats["metal"],
+            vertices=4,
+            rotation=(0.0, 0.0, math.pi * 0.25),
+        )
+    )
+    return parts
+
+
+def build_banc(mats: Mats) -> list[bpy.types.Object]:
+    """Banc en bois (~1,1 case) : assise, dossier et pieds."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.34, 0.70), mats["grass"], seed=47)
+    ]
+    for y in (-0.09, 0.09):
+        parts.append(add_box("seat_plank", (1.10, 0.16, 0.06), (0, y, 0.45), mats["wood_light"]))
+    for x in (-0.42, 0.42):
+        parts.append(add_box("leg", (0.12, 0.42, 0.45), (x, 0, 0.225), mats["wood_dark"]))
+        parts.append(add_box("back_post", (0.09, 0.09, 0.52), (x, 0.17, 0.70), mats["wood_dark"]))
+    for z in (0.68, 0.86):
+        parts.append(add_box("back_slat", (1.06, 0.05, 0.10), (0, 0.19, z), mats["wood_light"]))
+    return parts
+
+
+def build_panneau(mats: Mats) -> list[bpy.types.Object]:
+    """Panneau indicateur (~1,9 case de haut) : mât et deux flèches de bois."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (0.74, 0.74), mats["dirt"], seed=48)
+    ]
+    parts.append(add_cylinder("post", 0.075, 1.86, (0, 0, 0.93), mats["wood"], vertices=7))
+    parts.append(add_cylinder("post_base", 0.13, 0.10, (0, 0, 0.05), mats["stone_dark"], vertices=7))
+    parts.append(
+        add_cone(
+            "post_cap",
+            0.12,
+            0.14,
+            (0, 0, 1.92),
+            mats["wood_dark"],
+            vertices=4,
+            rotation=(0.0, 0.0, math.pi * 0.25),
+        )
+    )
+    parts.append(
+        _arrow_board(
+            "arrow_high",
+            length=0.72,
+            height=0.20,
+            thickness=0.06,
+            material=mats["wood_light"],
+            origin=(0.10, 0.0, 1.52),
+            rotation_z=-0.20,
+        )
+    )
+    parts.append(
+        _arrow_board(
+            "arrow_low",
+            length=0.60,
+            height=0.17,
+            thickness=0.06,
+            material=mats["wood_light"],
+            origin=(-0.08, -0.015, 1.16),
+            rotation_z=math.pi + 0.18,
+        )
+    )
+    return parts
+
+
+def build_charrette(mats: Mats) -> list[bpy.types.Object]:
+    """Charrette en bois (~1,5 case) : caisse, roues, essieu et brancards."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("dirt_skirt", (1.72, 1.34), mats["dirt"], seed=49)
+    ]
+    # Caisse.
+    parts.append(add_box("bed", (1.25, 0.80, 0.10), (0, 0, 0.62), mats["wood_light"]))
+    for y in (-0.37, 0.37):
+        parts.append(add_box("side_panel", (1.25, 0.06, 0.28), (0, y, 0.78), mats["wood"]))
+    for x in (-0.60, 0.60):
+        parts.append(add_box("end_panel", (0.06, 0.80, 0.28), (x, 0, 0.78), mats["wood"]))
+    parts.append(add_box("underframe", (1.15, 0.12, 0.10), (0, 0, 0.52), mats["wood_dark"]))
+    # Essieu + roues (axe X).
+    parts.append(
+        add_cylinder(
+            "axle", 0.055, 1.50, (0, 0.02, 0.40), mats["wood_dark"], vertices=8,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    for x in (-0.72, 0.72):
+        parts.append(
+            add_cylinder(
+                "wheel", 0.40, 0.10, (x, 0.02, 0.42), mats["wood"], vertices=12,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+        parts.append(
+            add_cylinder(
+                "wheel_rim", 0.415, 0.045, (x, 0.02, 0.42), mats["metal"], vertices=12,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+        parts.append(
+            add_cylinder(
+                "wheel_hub", 0.12, 0.15, (x, 0.02, 0.42), mats["wood_dark"], vertices=8,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+    # Brancards vers l'avant (-Y).
+    for x in (-0.36, 0.36):
+        parts.append(add_box("shaft", (0.08, 0.66, 0.08), (x, -0.72, 0.55), mats["wood"]))
+    return parts
+
+
+def build_botte_foin(mats: Mats) -> list[bpy.types.Object]:
+    """Botte de foin (~0,9 case) : botte rectangulaire, liens et brins qui dépassent."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.02, 0.84), mats["grass"], seed=50)
+    ]
+    parts.append(add_box("bale", (0.84, 0.58, 0.52), (0, 0, 0.26), mats["hay"]))
+    parts.append(add_box("bale_top", (0.78, 0.52, 0.10), (0, 0, 0.56), mats["hay_light"]))
+    parts.append(add_box("bale_base", (0.86, 0.60, 0.06), (0, 0, 0.03), mats["hay_dark"]))
+    for x in (-0.24, 0.02, 0.26):
+        parts.append(add_box("bale_cord", (0.045, 0.60, 0.54), (x, 0, 0.27), mats["wood_dark"]))
+    # Brins qui dépassent, courts et inclinés (pas des clous).
+    straws = [
+        (-0.34, -0.18, 0.45, 0.30),
+        (-0.20, 0.20, -0.35, 0.50),
+        (0.08, -0.22, 0.30, -0.45),
+        (0.22, 0.16, -0.50, -0.25),
+        (0.36, -0.05, 0.20, 0.55),
+    ]
+    for index, (x, y, tilt_x, tilt_y) in enumerate(straws):
+        parts.append(
+            add_cone(
+                f"straw_{index}",
+                0.020,
+                0.13,
+                (x, y, 0.585),
+                mats["hay_light"] if index % 2 == 0 else mats["hay_dark"],
+                vertices=4,
+                rotation=(tilt_x, tilt_y, index * 0.4),
+            )
+        )
+    return parts
+
+
+
+# --------------------------------------------------------------------------- #
 # Declarations des assets
 # --------------------------------------------------------------------------- #
 
@@ -630,6 +1037,76 @@ ASSETS: list[AssetSpec] = [
         "Rocher basse-poly en trois blocs, taches de mousse.",
         ("nature", "obstacle", "decor"),
     ),
+    AssetSpec(
+        "mur",
+        "buildings",
+        build_mur,
+        "Mur de pierre droit (~2 cases) : assises decalees et dalles de couronnement.",
+        ("defense", "enceinte", "village"),
+    ),
+    AssetSpec(
+        "mur_coin",
+        "buildings",
+        build_mur_coin,
+        "Coin de mur en L (~1,8 case) pour fermer une enceinte.",
+        ("defense", "enceinte", "angle"),
+    ),
+    AssetSpec(
+        "barriere",
+        "props",
+        build_barriere,
+        "Barriere en bois (module 2 cases) : poteaux, lisses et jambe de force.",
+        ("cloture", "chemin", "campagne"),
+    ),
+    AssetSpec(
+        "etal_marche",
+        "props",
+        build_etal_marche,
+        "Etal de marche (~2 cases) : comptoir, auvent a rayures et marchandises.",
+        ("commerce", "marche", "village"),
+    ),
+    AssetSpec(
+        "tonneau",
+        "props",
+        build_tonneau,
+        "Tonneau en bois cercle de metal (~0,8 case).",
+        ("mobilier", "marchandise", "village"),
+    ),
+    AssetSpec(
+        "lanterne",
+        "props",
+        build_lanterne,
+        "Lanterne sur poteau (~2,3 cases de haut), fanal a vitres chaudes.",
+        ("eclairage", "rue", "village"),
+    ),
+    AssetSpec(
+        "banc",
+        "props",
+        build_banc,
+        "Banc en bois (~1,1 case) pour place ou jardin.",
+        ("mobilier", "village", "repos"),
+    ),
+    AssetSpec(
+        "panneau",
+        "props",
+        build_panneau,
+        "Panneau indicateur en bois (~1,9 case de haut), deux fleches.",
+        ("signalisation", "chemin", "village"),
+    ),
+    AssetSpec(
+        "charrette",
+        "props",
+        build_charrette,
+        "Charrette en bois (~1,5 case) : caisse, roues, essieu et brancards.",
+        ("transport", "marchandise", "village"),
+    ),
+    AssetSpec(
+        "botte_foin",
+        "props",
+        build_botte_foin,
+        "Botte de foin liee (~0,9 case), brins qui depassent.",
+        ("campagne", "ferme", "decor"),
+    ),
 ]
 
 
@@ -698,7 +1175,9 @@ def main(argv: list[str]) -> int:
     for spec, variant, name in jobs:
         try:
             reset_scene()
-            mats = material_palette(variant.palette, prefix=f"{name}_")
+            mats = material_palette(
+                variant.palette, prefix=f"{name}_", emissive={"lamp": 1.1}
+            )
             parts = spec.builder(mats)
             obj = finalize_asset(parts, name)
             if variant.scale != 1.0:
@@ -780,15 +1259,19 @@ def main(argv: list[str]) -> int:
                 }
             )
             dims_text = " x ".join(f"{d:.2f}" for d in dims)
+            glb_size = glb_path.stat().st_size / 1024.0 if glb_path.is_file() else 0.0
+            thumb_size = (
+                thumb_path.stat().st_size / 1024.0 if thumb_path.is_file() else 0.0
+            )
             log(
                 f"[OK] {spec.category}/{name}.glb  "
                 f"{triangles} tris ({triangles_base} mesh + contour)  "
                 f"{dims_text} cases  "
-                f"({glb_path.stat().st_size / 1024.0:.1f} Ko)"
+                f"({glb_size:.1f} Ko)"
                 + (
                     ""
                     if args.no_thumbs
-                    else f"  vignette {thumb_path.stat().st_size / 1024.0:.1f} Ko"
+                    else f"  vignette {thumb_size:.1f} Ko"
                 )
             )
         except Exception as exc:  # noqa: BLE001 - on continue les autres assets
@@ -798,17 +1281,34 @@ def main(argv: list[str]) -> int:
     # Manifeste informatif (l'editeur peut scanner les dossiers sans lui).
     if not args.no_manifest and not args.no_export and manifest:
         manifest_path = out_root / "manifest.json"
+        # Un build partiel (--only) ne doit pas ecraser le manifeste complet :
+        # on fusionne avec les entrees deja presentes sur le disque.
+        existing: dict[str, dict[str, object]] = {}
+        if args.only and manifest_path.is_file():
+            try:
+                previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+                for item in previous.get("assets", []):
+                    if isinstance(item, dict) and item.get("name"):
+                        existing[str(item["name"])] = item
+            except (json.JSONDecodeError, OSError):
+                existing = {}
+        for item in manifest:
+            existing[str(item["name"])] = item
+        merged = sorted(
+            existing.values(),
+            key=lambda item: (str(item.get("category")), str(item.get("name"))),
+        )
         payload = {
             "generated_by": "tools/blender/build_prototypes.py",
             "blender_version": bpy.app.version_string,
             "unit": "1 unite = 1 case de carte",
             "forward_axis_gltf": "+Z",
-            "assets": sorted(manifest, key=lambda item: (str(item["category"]), str(item["name"]))),
+            "assets": merged,
         }
         manifest_path.write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
-        log(f"[OK] manifeste: {manifest_path}")
+        log(f"[OK] manifeste: {manifest_path} ({len(merged)} assets)")
 
     log("-" * 78)
     if engine_used:

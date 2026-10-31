@@ -682,12 +682,18 @@ func _apply_lighting() -> void:
 		_sun.rotation_degrees = Vector3(-62.0, 25.0, 0.0)
 		return
 	if not bool(cfg.get("shadows", true)):
-		# Diorama : pas d'ombres portées. Soft fill pour ne pas noircir les
-		# matériaux encore éclairés (lumières ponctuelles, tokens VTT…).
+		# Diorama / 2.5D : pas d'ombres portées. Soft fill pour ne pas noircir les
+		# matériaux encore éclairés. Avec un vrai terrain 3D, on éclaire un peu
+		# plus pour retrouver la luminosité d'une carte peinte façon Dofus.
+		var terrain3d := MapData.get_ground_mode(map_data) == MapData.GROUND_TERRAIN3D
 		_sun.visible = true
 		_sun.shadow_enabled = false
-		_sun.light_energy = 0.55
-		_sun.rotation_degrees = Vector3(-62.0, 25.0, 0.0)
+		_sun.light_energy = 1.0 if terrain3d else 0.55
+		_sun.rotation_degrees = Vector3(-58.0, 25.0, 0.0)
+		if _world_env != null and _world_env.environment != null:
+			_world_env.environment.ambient_light_energy = 0.8 if terrain3d else 0.55
+			if terrain3d:
+				_world_env.environment.background_color = Color(0.10, 0.13, 0.17)
 		return
 	_sun.visible = true
 	_sun.shadow_enabled = true

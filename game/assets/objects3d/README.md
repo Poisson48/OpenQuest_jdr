@@ -7,8 +7,12 @@ posés sur une grille, avec un décor peint en fond. Les objets sont pensés pou
 terre/bois/pierre chaude et désaturée, matériaux mats, AO + mottling cuits en
 vertex colors, contour encre et jupe de raccord au sol.
 
-> Ces fichiers sont **générés** par `tools/blender/build_prototypes.py`.
-> Ne pas les retoucher à la main : modifier le script puis régénérer.
+Le kit est complété par les **textures de sol tuilables**
+[`game/assets/terrain/`](../terrain/README.md) (herbe, terre/chemin, pavé).
+
+> Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
+> `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
+> modifier les scripts puis régénérer.
 > Voir [docs/BLENDER_PIPELINE.md](../../docs/BLENDER_PIPELINE.md) pour le
 > workflow complet, la palette et les conventions.
 
@@ -36,10 +40,10 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-13 assets (8 objets de base + 5 variantes de taille/teinte), **14 188 triangles**
-au total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
+23 assets (18 modèles + 5 variantes de taille/teinte), **22 228 triangles** au
+total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 
-### Bâtiments — `buildings/`
+### Bâtiments et structures — `buildings/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
 |---|---|---|---|
@@ -48,6 +52,8 @@ au total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 | `maison_grande` | 2.26 × 2.10 × 2.17 | 2 304 (1 152+1 152) | Auberge, maison bourgeoise, bâtiment public |
 | `tour` | 1.47 × 1.33 × 2.37 | 1 088 (544+544) | Tour de guet, poste de garde |
 | `tour_grande` | 1.71 × 1.54 × 2.74 | 1 144 (572+572) | Donjon secondaire, tour de siège |
+| `mur` | 2.36 × 0.70 × 1.30 | 784 (392+392) | Enceinte, mur de soutènement (module 2 cases) |
+| `mur_coin` | 2.10 × 1.69 × 1.29 | 1 336 (668+668) | Coin d'enceinte en L |
 
 ### Décors — `props/`
 
@@ -58,6 +64,14 @@ au total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 | `caisse_grande` | 1.34 × 1.32 × 0.95 | 720 (360+360) | Cargaison, entrepôt, couvert |
 | `palissade` | 2.20 × 0.51 × 1.24 | 620 (310+310) | Clôture de camp, ligne défensive (module 2 cases) |
 | `puits` | 1.20 × 1.02 × 1.44 | 816 (408+408) | Point d'eau, place de village |
+| `barriere` | 2.10 × 0.44 × 0.94 | 496 (248+248) | Clôture basse de chemin ou pâture |
+| `etal_marche` | 1.96 × 1.53 × 2.00 | 1 792 (896+896) | Étal de marché, auvent à rayures |
+| `tonneau` | 0.92 × 0.91 × 0.84 | 648 (324+324) | Tonneau cerclé de métal |
+| `lanterne` | 0.84 × 0.84 × 2.30 | 396 (198+198) | Lanterne sur poteau, fanal émissif |
+| `banc` | 1.32 × 0.68 × 0.98 | 488 (244+244) | Banc de place / jardin |
+| `panneau` | 0.87 × 0.78 × 2.01 | 344 (172+172) | Panneau indicateur, deux flèches |
+| `charrette` | 1.61 × 1.74 × 0.94 | 1 208 (604+604) | Charrette à bras, roues et brancards |
+| `botte_foin` | 1.10 × 0.85 × 0.67 | 548 (274+274) | Botte de foin liée |
 
 ### Végétation — `vegetation/`
 
@@ -75,7 +89,8 @@ au total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 Chaque asset est accompagné de sa vignette : `buildings/maison_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, triangles,
 description) — il est **informatif** : l'éditeur peut scanner les dossiers.
-`_planche_assets.png` est une planche de contrôle de toutes les vignettes.
+`_planche_assets.png` est la planche du kit v1 ; `_planche_assets2.png` est la
+planche de contrôle enrichie (textures de sol + 23 objets).
 
 ---
 
@@ -111,13 +126,16 @@ Points d'intégration importants :
 
 - **Origine au pied** : `position` = point au sol ; la face avant regarde `+Z`.
 - **Contour** : le GLB contient deux meshes (`<nom>` et `<nom>_outline`).
-  Mettre `cast_shadow = SHADOW_CASTING_SETTING_OFF` sur `*_outline` (sinon
-  l'ombre de la coque assombrit l'objet en jeu, comme dans Blender).
+  Mettre `cast_shadow = SHADOW_CASTING_SETTING_OFF` sur `*_outline`.
 - **Vertex colors** : `COLOR_0` multiplie la couleur de base. Godot 4
   l'applique automatiquement à l'import glTF ; si un matériau semble plat,
   activer `Vertex Color > Use as Albedo` sur le `StandardMaterial3D`.
 - **Faces simples** : `doubleSided: false` dans le GLB (indispensable au
   contour). Ne pas forcer le rendu double face côté moteur.
+- **Lanterne** : le matériau `lamp` est émissif (`emissiveFactor` glTF) ; il
+  peut servir de source de lumière douce côté moteur.
+- **Sol** : textures tuilables dans `game/assets/terrain/` (voir
+  [`../terrain/README.md`](../terrain/README.md)).
 - Dimensions en cases : voir les tableaux (ex. `pont` = 2,64 cases).
 - La vignette `<nom>_thumb.png` est utilisable telle quelle dans la
   bibliothèque d'assets (fond transparent, même angle pour tous).
@@ -127,17 +145,21 @@ Points d'intégration importants :
 ## Régénérer les assets
 
 ```powershell
-# Tout regénérer + contrôle qualité (depuis la racine du dépôt)
+# Tout : GLB + vignettes + contrôle + textures de sol + planche enrichie
 .\tools\blender\run_build.ps1
 
-# Uniquement certains assets (itération)
-.\tools\blender\run_build.ps1 -Only maison tour
+# Uniquement certains objets (itération)
+.\tools\blender\run_build.ps1 -Only maison,mur,lanterne
 
 # Fallback si EEVEE ne rend pas sur la machine (Cycles CPU)
 .\tools\blender\run_build.ps1 -Engine cycles -Samples 24
 
-# Planche de contrôle des vignettes (nécessite Pillow)
-python tools/blender/make_contact_sheet.py
+# Sans textures de sol (si Pillow absent)
+.\tools\blender\run_build.ps1 -SkipTerrainTextures
+
+# Textures de sol seules + planche de contrôle du raccord
+python tools/blender/make_terrain_textures.py
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
 ```
 
 Appel direct sans le wrapper :

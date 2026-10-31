@@ -86,12 +86,18 @@ DEFAULT_PALETTE: dict[str, str] = {
     "water": "#4a6a70",
     "metal": "#53504a",
     "glow": "#d9b96a",
+    "lamp": "#e0b768",
     "cloth": "#8a5248",
     "grass": "#64704a",
     "grass_dark": "#545e3e",
     "dirt": "#8a755c",
     # Encrage : contour "inverted hull" et details sombres.
     "ink": "#241f1a",
+    # Foin / paille (botte de foin, toits de chaume eventuels) et osier.
+    "hay": "#a98a4f",
+    "hay_dark": "#7f6338",
+    "hay_light": "#c4a96b",
+    "wicker": "#9a7a4e",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.
@@ -247,13 +253,26 @@ def make_material(
 def material_palette(
     palette: dict[str, str] | None = None,
     prefix: str = "",
+    emissive: dict[str, float] | None = None,
 ) -> dict[str, bpy.types.Material]:
-    """Construit un dict de materiaux a partir de :data:`DEFAULT_PALETTE`."""
+    """Construit un dict de materiaux a partir de :data:`DEFAULT_PALETTE`.
+
+    ``emissive`` mappe une clé de palette à une force d'émission (ex.
+    ``{"glow": 0.9}`` pour les fenêtres et le fanal de lanterne). L'émission
+    est exportée en glTF et reconnue par Godot.
+    """
     palette = {**DEFAULT_PALETTE, **(palette or {})}
-    return {
-        key: make_material(f"{prefix}{key}".strip("_"), hex_color)
-        for key, hex_color in palette.items()
-    }
+    emissive = emissive or {}
+    materials: dict[str, bpy.types.Material] = {}
+    for key, hex_color in palette.items():
+        strength = emissive.get(key)
+        materials[key] = make_material(
+            f"{prefix}{key}".strip("_"),
+            hex_color,
+            emission=hex_color if strength else None,
+            emission_strength=strength or 1.0,
+        )
+    return materials
 
 
 # --------------------------------------------------------------------------- #

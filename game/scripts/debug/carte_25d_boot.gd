@@ -104,6 +104,17 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "arbre", "x": 4.5, "y": 7.5, "rotation": 0.0, "w": 1.0, "h": 1.0},
 		{"name": "arbre_automne", "x": 15.5, "y": 11.0, "rotation": 0.0, "w": 1.0, "h": 1.0},
 		{"name": "rocher", "x": 16.5, "y": 6.0, "rotation": 45.0, "w": 1.4, "h": 1.2},
+		# Kit 2 : vie du village (étal, tonneau, lanterne, mobilier, charrette).
+		{"name": "etal_marche", "x": 9.0, "y": 7.0, "rotation": 15.0, "w": 1.8, "h": 1.0},
+		{"name": "tonneau", "x": 10.6, "y": 7.4, "rotation": 0.0, "w": 0.8, "h": 0.8},
+		{"name": "lanterne", "x": 8.2, "y": 8.6, "rotation": 0.0, "w": 0.6, "h": 0.6},
+		{"name": "banc", "x": 11.8, "y": 6.8, "rotation": 90.0, "w": 1.4, "h": 0.6},
+		{"name": "panneau", "x": 6.2, "y": 5.4, "rotation": 0.0, "w": 0.7, "h": 0.7},
+		{"name": "charrette", "x": 13.6, "y": 10.0, "rotation": 30.0, "w": 1.8, "h": 1.2},
+		{"name": "botte_foin", "x": 14.6, "y": 10.6, "rotation": 0.0, "w": 1.0, "h": 1.0},
+		{"name": "barriere", "x": 5.0, "y": 11.0, "rotation": 0.0, "w": 2.0, "h": 0.5},
+		{"name": "mur", "x": 11.0, "y": 11.2, "rotation": 0.0, "w": 2.0, "h": 0.5},
+		{"name": "mur_coin", "x": 13.0, "y": 11.2, "rotation": 0.0, "w": 1.0, "h": 1.0},
 	]
 	var meshes: Array = []
 	for entry in placements:

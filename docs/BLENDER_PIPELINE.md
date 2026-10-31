@@ -34,8 +34,13 @@ Vérifier l'installation :
 # Blender 4.5.10 LTS
 ```
 
-Tous les scripts sont **offline** : aucune texture, aucun téléchargement,
-aucun asset externe. Les objets sont procéduraux.
+Tous les scripts sont **offline** : aucune texture importée, aucun téléchargement,
+aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
+générées par du bruit périodique (numpy + Pillow).
+
+Le pipeline couvre désormais le **kit enrichi v2** (murs, mobilier urbain,
+étal de marché, charrette, foin) et les **textures de sol tuilables**
+(herbe, terre/chemin, pavé de pierre).
 
 ---
 
@@ -45,20 +50,31 @@ aucun asset externe. Les objets sont procéduraux.
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 8 objets + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 18 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
-├── make_contact_sheet.py   # planche PNG de toutes les vignettes (Pillow)
-└── run_build.ps1           # build complet + vérification + récapitulatif
+├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
+├── make_contact_sheet.py   # planche PNG de toutes les vignettes (+ terrains)
+└── run_build.ps1           # build complet + vérification + textures + planche
 
 game/assets/objects3d/
 ├── README.md               # catalogue et mode d'emploi côté moteur
 ├── manifest.json           # métadonnées générées (nom, dims, tris, tags)
-├── _planche_assets.png     # planche de contrôle des vignettes
-├── buildings/              # maison*, tour*
-├── props/                  # pont, caisse*, palissade, puits
+├── _planche_assets.png     # planche de contrôle v1
+├── _planche_assets2.png    # planche enrichie v2 (objets + sols)
+├── buildings/              # maison*, tour*, mur, mur_coin
+├── props/                  # pont, caisse*, palissade, puits, barriere, etal_marche,
+│                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin
 ├── vegetation/             # arbre, arbre_automne
 └── terrain/                # rocher
+
+game/assets/terrain/
+├── README.md               # usage des textures de sol
+├── grass.png               # herbe 512², tuilable
+├── dirt.png                # terre / chemin 512², tuilable
+├── stone.png               # pavé de pierre 512², tuilable
+├── *_thumb.png             # 256² pour la bibliothèque
+└── _planche_terrain.png    # contrôle du raccord (tuile 2x2)
 ```
 
 ---
@@ -213,9 +229,48 @@ sont générées et nommées (`maison_petite`, `maison`, `maison_grande`,
 | `palissade` | 2.20 × 0.51 × 1.24 | module 2 cases |
 | `pont` | 2.64 × 1.30 × 1.09 | ~2,5 cases de long |
 | `rocher` | 1.45 × 1.18 × 0.87 | ~1,4 case |
+| `mur` | 2.36 × 0.70 × 1.30 | module 2 cases |
+| `mur_coin` | 2.10 × 1.69 × 1.29 | coin en L |
+| `barriere` | 2.10 × 0.44 × 0.94 | module 2 cases |
+| `etal_marche` | 1.96 × 1.53 × 2.00 | ~2 cases |
+| `tonneau` | 0.92 × 0.91 × 0.84 | ~0,8 case |
+| `lanterne` | 0.84 × 0.84 × 2.30 | ~2,3 cases de haut |
+| `banc` | 1.32 × 0.68 × 0.98 | ~1,1 case |
+| `panneau` | 0.87 × 0.78 × 2.01 | ~1,9 case de haut |
+| `charrette` | 1.61 × 1.74 × 0.94 | ~1,6 case (brancards inclus) |
+| `botte_foin` | 1.10 × 0.85 × 0.67 | ~0,9 case |
 
 Ces dimensions incluent le contour (+0,014 de chaque côté) et la jupe. Le
 manifeste et le récapitulatif de `run_build.ps1` les affichent.
+
+### 5.1 Kit enrichi v2 (10 objets)
+
+Deuxième passe qualité (objectif Dofus) : un kit de décor urbain et champêtre
+pour composer une place de village, un camp ou un chemin, sans réglage.
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `mur` | buildings | 2.36 × 0.70 × 1.30 | 784 (392+392) | Enceinte, mur de soutènement (module 2 cases) |
+| `mur_coin` | buildings | 2.10 × 1.69 × 1.29 | 1 336 (668+668) | Coin d'enceinte en L |
+| `barriere` | props | 2.10 × 0.44 × 0.94 | 496 (248+248) | Clôture basse de chemin ou pâture |
+| `etal_marche` | props | 1.96 × 1.53 × 2.00 | 1 792 (896+896) | Étal de marché avec auvent à rayures |
+| `tonneau` | props | 0.92 × 0.91 × 0.84 | 648 (324+324) | Tonneau cerclé de métal |
+| `lanterne` | props | 0.84 × 0.84 × 2.30 | 396 (198+198) | Lanterne sur poteau, fanal émissif |
+| `banc` | props | 1.32 × 0.68 × 0.98 | 488 (244+244) | Banc de place / jardin |
+| `panneau` | props | 0.87 × 0.78 × 2.01 | 344 (172+172) | Panneau indicateur, deux flèches |
+| `charrette` | props | 1.61 × 1.74 × 0.94 | 1 208 (604+604) | Charrette à bras, roues et brancards |
+| `botte_foin` | props | 1.10 × 0.85 × 0.67 | 548 (274+274) | Botte de foin liée |
+
+Notes de style :
+
+* murs et mobilier en pierre/bois de la palette Valbois, même pipeline AO +
+  mottling + contour encre que le kit v1 ;
+* l'**étal de marché** utilise un auvent rayé (deux matériaux mats, aucun
+  alpha) et des marchandises colorées très désaturées ;
+* la **lanterne** a un matériau `lamp` **émissif** (exporté en `emissiveFactor`
+  glTF) : Godot peut l'utiliser en source de lumière douce ;
+* les jupes de sol (herbe/terre) restent posées sous chaque objet pour le
+  raccord avec le décor peint.
 
 ---
 
@@ -225,8 +280,8 @@ manifeste et le récapitulatif de `run_build.ps1` les affichent.
 # Depuis la racine du dépôt : build + contrôle qualité + récapitulatif
 .\tools\blender\run_build.ps1
 
-# Itération sur un ou deux objets
-.\tools\blender\run_build.ps1 -Only maison tour
+# Itération sur un ou deux objets (liste PowerShell séparée par des virgules)
+.\tools\blender\run_build.ps1 -Only maison,tour
 
 # Repli moteur de rendu (voir § 12)
 .\tools\blender\run_build.ps1 -Engine cycles -Samples 24
@@ -263,11 +318,79 @@ python tools/blender/make_contact_sheet.py
 # -> game/assets/objects3d/_planche_assets.png
 ```
 
-Durée observée sur cette machine (Blender 4.5.10, EEVEE headless) : ~13 s pour
-les 13 assets, vignettes comprises (premier rendu plus lent, compilation des
-shaders).
+Durée observée sur cette machine (Blender 4.5.10, EEVEE headless) : ~11 s pour
+les 23 assets, vignettes comprises (premier rendu plus lent, compilation des
+shaders), plus ~3 s pour les textures de sol et la planche enrichie.
 
 ---
+
+## 6 bis. Textures de sol tuilables
+
+Trois textures **512×512 seamless** (elles se raccordent quand on les répète)
+générées offline par `tools/blender/make_terrain_textures.py` (numpy + Pillow) :
+
+| Fichier | Rôle | Palette |
+|---|---|---|
+| `grass.png` | herbe de prairie / sous-bois | `#3a4429` → `#64704a` → `#a3a870` + herbe sèche |
+| `dirt.png` | terre, chemin, place battue | `#5c4b38` → `#8a755c` → `#b6a183` + cailloux |
+| `stone.png` | pavé / dallage de pierre | `#545048` → `#8c887d` → `#b7b1a4` + mousse |
+
+Chaque texture est accompagnée de `*_thumb.png` (256², bibliothèque) et la
+planche `game/assets/terrain/_planche_terrain.png` montre chaque tuile répétée
+en 2×2 pour vérifier le raccord.
+
+### 6 bis.1 Commande
+
+```powershell
+python tools/blender/make_terrain_textures.py
+# sortie par défaut : game/assets/terrain/
+python tools/blender/make_terrain_textures.py --size 512 --seed 2026 --verify
+```
+
+Pillow est requis (comme pour la planche de vignettes). `run_build.ps1` exécute
+cette étape automatiquement s'il trouve un Python avec Pillow
+(`-PythonExe`, `$env:OQ_PYTHON`, `python`, `python3`).
+
+### 6 bis.2 Comment le seamless est garanti
+
+* bruit **périodique** : value noise sur grille bouclée, fBm multi-échelle
+  (3 → 64 cellules) et domain warp périodique ;
+* détails peints (brins, cailloux, fissures, joints) dessinés avec **repliement
+  sur les bords** (copie décalée de ±512 px quand le motif approche d'un bord) ;
+* pavé : cellules de Voronoï **périodiques** (distance calculée avec
+  repliement), joints et mousse dérivés de la distance au bord de cellule ;
+* flou/netteté appliqués sur une tuile 3×3 puis recadrés au centre (le flou ne
+  casse donc pas le raccord) ;
+* `--verify` mesure l'écart entre les bords opposés et le compare à l'écart
+  entre colonnes voisines intérieures : si le raccord est visible, le script
+  sort en erreur.
+
+### 6 bis.3 Utilisation côté Godot
+
+Pour un sol 3D simple (terrain maillé) ou un plan texturé :
+
+```gdscript
+var material := StandardMaterial3D.new()
+material.albedo_texture = load("res://assets/terrain/grass.png")
+material.roughness = 1.0
+material.metallic = 0.0
+material.uv1_scale = Vector3(2.0, 2.0, 1.0)  # 1 texture ≈ 2 cases
+material.texture_repeat = true
+material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+```
+
+Règles :
+
+* garder `roughness = 1`, `metallic = 0`, pas de normal map : le rendu reste
+  mat et peint ;
+* `uv1_scale` dépend de la taille de tuile voulue (test 1 texture = 2 cases,
+  ajuster si les motifs paraissent trop gros) ;
+* pas de transparence (PNG RGB opaque) ;
+* pour un terrain déformé (relief), préférer un `uv1_scale` constant et des
+  coordonnées UV projetées à plat (pas de triplanar, qui casse la continuité
+  peinte) ;
+* les objets posés dessus gardent leur jupe de raccord (herbe/terre) pour
+  éviter une ligne nette à leur base.
 
 ## 7. Exporter un `.blend` d'artiste
 
@@ -334,6 +457,16 @@ Ces réglages sont centralisés dans `oq_common` (`DEFAULT_AZIMUTH_DEG`,
 `DEFAULT_ELEVATION_DEG`, `DEFAULT_FOV_DEG`, `setup_studio_lights`,
 `render_thumbnail`) : ne pas les modifier par asset, sinon la bibliothèque
 devient hétérogène.
+
+Deux planches de contrôle :
+
+```powershell
+python tools/blender/make_contact_sheet.py
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
+```
+
+La seconde ajoute une rangée de textures de sol et sert de référence pour le
+kit v2 (26 cases : 3 sols + 23 objets).
 
 ---
 
@@ -402,6 +535,10 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
    mélanger les deux sur un même objet.
 7. **Vignettes** : `<nom>_thumb.png` (512, alpha) directement dans la
    bibliothèque de l'éditeur ; même angle pour tous → grille homogène.
+8. **Sol** : textures tuilables `game/assets/terrain/{grass,dirt,stone}.png`
+   en albédo mat (`roughness = 1`, `metallic = 0`), répétées avec
+   `uv1_scale` constant ; ce sont elles qui donnent l'échelle et la matière
+   générale, les objets se posent dessus via leur jupe de raccord.
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -468,14 +605,17 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets | 13 (8 objets + 5 variantes) |
-| Triangles / asset | 352 → **2 304** max (contour inclus), budget 5 000 |
-| Triangles total | **14 188** |
-| GLB / asset | ~45 → ~165 Ko (vertex colors + contour) |
-| Vignette / asset | ~130 → ~175 Ko (512 RGBA) |
+| Assets 3D | 23 (18 modèles + 5 variantes) |
+| Triangles / asset | 344 → **2 304** max (contour inclus), budget 5 000 |
+| Triangles total | **22 228** |
+| GLB / asset | ~33 → ~165 Ko (vertex colors + contour) |
+| Vignette / asset | ~114 → ~195 Ko (512 RGBA) |
+| Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
+| Planches | `_planche_assets.png`, `_planche_assets2.png` (26 cases), `_planche_terrain.png` |
 
-Les GLB restent légers : pas de texture, pas d'image embarquée, pas
-d'animation, pas de skin.
+Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
+skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
+dans les GLB).
 
 ---
 
@@ -489,7 +629,7 @@ d'animation, pas de skin.
 .\tools\blender\run_build.ps1
 
 # Build d'un sous-ensemble
-.\tools\blender\run_build.ps1 -Only maison tour
+.\tools\blender\run_build.ps1 -Only maison,tour
 
 # Build avec Cycles CPU (si EEVEE headless échoue)
 .\tools\blender\run_build.ps1 -Engine cycles -Samples 24
@@ -497,6 +637,13 @@ d'animation, pas de skin.
 # Build sans vignettes / sans vérification
 .\tools\blender\run_build.ps1 -SkipThumbs
 .\tools\blender\run_build.ps1 -SkipVerify
+
+# Textures de sol tuilables seules + planche enrichie
+python tools/blender/make_terrain_textures.py
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
+
+# Build complet sans les textures (Pillow absent par ex.)
+.\tools\blender\run_build.ps1 -SkipTerrainTextures
 
 # Build direct Blender (sans wrapper)
 & "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" `
@@ -625,6 +772,32 @@ Après un reboot ou un changement de pilote GPU, la première exécution peut
 
 ---
 
+### Python + Pillow introuvable (textures de sol, planche)
+
+Les textures de sol et les planches nécessitent **Pillow** (les scripts 3D
+tournent dans Blender, eux). `run_build.ps1` cherche `-PythonExe`,
+`$env:OQ_PYTHON`, `python`, `python3`, puis teste `import PIL`. Si rien ne
+convient, l'étape est sautée avec un avertissement (le build 3D reste OK).
+
+```powershell
+pip install pillow
+.\tools\blender\run_build.ps1 -PythonExe "C:\Python312\python.exe"
+```
+
+### Raccord visible quand la texture est répétée
+
+Lancer `python tools/blender/make_terrain_textures.py --verify` : il compare
+l'écart entre bords opposés à l'écart entre colonnes voisines intérieures. Si
+le script échoue, c'est que la génération a été modifiée sans respecter le
+repliement (tout détail peint doit passer par `_draw_shifted`, tout bruit doit
+être périodique).
+
+### Texture de sol trop répétée / motifs trop gros
+
+Ajuster `uv1_scale` côté Godot (1 texture = 2 cases par défaut). Si les motifs
+restent trop gros, régénérer avec `--size 1024` (plus de détail, fichier plus
+lourd) plutôt que de réduire l'échelle UV à l'extrême.
+
 ## 16. Checklist avant de rendre un asset
 
 - [ ] nom ASCII snake_case, catégorie correcte ;
@@ -638,6 +811,13 @@ Après un reboot ou un changement de pilote GPU, la première exécution peut
 - [ ] `verify_glb.py` : 0 échec, warnings examinés ;
 - [ ] récapitulatif `run_build.ps1` relu, planche de vignettes mise à jour ;
 - [ ] manifeste à jour, aucune retouche manuelle des fichiers générés.
+
+### Pour les textures de sol
+
+- [ ] 512×512, RGB opaque, `<nom>.png` + `<nom>_thumb.png` ;
+- [ ] `make_terrain_textures.py --verify` sans échec (raccord X et Y) ;
+- [ ] planche `_planche_terrain.png` relue (tuile 2×2) ;
+- [ ] pas de transparence, pas de normal map, matériau mat côté moteur.
 
 ---
 
@@ -658,3 +838,10 @@ Après un reboot ou un changement de pilote GPU, la première exécution peut
   simples.
 * Le pipeline exige EEVEE Next **ou** Cycles CPU ; le rendu GPU Cycles n'est
   pas testé.
+* Les textures de sol sont **générées** (bruit + détails peints procéduraux) :
+  elles sont seamless et cohérentes avec la palette, mais ne remplacent pas des
+  textures peintes à la main par un artiste pour des zones très spécifiques.
+* Les textures ne contiennent ni normal map ni height map : le relief reste
+  porté par la géométrie du terrain.
+* Une seule échelle de tuile par texture : pas d'atlas ni de mélange de
+  transitions herbe/terre/pavé (à composer côté moteur si besoin).

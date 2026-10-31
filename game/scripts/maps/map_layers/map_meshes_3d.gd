@@ -244,6 +244,17 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	root.add_child(visual)
 	root.set_meta("visual", visual)
 	_place_root(root, mesh)
+	# Lanterne : petite lumière d'ambiance au sommet (le GLB porte déjà
+	# l'émission du verre, on ajoute juste la lueur qui éclaire le sol).
+	if str(mesh.get("asset", "")).contains("lanterne"):
+		var light := OmniLight3D.new()
+		var top := _visual_aabb(visual).size.y
+		light.position = Vector3(0.0, top * 0.85, 0.0)
+		light.light_color = Color(1.0, 0.78, 0.45)
+		light.light_energy = 1.4
+		light.omni_range = 3.2
+		light.shadow_enabled = false
+		root.add_child(light)
 	# Rendu 2.5D léger : aucune ombre portée, aucune collision.
 	_sanitize_visual(visual)
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
