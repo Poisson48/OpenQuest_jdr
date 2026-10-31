@@ -364,14 +364,14 @@ static func build_demo(md: Node) -> Dictionary:
 			var h_dun := int(spec["h"])
 			sub["lighting"] = {
 				"enabled": true, "direction": "nw", "intensity": 0.15,
-				"nightMode": true, "nightAmbient": 0.45,
+				"nightMode": false, "nightAmbient": 1.0,
 				"sources": [
 					{"id": "donjon-torche-a", "x": 2.0, "y": 2.0,
-						"color": "#ffb05a", "energy": 2.1, "radius": 4.2, "elevation": 1.6},
+						"color": "#ffb05a", "energy": 4.5, "radius": 5.0, "elevation": 1.6},
 					{"id": "donjon-torche-b", "x": float(w_dun) - 2.5, "y": 2.0,
-						"color": "#ff9f4a", "energy": 2.0, "radius": 4.0, "elevation": 1.6},
+						"color": "#ff9f4a", "energy": 4.5, "radius": 5.0, "elevation": 1.6},
 					{"id": "donjon-brasier", "x": float(w_dun) * 0.5, "y": float(h_dun) - 2.0,
-						"color": "#ff7a3c", "energy": 2.6, "radius": 5.0, "elevation": 0.8},
+						"color": "#ff7a3c", "energy": 5.0, "radius": 5.6, "elevation": 0.8},
 				],
 			}
 		# Étang en forêt : dépression douce + plan d'eau.
