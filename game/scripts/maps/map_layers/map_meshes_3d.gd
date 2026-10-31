@@ -18,6 +18,20 @@ class_name MapMeshes3D
 ## headless avant import des GLB), une boîte neutre est posée au sol à la place
 ## pour que la carte reste lisible et testable sans dépendre d'un asset.
 ##
+## **Relief de terrain (M6, façon Rust / Fallout 76)** : si
+## `map_data["terrainHeights"]` a un relief non nul, chaque objet **suit le sol**
+## (option `followTerrain`, défaut `true`) :
+##   • échantillonnage de la hauteur au centre et aux 4 coins de l'empreinte
+##     (`w`/`h` en cases) et pose de la racine sur la hauteur **maximale**
+##     (`base_y`), pour ne jamais s'enterrer ; un objet **droit** (bâtiment) se
+##     pose sur la hauteur moyenne de son empreinte et reste vertical ;
+##   • si `tiltToTerrain = true` (rochers, arbres…) et au-delà de
+##     `SLOPE_INCLINE_THRESHOLD_DEG` de pente, l'objet est incliné pour aligner
+##     son axe +Y sur `terrain_normal_at`, en conservant le lacet
+##     `display.rotation` ;
+##   • l'ombre de contact reste horizontale et se pose à `base_y + 0.02` monde.
+## `followTerrain = false` → comportement historique (pied sur le plan y=0).
+##
 ## **Ombre de contact peinte** : chaque mesh reçoit un quad horizontal à peine
 ## au-dessus du sol, avec un dégradé radial alpha, dimensionné sur l'empreinte
 ## XZ de l'objet. Sans elle, un objet posé sur une illustration 2.5D « flotte ».
@@ -44,10 +58,21 @@ const FALLBACK_BOX_SIZE := Vector3(0.9, 1.0, 0.9)
 const CONTACT_SHADOW_HEIGHT := 0.02
 ## Opacité au centre de l'ombre de contact (dégradé doux vers les bords).
 const CONTACT_SHADOW_OPACITY := 0.25
+## Pente (en degrés) au-delà de laquelle l'objet s'incline sur le terrain.
+const SLOPE_INCLINE_THRESHOLD_DEG := 8.0
+## Seuil sous lequel une case de relief est considérée comme plate.
+const TERRAIN_RELIEF_EPSILON := 0.001
 
 var _cell_size: float = 1.0
 ## id → nœud racine (Node3D) du mesh, pour le déplacement live.
 var _nodes: Dictionary = {}
+## id → donnée source du mesh (pour reposer au sol sur relief en drag live).
+var _mesh_entries: Dictionary = {}
+## Relief : hauteurs par case (tableau plat, convention grille centrée case).
+var _terrain_heights: Array = []
+var _terrain_w: int = 0
+var _terrain_h: int = 0
+var _terrain_relief: bool = false
 ## Teinte d'ambiance du style de rendu (diorama/VTT), pour le fallback.
 var _atmosphere: Color = Color(0.10, 0.10, 0.14)
 var _has_atmosphere: bool = false
@@ -66,10 +91,12 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 	_has_atmosphere = not map_data.is_empty()
 	_atmosphere = MapRenderStyleScript.atmosphere_color(map_data) if _has_atmosphere else Color(0.10, 0.10, 0.14)
 	_unshaded = not bool(MapRenderStyleScript.config(map_data).get("litProps", false))
+	_read_terrain(map_data)
 	for child in get_children():
 		remove_child(child)
 		child.free()
 	_nodes.clear()
+	_mesh_entries.clear()
 	for mesh_variant in meshes:
 		if not mesh_variant is Dictionary:
 			continue
@@ -81,21 +108,136 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 			continue
 		add_child(node)
 		_nodes[str(mesh.get("id", ""))] = node
+		_mesh_entries[str(mesh.get("id", ""))] = mesh.duplicate(true)
+
+## Met à jour le relief **sans reconstruire les objets** (pinceau de relief de
+## l'éditeur, appelé à chaque mouvement : les GLB ne sont pas réinstanciés).
+## Repose les racines existantes sur les nouvelles hauteurs et réévalue
+## l'inclinaison + l'ombre de contact.
+func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.ZERO) -> void:
+	var data := {
+		"width": map_size.x if map_size.x > 0 else _terrain_w,
+		"height": map_size.y if map_size.y > 0 else _terrain_h,
+		"terrainHeights": terrain_heights,
+	}
+	_read_terrain(data)
+	for id in _nodes:
+		var node: Node3D = _nodes[id]
+		var entry: Dictionary = _mesh_entries.get(id, {})
+		if node == null or not is_instance_valid(node) or entry.is_empty():
+			continue
+		_place_root(node, entry)
+		var shadow := _find_child_with_meta(node, "contact_shadow")
+		if shadow is Node3D:
+			_repose_contact_shadow(node, shadow as Node3D, _is_inclined(entry))
+
+## Lit le relief fourni par le document (`terrainHeights` + dimensions carte).
+## Tableau absent / mal dimensionné → terrain plat (comportement historique).
+func _read_terrain(map_data: Dictionary) -> void:
+	_terrain_heights = []
+	_terrain_w = maxi(0, int(map_data.get("width", 0)))
+	_terrain_h = maxi(0, int(map_data.get("height", 0)))
+	_terrain_relief = false
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return
+	var raw = map_data.get("terrainHeights", [])
+	if not (raw is Array) or (raw as Array).size() != _terrain_w * _terrain_h:
+		return
+	_terrain_heights = raw
+	for value in _terrain_heights:
+		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
+			_terrain_relief = true
+			return
+
+## Hauteur du terrain (en cases) aux coordonnées grille **centrées case** —
+## même convention que `ComplexMapEngine3D.terrain_height_at` (entier = centre
+## de case, interpolation bilinéaire entre centres, 0 hors carte).
+func _terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_relief or _terrain_heights.is_empty():
+		return 0.0
+	if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+		return 0.0
+	var sx := clampf(gx, 0.0, float(_terrain_w - 1))
+	var sy := clampf(gy, 0.0, float(_terrain_h - 1))
+	var x0 := floori(sx)
+	var y0 := floori(sy)
+	var x1 := mini(x0 + 1, _terrain_w - 1)
+	var y1 := mini(y0 + 1, _terrain_h - 1)
+	var fx := sx - float(x0)
+	var fy := sy - float(y0)
+	var h00 := float(_terrain_heights[y0 * _terrain_w + x0])
+	var h10 := float(_terrain_heights[y0 * _terrain_w + x1])
+	var h01 := float(_terrain_heights[y1 * _terrain_w + x0])
+	var h11 := float(_terrain_heights[y1 * _terrain_w + x1])
+	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fy)
+
+## Normale du terrain aux coordonnées grille (voir `terrain_normal_at` moteur).
+func _terrain_normal_at(gx: float, gy: float) -> Vector3:
+	if not _terrain_relief:
+		return Vector3.UP
+	const STEP := 0.5
+	var dhdx := (_terrain_height_at(gx + STEP, gy) - _terrain_height_at(gx - STEP, gy)) / (2.0 * STEP)
+	var dhdz := (_terrain_height_at(gx, gy + STEP) - _terrain_height_at(gx, gy - STEP)) / (2.0 * STEP)
+	if absf(dhdx) < TERRAIN_RELIEF_EPSILON and absf(dhdz) < TERRAIN_RELIEF_EPSILON:
+		return Vector3.UP
+	return Vector3(-dhdx, 1.0, -dhdz).normalized()
+
+## Pente en degrés à partir d'une normale (0 = plat).
+func _slope_degrees(normal: Vector3) -> float:
+	return rad_to_deg(acos(clampf(normal.normalized().y, -1.0, 1.0)))
+
+## Empreinte au sol du mesh, en cases (centre + 4 coins échantillonnés).
+func _mesh_footprint(mesh: Dictionary) -> Vector2:
+	return Vector2(
+		maxf(0.01, float(mesh.get("w", 1.0))),
+		maxf(0.01, float(mesh.get("h", 1.0)))
+	)
+
+## Hauteur monde de la base sur le terrain. Objet **incliné** : max des hauteurs
+## sous l'empreinte (le point haut porte l'objet). Objet **droit** (bâtiments) :
+## moyenne des hauteurs, pour s'asseoir dans la pente sans flotter d'un côté.
+func _terrain_base_y(mesh: Dictionary) -> float:
+	if not _terrain_relief:
+		return 0.0
+	var gx := float(mesh.get("x", 0.0))
+	var gy := float(mesh.get("y", 0.0))
+	var footprint := _mesh_footprint(mesh)
+	var half := footprint * 0.5
+	var samples := [
+		_terrain_height_at(gx, gy),
+		_terrain_height_at(gx - half.x, gy - half.y),
+		_terrain_height_at(gx + half.x, gy - half.y),
+		_terrain_height_at(gx - half.x, gy + half.y),
+		_terrain_height_at(gx + half.x, gy + half.y),
+	]
+	if _is_inclined(mesh):
+		var best := 0.0
+		for value in samples:
+			best = maxf(best, float(value))
+		return best * _cell_size
+	var total := 0.0
+	for value in samples:
+		total += float(value)
+	return (total / float(samples.size())) * _cell_size
+
+## Repère de rotation qui aligne +Y sur `up` (normale du terrain) en conservant
+## le lacet demandé autour de cet axe.
+func _basis_with_up(up: Vector3, yaw: float) -> Basis:
+	var up_n := up.normalized()
+	var forward := Basis(Vector3.UP, yaw) * Vector3(0, 0, 1)
+	forward = forward - up_n * forward.dot(up_n)
+	if forward.length() < 0.001:
+		forward = Vector3(0, 0, 1) - up_n * up_n.z
+		if forward.length() < 0.001:
+			forward = Vector3(1, 0, 0)
+	forward = forward.normalized()
+	var right := up_n.cross(forward).normalized()
+	return Basis(right, up_n, right.cross(up_n))
 
 func _build_mesh(mesh: Dictionary) -> Node3D:
-	var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
-	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
-	var elevation := float(mesh.get("elevation", 0.0)) * _cell_size
-
 	var root := Node3D.new()
 	root.name = str(mesh.get("id", "mesh")) if not str(mesh.get("id", "")).is_empty() else "Mesh"
-	root.position = Vector3(
-		float(mesh.get("x", 0.0)) * _cell_size + _cell_size * 0.5,
-		elevation,
-		float(mesh.get("y", 0.0)) * _cell_size + _cell_size * 0.5
-	)
-	root.rotation_degrees.y = -float(display.get("rotation", 0.0))
-	root.scale = Vector3.ONE * _cell_size * display_scale
+	_place_root(root, mesh)
 
 	var visual := _instantiate_asset(str(mesh.get("asset", "")))
 	var fallback := visual == null
@@ -105,9 +247,48 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	# Rendu 2.5D léger : aucune ombre portée, aucune collision.
 	_sanitize_visual(visual)
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
-	_add_contact_shadow(root, visual)
+	_add_contact_shadow(root, visual, _is_inclined(mesh))
 	root.set_meta("fallback", fallback)
 	return root
+
+## Pose / repose la racine d'un mesh : pied sur le terrain (hauteur **moyenne**
+## de l'empreinte pour un bâtiment droit, **maximale** pour un objet incliné via
+## `tiltToTerrain`), élévation, puis inclinaison si la pente dépasse le seuil.
+func _place_root(root: Node3D, mesh: Dictionary) -> void:
+	var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
+	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
+	var gx := float(mesh.get("x", 0.0))
+	var gy := float(mesh.get("y", 0.0))
+	var elevation := float(mesh.get("elevation", 0.0)) * _cell_size
+	var base_y := _terrain_base_y(mesh) if _follows_terrain(mesh) else 0.0
+	var yaw := -float(display.get("rotation", 0.0))
+	var uniform := _cell_size * display_scale
+	root.position = Vector3(
+		gx * _cell_size + _cell_size * 0.5,
+		base_y + elevation,
+		gy * _cell_size + _cell_size * 0.5
+	)
+	if _is_inclined(mesh):
+		var normal := _terrain_normal_at(gx, gy)
+		var basis := _basis_with_up(normal, deg_to_rad(yaw))
+		root.transform = Transform3D(basis.scaled(Vector3.ONE * uniform), root.position)
+	else:
+		root.rotation_degrees = Vector3(0.0, yaw, 0.0)
+		root.scale = Vector3.ONE * uniform
+
+## Vrai si ce mesh doit suivre le terrain (option par objet, défaut oui).
+func _follows_terrain(mesh: Dictionary) -> bool:
+	return _terrain_relief and bool(mesh.get("followTerrain", true))
+
+## Vrai si le mesh doit être incliné : relief suivi + option `tiltToTerrain`
+## activée (défaut false : les bâtiments restent droits, même en pente) + pente > seuil.
+func _is_inclined(mesh: Dictionary) -> bool:
+	if not _follows_terrain(mesh):
+		return false
+	if not bool(mesh.get("tiltToTerrain", false)):
+		return false
+	var normal := _terrain_normal_at(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+	return _slope_degrees(normal) > SLOPE_INCLINE_THRESHOLD_DEG
 
 ## Instancie l'asset comme scène 3D, qu'il soit livré et importé par Godot
 ## (res://) ou importé par l'utilisateur dans user:// (GLTFDocument/GLTFState).
@@ -148,9 +329,11 @@ func _fallback_color() -> Color:
 	return FALLBACK_COLOR.lerp(_atmosphere, 0.15)
 
 ## Ajoute l'ombre de contact peinte : quad horizontal alpha, dégradé radial,
-## centré sur l'empreinte XZ réelle du mesh. `y` est compensé par l'échelle
-## racine pour rester à ~CONTACT_SHADOW_HEIGHT unités monde au-dessus du sol.
-func _add_contact_shadow(root: Node3D, visual: Node) -> void:
+## centré sur l'empreinte XZ réelle du mesh, posé à `CONTACT_SHADOW_HEIGHT`
+## unités monde au-dessus de la **base de l'objet** (donc au-dessus du terrain,
+## pas du plan y=0). Sur une pente, l'ombre reste horizontale (le parent est
+## incliné : on contre-rotations dans son repère).
+func _add_contact_shadow(root: Node3D, visual: Node, inclined: bool = false) -> void:
 	var bounds := _visual_aabb(visual)
 	var footprint := Vector2(bounds.size.x, bounds.size.z)
 	if footprint.x <= 0.001 or footprint.y <= 0.001:
@@ -164,14 +347,33 @@ func _add_contact_shadow(root: Node3D, visual: Node) -> void:
 	shadow.mesh = quad
 	# Quad XY → couché sur XZ, face vers le haut (même convention que les décors
 	# à plat de MapProps3D).
-	shadow.rotation_degrees.x = -90.0
-	# Le parent est mis à l'échelle : compenser pour un décalage monde constant.
-	var scale_y := maxf(absf(root.scale.y), 0.001)
-	shadow.position = Vector3(center.x, CONTACT_SHADOW_HEIGHT / scale_y, center.y)
 	shadow.material_override = _contact_shadow_material()
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shadow.set_meta("contact_shadow", true)
+	shadow.set_meta("contact_center", center)
+	shadow.set_meta("shadow_inclined", inclined)
 	root.add_child(shadow)
+	_repose_contact_shadow(root, shadow, inclined)
+
+## Repositionne / réoriente l'ombre de contact après un déplacement ou un
+## changement de pente. Toujours horizontale en monde, `CONTACT_SHADOW_HEIGHT`
+## au-dessus de la base de la racine.
+func _repose_contact_shadow(root: Node3D, shadow: Node3D, inclined: bool) -> void:
+	var center: Vector2 = shadow.get_meta("contact_center", Vector2.ZERO)
+	# Décalage vertical monde constant : compensé par l'échelle/rotation racine.
+	var vertical_local: Vector3 = root.transform.basis.inverse() * Vector3(0.0, CONTACT_SHADOW_HEIGHT, 0.0)
+	shadow.position = Vector3(
+		center.x + vertical_local.x,
+		vertical_local.y,
+		center.y + vertical_local.z
+	)
+	var flat_basis := Basis(Vector3.RIGHT, -PI * 0.5)
+	if inclined:
+		# La racine est inclinée : annuler sa rotation pour garder l'ombre à plat.
+		var parent_rot := root.transform.basis.orthonormalized()
+		shadow.transform = Transform3D(parent_rot.inverse() * flat_basis, shadow.position)
+	else:
+		shadow.transform = Transform3D(flat_basis, shadow.position)
 
 ## Matériau de l'ombre de contact : dégradé radial noir doux, alpha, non éclairé.
 func _contact_shadow_material() -> StandardMaterial3D:
@@ -254,12 +456,37 @@ func _apply_unshaded_materials(mesh_instance: MeshInstance3D) -> void:
 			pass
 
 ## Repositionne un mesh sans reconstruire la scène (glisser en cours).
+## Sur relief, le pied est reposé sur la nouvelle hauteur et l'inclinaison
+## réévaluée ; sur terrain plat, comportement historique (x/z seulement).
 func set_mesh_position(mesh_id: String, gx: float, gy: float) -> void:
 	if not _nodes.has(mesh_id):
 		return
 	var node: Node3D = _nodes[mesh_id]
+	var entry: Dictionary = _mesh_entries.get(mesh_id, {})
+	if not entry.is_empty():
+		entry["x"] = gx
+		entry["y"] = gy
+		_mesh_entries[mesh_id] = entry
+		if _terrain_relief:
+			_place_root(node, entry)
+			var shadow := _find_child_with_meta(node, "contact_shadow")
+			if shadow is Node3D:
+				_repose_contact_shadow(node, shadow as Node3D, _is_inclined(entry))
+			return
 	node.position.x = gx * _cell_size + _cell_size * 0.5
 	node.position.z = gy * _cell_size + _cell_size * 0.5
+
+## Premier descendant portant le meta demandé (null si absent).
+func _find_child_with_meta(node: Node, meta_name: String) -> Node:
+	if node == null:
+		return null
+	for child in node.get_children():
+		if child.has_meta(meta_name):
+			return child
+		var nested := _find_child_with_meta(child, meta_name)
+		if nested != null:
+			return nested
+	return null
 
 func has_mesh(mesh_id: String) -> bool:
 	return _nodes.has(mesh_id)

@@ -45,6 +45,8 @@ const TableDice3DScript := preload("res://scripts/maps/map_layers/table_dice_3d.
 
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 4.0
+## Seuil sous lequel une case de relief est considérée comme plate.
+const TERRAIN_RELIEF_EPSILON := 0.001
 const DRAG_THRESHOLD := 4.0
 const PAN_INERTIA_DECAY := 0.88
 const PAN_INERTIA_MIN := 2.0
@@ -75,6 +77,15 @@ var _selected_token_id: String = ""
 var _grid_config: Dictionary = {}
 var _map_extent: Vector2 = Vector2.ZERO
 var _cell_size: float = 1.0
+## Relief M6 : hauteurs par case lues dans `map_data["terrainHeights"]`
+## (tableau plat de floats, en cases, index y*width + x, 0 = plat).
+var _terrain_heights: Array = []
+var _terrain_w: int = 0
+var _terrain_h: int = 0
+var _terrain_relief: bool = false
+## Mode de sol effectif (`MapData.GROUND_TERRAIN3D` ou `GROUND_ILLUSTRATED`),
+## résolu depuis `map_data["groundMode"]` (voir `MapData.get_ground_mode`).
+var _ground_mode: String = "illustrated"
 var _base_ortho_size: float = 10.0
 var _base_camera_height: float = CAM_HEIGHT
 ## Marges écran (gauche, haut, droite, bas) pour cadrer la carte hors HUD.
@@ -348,6 +359,7 @@ func configure(
 	_selected_token_id = p_selected_token
 	_grid_config = MapData.get_grid_config(p_map)
 	_cell_size = float(_grid_config.get("size", 70)) * 0.01
+	_sync_terrain_from_map()
 	_lighting_config = MapData.get_lighting_config(p_map)
 	_style_cfg = MapRenderStyleScript.config(p_map)
 	_loaded_map_id = new_id
@@ -430,39 +442,48 @@ func set_view_inset(left: float, top: float, right: float, bottom: float) -> voi
 	if _camera != null and _map_extent != Vector2.ZERO:
 		request_fit_to_view()
 
-func _load_ground() -> void:
+func _load_ground(p_ground_mode: String = "") -> void:
 	if _ground == null:
 		push_warning("[ComplexMap] ground missing — rebuild viewport")
 		if _viewport == null:
 			_build_viewport_tree()
 		if _ground == null:
 			return
-	var tex := MapData.load_background_texture(map_data)
-	if tex == null:
-		tex = MapData.generate_tile_texture(map_data, _grid_config)
+	_ground_mode = p_ground_mode if not p_ground_mode.is_empty() else MapData.get_ground_mode(map_data)
+	var terrain3d := _ground_mode == MapData.GROUND_TERRAIN3D
 	var w: int = map_data.get("width", 16)
 	var h: int = map_data.get("height", 12)
 	var unshaded := MapRenderStyleScript.is_diorama(map_data)
 	var night_mode := MapData.is_night_mode(map_data)
+	# Le terrain 3D n'a besoin ni du PNG de fond ni du masque de nuit : en nuit,
+	# le moteur teinte simplement son albédo. On évite donc de charger/générer
+	# une texture inutile dans ce mode.
+	var tex: Texture2D = null
 	var night_tex: Texture2D = null
 	var sources: Array = []
 	var light_revealed: Array = []
 	var night_ambient := 0.22
-	if night_mode and not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
-		night_tex = MapData.load_night_texture(map_data)
-		var light_cfg: Dictionary = _lighting_config
-		night_ambient = float(light_cfg.get("nightAmbient", 0.22))
-		sources = light_cfg.get("sources", []) if light_cfg.get("sources") is Array else []
-		var pd = map_data.get("playDefaults", {})
-		if pd is Dictionary and pd.get("lightRevealed") is Array:
-			light_revealed = pd["lightRevealed"]
+	if not terrain3d:
+		tex = MapData.load_background_texture(map_data)
+		if tex == null:
+			tex = MapData.generate_tile_texture(map_data, _grid_config)
+		if night_mode and not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
+			night_tex = MapData.load_night_texture(map_data)
+			var light_cfg: Dictionary = _lighting_config
+			night_ambient = float(light_cfg.get("nightAmbient", 0.22))
+			sources = light_cfg.get("sources", []) if light_cfg.get("sources") is Array else []
+			var pd = map_data.get("playDefaults", {})
+			if pd is Dictionary and pd.get("lightRevealed") is Array:
+				light_revealed = pd["lightRevealed"]
 	if _ground.has_method("configure"):
 		_ground.configure(
 			tex, w, h, _cell_size, unshaded,
-			night_tex, night_mode and night_tex != null,
+			night_tex, night_mode,
 			sources if sources is Array else [],
 			light_revealed,
-			night_ambient
+			night_ambient,
+			_terrain_heights,
+			_ground_mode
 		)
 	if _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
@@ -474,6 +495,148 @@ func _load_ground() -> void:
 func _load_elevations() -> void:
 	if _elevations_layer and _elevations_layer.has_method("configure"):
 		_elevations_layer.configure(map_data, _cell_size)
+
+# ===========================================================================
+# Relief de terrain (M6) — adaptation des constructions au sol
+# ===========================================================================
+#
+# Contrat de données (fourni par le document / l'éditeur) :
+#   map_data["terrainHeights"] = tableau plat de floats, une hauteur **par
+#   case**, en unités « cases » (0 = plat), longueur width*height,
+#   index y*width + x.
+#
+# Convention de coordonnées : **grille centrée case**, la même que toutes les
+# autres coordonnées grille du moteur (`grid_to_screen`, `screen_to_grid_pos`,
+# `editor_pointer_*`) : `terrain_height_at(3, 4)` lit la hauteur de la case
+# (3,4) = terrainHeights[4*width + 3], et l'interpolation se fait entre
+# centres de cases. Hors des bords de la carte → 0.
+
+## Relit et valide `map_data["terrainHeights"]` (appelé par `configure` et
+## `refresh_terrain`). Un tableau absent ou mal dimensionné = terrain plat.
+func _sync_terrain_from_map() -> void:
+	_terrain_w = maxi(0, int(map_data.get("width", 0)))
+	_terrain_h = maxi(0, int(map_data.get("height", 0)))
+	_terrain_heights = []
+	_terrain_relief = false
+	var raw = map_data.get("terrainHeights", [])
+	if not (raw is Array):
+		return
+	if _terrain_w <= 0 or _terrain_h <= 0 or (raw as Array).size() != _terrain_w * _terrain_h:
+		return
+	_terrain_heights = raw
+	for value in _terrain_heights:
+		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
+			_terrain_relief = true
+			return
+
+## Vrai si la carte a un relief non nul (au moins une case ≠ 0).
+func terrain_has_relief() -> bool:
+	return _terrain_relief
+
+## Mode de sol effectif : `terrain3d` (heightfield réel) ou `illustrated`
+## (fond peint plat, aucun relief rendu).
+func get_ground_mode() -> String:
+	return _ground_mode
+
+## Vrai si le sol rendu est le vrai terrain 3D.
+func is_terrain3d_ground() -> bool:
+	return _ground_mode == MapData.GROUND_TERRAIN3D
+
+## Change le mode de sol à chaud **sans toucher au document** (le mode fait foi
+## pour le rendu courant ; `configure`/`refresh_terrain` le relisent depuis
+## `map_data["groundMode"]`). Équivalent visuel à `_sync_engine(true)` côté
+## éditeur, mais utilisable directement (tests, outils).
+func set_ground_mode(mode: String = "") -> void:
+	var resolved := mode.strip_edges().to_lower()
+	if resolved != MapData.GROUND_TERRAIN3D and resolved != MapData.GROUND_ILLUSTRATED:
+		resolved = MapData.get_ground_mode(map_data)
+	_ground_mode = resolved
+	_load_ground(_ground_mode)
+	_apply_camera_perspective()
+	_apply_atmosphere()
+	_apply_lighting()
+
+## Hauteur du terrain à des coordonnées grille (centrées case), en cases.
+## Interpolation bilinéaire entre les centres des cases ; 0 hors carte / sans
+## relief.
+func terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_relief or _terrain_heights.is_empty():
+		return 0.0
+	# Bords de la carte, en coordonnées grille : -0.5 … width-0.5.
+	if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+		return 0.0
+	var sx := clampf(gx, 0.0, float(_terrain_w - 1))
+	var sy := clampf(gy, 0.0, float(_terrain_h - 1))
+	var x0 := floori(sx)
+	var y0 := floori(sy)
+	var x1 := mini(x0 + 1, _terrain_w - 1)
+	var y1 := mini(y0 + 1, _terrain_h - 1)
+	var fx := sx - float(x0)
+	var fy := sy - float(y0)
+	var h00 := float(_terrain_heights[y0 * _terrain_w + x0])
+	var h10 := float(_terrain_heights[y0 * _terrain_w + x1])
+	var h01 := float(_terrain_heights[y1 * _terrain_w + x0])
+	var h11 := float(_terrain_heights[y1 * _terrain_w + x1])
+	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fy)
+
+## Normale du terrain aux coordonnées grille : dérivées des hauteurs
+## échantillonnées à ±0.5 case → `Vector3(-dh/dx, 1, -dh/dz).normalized()`.
+## `Vector3.UP` sur terrain plat / hors relief.
+func terrain_normal_at(gx: float, gy: float) -> Vector3:
+	if not _terrain_relief:
+		return Vector3.UP
+	const STEP := 0.5
+	var dhdx := (terrain_height_at(gx + STEP, gy) - terrain_height_at(gx - STEP, gy)) / (2.0 * STEP)
+	var dhdz := (terrain_height_at(gx, gy + STEP) - terrain_height_at(gx, gy - STEP)) / (2.0 * STEP)
+	if absf(dhdx) < TERRAIN_RELIEF_EPSILON and absf(dhdz) < TERRAIN_RELIEF_EPSILON:
+		return Vector3.UP
+	return Vector3(-dhdx, 1.0, -dhdz).normalized()
+
+## Met à jour le relief **sans reconstruire le viewport** (retour visuel du
+## pinceau de relief de l'éditeur, appelé à chaque mouvement de souris).
+## `p_map` est le `map_data` du document (avec `terrainHeights` à jour) ; sans
+## argument, relit le `map_data` courant. Reconfigure le sol puis repose les
+## meshes, décors et tokens sur les nouvelles hauteurs. Caméra, cadrage,
+## brouillard et grille ne sont pas touchés (pas de saut de vue au pinceau).
+func refresh_terrain(p_map: Dictionary = {}) -> void:
+	if not p_map.is_empty():
+		map_data = p_map
+	_sync_terrain_from_map()
+	var resolved_mode := MapData.get_ground_mode(map_data)
+	var mode_changed := resolved_mode != _ground_mode
+	if mode_changed:
+		_ground_mode = resolved_mode
+	if mode_changed or _ground == null or not is_instance_valid(_ground):
+		_load_ground()
+		if mode_changed:
+			_apply_camera_perspective()
+		_apply_atmosphere()
+	elif _ground.has_method("set_terrain_heights"):
+		# Mode inchangé : on reconstruit seulement le maillage du sol.
+		_ground.set_terrain_heights(_terrain_heights)
+	elif _ground.has_method("configure"):
+		_load_ground()
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	var map_size := Vector2i(w, h)
+	# Pinceau de relief : on repose les nœuds existants au lieu de reconstruire
+	# les calques (pas de rechargement de textures ni de réinstanciation des GLB).
+	if _props_layer and _props_layer.has_method("set_terrain_heights"):
+		_props_layer.set_terrain_heights(_terrain_heights, map_size)
+	elif _props_layer and _props_layer.has_method("configure"):
+		var props = map_data.get("props", [])
+		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+	if _meshes_layer and _meshes_layer.has_method("set_terrain_heights"):
+		_meshes_layer.set_terrain_heights(_terrain_heights, map_size)
+	elif _meshes_layer and _meshes_layer.has_method("configure"):
+		var meshes = map_data.get("meshes", [])
+		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
+	for tid in _token_nodes:
+		var node = _token_nodes[tid]
+		if node != null and is_instance_valid(node) and node.has_method("set_terrain_heights"):
+			node.set_terrain_heights(_terrain_heights, map_size)
+	if _ground != null and _ground.has_method("get_map_extent"):
+		_map_extent = _ground.get_map_extent()
 
 func _apply_camera_perspective() -> void:
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
@@ -549,7 +712,10 @@ func _apply_atmosphere() -> void:
 		return
 	var atmo: Dictionary = map_data.get("atmosphere", {}) if map_data.get("atmosphere") is Dictionary else {}
 	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
-	var illustrated := not str(map_data.get("backgroundImage", "")).strip_edges().is_empty()
+	# Un terrain3d n'est pas un fond peint : on garde un léger voile d'ambiance
+	# (profondeur) au lieu de désactiver l'atmosphère comme sur une illustration.
+	var illustrated := _ground_mode != MapData.GROUND_TERRAIN3D \
+		and not str(map_data.get("backgroundImage", "")).strip_edges().is_empty()
 	if atmo is Dictionary and atmo.get("enabled", false):
 		var tint := Color.html(str(atmo.get("tint", "#1a1410")))
 		# En diorama, plafonner le voile pour ne pas noyer l'illustration.
@@ -668,7 +834,7 @@ func _rebuild_layers() -> void:
 		# Vue table : des **pions** 3D posés sur le plateau, pas des découpes.
 		if table_view:
 			use_cutout = false
-		node.setup(tok, _cell_size, _party, readonly, use_cutout)
+		node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
 		if table_view and node.has_method("set_pawn_mode"):
 			node.set_pawn_mode(true)
 		if use_cutout and node.has_method("set_overlay_height"):
@@ -980,7 +1146,24 @@ func _raycast_ground(viewport_pos: Vector2) -> Vector3:
 	var t := -origin.y / direction.y
 	if t < 0.0:
 		return Vector3.INF
-	return origin + direction * t
+	var world := origin + direction * t
+	if not _terrain_relief:
+		return world
+	# Relief : le rayon coupe d'abord le plan y=0 ; on lit la hauteur de la case
+	# touchée puis on reprojette le rayon sur le plan horizontal à cette
+	# hauteur. Deux itérations suffisent pour les pentes de carte et convergent
+	# vers la surface (sur terrain plat, la hauteur vaut 0 → aucun changement).
+	for _iteration in range(2):
+		var gx := (world.x - _cell_size * 0.5) / _cell_size
+		var gy := (world.z - _cell_size * 0.5) / _cell_size
+		var surface_y := terrain_height_at(gx, gy) * _cell_size
+		if absf(surface_y - world.y) < 0.001:
+			break
+		var t_surface := (surface_y - origin.y) / direction.y
+		if t_surface < 0.0:
+			break
+		world = origin + direction * t_surface
+	return world
 
 func _screen_to_grid(screen_pos: Vector2) -> Vector2:
 	var world := _raycast_ground(_control_to_viewport(screen_pos))
@@ -1002,12 +1185,15 @@ func get_map_extent() -> Vector2:
 	return _map_extent
 
 ## Coordonnées grille → position en pixels dans ce Control.
+## La hauteur du terrain (en cases) s'ajoute à `height` : les overlays et les
+## poignées tombent juste sur une pente, et `height` reste une hauteur
+## **relative au sol** (élévation d'un objet, hauteur d'un mur…).
 func grid_to_screen(gx: float, gy: float, height: float = 0.0) -> Vector2:
 	if _camera == null:
 		return Vector2.ZERO
 	var world := Vector3(
 		gx * _cell_size + _cell_size * 0.5,
-		height * _cell_size,
+		(height + terrain_height_at(gx, gy)) * _cell_size,
 		gy * _cell_size + _cell_size * 0.5
 	)
 	if _camera.is_position_behind(world):
@@ -1097,6 +1283,8 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 		return
 	node.position.x = gx * _cell_size + _cell_size * 0.5
 	node.position.z = gy * _cell_size + _cell_size * 0.5
+	if node.has_method("apply_terrain_y"):
+		node.apply_terrain_y()
 	if node.has_method("get_token_id"):
 		node.token_data["x"] = gx
 		node.token_data["y"] = gy

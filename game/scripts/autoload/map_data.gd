@@ -7,6 +7,9 @@ const MAP_ASSETS_DIR := "user://map_assets/"
 const SCHEMA_VERSION := 5
 const RENDER_MODE_SIMPLE := "simple"
 const RENDER_MODE_COMPLEX := "complex"
+## Type de sol d'une carte 2.5D : vrai terrain 3D (heightfield) ou fond illustré plat.
+const GROUND_TERRAIN3D := "terrain3d"
+const GROUND_ILLUSTRATED := "illustrated"
 const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
@@ -529,6 +532,17 @@ func set_render_mode(map_id: String, mode: String) -> void:
 func is_complex_map(map_data: Dictionary) -> bool:
 	return get_render_mode(map_data) == RENDER_MODE_COMPLEX
 
+## Type de sol : `terrain3d` (heightfield réel) ou `illustrated` (fond peint plat).
+## Sans clé : une carte avec fond illustré reste en `illustrated` (compatibilité),
+## sinon on prend le vrai terrain 3D.
+func get_ground_mode(map_data: Dictionary) -> String:
+	var mode := str(map_data.get("groundMode", ""))
+	if mode == GROUND_TERRAIN3D or mode == GROUND_ILLUSTRATED:
+		return mode
+	if not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
+		return GROUND_ILLUSTRATED
+	return GROUND_TERRAIN3D
+
 func get_grid_config(map_data: Dictionary) -> Dictionary:
 	var cfg: Dictionary = DEFAULT_GRID_CONFIG.duplicate(true)
 	if map_data.get("grid") is Dictionary:
@@ -663,6 +677,11 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 			map_data["lighting"] = light
 	if not map_data.has("backgroundImageNight"):
 		map_data["backgroundImageNight"] = ""
+	# Sol : vrai terrain 3D par défaut, ou fond illustré si une image est fournie.
+	if not map_data.has("groundMode"):
+		map_data["groundMode"] = GROUND_ILLUSTRATED \
+			if not str(map_data.get("backgroundImage", "")).strip_edges().is_empty() \
+			else GROUND_TERRAIN3D
 	if not map_data.has("atmosphere"):
 		map_data["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.25, "vignette": 0.15}
 	if not map_data.has("playDefaults"):
@@ -684,6 +703,9 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	# Schéma 5 — objets 3D génériques (mix 2D/3D de la carte 2.5D).
 	if not map_data.has("meshes") or typeof(map_data["meshes"]) != TYPE_ARRAY:
 		map_data["meshes"] = []
+	# Relief : une hauteur de terrain par case (0 = plat).
+	if not map_data.has("terrainHeights") or typeof(map_data["terrainHeights"]) != TYPE_ARRAY:
+		map_data["terrainHeights"] = []
 	if not map_data.has("parentMapId"):
 		map_data["parentMapId"] = ""
 	if not map_data.has("status") or str(map_data.get("status", "")).is_empty():
@@ -745,6 +767,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"locationLinks": [],
 		"backgroundImage": "",
 		"backgroundImageNight": "",
+		"groundMode": GROUND_TERRAIN3D,
 		"fogEnabled": true,
 		"perspective": PERSPECTIVE_TOPDOWN,
 		"elevationLayers": [],

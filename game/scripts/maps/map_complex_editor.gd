@@ -52,6 +52,10 @@ var _zone_radius: float = 1.5
 var _zone_label: String = "Zone"
 var _effect_radius: float = 1.0
 var _brush_size: int = 0
+## Relief : pinceau de hauteurs (mode raise/lower/flatten/smooth).
+var _relief_radius: float = 1.5
+var _relief_strength: float = 0.35
+var _relief_mode: String = "raise"
 var _fog_brush: int = 1
 var _paint_tile: String = ""
 var _selected_template: String = ""
@@ -580,6 +584,7 @@ func _bind_settings_tab() -> void:
 	_settings_panel.fog_hide_all_pressed.connect(func(): doc.set_fog_cells([], "Brouillard total"))
 	_settings_panel.fog_reveal_all_pressed.connect(func(): doc.reveal_all_fog())
 	_settings_panel.render_style_changed.connect(_on_render_style_changed)
+	_settings_panel.ground_mode_changed.connect(_on_ground_mode_changed)
 	_settings_panel.perspective_changed.connect(_on_perspective_changed)
 	_settings_panel.atmosphere_changed.connect(_on_atmosphere_changed)
 	_settings_panel.lighting_changed.connect(_on_lighting_changed)
@@ -773,6 +778,11 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_press_mode = "paint"
 		_paint_terrain(grid)
 		return
+	if _tool == ToolsScript.TERRAIN_HEIGHT:
+		_press_mode = "relief"
+		doc.begin_transaction()
+		_paint_relief(grid)
+		return
 	if _tool == ToolsScript.BUCKET:
 		doc.bucket_fill(int(roundf(grid.x)), int(roundf(grid.y)), _paint_tile)
 		_press_mode = "none"
@@ -927,6 +937,8 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				_paint_terrain(grid)
 			else:
 				_paint_fog(grid)
+		"relief":
+			_paint_relief(grid)
 	_refresh_ghost()
 	_refresh_overlay()
 
@@ -964,6 +976,10 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_finish_draw(_snap(grid))
 		"paint":
 			_painted_cells.clear()
+		"relief":
+			doc.commit_transaction()
+			_sync_engine()
+			_set_status("Relief appliqué — les objets 3D s'adaptent à la hauteur.")
 	_press_mode = "none"
 	_overlay.drag_preview.clear()
 	if was_live:
@@ -1272,6 +1288,8 @@ func _create_mesh(grid: Vector2) -> void:
 		"w": footprint.x, "h": footprint.y,
 		"asset": _mesh_asset,
 		"elevation": 0.0,
+		"followTerrain": true,
+		"tiltToTerrain": _mesh_tilt_default(asset),
 		"label": str(asset.get("name", _mesh_asset.get_file().get_basename())),
 		"layer": 1,
 		"display": {"rotation": _mesh_rotation, "scale": _mesh_scale},
@@ -1419,6 +1437,13 @@ func _paint_terrain(grid: Vector2) -> void:
 	if not cells.is_empty():
 		doc.paint_tiles(cells)
 		_sync_engine()
+
+func _paint_relief(grid: Vector2) -> void:
+	doc.paint_terrain_brush(grid, _relief_radius, _relief_strength, _relief_mode, "Relief")
+	# Aperçu fluide : le moteur reconfigure seulement le sol + les objets posés.
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	_refresh_overlay()
 
 func _paint_fog(grid: Vector2) -> void:
 	var cx := int(roundf(grid.x))
@@ -1670,6 +1695,12 @@ func _generate_object3d_thumbnail(asset_path: String) -> void:
 		image.save_png(ProjectSettings.globalize_path(thumb_path))
 		AssetLibraryScript.clear_caches()
 	viewport.queue_free()
+
+## Les bâtiments restent droits sur une pente ; la végétation et les rochers
+## peuvent s'incliner pour épouser le terrain.
+func _mesh_tilt_default(asset: Dictionary) -> bool:
+	var category := str(asset.get("category", ""))
+	return category == "vegetation" or category == "terrain"
 
 func _select_mesh_asset(asset: Dictionary) -> void:
 	_mesh_asset = str(asset.get("path", ""))
@@ -2124,6 +2155,15 @@ func _refresh_ghost() -> void:
 			"kind": "template",
 			"rotation": float(_template_rotation * 90),
 		}
+	elif _tool == ToolsScript.TERRAIN_HEIGHT:
+		var relief_brush := _relief_radius * 2.0
+		_overlay.ghost = {
+			"x": _overlay.hover_grid.x,
+			"y": _overlay.hover_grid.y,
+			"w": relief_brush, "h": relief_brush,
+			"icon": "⛰",
+			"kind": "terrain_height",
+		}
 	elif ToolsScript.is_paint_tool(_tool):
 		var brush := float(_brush_size if _tool == ToolsScript.PAINT else _fog_brush) * 2.0 + 1.0
 		_overlay.ghost = {
@@ -2145,6 +2185,8 @@ func _ghost_icon_for_tool() -> String:
 		return str(MapEffectPresetsScript.get_preset(_effect_preset).get("emoji", "✨"))
 	return ToolsScript.icon(_tool)
 func _ghost_size() -> Vector2:
+	if _tool == ToolsScript.TERRAIN_HEIGHT:
+		return Vector2(_relief_radius * 2.0, _relief_radius * 2.0)
 	if _tool == ToolsScript.TOKEN:
 		return Vector2(_token_size, _token_size)
 	if _tool == ToolsScript.EFFECT:
@@ -2301,6 +2343,7 @@ func _sync_settings_ui() -> void:
 	_select_metadata("light_dir", str(light.get("direction", "nw")))
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
+	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -2355,6 +2398,17 @@ func _on_render_style_changed() -> void:
 	_sync_settings_ui()
 	_sync_engine(true)
 	_sync_engine()
+
+func _on_ground_mode_changed() -> void:
+	if _syncing:
+		return
+	var option: OptionButton = _settings_widgets.get("ground_mode")
+	if option == null or option.selected < 0:
+		return
+	var mode := str(option.get_item_metadata(option.selected))
+	doc.set_meta_values({"groundMode": mode}, "Type de sol")
+	_sync_engine(true)
+	_set_status("Sol : %s" % ("terrain 3D" if mode == "terrain3d" else "fond illustré plat"))
 
 func _on_atmosphere_changed() -> void:
 	if _syncing:
@@ -2480,7 +2534,7 @@ func _on_background_imported(path: String) -> void:
 		_set_status("Import impossible.")
 		return
 	doc.begin_transaction()
-	doc.set_meta_values({"backgroundImage": dest}, "Fond de carte")
+	doc.set_meta_values({"backgroundImage": dest, "groundMode": MapData.GROUND_ILLUSTRATED}, "Fond de carte")
 	doc.commit_transaction()
 	if cells != Vector2i.ZERO:
 		doc.resize_grid(cells.x, cells.y)
@@ -2521,7 +2575,7 @@ func _remove_background() -> void:
 	var map_id := str(doc.map_data.get("id", ""))
 	if not map_id.is_empty():
 		MapData.clear_background_image(map_id)
-	doc.set_meta_values({"backgroundImage": ""}, "Fond de carte")
+	doc.set_meta_values({"backgroundImage": "", "groundMode": MapData.GROUND_TERRAIN3D}, "Fond de carte")
 	_sync_settings_ui()
 	_sync_engine()
 
@@ -2752,6 +2806,29 @@ func _rebuild_tool_options() -> void:
 	elif _tool == ToolsScript.PAINT:
 		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_brush_size), 1, func(v): _brush_size = int(v))
 		_option_note("Tuile : %s" % _paint_tile)
+	elif _tool == ToolsScript.TERRAIN_HEIGHT:
+		var mode_opt := OptionButton.new()
+		var relief_modes := [
+			["raise", "Monter"], ["lower", "Baisser"],
+			["flatten", "Aplatir"], ["smooth", "Lisser"],
+		]
+		for i in range(relief_modes.size()):
+			mode_opt.add_item(str(relief_modes[i][1]), i)
+			mode_opt.set_item_metadata(i, str(relief_modes[i][0]))
+			if str(relief_modes[i][0]) == _relief_mode:
+				mode_opt.select(i)
+		mode_opt.item_selected.connect(func(index):
+			_relief_mode = str(mode_opt.get_item_metadata(index))
+		)
+		_tool_options.add_child(mode_opt)
+		_spin(_hbox(_tool_options), "Pinceau (cases)", 0.5, 8.0, _relief_radius, 0.5, func(v):
+			_relief_radius = v
+			_refresh_ghost()
+		)
+		_spin(_hbox(_tool_options), "Force (cases)", 0.05, 2.0, _relief_strength, 0.05, func(v):
+			_relief_strength = v
+		)
+		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _tool == ToolsScript.FOG_REVEAL or _tool == ToolsScript.FOG_HIDE:
 		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_fog_brush), 1, func(v): _fog_brush = int(v))
 	elif _tool == ToolsScript.TEMPLATE:

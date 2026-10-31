@@ -246,6 +246,11 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_add_note(str(elem.get("asset", "")).get_file())
 		_spin(_row(), "Élévation", -2.0, 20.0, float(elem.get("elevation", 0.0)), 0.1,
 			func(v): _apply({"elevation": v}, "Élévation"))
+		var terrain_row := _row()
+		_check(terrain_row, "Suivre le sol", bool(elem.get("followTerrain", true)),
+			func(on): _apply({"followTerrain": on}, "Terrain"))
+		_check(terrain_row, "Incliner (pente)", bool(elem.get("tiltToTerrain", false)),
+			func(on): _apply({"tiltToTerrain": on}, "Terrain"))
 		_section("Plan rapide")
 		var plane_row := _row()
 		_text_button(plane_row, "Arrière", func(): _apply({"layer": 1}, "Plan arrière"))

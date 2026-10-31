@@ -14,6 +14,7 @@ signal los_changed
 signal fog_hide_all_pressed
 signal fog_reveal_all_pressed
 signal render_style_changed
+signal ground_mode_changed
 signal perspective_changed
 signal atmosphere_changed
 signal lighting_changed
@@ -78,6 +79,24 @@ func _ready() -> void:
 		[SAVE_ON_CHANGE, "À chaque modification"],
 		[SAVE_INTERVAL, "Périodique (30 s)"],
 	])
+
+	# Type de sol : vrai terrain 3D (relief) ou fond illustré plat.
+	var ground_lbl := Label.new()
+	ground_lbl.text = "Type de sol"
+	add_child(ground_lbl)
+	var ground_opt := OptionButton.new()
+	add_child(ground_opt)
+	_fill_option(ground_opt, [
+		["terrain3d", "Terrain 3D (relief)"],
+		["illustrated", "Fond illustré (plat)"],
+	])
+	widgets["ground_mode"] = ground_opt
+	ground_opt.item_selected.connect(func(_i): ground_mode_changed.emit())
+	var style_node := find_child("LblStyle", true, false)
+	if style_node is Node:
+		var style_index := style_node.get_index()
+		move_child(ground_lbl, style_index)
+		move_child(ground_opt, style_index + 1)
 
 	%BtnImportBg.pressed.connect(func(): import_background_pressed.emit())
 	%BtnImportOverlay.pressed.connect(func(): import_overlay_pressed.emit())

@@ -22,6 +22,7 @@ const D_ELEM_DEL := "elem_del"
 const D_ELEM_MOD := "elem_mod"
 const D_META := "meta"
 const D_TILES := "tiles"
+const D_TERRAIN := "terrain"
 const D_FOG := "fog"
 const D_LIGHT_REVEAL := "light_reveal"
 const D_ORDER := "order"
@@ -134,6 +135,8 @@ func _ensure_editor_schema() -> void:
 		map_data["props"] = []
 	if not map_data.has("meshes") or typeof(map_data["meshes"]) != TYPE_ARRAY:
 		map_data["meshes"] = []
+	if not map_data.has("terrainHeights") or typeof(map_data["terrainHeights"]) != TYPE_ARRAY:
+		map_data["terrainHeights"] = []
 	if not map_data.has("backgroundTransform") or typeof(map_data["backgroundTransform"]) != TYPE_DICTIONARY:
 		map_data["backgroundTransform"] = {"offsetX": 0.0, "offsetY": 0.0, "scale": 1.0, "opacity": 1.0}
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
@@ -422,6 +425,7 @@ func to_map_data() -> Dictionary:
 	out["areas"] = areas
 	out["props"] = props
 	out["meshes"] = meshes
+	out["terrainHeights"] = _terrain_buffer()
 	out["markers"] = simple_markers
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
@@ -660,6 +664,8 @@ func _step_label(step: Array) -> String:
 			return "Réglages carte"
 		D_TILES:
 			return "Peinture terrain%s" % suffix
+		D_TERRAIN:
+			return "Relief%s" % suffix
 		D_FOG:
 			return "Brouillard"
 		D_ORDER:
@@ -736,6 +742,15 @@ func _apply_delta(delta: Dictionary, use_before: bool) -> void:
 					if idx >= 0 and idx < tiles.size():
 						tiles[idx] = (cells as Dictionary)[key]
 				map_data["tiles"] = tiles
+		D_TERRAIN:
+			var heights_delta = delta.get("before" if use_before else "after", {})
+			if heights_delta is Dictionary:
+				var heights: Array = map_data.get("terrainHeights", [])
+				for key in (heights_delta as Dictionary).keys():
+					var hidx := int(key)
+					if hidx >= 0 and hidx < heights.size():
+						heights[hidx] = float((heights_delta as Dictionary)[key])
+				map_data["terrainHeights"] = heights
 		D_FOG:
 			var fog = delta.get("before" if use_before else "after", [])
 			if fog is Array:
@@ -1025,6 +1040,132 @@ func get_tile_at(cx: int, cy: int) -> String:
 	if idx < 0 or idx >= tiles.size():
 		return ""
 	return str(tiles[idx])
+
+# --- Relief / hauteurs de terrain -------------------------------------------
+
+## Taille de la grille de relief (mêmes dimensions que la carte).
+func terrain_size() -> Vector2i:
+	return Vector2i(int(map_data.get("width", 16)), int(map_data.get("height", 12)))
+
+## Tableau plat des hauteurs (une par case, en cases), toujours dimensionné.
+func _terrain_buffer() -> Array:
+	var size := terrain_size()
+	var expected: int = size.x * size.y
+	var heights: Array = map_data.get("terrainHeights", [])
+	if typeof(heights) != TYPE_ARRAY:
+		heights = []
+	if heights.size() != expected:
+		var resized: Array = []
+		resized.resize(expected)
+		resized.fill(0.0)
+		for i in range(mini(heights.size(), expected)):
+			resized[i] = float(heights[i])
+		heights = resized
+		map_data["terrainHeights"] = heights
+	return heights
+
+func terrain_heights() -> Array:
+	return _terrain_buffer().duplicate()
+
+func has_terrain_relief() -> bool:
+	for value in _terrain_buffer():
+		if absf(float(value)) > 0.001:
+			return true
+	return false
+
+## Hauteur d'une case (0 hors carte / sans relief), en cases.
+func terrain_height(cx: int, cy: int) -> float:
+	var size := terrain_size()
+	if cx < 0 or cy < 0 or cx >= size.x or cy >= size.y:
+		return 0.0
+	var heights := _terrain_buffer()
+	var idx: int = cy * size.x + cx
+	return float(heights[idx]) if idx < heights.size() else 0.0
+
+## Applique une hauteur à une case (delta annulable).
+func set_terrain_height(cx: int, cy: int, value: float, note: String = "Relief") -> void:
+	var size := terrain_size()
+	if cx < 0 or cy < 0 or cx >= size.x or cy >= size.y:
+		return
+	var heights := _terrain_buffer()
+	var idx: int = cy * size.x + cx
+	var clamped := clampf(value, -2.0, 12.0)
+	if is_equal_approx(float(heights[idx]), clamped):
+		return
+	_push_delta({
+		"type": D_TERRAIN,
+		"before": {str(idx): heights[idx]},
+		"after": {str(idx): clamped},
+		"note": note,
+	})
+	heights[idx] = clamped
+	map_data["terrainHeights"] = heights
+	changed.emit("terrain")
+
+## Pinceau de relief : monte, baisse, aplatit ou lisse les hauteurs autour d'un point.
+## `mode` ∈ {raise, lower, flatten, smooth}. Une seule étape d'undo par appel :
+## l'éditeur regroupe un trait complet dans une transaction.
+func paint_terrain_brush(center: Vector2, radius: float, strength: float,
+		mode: String = "raise", note: String = "Relief") -> void:
+	var size := terrain_size()
+	var heights := _terrain_buffer()
+	var r := maxf(0.5, radius)
+	var min_x := maxi(0, int(floor(center.x - r)))
+	var max_x := mini(size.x - 1, int(ceil(center.x + r)))
+	var min_y := maxi(0, int(floor(center.y - r)))
+	var max_y := mini(size.y - 1, int(ceil(center.y + r)))
+	if min_x > max_x or min_y > max_y:
+		return
+	var target := terrain_height(int(round(center.x)), int(round(center.y)))
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			# Coordonnées grille centrées case : la case (cx,cy) est au point (cx,cy).
+			var d := Vector2(cx, cy).distance_to(center)
+			if d > r:
+				continue
+			var mask := clampf(1.0 - d / r, 0.0, 1.0)
+			mask = mask * mask  # bord doux
+			var idx: int = cy * size.x + cx
+			var current := float(heights[idx])
+			var next := current
+			match mode:
+				"lower":
+					next = current - strength * mask
+				"flatten":
+					next = lerp(current, target, clampf(mask * 0.65, 0.0, 1.0))
+				"smooth":
+					next = lerp(current, _terrain_neighbor_average(heights, size, cx, cy), clampf(mask * 0.7, 0.0, 1.0))
+				_:
+					next = current + strength * mask
+			next = clampf(next, -2.0, 12.0)
+			if absf(next - current) < 0.001:
+				continue
+			before[str(idx)] = current
+			after[str(idx)] = next
+			heights[idx] = next
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+
+func _terrain_neighbor_average(heights: Array, size: Vector2i, cx: int, cy: int) -> float:
+	var total := 0.0
+	var count := 0
+	for oy in range(-1, 2):
+		for ox in range(-1, 2):
+			var x := cx + ox
+			var y := cy + oy
+			if x < 0 or y < 0 or x >= size.x or y >= size.y:
+				continue
+			var idx: int = y * size.x + x
+			if idx >= 0 and idx < heights.size():
+				total += float(heights[idx])
+				count += 1
+	return total / float(maxi(1, count))
+
 
 ## Remplissage par diffusion (bucket) à partir d'une case.
 func bucket_fill(cx: int, cy: int, tile_id: String) -> void:

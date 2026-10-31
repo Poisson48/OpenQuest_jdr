@@ -29,9 +29,21 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(_copy_dir)
 
 	var base: Dictionary = md.create_complex_map("Démo carte 2.5D", "general", "local", 24, 16)
-	base["backgroundImage"] = "res://assets/maps/valbois_village.png"
+	base["backgroundImage"] = ""
+	base["groundMode"] = "terrain3d"
 	base["renderStyle"] = "2.5d"
 	base["fogEnabled"] = false
+	# Butte de démonstration : les objets posés doivent s'adapter au relief.
+	var w := int(base.get("width", 24))
+	var h := int(base.get("height", 16))
+	var heights: Array = []
+	heights.resize(w * h)
+	heights.fill(0.0)
+	for cy in range(h):
+		for cx in range(w):
+			var d := Vector2(cx, cy).distance_to(Vector2(9.5, 7.5))
+			heights[cy * w + cx] = maxf(0.0, 1.4 * (1.0 - d / 6.5))
+	base["terrainHeights"] = heights
 	md.update_map(base)
 	base = md.get_by_id(str(base.get("id", "")))
 
@@ -83,6 +95,12 @@ func _run() -> void:
 		await process_frame
 	_assert("camera_persp", engine._camera.projection == Camera3D.PROJECTION_PERSPECTIVE)
 	_assert("meshes_layer", engine._meshes_layer != null and engine._meshes_layer.get_child_count() >= 3)
+	_assert("terrain_relief", engine.terrain_has_relief())
+	_assert("ground_relief", engine._ground.is_relief_active())
+	var first_mesh: Node3D = engine._meshes_layer.get_child(0)
+	print("  [relief] h(9.5,7.5)=", engine.terrain_height_at(9.5, 7.5),
+		" premier_mesh_y=", first_mesh.position.y,
+		" tilt=", first_mesh.rotation_degrees)
 
 	await _shot("carte_25d_mesh_demo", engine)
 	engine._apply_zoom(1.8, engine.size * 0.5)

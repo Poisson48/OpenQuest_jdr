@@ -66,7 +66,7 @@ Le socle est donc **déjà à 70 %** de la cible : il manque principalement le *
 | **M5** | Démo | une carte village 2.5D mêlant sol peint, props 2D et objets 3D, livrée comme carte de démo et scène de test éditeur | capture + smoke |
 | **M6** | **Adaptation au terrain** | relief peint par cases (hauteur), objets 3D posés au sol réel : base sur la hauteur du terrain et inclinaison selon la pente (façon Rust / Fallout 76), ombre de contact qui suit | test relief + capture |
 
-**État au 31 octobre** : **M1→M4 livrés** — type `mesh`, outil éditeur, import GLB utilisateur (copie `user://` + vignette auto), style **Carte 2.5D par défaut**, pipeline Blender et 13 assets. **M6 (terrain) en cours.** Captures : [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) (parcours de pose), [`carte_25d_mesh_demo.png`](./screenshots/carte_25d_mesh_demo.png) et [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) (rendu intégré).
+**État au 31 octobre** : **M1→M4 livrés** — type `mesh`, outil éditeur, import GLB utilisateur (copie `user://` + vignette auto), style **Carte 2.5D par défaut**, pipeline Blender et 13 assets. **M6 livré** : relief par cases, vrai sol 3D simple (heightfield) et objets adaptés au sol (bâtiments droits, rochers/arbres inclinables). **Monde de zones Dofus** : modèle `WorldZones` livré (voir [MONDE_ZONES.md](./MONDE_ZONES.md)), éditeur/session à venir. Captures : [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) (parcours de pose), [`carte_25d_mesh_demo.png`](./screenshots/carte_25d_mesh_demo.png) et [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) (rendu intégré).
 
 Tester dans l'éditeur :
 
@@ -103,8 +103,8 @@ Exigence : comme dans Rust ou Fallout 76, **une construction posée sur un terra
 | Aspect | Implémentation |
 |---|---|
 | Relief | `terrainHeights` : une hauteur par case (en cases), peinte à l'outil **Relief** (monter/baisser) avec pinceau ; stockée dans la carte et sérialisée. |
-| Rendu | Le sol peint est déformé (grille tessellée + UV du fond), avec un ombrage doux par sommet pour lire les pentes ; terrain plat si aucune hauteur. |
-| Pose d'objet | Un mesh échantillonne la hauteur sous son empreinte (centre + coins) ; sa base se pose sur la hauteur **maximale** (pas d'enfoncement) et il **s'incline** selon la normale du terrain au-delà d'un seuil. |
+| Rendu | **Vrai terrain 3D simple** (`groundMode = terrain3d`) : grille heightfield éclairée avec vertex colors herbe/terre/roche ; le fond illustré n'est plus déformé (`groundMode = illustrated` = ancien mode plat). |
+| Pose d'objet | Un mesh échantillonne la hauteur sous son empreinte ; un **bâtiment reste droit** et se pose sur la hauteur moyenne, un rocher/arbre peut **s'incliner** (`tiltToTerrain`) sur la normale du terrain. |
 | Découpes 2D / tokens | Même règle de hauteur pour le pied (éviter qu'ils flottent sur une butte). |
 | Contact | L'ombre de contact suit la hauteur locale ; les objets restent sélectionnables au bon endroit à l'écran (projection avec hauteur). |
 | Réglage | Option par objet « Suivre le terrain » (activée par défaut) + seuil d'inclinaison dans les réglages de carte. |

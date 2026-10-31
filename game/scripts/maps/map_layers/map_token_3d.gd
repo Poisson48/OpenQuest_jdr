@@ -4,9 +4,17 @@ class_name MapToken3D
 ## Token — cylindre VTT, découpe dressée (diorama/DD2), ou **pion** façon
 ## pièce d'échecs sur le plateau (vue table) : révolution LatheMesh teintée
 ## à la couleur du joueur, qu'on pose / déplace comme une figurine.
+##
+## **Relief (M6)** : le pied (racine) est posé à
+## `terrain_height_at(x, y) * cell_size` pour ne pas flotter sur une butte. Les
+## découpes 2D **ne sont pas inclinées** (elles restent verticales) : seule la
+## hauteur suit le sol.
 
 signal drag_finished(token_id: String, gx: float, gy: float)
 signal selected(token_id: String)
+
+## Seuil sous lequel une case de relief est considérée comme plate.
+const TERRAIN_RELIEF_EPSILON := 0.001
 
 var token_data: Dictionary = {}
 var cell_size: float = 1.0
@@ -25,15 +33,84 @@ var _selection_ring: MeshInstance3D
 var _dragging: bool = false
 var _overlay_texture: Texture2D = null
 var _overlay_height: float = 1.0
+## Relief : hauteurs par case (tableau plat, convention grille centrée case).
+var _terrain_heights: Array = []
+var _terrain_w: int = 0
+var _terrain_h: int = 0
+var _terrain_relief: bool = false
 
-func setup(data: Dictionary, c_size: float, p_party: Array, p_readonly: bool, p_diorama: bool = false) -> void:
+func setup(
+	data: Dictionary,
+	c_size: float,
+	p_party: Array,
+	p_readonly: bool,
+	p_diorama: bool = false,
+	terrain_heights: Array = [],
+	map_size: Vector2i = Vector2i.ZERO
+) -> void:
 	token_data = data.duplicate(true)
 	cell_size = c_size
 	party = p_party
 	readonly = p_readonly
 	diorama_mode = p_diorama
+	set_terrain_heights(terrain_heights, map_size)
 	_build_visuals()
 	_sync_position()
+
+## Met à jour le relief et repose le token sans reconstruire son visuel
+## (pinceau de relief de l'éditeur : `ComplexMapEngine3D.refresh_terrain`).
+func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.ZERO) -> void:
+	_terrain_heights = terrain_heights if terrain_heights is Array else []
+	if map_size.x > 0:
+		_terrain_w = map_size.x
+	if map_size.y > 0:
+		_terrain_h = map_size.y
+	_terrain_relief = false
+	if _terrain_w <= 0 or _terrain_h <= 0 or _terrain_heights.size() != _terrain_w * _terrain_h:
+		_terrain_heights = []
+		return
+	for value in _terrain_heights:
+		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
+			_terrain_relief = true
+			break
+	if is_inside_tree():
+		_sync_position()
+
+## Hauteur du terrain (en cases) aux coordonnées grille **centrées case** —
+## même convention que `ComplexMapEngine3D.terrain_height_at`.
+func _terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_relief or _terrain_heights.is_empty():
+		return 0.0
+	if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+		return 0.0
+	var sx := clampf(gx, 0.0, float(_terrain_w - 1))
+	var sy := clampf(gy, 0.0, float(_terrain_h - 1))
+	var x0 := floori(sx)
+	var y0 := floori(sy)
+	var x1 := mini(x0 + 1, _terrain_w - 1)
+	var y1 := mini(y0 + 1, _terrain_h - 1)
+	var fx := sx - float(x0)
+	var fy := sy - float(y0)
+	var h00 := float(_terrain_heights[y0 * _terrain_w + x0])
+	var h10 := float(_terrain_heights[y0 * _terrain_w + x1])
+	var h01 := float(_terrain_heights[y1 * _terrain_w + x0])
+	var h11 := float(_terrain_heights[y1 * _terrain_w + x1])
+	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fy)
+
+## Hauteur monde du pied du token (0 sur terrain plat).
+func _terrain_base_y(gx: float, gy: float) -> float:
+	if not _terrain_relief:
+		return 0.0
+	return _terrain_height_at(gx, gy) * cell_size
+
+## Repose le token sur la hauteur du terrain courant (après un déplacement).
+func apply_terrain_y() -> void:
+	var gx := (position.x - cell_size * 0.5) / cell_size
+	var gy := (position.z - cell_size * 0.5) / cell_size
+	var lift := 0.0
+	if selected_state:
+		lift = cell_size * (0.06 if diorama_mode else 0.12)
+	position.y = _terrain_base_y(gx, gy) + lift
 
 func _build_visuals() -> void:
 	for child in get_children():
@@ -241,14 +318,14 @@ func set_selected(on: bool) -> void:
 	if _selection_ring:
 		_selection_ring.visible = on
 	if diorama_mode and not pawn_mode:
-		position.y = cell_size * 0.03 if on else 0.0
+		position.y = _terrain_base_y_at_world(position) + (cell_size * 0.03 if on else 0.0)
 		return
 	if _mesh and _mesh.material_override is StandardMaterial3D:
 		var mat: StandardMaterial3D = _mesh.material_override
 		mat.emission_enabled = on
 		mat.emission = _token_color().lightened(0.4) if on else Color.BLACK
 		mat.emission_energy_multiplier = 0.6 if on else 0.0
-		position.y = cell_size * 0.12 if on else 0.0
+		position.y = _terrain_base_y_at_world(position) + (cell_size * 0.12 if on else 0.0)
 
 func get_token_id() -> String:
 	return str(token_data.get("id", ""))
@@ -270,8 +347,12 @@ func update_drag_world(world_pos: Vector3) -> void:
 		return
 	position.x = world_pos.x
 	position.z = world_pos.z
+	# Le point de sol renvoyé par le moteur tient déjà compte du relief.
+	var base_y := world_pos.y if _terrain_relief else 0.0
 	if selected_state:
-		position.y = cell_size * (0.06 if diorama_mode else 0.12)
+		position.y = base_y + cell_size * (0.06 if diorama_mode else 0.12)
+	else:
+		position.y = base_y
 
 func is_dragging() -> bool:
 	return _dragging
@@ -281,10 +362,22 @@ func _sync_position() -> void:
 	var gy := float(token_data.get("y", 0))
 	position = _grid_to_world(gx, gy)
 	if selected_state:
-		position.y = cell_size * (0.06 if diorama_mode else 0.12)
+		position.y = _terrain_base_y(gx, gy) + cell_size * (0.06 if diorama_mode else 0.12)
 
 func _grid_to_world(gx: float, gy: float) -> Vector3:
-	return Vector3(gx * cell_size + cell_size * 0.5, 0.0, gy * cell_size + cell_size * 0.5)
+	return Vector3(
+		gx * cell_size + cell_size * 0.5,
+		_terrain_base_y(gx, gy),
+		gy * cell_size + cell_size * 0.5
+	)
+
+## Hauteur du terrain sous une position monde (pour `set_selected`).
+func _terrain_base_y_at_world(world: Vector3) -> float:
+	if not _terrain_relief:
+		return 0.0
+	var gx := (world.x - cell_size * 0.5) / cell_size
+	var gy := (world.z - cell_size * 0.5) / cell_size
+	return _terrain_base_y(gx, gy)
 
 func _commit_position() -> void:
 	var gx := (position.x - cell_size * 0.5) / cell_size

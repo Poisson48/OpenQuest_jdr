@@ -167,6 +167,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 💡 Lumière | `0` | Pose une source lumineuse (torche, brasier) avec vacillement |
 | Terrain | 🖌 Terrain | `B` | Peint les tuiles de sol (taille de pinceau réglable) |
 | Terrain | 🪣 Remplir | `G` | Remplit la zone contiguë de même tuile |
+| Terrain | ⛰ Relief | `U` | Monte / baisse / aplatit / lisse la hauteur du terrain. Les objets 3D posés s'adaptent à la pente. |
 | Brouillard | 🌫 Révéler | `R` | Révèle le brouillard autour du curseur |
 | Brouillard | 🚫 Masquer | `T` | Remasque des cases déjà révélées |
 | Outils | 🔗 Lier | `L` | Clic source puis clic cible : crée un lien orienté |
@@ -321,6 +322,10 @@ Onglet **Carte** :
 
 - **Fond** : import PNG/JPEG/WebP (les dimensions de grille sont déduites de
   l'image), ajout de calques d'élévation, retrait du fond.
+- **Type de sol** : **Terrain 3D** (heightfield simple, relief peint à l'outil
+  ⛰ et objets 3D adaptés au sol — recommandé pour la carte 2.5D) ou **Fond
+  illustré** (image peinte à plat ; mode historique, aucune déformation). Un
+  fond importé bascule automatiquement en « Fond illustré ».
 - **Style de rendu** : **Diorama 2.5D** (défaut — fond peint + découpes) ou
   **VTT 3D** (battlemap tactique avec ombres et murs volumétriques).
 - **Dimensions** : redimensionnement non destructif — le terrain existant est
@@ -395,7 +400,7 @@ Fichiers : `game/assets/maps/valbois_village_night.png`, `place_du_marche_night.
 | `F` | Recadrer sur la sélection |
 | Molette | Zoom · clic milieu : déplacer la vue |
 | `Espace` maintenu | Navigation temporaire |
-| `V H 1..0 B G R T L M K E O` | Sélection directe d'un outil |
+| `V H 1..0 B G U R T L M K E O` | Sélection directe d'un outil |
 
 ---
 
@@ -493,7 +498,8 @@ Un **lieu** (`kind: "area"`) porte en plus :
 
 Ajouts en version 3 : `walls`, `notes`, `layers`, `measure`. En version 4 :
 `areas` (les lieux), `props` (les décors) et `parentMapId` (la carte dont
-celle-ci est le zoom). En version 5 : `meshes` (les objets 3D de la carte 2.5D).
+celle-ci est le zoom). En version 5 : `meshes` (les objets 3D de la carte 2.5D)
+et `terrainHeights` (une hauteur de relief par case, en cases).
 `MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
 
 ---
@@ -573,6 +579,10 @@ objet 3D depuis l'éditeur réel.
 
 `map_meshes_3d_test.gd` couvre le calque de rendu `MapMeshes3D` (positions,
 échelle, rotation, masquage, fallback cube sans asset).
+
+`map_terrain_doc_test.gd` couvre le relief côté document/éditeur (hauteurs par
+case, pinceau, undo d'un trait, sérialisation) et l'outil ⛰ Relief.
+`map_terrain_test.gd` couvre le rendu et l'adaptation des objets au terrain.
 
 > Note : en mode `--script`, les autoloads ne sont pas des identifiants globaux
 > au moment de la compilation. Les scripts qui référencent `MapData` sont donc

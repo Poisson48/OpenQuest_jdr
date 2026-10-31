@@ -10,7 +10,6 @@ extends Node
 ## Dans l'éditeur : onglet **Biblio → 🧊 Objets 3D**, cliquer un objet, puis
 ## cliquer la carte. `R` pivote, l'échelle est dans les options de l'outil.
 
-const MAP_BACKGROUND := "res://assets/maps/valbois_village.png"
 
 var _editor: Control
 
@@ -39,7 +38,7 @@ func _ready() -> void:
 		_editor._set_status("Objets 3D : cliquez un modèle dans Biblio, puis cliquez la carte (R pivote).")
 
 	var hint := Label.new()
-	hint.text = "CARTE 2.5D — Biblio → 🧊 Objets 3D : cliquez un objet puis la carte. R pivote · molette = zoom (Ctrl) · Échap = menu."
+	hint.text = "CARTE 2.5D — Biblio → 🧊 Objets 3D (ou ＋ Importer un GLB) · outil ⛰ Relief (U) pour sculpter le sol · les objets s'adaptent au terrain · Échap = menu."
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_top = 4
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -59,7 +58,9 @@ static func build_demo(md: Node) -> Dictionary:
 	if map.is_empty():
 		return {}
 	var map_id := str(map.get("id", ""))
-	map["backgroundImage"] = MAP_BACKGROUND
+	# Vrai terrain 3D simple (pas de fond peint déformé).
+	map["backgroundImage"] = ""
+	map["groundMode"] = "terrain3d"
 	map["renderStyle"] = "2.5d"
 	map["fogEnabled"] = false
 	md.update_map(map)
@@ -100,6 +101,20 @@ static func build_demo(md: Node) -> Dictionary:
 			"display": {"rotation": float(entry["rotation"]), "scale": float(entry["scale"])},
 		})
 	map["meshes"] = meshes
+
+	# Relief de démonstration : une butte douce au centre-ouest, pour voir les
+	# objets 3D s'adapter au sol (hauteur par case, en cases).
+	var w := int(map.get("width", 24))
+	var h := int(map.get("height", 16))
+	var heights: Array = []
+	heights.resize(w * h)
+	heights.fill(0.0)
+	for cy in range(h):
+		for cx in range(w):
+			var d := Vector2(cx, cy).distance_to(Vector2(9.5, 7.5))
+			var hill := maxf(0.0, 1.4 * (1.0 - d / 6.5))
+			heights[cy * w + cx] = hill
+	map["terrainHeights"] = heights
 	md.update_map(map)
 	map = md.get_by_id(map_id)
 

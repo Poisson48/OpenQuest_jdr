@@ -20,6 +20,7 @@ const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
 const BUCKET := "bucket"
+const TERRAIN_HEIGHT := "terrain_height"
 const FOG_REVEAL := "fog"
 const FOG_HIDE := "fog_hide"
 const ERASE := "erase"
@@ -38,6 +39,8 @@ const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM, AREA]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
+## Outil de relief : pinceau de hauteurs (traitement distinct de la peinture de tuiles).
+const RELIEF_TOOLS := [TERRAIN_HEIGHT]
 
 const DEFS := [
 	{
@@ -107,6 +110,10 @@ const DEFS := [
 	{
 		"id": BUCKET, "icon": "🪣", "label": "Remplir", "shortcut": "G", "group": "terrain",
 		"hint": "Clic : remplir toute la zone contiguë de même tuile.",
+	},
+	{
+		"id": TERRAIN_HEIGHT, "icon": "⛰", "label": "Relief", "shortcut": "U", "group": "terrain",
+		"hint": "Clic ou glisser : monter/baisser le terrain. Les objets 3D posés s'adaptent à la hauteur. Mode, pinceau et force dans les options.",
 	},
 	{
 		"id": FOG_REVEAL, "icon": "🌫", "label": "Révéler", "shortcut": "R", "group": "fog",
@@ -258,7 +265,7 @@ const SHORTCUTS := [
 	{"keys": "Alt+glisser", "action": "Dupliquer en glissant"},
 	{"keys": "Page ↑ / ↓", "action": "Avancer / reculer d'un rang"},
 	{"keys": "F", "action": "Recadrer sur la sélection"},
-	{"keys": "V H 1..0 B G R T L M K E O", "action": "Sélection directe d'un outil"},
+	{"keys": "V H 1..0 B G U R T L M K E O", "action": "Sélection directe d'un outil"},
 ]
 
 static func shortcuts_text() -> String:
