@@ -22,8 +22,11 @@
 | Objets 3D | **80 objets** livrés (bâtiments, tours, toits/façades, intérieurs, PNJ, nature) |
 | Thèmes de zone | **Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer, Lac** : sols, relief, ambiance et décors de départ (puits, arbres, murs, rochers…) |
 | Biblio | recherche + filtres (bâtiments / toits & façades / personnages / nature / intérieurs / mobilier), **import GLB** avec vignette |
-| Aimantation | toits sur le bâtiment le plus proche, façades sur son avant ; **rotation du bâtiment héritée** ; aperçu fantôme |
-| Édition objet | dimensions X/Y/Z, rotation (R, poignées), élévation, échelle |
+| Aimantation | toits sur le bâtiment le plus proche, façades sur le **mur le plus proche** (avant/arrière/côté), dos collé au nu ; **rotation héritée** ; aperçu fantôme |
+| Édition objet | dimensions X/Y/Z, rotation (R, poignées), élévation, **échelle uniforme** |
+| Construction | **Mur 3D** (hauteur réglable), **Pièce 3D**, **Dallage** (matière + nivellement), **Toit 3D** (styles), **Porte 3D** et **Fenêtre 3D** avec ouvertures réelles, **Maison rapide** |
+| Intérieur / extérieur | **Meubler** (4 ensembles), **Clôture** (3 styles), **Chemin** peint au sol |
+| Rendu | **SSAO**, **glow**, étalonnage, **ombres directionnelles** sur terrain 3D |
 | Aide | bouton **?** (parcours, astuces, raccourcis), mini-carte |
 | Test | bouton **▶ Tester** : enregistre et lance la session (monde entier si lié) |
 
@@ -104,7 +107,7 @@ Schéma de carte v5 : `renderStyle`, `groundMode` (`terrain3d`/`illustrated`),
 Runner : `scripts/run_tests.ps1` (timeout par test, détection `PASS`/JSON,
 captures ignorées par défaut, pas de `--quit` trompeur).
 
-**Dernier run complet : 43 tests, 42 PASS.**
+**Dernier run complet : 44 tests, 43 PASS.**
 
 - PASS : toute la suite carte 2.5D, monde/zones, éditeur, session (mini-carte,
   déplacement au clic), scénarios, personnages, table, chargement de scènes,
