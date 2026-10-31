@@ -438,6 +438,7 @@ func configure(
 	_load_ambient_fx()
 	_load_elevations()
 	_sync_table_environment()
+	_apply_render_quality()
 	_apply_camera_perspective()
 	_apply_lighting()
 	_apply_atmosphere()
@@ -511,6 +512,39 @@ func set_view_inset(left: float, top: float, right: float, bottom: float) -> voi
 	_view_inset = Vector4(maxf(left, 0.0), maxf(top, 0.0), maxf(right, 0.0), maxf(bottom, 0.0))
 	if _camera != null and _map_extent != Vector2.ZERO:
 		request_fit_to_view()
+
+## Qualité de rendu « Dofus » : AO écran pour asseoir les bâtiments, glow doux
+## sur les lumières, contraste/couleurs légèrement relevés. Réservé au 2.5D
+## terrain pour ne pas dégrader les fonds illustrés.
+func _apply_render_quality() -> void:
+	if _world_env == null:
+		return
+	var env: Environment = _world_env.environment
+	if env == null:
+		return
+	var terrain := _ground_mode == "terrain3d" or MapRenderStyleScript.is_map_25d(map_data)
+	env.ssao_enabled = terrain
+	if terrain:
+		env.ssao_radius = 1.35
+		env.ssao_intensity = 1.35
+		env.ssao_power = 1.15
+		env.ssao_detail = 0.8
+		env.ssao_horizon = 0.08
+		env.ssao_sharpness = 0.98
+		env.ssao_light_affect = 0.12
+	env.glow_enabled = true
+	env.glow_intensity = 0.34 if terrain else 0.18
+	env.glow_strength = 0.9
+	env.glow_bloom = 0.025
+	env.glow_hdr_threshold = 1.05
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.adjustment_enabled = true
+	env.adjustment_brightness = 1.04
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.08 if terrain else 1.0
+	if _sun != null:
+		_sun.shadow_blur = 1.25
+		_sun.directional_shadow_blend_splits = true
 
 func _load_ground(p_ground_mode: String = "") -> void:
 	if _ground == null:
