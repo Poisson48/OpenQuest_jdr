@@ -3335,20 +3335,22 @@ func transition_map_edge(target_map_id: String, token_id: String, position: Vect
 	return true
 
 ## Marque une zone du monde comme découverte (carte du monde / découverte).
-func mark_world_zone_discovered(map_id: String) -> void:
+## Renvoie vrai si la zone vient d'être découverte (première visite).
+func mark_world_zone_discovered(map_id: String) -> bool:
 	if active_game.is_empty() or map_id.is_empty():
-		return
+		return false
 	ensure_map_play_state()
 	var nav: Dictionary = active_game.get("mapNavigation", {})
 	if not nav.has("discoveredZones") or typeof(nav["discoveredZones"]) != TYPE_ARRAY:
 		nav["discoveredZones"] = []
 	var discovered: Array = nav["discoveredZones"]
 	if discovered.has(map_id):
-		return
+		return false
 	discovered.append(map_id)
 	nav["discoveredZones"] = discovered
 	active_game["mapNavigation"] = nav
 	save_active_game()
+	return true
 
 ## Zones découvertes du monde courant.
 func get_discovered_world_zones() -> Array:

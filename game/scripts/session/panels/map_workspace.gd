@@ -35,6 +35,7 @@ var _exits_lbl: Label
 var _fade: ColorRect
 var _transitioning: bool = false
 var _zone_title_lbl: Label
+var _zone_new_lbl: Label
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -125,6 +126,21 @@ func _ready() -> void:
 	_zone_title_lbl.visible = false
 	get_tree().root.add_child(_zone_title_lbl)
 	_zone_title_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Sous-titre « nouvelle zone découverte » sous le nom (première visite).
+	_zone_new_lbl = Label.new()
+	_zone_new_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zone_new_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zone_new_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_zone_new_lbl.add_theme_font_size_override("font_size", 20)
+	_zone_new_lbl.add_theme_color_override("font_color", Color(0.7, 0.88, 1.0))
+	_zone_new_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	_zone_new_lbl.add_theme_constant_override("shadow_offset_x", 2)
+	_zone_new_lbl.add_theme_constant_override("shadow_offset_y", 2)
+	_zone_new_lbl.modulate.a = 0.0
+	_zone_new_lbl.visible = false
+	get_tree().root.add_child(_zone_new_lbl)
+	_zone_new_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_zone_new_lbl.offset_top = 58
 	tree_exiting.connect(func():
 		if _world_map != null and is_instance_valid(_world_map):
 			_world_map.queue_free()
@@ -132,6 +148,8 @@ func _ready() -> void:
 			_fade.queue_free()
 		if _zone_title_lbl != null and is_instance_valid(_zone_title_lbl):
 			_zone_title_lbl.queue_free()
+		if _zone_new_lbl != null and is_instance_valid(_zone_new_lbl):
+			_zone_new_lbl.queue_free()
 	)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -166,30 +184,41 @@ func _on_world_zone_selected(map_id: String) -> void:
 func _travel_to_zone(map_id: String) -> void:
 	_transitioning = true
 	await _fade_to(1.0)
+	var was_known := GameData.get_discovered_world_zones().has(map_id)
 	if GameData.enter_world_zone(map_id):
 		_active_map_id = map_id
 		refresh()
 		var title := str(MapData.get_by_id(map_id).get("title", "Zone"))
 		notice_requested.emit("Voyage vers %s" % title)
-		await _flash_zone_title(title)
+		await _flash_zone_title(title, not was_known)
 	await _fade_to(0.0)
 	_transitioning = false
 
 ## Affiche le nom de la zone au centre pendant le fondu (écran noir).
-func _flash_zone_title(title: String) -> void:
+func _flash_zone_title(title: String, is_new: bool = false) -> void:
 	if _zone_title_lbl == null:
 		return
 	_zone_title_lbl.text = title
 	_zone_title_lbl.visible = true
 	_zone_title_lbl.modulate.a = 0.0
+	if _zone_new_lbl != null:
+		_zone_new_lbl.text = "Nouvelle zone découverte" if is_new else ""
+		_zone_new_lbl.visible = is_new
+		_zone_new_lbl.modulate.a = 0.0
 	var tween_in := create_tween()
 	tween_in.tween_property(_zone_title_lbl, "modulate:a", 1.0, 0.18)
+	if _zone_new_lbl != null and is_new:
+		tween_in.parallel().tween_property(_zone_new_lbl, "modulate:a", 1.0, 0.18)
 	await tween_in.finished
 	await get_tree().create_timer(0.55).timeout
 	var tween_out := create_tween()
 	tween_out.tween_property(_zone_title_lbl, "modulate:a", 0.0, 0.25)
+	if _zone_new_lbl != null and is_new:
+		tween_out.parallel().tween_property(_zone_new_lbl, "modulate:a", 0.0, 0.25)
 	await tween_out.finished
 	_zone_title_lbl.visible = false
+	if _zone_new_lbl != null:
+		_zone_new_lbl.visible = false
 
 ## Fond noir progressif entre deux zones.
 func _fade_to(alpha: float) -> void:
@@ -548,13 +577,14 @@ func _start_zone_transition(target_id: String, token_id: String, position: Vecto
 		return
 	_transitioning = true
 	await _fade_to(1.0)
+	var was_known := GameData.get_discovered_world_zones().has(target_id)
 	if GameData.transition_map_edge(target_id, token_id, position):
 		_active_map_id = target_id
 		var target_map: Dictionary = MapData.get_by_id(target_id)
 		var title := str(target_map.get("title", "carte"))
 		notice_requested.emit("Changement de zone : %s" % title)
 		refresh()
-		await _flash_zone_title(title)
+		await _flash_zone_title(title, not was_known)
 	await _fade_to(0.0)
 	_transitioning = false
 
