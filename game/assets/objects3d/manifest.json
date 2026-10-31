@@ -5,6 +5,58 @@
   "forward_axis_gltf": "+Z",
   "assets": [
     {
+      "name": "auvent_etal",
+      "base": "auvent_etal",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/auvent_etal.glb",
+      "thumb": "buildings/auvent_etal_thumb.png",
+      "description": "Auvent d'etal a rayures 2x1 (module de facade, ancre wall).",
+      "tags": [
+        "module",
+        "facade",
+        "auvent"
+      ],
+      "dimensions_cells": [
+        2.09,
+        1.399,
+        0.598
+      ],
+      "height_above_floor": 2.6,
+      "anchor": "wall",
+      "triangles": 1064,
+      "triangles_base": 532,
+      "vertices": 616,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "balcon_bois",
+      "base": "balcon_bois",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/balcon_bois.glb",
+      "thumb": "buildings/balcon_bois_thumb.png",
+      "description": "Balcon en bois 1x1 avec garde-corps (module de facade, ancre wall).",
+      "tags": [
+        "module",
+        "facade",
+        "balcon"
+      ],
+      "dimensions_cells": [
+        1.08,
+        0.57,
+        0.906
+      ],
+      "height_above_floor": 1.615,
+      "anchor": "wall",
+      "triangles": 632,
+      "triangles_base": 316,
+      "vertices": 372,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "chapelle",
       "base": "chapelle",
       "variant": "base",
@@ -31,6 +83,58 @@
       "outline": true
     },
     {
+      "name": "cheminee_fumante",
+      "base": "cheminee_fumante",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/cheminee_fumante.glb",
+      "thumb": "buildings/cheminee_fumante_thumb.png",
+      "description": "Cheminee de toit avec fumee stylisee opaque (module, ancre roof).",
+      "tags": [
+        "module",
+        "toit",
+        "cheminee"
+      ],
+      "dimensions_cells": [
+        0.82,
+        0.64,
+        2.543
+      ],
+      "height_above_floor": 2.529,
+      "anchor": "roof",
+      "triangles": 536,
+      "triangles_base": 268,
+      "vertices": 316,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "colombage_panneau",
+      "base": "colombage_panneau",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/colombage_panneau.glb",
+      "thumb": "buildings/colombage_panneau_thumb.png",
+      "description": "Panneau de colombage 2x1 (module de facade) : torchis et croisillons.",
+      "tags": [
+        "module",
+        "facade",
+        "colombage"
+      ],
+      "dimensions_cells": [
+        2.056,
+        0.2,
+        1.81
+      ],
+      "height_above_floor": 1.8,
+      "anchor": "wall",
+      "triangles": 840,
+      "triangles_base": 420,
+      "vertices": 460,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "ecurie",
       "base": "ecurie",
       "variant": "base",
@@ -53,6 +157,58 @@
       "triangles": 2208,
       "triangles_base": 1104,
       "vertices": 1180,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "escalier_exterieur",
+      "base": "escalier_exterieur",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/escalier_exterieur.glb",
+      "thumb": "buildings/escalier_exterieur_thumb.png",
+      "description": "Escalier exterieur en bois 1x2 (module, ancre base) : marches, limons, rampe.",
+      "tags": [
+        "module",
+        "exterieur",
+        "escalier"
+      ],
+      "dimensions_cells": [
+        1.06,
+        2.06,
+        1.968
+      ],
+      "height_above_floor": 1.968,
+      "anchor": "base",
+      "triangles": 680,
+      "triangles_base": 340,
+      "vertices": 392,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "fenetre_volets",
+      "base": "fenetre_volets",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/fenetre_volets.glb",
+      "thumb": "buildings/fenetre_volets_thumb.png",
+      "description": "Fenetre a volets ouverts (module de facade) : encadrement, vitre, volets.",
+      "tags": [
+        "module",
+        "facade",
+        "fenetre"
+      ],
+      "dimensions_cells": [
+        1.58,
+        0.244,
+        1.045
+      ],
+      "height_above_floor": 1.7,
+      "anchor": "wall",
+      "triangles": 552,
+      "triangles_base": 276,
+      "vertices": 336,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -339,6 +495,162 @@
       "triangles": 1336,
       "triangles_base": 668,
       "vertices": 808,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "porte_auvent",
+      "base": "porte_auvent",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/porte_auvent.glb",
+      "thumb": "buildings/porte_auvent_thumb.png",
+      "description": "Porte de facade avec auvent (module, ancre wall) : encadrement, marche, auvent.",
+      "tags": [
+        "module",
+        "facade",
+        "porte"
+      ],
+      "dimensions_cells": [
+        1.37,
+        0.736,
+        2.364
+      ],
+      "height_above_floor": 2.354,
+      "anchor": "wall",
+      "triangles": 760,
+      "triangles_base": 380,
+      "vertices": 428,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "toit_2pentes",
+      "base": "toit_2pentes",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_2pentes.glb",
+      "thumb": "buildings/toit_2pentes_thumb.png",
+      "description": "Toit a deux pentes 2x2 (module de toiture) : tuiles, faitiere, liteaux.",
+      "tags": [
+        "module",
+        "toit",
+        "batiment"
+      ],
+      "dimensions_cells": [
+        2.156,
+        2.12,
+        0.95
+      ],
+      "height_above_floor": 0.94,
+      "anchor": "roof",
+      "triangles": 760,
+      "triangles_base": 380,
+      "vertices": 412,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "toit_appentis",
+      "base": "toit_appentis",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_appentis.glb",
+      "thumb": "buildings/toit_appentis_thumb.png",
+      "description": "Toit en appentis 2x1 (module de toiture) : un pan incline, chevrons.",
+      "tags": [
+        "module",
+        "toit",
+        "batiment"
+      ],
+      "dimensions_cells": [
+        2.116,
+        1.115,
+        0.661
+      ],
+      "height_above_floor": 0.65,
+      "anchor": "roof",
+      "triangles": 624,
+      "triangles_base": 312,
+      "vertices": 340,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "toit_chaume",
+      "base": "toit_chaume",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_chaume.glb",
+      "thumb": "buildings/toit_chaume_thumb.png",
+      "description": "Toit en chaume 2x2 (module de toiture) : paille, faitiere, rouleaux de rive.",
+      "tags": [
+        "module",
+        "toit",
+        "chaume"
+      ],
+      "dimensions_cells": [
+        2.136,
+        2.148,
+        1.074
+      ],
+      "height_above_floor": 1.064,
+      "anchor": "roof",
+      "triangles": 1064,
+      "triangles_base": 532,
+      "vertices": 572,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "toit_clocheton",
+      "base": "toit_clocheton",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_clocheton.glb",
+      "thumb": "buildings/toit_clocheton_thumb.png",
+      "description": "Petit clocheton de faitage (module de toiture) : cloche, fleche, croix.",
+      "tags": [
+        "module",
+        "toit",
+        "clocher"
+      ],
+      "dimensions_cells": [
+        0.646,
+        0.646,
+        1.822
+      ],
+      "height_above_floor": 1.808,
+      "anchor": "roof",
+      "triangles": 312,
+      "triangles_base": 156,
+      "vertices": 188,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "toit_croupe",
+      "base": "toit_croupe",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/toit_croupe.glb",
+      "thumb": "buildings/toit_croupe_thumb.png",
+      "description": "Toit a croupe 2x2 (module de toiture) : quatre pans, aretiers.",
+      "tags": [
+        "module",
+        "toit",
+        "batiment"
+      ],
+      "dimensions_cells": [
+        2.21,
+        2.11,
+        0.945
+      ],
+      "height_above_floor": 0.935,
+      "anchor": "roof",
+      "triangles": 496,
+      "triangles_base": 248,
+      "vertices": 286,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },

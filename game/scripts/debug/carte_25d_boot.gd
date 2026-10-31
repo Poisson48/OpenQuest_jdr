@@ -137,6 +137,9 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "haie", "x": 6.2, "y": 13.2, "rotation": 0.0, "w": 2.5, "h": 0.9},
 		{"name": "tas_de_bois", "x": 16.6, "y": 10.8, "rotation": 0.0, "w": 1.4, "h": 1.0},
 		{"name": "cloture_basse", "x": 20.4, "y": 8.8, "rotation": 0.0, "w": 2.2, "h": 0.4},
+		# Kit 7 : accents de toiture posés sur les bâtiments.
+		{"name": "toit_clocheton", "x": 3.0, "y": 3.0, "rotation": 0.0, "w": 0.7, "h": 0.7, "elevation": 3.0},
+		{"name": "cheminee_fumante", "x": 18.6, "y": 12.6, "rotation": 0.0, "w": 0.8, "h": 0.7, "elevation": 2.1},
 	]
 	var meshes: Array = []
 	for entry in placements:

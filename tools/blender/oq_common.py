@@ -117,6 +117,9 @@ DEFAULT_PALETTE: dict[str, str] = {
     "goblin_skin_dark": "#556b3c",
     "robe_purple": "#574a63",
     "robe_blue": "#465a6b",
+    # Kit v7 : fumee stylisee opaque (cheminee).
+    "smoke": "#b9b5ad",
+    "smoke_light": "#d6d2c9",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.

@@ -2616,6 +2616,305 @@ def build_tas_de_bois(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
+# Kit v7 : modules de toiture et de facade (ancres roof / wall)
+# --------------------------------------------------------------------------- #
+
+
+def build_toit_2pentes(mats: Mats) -> list[bpy.types.Object]:
+    """Toit a deux pentes 2x2 (module de toiture, ancre roof)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(
+        gable_roof("roof", width=2.10, depth=2.00, height=0.85, base_z=0.0, material=mats["roof"])
+    )
+    parts.append(add_box("ridge", (1.96, 0.12, 0.10), (0, 0, 0.86), mats["roof_dark"]))
+    for y in (-1.00, 1.00):
+        parts.append(add_box("eave", (2.14, 0.10, 0.10), (0, y, 0.03), mats["wood_dark"]))
+    slope_angle = math.atan2(0.85, 1.0)
+    for y in (-0.72, -0.42):
+        z = (y + 1.0) * 0.85
+        parts.append(
+            add_box("batten", (2.06, 0.055, 0.035), (0, y, z + 0.02), mats["roof_dark"],
+                    rotation=(slope_angle, 0.0, 0.0))
+        )
+    for y in (0.72, 0.42):
+        z = (1.0 - y) * 0.85
+        parts.append(
+            add_box("batten", (2.06, 0.055, 0.035), (0, y, z + 0.02), mats["roof_dark"],
+                    rotation=(-slope_angle, 0.0, 0.0))
+        )
+    return parts
+
+
+def build_toit_croupe(mats: Mats) -> list[bpy.types.Object]:
+    """Toit a croupe (4 pans) 2x2 (module de toiture, ancre roof)."""
+    import bmesh
+
+    parts: list[bpy.types.Object] = []
+    half_w, half_d, height, ridge_half = 1.05, 1.00, 0.85, 0.38
+    vertices = [
+        (-half_w, -half_d, 0.0),
+        (half_w, -half_d, 0.0),
+        (half_w, half_d, 0.0),
+        (-half_w, half_d, 0.0),
+        (-ridge_half, 0.0, height),
+        (ridge_half, 0.0, height),
+    ]
+    faces = [
+        (0, 1, 5, 4),  # pan avant
+        (3, 2, 5, 4),  # pan arriere
+        (0, 4, 3),     # croupe gauche
+        (1, 2, 5),     # croupe droite
+    ]
+    roof = add_mesh("roof", vertices, faces, mats["roof"])
+    bm = bmesh.new()
+    bm.from_mesh(roof.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(roof.data)
+    bm.free()
+    parts.append(roof)
+    parts.append(add_box("ridge", (0.80, 0.10, 0.08), (0, 0, 0.87), mats["roof_dark"]))
+    for y in (-half_d, half_d):
+        parts.append(add_box("eave", (2.14, 0.09, 0.09), (0, y, 0.03), mats["wood_dark"]))
+    for x in (-half_w, half_w):
+        parts.append(add_box("eave", (0.09, 2.02, 0.09), (x, 0, 0.03), mats["wood_dark"]))
+    return parts
+
+
+def build_toit_appentis(mats: Mats) -> list[bpy.types.Object]:
+    """Toit en appentis 2x1 (module de toiture, ancre roof)."""
+    parts: list[bpy.types.Object] = []
+    slope_angle = math.atan2(0.55, 1.0)
+    parts.append(
+        add_box("roof", (2.05, 1.02, 0.07), (0, 0, 0.275), mats["roof"], rotation=(slope_angle, 0.0, 0.0))
+    )
+    for x in (-0.70, 0.0, 0.70):
+        parts.append(
+            add_box("rafter", (0.07, 1.04, 0.09), (x, 0, 0.23), mats["wood_dark"],
+                    rotation=(slope_angle, 0.0, 0.0))
+        )
+    parts.append(add_box("eave", (2.10, 0.09, 0.10), (0, -0.50, 0.02), mats["wood_dark"]))
+    parts.append(add_box("wall_beam", (2.10, 0.10, 0.12), (0, 0.50, 0.52), mats["wood_dark"]))
+    parts.append(
+        add_box("roof_batten", (2.02, 0.055, 0.035), (0, -0.10, 0.34), mats["roof_dark"],
+                rotation=(slope_angle, 0.0, 0.0))
+    )
+    return parts
+
+
+def build_toit_clocheton(mats: Mats) -> list[bpy.types.Object]:
+    """Petit clocheton de faitage (module de toiture, ancre roof)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("base", (0.55, 0.55, 0.10), (0, 0, 0.05), mats["stone_dark"]))
+    parts.append(add_box("tower", (0.50, 0.50, 0.80), (0, 0, 0.50), mats["stone"]))
+    parts.append(add_box("opening", (0.22, 0.06, 0.30), (0, -0.25, 0.60), mats["iron_dark"]))
+    parts.append(add_box("bell", (0.14, 0.10, 0.16), (0, -0.235, 0.58), mats["metal"]))
+    parts.append(add_box("rim", (0.58, 0.58, 0.08), (0, 0, 0.94), mats["stone_light"]))
+    parts.append(
+        add_cone("roof", 0.44, 0.55, (0, 0, 1.25), mats["roof_slate"], vertices=4,
+                 rotation=(0.0, 0.0, math.pi * 0.25))
+    )
+    parts.append(add_box("cross_v", (0.04, 0.04, 0.28), (0, 0, 1.66), mats["metal"]))
+    parts.append(add_box("cross_h", (0.16, 0.04, 0.04), (0, 0, 1.72), mats["metal"]))
+    return parts
+
+
+def build_toit_chaume(mats: Mats) -> list[bpy.types.Object]:
+    """Toit en chaume 2x2 (module de toiture, ancre roof)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(
+        gable_roof("roof", width=2.10, depth=2.05, height=0.88, base_z=0.0, material=mats["hay"])
+    )
+    parts.append(
+        add_cylinder("ridge_cap", 0.10, 1.98, (0, 0, 0.92), mats["hay_dark"], vertices=8,
+                     rotation=(0.0, math.pi * 0.5, 0.0))
+    )
+    slope_angle = math.atan2(0.88, 1.025)
+    for y in (-1.00, 1.00):
+        parts.append(
+            add_cylinder("eave_roll", 0.06, 2.10, (0, y, 0.05), mats["hay_dark"], vertices=6,
+                         rotation=(0.0, math.pi * 0.5, 0.0))
+        )
+        parts.append(add_box("eave_board", (2.12, 0.09, 0.08), (0, y, 0.01), mats["wood_dark"]))
+    for y in (-0.70, -0.40):
+        z = (y + 1.025) / 1.025 * 0.88
+        parts.append(
+            add_box("straw_band", (2.02, 0.08, 0.05), (0, y, z + 0.02), mats["hay_light"],
+                    rotation=(slope_angle, 0.0, 0.0))
+        )
+    for y in (0.70, 0.40):
+        z = (1.025 - y) / 1.025 * 0.88
+        parts.append(
+            add_box("straw_band", (2.02, 0.08, 0.05), (0, y, z + 0.02), mats["hay_light"],
+                    rotation=(-slope_angle, 0.0, 0.0))
+        )
+    return parts
+
+
+def build_cheminee_fumante(mats: Mats) -> list[bpy.types.Object]:
+    """Cheminee de toit avec fumee stylisee opaque (ancre roof)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("base", (0.56, 0.56, 0.14), (0, 0, 0.07), mats["stone_dark"]))
+    parts.append(add_box("shaft", (0.46, 0.46, 1.30), (0, 0, 0.79), mats["stone"]))
+    for z in (0.35, 0.75, 1.15):
+        parts.append(add_box("course", (0.49, 0.49, 0.05), (0, 0, z), mats["stone_dark"]))
+    parts.append(add_box("cap", (0.58, 0.58, 0.10), (0, 0, 1.49), mats["stone_light"]))
+    parts.append(add_box("cap_top", (0.62, 0.62, 0.05), (0, 0, 1.56), mats["stone_dark"]))
+    smoke = [
+        (0.00, 0.00, 1.76, 0.14, 1.00),
+        (0.05, 0.02, 1.94, 0.18, 1.10),
+        (0.14, 0.05, 2.12, 0.22, 1.20),
+        (0.25, 0.08, 2.28, 0.18, 1.10),
+        (0.36, 0.11, 2.40, 0.13, 1.00),
+    ]
+    for index, (x, y, z, radius, scale) in enumerate(smoke):
+        parts.append(
+            add_ico_sphere(
+                f"smoke_{index}", radius, (x, y, z),
+                mats["smoke"] if index % 2 == 0 else mats["smoke_light"], subdivisions=1,
+                scale=(scale, scale * 0.9, scale * 0.75), jitter=0.025, seed=640 + index,
+            )
+        )
+    return parts
+
+
+def build_colombage_panneau(mats: Mats) -> list[bpy.types.Object]:
+    """Panneau de colombage 2x1 (module de facade, ancre wall)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("plaster", (1.90, 0.12, 1.66), (0, 0, 0.87), mats["plaster"]))
+    for x in (-0.90, 0.90):
+        parts.append(add_box("post", (0.12, 0.16, 1.75), (x, 0, 0.875), mats["wood_dark"]))
+    for z in (0.10, 0.90, 1.62):
+        parts.append(add_box("rail", (1.94, 0.15, 0.11), (0, 0, z), mats["wood_dark"]))
+    parts.append(add_box("top_plate", (2.02, 0.15, 0.12), (0, 0, 1.73), mats["wood_dark"]))
+    parts.append(
+        add_box("brace", (0.10, 0.16, 1.05), (-0.45, 0, 0.85), mats["wood_dark"],
+                rotation=(0.0, 0.55, 0.0))
+    )
+    parts.append(
+        add_box("brace", (0.10, 0.16, 1.05), (0.45, 0, 0.85), mats["wood_dark"],
+                rotation=(0.0, -0.55, 0.0))
+    )
+    parts.append(add_box("sill", (2.04, 0.18, 0.08), (0, 0, 0.04), mats["stone_dark"]))
+    return parts
+
+
+def build_porte_auvent(mats: Mats) -> list[bpy.types.Object]:
+    """Porte de facade avec auvent (module, ancre wall)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("step", (1.10, 0.35, 0.10), (0, -0.10, 0.05), mats["stone_dark"]))
+    parts.append(add_box("door", (0.90, 0.12, 1.90), (0, -0.06, 0.95), mats["wood_dark"]))
+    for index, x in enumerate((-0.28, 0.0, 0.28)):
+        material = mats["wood"] if index % 2 == 0 else mats["wood_light"]
+        parts.append(add_box("plank", (0.24, 0.05, 1.78), (x, -0.13, 0.95), material))
+    parts.append(add_box("handle", (0.05, 0.05, 0.06), (0.28, -0.17, 1.00), mats["metal"]))
+    for x in (-0.52, 0.52):
+        parts.append(add_box("jamb", (0.14, 0.18, 1.98), (x, -0.04, 0.99), mats["stone_light"]))
+    parts.append(add_box("lintel", (1.24, 0.20, 0.16), (0, -0.04, 2.02), mats["stone_light"]))
+    parts.append(
+        gable_roof("awning", width=1.35, depth=0.60, height=0.24, base_z=2.10, material=mats["roof"])
+    )
+    for x in (-0.58, 0.58):
+        parts.append(
+            add_box("bracket", (0.08, 0.34, 0.08), (x, -0.24, 2.08), mats["wood_dark"],
+                    rotation=(-0.4, 0.0, 0.0))
+        )
+    return parts
+
+
+def build_fenetre_volets(mats: Mats) -> list[bpy.types.Object]:
+    """Fenetre a volets ouverts (module de facade, ancre wall)."""
+    parts: list[bpy.types.Object] = []
+    z = 1.22
+    parts.append(add_box("frame", (0.94, 0.12, 0.94), (0, 0, z), mats["stone_light"]))
+    parts.append(add_box("glass", (0.66, 0.07, 0.66), (0, -0.05, z), mats["glow"]))
+    parts.append(add_box("mullion_v", (0.05, 0.08, 0.70), (0, -0.07, z), mats["wood_dark"]))
+    parts.append(add_box("mullion_h", (0.70, 0.08, 0.05), (0, -0.07, z), mats["wood_dark"]))
+    parts.append(add_box("sill", (1.08, 0.20, 0.09), (0, -0.06, z - 0.51), mats["stone"]))
+    for side in (-1, 1):
+        x = side * 0.63
+        parts.append(add_box("shutter", (0.30, 0.05, 0.82), (x, -0.04, z), mats["wood"]))
+        for index in range(3):
+            parts.append(
+                add_box("slat", (0.26, 0.06, 0.04), (x, -0.07, z - 0.22 + index * 0.22), mats["wood_dark"])
+            )
+        parts.append(add_box("hinge", (0.05, 0.06, 0.05), (side * 0.47, -0.07, z + 0.28), mats["iron_dark"]))
+    return parts
+
+
+def build_balcon_bois(mats: Mats) -> list[bpy.types.Object]:
+    """Balcon en bois 1x1 avec garde-corps (module de facade, ancre wall)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("platform", (1.02, 0.55, 0.10), (0, -0.18, 1.00), mats["wood"]))
+    for x in (-0.45, 0.45):
+        parts.append(
+            add_box("support", (0.08, 0.40, 0.10), (x, -0.20, 0.86), mats["wood_dark"],
+                    rotation=(0.5, 0.0, 0.0))
+        )
+    for x in (-0.50, 0.50):
+        for y in (-0.42, -0.05):
+            parts.append(add_box("post", (0.06, 0.06, 0.55), (x, y, 1.32), mats["wood_dark"]))
+    for y in (-0.42, -0.05):
+        parts.append(add_box("rail", (1.02, 0.05, 0.07), (0, y, 1.57), mats["wood"]))
+    for x in (-0.50, -0.17, 0.17, 0.50):
+        parts.append(add_box("baluster", (0.03, 0.03, 0.45), (x, -0.42, 1.32), mats["wood_dark"]))
+    parts.append(add_box("front_rail_mid", (1.02, 0.04, 0.05), (0, -0.42, 1.38), mats["wood"]))
+    return parts
+
+
+def build_escalier_exterieur(mats: Mats) -> list[bpy.types.Object]:
+    """Escalier exterieur en bois 1x2 (module, ancre base)."""
+    parts: list[bpy.types.Object] = []
+    slope_angle = math.atan2(1.0, 1.7)
+    for index in range(6):
+        y = -0.85 + index * 0.34
+        z = 0.10 + index * 0.20
+        parts.append(add_box("step", (0.92, 0.34, 0.12), (0, y, z), mats["wood_light"] if index % 2 else mats["wood"]))
+    for x in (-0.47, 0.47):
+        parts.append(
+            add_box("stringer", (0.10, 2.10, 0.20), (x, 0, 0.62), mats["wood_dark"],
+                    rotation=(slope_angle, 0.0, 0.0))
+        )
+    for x in (-0.40, 0.40):
+        parts.append(add_box("support", (0.10, 0.10, 1.10), (x, 0.82, 0.55), mats["wood_dark"]))
+    # Garde-corps sur un cote.
+    parts.append(add_box("rail_post_low", (0.06, 0.06, 0.80), (0.47, -0.85, 0.55), mats["wood_dark"]))
+    parts.append(add_box("rail_post_high", (0.06, 0.06, 0.80), (0.47, 0.85, 1.55), mats["wood_dark"]))
+    parts.append(
+        add_box("handrail", (0.06, 2.20, 0.08), (0.47, 0, 1.30), mats["wood"],
+                rotation=(slope_angle, 0.0, 0.0))
+    )
+    return parts
+
+
+def build_auvent_etal(mats: Mats) -> list[bpy.types.Object]:
+    """Auvent d'etal a rayures 2x1 (module de facade, ancre wall)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("wall_plate", (2.06, 0.10, 0.10), (0, 0.02, 2.52), mats["wood_dark"]))
+    stripe_materials = [mats["cloth"], mats["plaster_light"]]
+    stripe_width = 0.24
+    for index in range(8):
+        x = -0.84 + index * stripe_width
+        parts.append(
+            add_box("awning_stripe", (stripe_width - 0.012, 1.05, 0.04), (x, -0.42, 2.32),
+                    stripe_materials[index % 2], rotation=(0.32, 0.0, 0.0))
+        )
+        parts.append(
+            add_box("awning_valance", (stripe_width - 0.012, 0.03, 0.18), (x, -0.92, 2.10),
+                    stripe_materials[index % 2])
+        )
+    for x in (-1.00, 1.00):
+        parts.append(
+            add_box("arm", (0.06, 1.05, 0.06), (x, -0.42, 2.32), mats["wood_dark"],
+                    rotation=(0.32, 0.0, 0.0))
+        )
+        parts.append(
+            add_box("bracket", (0.07, 0.55, 0.07), (x, 0.20, 2.40), mats["wood_dark"],
+                    rotation=(0.62, 0.0, 0.0))
+        )
+    return parts
+
+
+# --------------------------------------------------------------------------- #
 # Declarations des assets
 # --------------------------------------------------------------------------- #
 
@@ -3159,6 +3458,101 @@ ASSETS: list[AssetSpec] = [
         "Tas de bois (~1,3 x 0,95 case) : buches empilees et hache plantee.",
         ("campagne", "bois", "decor"),
     ),
+    AssetSpec(
+        "toit_2pentes",
+        "buildings",
+        build_toit_2pentes,
+        "Toit a deux pentes 2x2 (module de toiture) : tuiles, faitiere, liteaux.",
+        ("module", "toit", "batiment"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "toit_croupe",
+        "buildings",
+        build_toit_croupe,
+        "Toit a croupe 2x2 (module de toiture) : quatre pans, aretiers.",
+        ("module", "toit", "batiment"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "toit_appentis",
+        "buildings",
+        build_toit_appentis,
+        "Toit en appentis 2x1 (module de toiture) : un pan incline, chevrons.",
+        ("module", "toit", "batiment"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "toit_clocheton",
+        "buildings",
+        build_toit_clocheton,
+        "Petit clocheton de faitage (module de toiture) : cloche, fleche, croix.",
+        ("module", "toit", "clocher"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "toit_chaume",
+        "buildings",
+        build_toit_chaume,
+        "Toit en chaume 2x2 (module de toiture) : paille, faitiere, rouleaux de rive.",
+        ("module", "toit", "chaume"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "cheminee_fumante",
+        "buildings",
+        build_cheminee_fumante,
+        "Cheminee de toit avec fumee stylisee opaque (module, ancre roof).",
+        ("module", "toit", "cheminee"),
+        anchor="roof",
+    ),
+    AssetSpec(
+        "colombage_panneau",
+        "buildings",
+        build_colombage_panneau,
+        "Panneau de colombage 2x1 (module de facade) : torchis et croisillons.",
+        ("module", "facade", "colombage"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "porte_auvent",
+        "buildings",
+        build_porte_auvent,
+        "Porte de facade avec auvent (module, ancre wall) : encadrement, marche, auvent.",
+        ("module", "facade", "porte"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "fenetre_volets",
+        "buildings",
+        build_fenetre_volets,
+        "Fenetre a volets ouverts (module de facade) : encadrement, vitre, volets.",
+        ("module", "facade", "fenetre"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "balcon_bois",
+        "buildings",
+        build_balcon_bois,
+        "Balcon en bois 1x1 avec garde-corps (module de facade, ancre wall).",
+        ("module", "facade", "balcon"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "escalier_exterieur",
+        "buildings",
+        build_escalier_exterieur,
+        "Escalier exterieur en bois 1x2 (module, ancre base) : marches, limons, rampe.",
+        ("module", "exterieur", "escalier"),
+    ),
+    AssetSpec(
+        "auvent_etal",
+        "buildings",
+        build_auvent_etal,
+        "Auvent d'etal a rayures 2x1 (module de facade, ancre wall).",
+        ("module", "facade", "auvent"),
+        anchor="wall",
+    ),
 ]
 
 
@@ -3270,7 +3664,7 @@ def main(argv: list[str]) -> int:
                 )
             dims = object_dimensions(objects)
             mins, maxs = oq.object_bounds(objects)
-            height_above_floor = round(maxs.z, 3) if spec.anchor == "wall" else round(dims[2], 3)
+            height_above_floor = round(maxs.z, 3) if spec.anchor in ("wall", "roof") else round(dims[2], 3)
             vertices = sum(len(item.data.vertices) for item in objects)
 
             category_dir_path = out_root / spec.category

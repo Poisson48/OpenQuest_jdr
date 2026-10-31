@@ -23,6 +23,12 @@ peints) : 8 classes (aventurier, archère, mage, voleuse, prêtresse, garde,
 marchand, villageois) et 2 créatures (gobelin, squelette), avec des tags
 `class:...` / `creature:...` dans le manifeste pour les tokens de session.
 
+Le kit v7 apporte **12 modules de toiture et de façade** pour enrichir les
+bâtiments existants : toits 2 pentes, croupe, appentis, clocheton, chaume,
+cheminée fumante ; panneau de colombage, porte à auvent, fenêtre à volets,
+balcon, escalier extérieur et auvent d'étal. Ancre `roof` pour les modules de
+toit, `wall` pour les éléments de façade.
+
 > Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
 > `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
 > modifier les scripts puis régénérer.
@@ -39,7 +45,7 @@ marchand, villageois) et 2 créatures (gobelin, squelette), avec des tags
 | Origine | **centre de la base**, posée sur le sol (`y = 0` en glTF/Godot) |
 | Axes glTF | `+Y` = haut, face avant de l'objet vers **`+Z`** |
 | Transforms | rotation/scale à 1, location à 0 (bake dans le mesh) |
-| Budget | **< 5 000 triangles** par asset (contour encre inclus ; max actuel : 2 536) |
+| Budget | **< 5 000 triangles** par asset (contour encre inclus ; max actuel : 3 036) |
 | Matériaux | mats (roughness 0,92, metallic 0, specular 0,15), palette Valbois, **aucune transparence, aucune texture alpha**, faces simples (backface culling) |
 | Détail | AO + mottling en **vertex colors `COLOR_0`** (multiplicateur) |
 | Contour | coque inversée `*_outline` en encre sombre (double le nombre de triangles) |
@@ -48,6 +54,7 @@ marchand, villageois) et 2 créatures (gobelin, squelette), avec des tags
 | Objets d'eau | `ponton`, `barque`, `nenuphars` : **pas de jupe**, origine au niveau de l'eau (z=0) |
 | Objets muraux | origine au **pied du mur** (z=0), géométrie suspendue au-dessus ; le côté `+Y` est le mur |
 | Élément de toit | `toit_lucarne` : origine à la **base du toit** (z=0), sans dalle, à poser au sommet d'un bâtiment |
+| Modules de toit | `anchor="roof"` : origine à la **base du toit** (z=0), centrée, sans dalle ; à empiler sur un bâtiment (`height_above_floor` = hauteur du module) |
 | Figurines PNJ | **socle rond discret**, pas de jupe (utilisables en intérieur comme en extérieur) |
 | Émission | seuls la lanterne (`lamp`) et la torche (`flame`/`flame_core`) sont émissives |
 | Caméra/lumière | **jamais exportées** dans le GLB |
@@ -59,10 +66,11 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-68 assets (63 modèles + 5 variantes de taille/teinte), **77 688 triangles** au
-total, 2 536 au maximum. Dimension = AABB réelle du GLB (contour inclus).
-Pour les objets muraux, la hauteur indiquée `h sol` est la distance depuis le
-pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
+80 assets (75 modèles + 5 variantes de taille/teinte), **86 008 triangles** au
+total, 3 036 au maximum. Dimension = AABB réelle du GLB (contour inclus).
+Pour les objets muraux et les modules de toit, les dimensions listées sont
+celles de l'AABB ; `height_above_floor` (manifeste) donne la hauteur de pose
+depuis le pied du mur ou la base du toit.
 
 ### Bâtiments et structures — `buildings/`
 
@@ -170,6 +178,27 @@ conservés pour ne pas casser le code de démo : ils ont simplement été enrich
 et re-taggés. Le choix par hash peut désormais piocher dans les 10 (filtrer
 `tags` sur `class:` / `creature:`).
 
+### Kit modules v7 — toitures & façades — `buildings/`
+
+Modules à poser sur les bâtiments existants. `anchor="roof"` = origine à la base
+du toit (z=0, centrée) ; `anchor="wall"` = origine au pied du mur (mur côté +Y) ;
+`escalier_exterieur` est au sol (`anchor="base"`).
+
+| Asset | Ancre | Dimensions (cases) | Hauteur de pose (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|---|
+| `toit_2pentes` | roof | 2.16 × 2.12 × 0.95 | 0.94 | 760 | Toit 2 pentes 2×2, tuiles + faîtière |
+| `toit_croupe` | roof | 2.21 × 2.11 × 0.94 | 0.94 | 496 | Toit à croupe 2×2 |
+| `toit_appentis` | roof | 2.12 × 1.11 × 0.66 | 0.65 | 624 | Appentis 2×1, un pan |
+| `toit_clocheton` | roof | 0.65 × 0.65 × 1.82 | 1.81 | 312 | Clocheton de faîtage |
+| `toit_chaume` | roof | 2.14 × 2.15 × 1.07 | 1.06 | 1 064 | Toit en chaume 2×2 |
+| `cheminee_fumante` | roof | 0.82 × 0.64 × 2.54 | 2.53 | 536 | Cheminée + fumée opaque stylisée |
+| `colombage_panneau` | wall | 2.06 × 0.20 × 1.81 | 1.80 | 840 | Panneau de colombage 2×1 |
+| `porte_auvent` | wall | 1.37 × 0.74 × 2.36 | 2.35 | 760 | Porte + auvent |
+| `fenetre_volets` | wall | 1.58 × 0.24 × 1.04 | 1.70 | 552 | Fenêtre à volets ouverts |
+| `balcon_bois` | wall | 1.08 × 0.57 × 0.91 | 1.62 | 632 | Balcon 1×1 avec garde-corps |
+| `escalier_exterieur` | base | 1.06 × 2.06 × 1.97 | 1.97 | 680 | Escalier bois 1×2 |
+| `auvent_etal` | wall | 2.09 × 1.40 × 0.60 | 2.60 | 1 064 | Auvent d'étal rayé 2×1 |
+
 ### Végétation — `vegetation/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
@@ -188,9 +217,9 @@ Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
 pied du mur éventuelle, ancre, triangles, description) — il est **informatif** :
 l'éditeur peut scanner les dossiers.
-`_planche_assets6.png` est la planche de contrôle courante (textures de sol +
-68 objets). `_planche_assets.png` à `_planche_assets5.png` sont les planches
-historiques des kits v1 à v5.
+`_planche_assets7.png` est la planche de contrôle courante (textures de sol +
+80 objets). `_planche_assets.png` à `_planche_assets6.png` sont les planches
+historiques des kits v1 à v6.
 
 ---
 
@@ -233,6 +262,12 @@ Points d'intégration importants :
 - **Figurines** : socle rond, origine au pied ; utilisables comme props ou
   tokens. 10 figurines v6 taguées `class:...` / `creature:...` dans le manifeste
   (échelle ~1 case, hauteurs 0,86 à 2,01).
+- **Modules de toit** (`anchor="roof"`) : poser au sommet d'un bâtiment, origine
+  à la base du toit ; `height_above_floor` donne la hauteur du module. Ne pas
+  leur appliquer de dalle de sol.
+- **Éléments de façade** (`anchor="wall"`) : tourner pour que le côté `+Y` soit
+  contre le mur ; la fenêtre et le balcon sont livrés à leur hauteur de pose
+  (origine au pied du mur).
 - **Objets d'eau** (`ponton`, `barque`, `nenuphars`) : pas de jupe ; poser à la
   surface de l'eau (origine z=0 = niveau de l'eau), le moteur anime le plan d'eau.
 - **Falaise** : module 2×2 à poser en bord de relief ; le plateau herbeux est
@@ -271,7 +306,7 @@ Points d'intégration importants :
 
 # Textures de sol seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets7.png --terrain
 ```
 
 Appel direct sans le wrapper :

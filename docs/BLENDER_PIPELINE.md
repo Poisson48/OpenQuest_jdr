@@ -38,12 +38,12 @@ Tous les scripts sont **offline** : aucune texture importée, aucun télécharge
 aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
 générées par du bruit périodique (numpy + Pillow).
 
-Le pipeline couvre désormais le **kit v6** (figurines de personnages et
-créatures), le **kit v5** (relief, forêt, berges, eau), le **kit v4** (bâtiments
-variés, détails de toit, figurines PNJ), le **kit v3** (intérieur de taverne,
-donjon, petits décors), le **kit enrichi v2** (murs, mobilier urbain, étal de
-marché, charrette, foin) et les **textures de sol tuilables** (herbe,
-terre/chemin, pavé de pierre).
+Le pipeline couvre désormais le **kit v7** (modules de toiture et de façade), le
+**kit v6** (figurines de personnages et créatures), le **kit v5** (relief,
+forêt, berges, eau), le **kit v4** (bâtiments variés, détails de toit, figurines
+PNJ), le **kit v3** (intérieur de taverne, donjon, petits décors), le **kit
+enrichi v2** (murs, mobilier urbain, étal de marché, charrette, foin) et les
+**textures de sol tuilables** (herbe, terre/chemin, pavé de pierre).
 
 ---
 
@@ -53,7 +53,7 @@ terre/chemin, pavé de pierre).
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 63 modèles + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 75 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
 ├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
@@ -68,10 +68,14 @@ game/assets/objects3d/
 ├── _planche_assets3.png    # planche v3 (historique)
 ├── _planche_assets4.png    # planche v4 (historique)
 ├── _planche_assets5.png    # planche v5 (historique)
-├── _planche_assets6.png    # planche courante v6 (sols + 68 objets)
+├── _planche_assets6.png    # planche v6 (historique)
+├── _planche_assets7.png    # planche courante v7 (sols + 80 objets)
 ├── buildings/              # maison*, tour*, mur, mur_coin, herse, forge, chapelle,
 │                           #   grange, ecurie, maison_etage, manoir, tour_guet_bois,
-│                           #   marche_couvert, toit_lucarne
+│                           #   marche_couvert, toit_lucarne, toit_2pentes, toit_croupe,
+│                           #   toit_appentis, toit_clocheton, toit_chaume, cheminee_fumante,
+│                           #   colombage_panneau, porte_auvent, fenetre_volets, balcon_bois,
+│                           #   escalier_exterieur, auvent_etal
 ├── props/                  # pont, caisse*, palissade, puits, barriere, etal_marche,
 │                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin,
 │                           #   table_tabourets, comptoir, tonneau_couche, tapis, lit,
@@ -101,6 +105,7 @@ game/assets/terrain/
 | **Échelle** | 1 unité Blender = **1 case de carte** |
 | **Origine** | **centre de la base**, base posée à `z = 0` (sol) |
 | **Objets muraux** | origine au **pied du mur** (`z = 0`, mur en `+Y`) : géométrie suspendue au-dessus du sol (torche, chaîne, enseigne) |
+| **Modules de toit** | `anchor="roof"` : origine à la **base du toit** (`z = 0`), centrée, sans dalle ; à empiler sur un bâtiment (`height_above_floor` = hauteur du module) |
 | **Élément de toit** | `toit_lucarne` : origine à la **base du toit** (`z = 0`), pas de dalle, à poser au sommet d'un bâtiment |
 | **Figurines** | socle rond discret (`anchor="base"`), pas de jupe : utilisables en intérieur comme en extérieur ; tags `class:...` / `creature:...` |
 | **Objets d'eau** | `ponton`, `barque`, `nenuphars` : pas de jupe, origine au niveau de l'eau (`z = 0`) |
@@ -118,6 +123,11 @@ Les scripts de contrôle vérifient l'origine au pied et le centrage de la base.
 Pour les **objets muraux** (ancre `wall` du manifeste), l'origine est au pied du
 mur : le mesh commence au-dessus du sol, `verify_glb.py` le tolère et l'éditeur
 doit tourner l'objet pour plaquer son côté `+Y` contre le mur.
+
+Trois ancres existent dans le manifeste : `base` (objet au sol, origine au pied),
+`wall` (élément de façade, origine au pied du mur) et `roof` (module de toit,
+origine à la base du toit, posé au sommet d'un bâtiment). `verify_glb.py`
+contrôle `roof` comme `base` (géométrie au sol de l'asset, bbox centrée).
 
 ### Assemblage et normalisation
 
@@ -399,6 +409,39 @@ Notes :
 * **barque** creuse (coque, bau, bancs, rames) ; **nénuphars** plats sans alpha ;
 * **bannière** non émissive, drapée sur mât avec emblème peint.
 
+### 5.6 Kit v7 (12 modules) — toitures et façades
+
+Septième passe : enrichir les bâtiments existants sans les refaire, sous forme
+de modules posables. `anchor="roof"` pour les toitures (origine à la base du
+toit, centrée), `anchor="wall"` pour les éléments de façade (origine au pied du
+mur), `anchor="base"` pour l'escalier extérieur.
+
+| Asset | Ancre | Dimensions (cases) | Hauteur de pose (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|---|
+| `toit_2pentes` | roof | 2.16 × 2.12 × 0.95 | 0.94 | 760 | Toit 2 pentes 2×2, tuiles + faîtière |
+| `toit_croupe` | roof | 2.21 × 2.11 × 0.94 | 0.94 | 496 | Toit à croupe 2×2 |
+| `toit_appentis` | roof | 2.12 × 1.11 × 0.66 | 0.65 | 624 | Appentis 2×1, un pan |
+| `toit_clocheton` | roof | 0.65 × 0.65 × 1.82 | 1.81 | 312 | Clocheton de faîtage |
+| `toit_chaume` | roof | 2.14 × 2.15 × 1.07 | 1.06 | 1 064 | Toit en chaume 2×2 |
+| `cheminee_fumante` | roof | 0.82 × 0.64 × 2.54 | 2.53 | 536 | Cheminée + fumée opaque stylisée |
+| `colombage_panneau` | wall | 2.06 × 0.20 × 1.81 | 1.80 | 840 | Panneau de colombage 2×1 |
+| `porte_auvent` | wall | 1.37 × 0.74 × 2.36 | 2.35 | 760 | Porte + auvent |
+| `fenetre_volets` | wall | 1.58 × 0.24 × 1.04 | 1.70 | 552 | Fenêtre à volets ouverts |
+| `balcon_bois` | wall | 1.08 × 0.57 × 0.91 | 1.62 | 632 | Balcon 1×1 avec garde-corps |
+| `escalier_exterieur` | base | 1.06 × 2.06 × 1.97 | 1.97 | 680 | Escalier bois 1×2 |
+| `auvent_etal` | wall | 2.09 × 1.40 × 0.60 | 2.60 | 1 064 | Auvent d'étal rayé 2×1 |
+
+Notes :
+
+* **toits** : modules autoportés à empiler sur un bâtiment (2×2, 2×1, clocheton,
+  chaume) ; `cheminee_fumante` inclut des volutes de fumée **opaques** stylisées
+  (aucun alpha, aucune émission) ;
+* **façades** : panneau de colombage, porte à auvent, fenêtre à volets, balcon,
+  auvent d'étal se fixent au mur (côté `+Y`), origine au pied du mur ;
+* **escalier_exterieur** est posé au sol (ancre `base`), 1×2 cases ;
+* tous les modules suivent le pipeline commun (AO/mottling, contour encre,
+  palette Valbois) et n'ont **pas** de jupe de sol.
+
 ### 5.5 Kit v6 (10 figurines) — personnages et créatures
 
 Sixième passe : remplacer le choix par hash entre 3 PNJ par une vraie variété
@@ -619,12 +662,12 @@ Planche de contrôle courante (tous les kits + textures de sol) :
 
 ```powershell
 python tools/blender/make_contact_sheet.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets7.png --terrain
 ```
 
-La seconde ajoute une rangée de textures de sol : `_planche_assets6.png`
-(71 cases : 3 sols + 68 objets). `_planche_assets.png` à
-`_planche_assets5.png` restent les planches historiques v1→v5. Les objets
+La seconde ajoute une rangée de textures de sol : `_planche_assets7.png`
+(83 cases : 3 sols + 80 objets). `_planche_assets.png` à
+`_planche_assets6.png` restent les planches historiques v1→v6. Les objets
 muraux y affichent leur hauteur au pied du mur, l'AABB seule ne mesurant que la
 géométrie suspendue.
 
@@ -716,6 +759,11 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
 14. **Figurines v6** : les 10 figurines partagent le socle rond et l'origine au
    pied ; le moteur peut choisir un rôle via les tags `class:...` / `creature:...`
    du manifeste (fin du hash entre 3 PNJ).
+15. **Modules v7** : les toits (`anchor="roof"`) se posent au sommet d'un
+   bâtiment, origine à la base du toit ; les éléments de façade (`anchor="wall"`)
+   se plaquent contre un mur (`+Y`), fenêtre/balcon livrés à leur hauteur de pose.
+16. **Cheminee_fumante** : la fumée est un volume opaque statique (pas de shader
+   ni d'alpha) ; libre au moteur d'y ajouter une animation ou un particules.
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -782,13 +830,13 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets 3D | 68 (63 modèles + 5 variantes) |
+| Assets 3D | 80 (75 modèles + 5 variantes) |
 | Triangles / asset | 308 → **3 036** max (contour inclus), budget 5 000 |
-| Triangles total | **77 688** |
+| Triangles total | **86 008** |
 | GLB / asset | ~33 → ~219 Ko (vertex colors + contour) |
 | Vignette / asset | ~111 → ~195 Ko (512 RGBA) |
 | Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
-| Planches | `_planche_assets6.png` (71 cases), historiques `_planche_assets{,2,3,4,5}.png`, `_planche_terrain.png` |
+| Planches | `_planche_assets7.png` (83 cases), historiques `_planche_assets{,2,3,4,5,6}.png`, `_planche_terrain.png` |
 
 Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
 skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
@@ -817,7 +865,7 @@ dans les GLB).
 
 # Textures de sol tuilables seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets7.png --terrain
 
 # Build complet sans les textures (Pillow absent par ex.)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
@@ -984,6 +1032,7 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 - [ ] jupe de raccord au sol présente (sauf exception documentée) ;
 - [ ] objets muraux : `anchor="wall"`, mur en `+Y`, origine au pied du mur ;
 - [ ] `toit_lucarne` : pas de dalle de sol, origine à la base du toit ;
+- [ ] modules de toit : `anchor="roof"`, origine à la base du toit, pas de dalle ;
 - [ ] figurines PNJ : socle rond, pas de jupe, visage lisible, ~1 case ;
 - [ ] objets d'eau : pas de jupe, origine au niveau de l'eau (z=0) ;
 - [ ] figurines : socle rond, visage peint, tag `class:...` / `creature:...` ;
@@ -1041,6 +1090,9 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 * Les objets d'eau (`ponton`, `barque`, `nenuphars`) flottent au niveau du plan
   d'eau : sans animation moteur, ils apparaissent posés sur le sol. Le ponton
   n'a pas de rambarde pour rester lisible et léger.
+* Les modules v7 ne sont pas **aimantés** automatiquement aux bâtiments : c'est
+  l'éditeur qui positionne toits et façades (aucune contrainte de snap dans le
+  GLB). La fumée de `cheminee_fumante` est figée dans le mesh.
 * La falaise est un module de relief 2×2 : elle ne gère pas de transitions
   douces avec les cases voisines (à composer côté éditeur/moteur).
 * Les figurines v6 sont statiques et très low-poly (~0,7–1,3 k tris) : les
