@@ -358,9 +358,20 @@ static func build_demo(md: Node) -> Dictionary:
 			sub["terrainMaterials"] = camp_mats
 			sub["terrainHeights"] = camp_heights
 			sub["ambientFx"] = "snow"
+		# Taverne : lumière chaude du foyer et des lanternes.
+		if style == "tavern":
+			sub["lighting"] = {
+				"enabled": true, "direction": "nw", "intensity": 0.18,
+				"nightMode": false,
+				"sources": [
+					{"id": "taverne-foyer", "x": 2.5, "y": 4.0,
+						"color": "#ffb15c", "energy": 2.4, "radius": 4.2, "elevation": 1.0},
+					{"id": "taverne-lanterne", "x": 7.5, "y": 2.5,
+						"color": "#ffd08a", "energy": 1.8, "radius": 3.4, "elevation": 1.8},
+				],
+			}
 		# Donjon en ambiance nocturne : lanternes et torches ressortent.
-		if style == "dungeon":
-			var w_dun := int(spec["w"])
+		if style == "dungeon":			var w_dun := int(spec["w"])
 			var h_dun := int(spec["h"])
 			sub["lighting"] = {
 				"enabled": true, "direction": "nw", "intensity": 0.15,
