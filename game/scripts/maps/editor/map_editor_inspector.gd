@@ -19,6 +19,7 @@ signal open_map_requested(map_id: String)
 
 var doc = null
 var _suppress: bool = false
+var _mesh_dims_cache: Dictionary = {}
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 6)
@@ -249,14 +250,24 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		var size_y := float(elem.get("sizeY", 1.0))
 		var size_z := float(elem.get("sizeZ", elem.get("h", 1.0)))
 		var rotation_mesh := float(display_mesh.get("rotation", 0.0))
+		var natural_mesh := _mesh_natural_dimensions(str(elem.get("asset", "")))
+		var actual_mesh := _mesh_actual_dimensions(elem, natural_mesh)
+		var uniform_scale := 1.0
+		if natural_mesh.x > 0.001:
+			uniform_scale = actual_mesh.x / natural_mesh.x
+		elif natural_mesh.y > 0.001:
+			uniform_scale = actual_mesh.y / natural_mesh.y
 		_section("Dimensions (cases)")
 		var dim_row := _row()
 		_spin(dim_row, "Largeur X", 0.1, 50.0, size_x, 0.1,
-			func(v): _apply({"sizeX": v, "w": v}, "Dimensions"))
+			func(v): _apply_mesh_dimension("x", v, natural_mesh))
 		_spin(dim_row, "Prof. Z", 0.1, 50.0, size_z, 0.1,
-			func(v): _apply({"sizeZ": v, "h": v}, "Dimensions"))
-		_spin(_row(), "Hauteur Y", 0.1, 50.0, size_y, 0.1,
-			func(v): _apply({"sizeY": v}, "Dimensions"))
+			func(v): _apply_mesh_dimension("z", v, natural_mesh))
+		var size_row := _row()
+		_spin(size_row, "Hauteur Y", 0.1, 50.0, size_y, 0.1,
+			func(v): _apply_mesh_dimension("y", v, natural_mesh))
+		_spin(size_row, "Échelle", 0.1, 8.0, uniform_scale, 0.05,
+			func(v): _apply_mesh_scale(v, natural_mesh))
 		_section("Rotation")
 		var rot_row := _row()
 		_spin(rot_row, "Rotation °", -180.0, 180.0, rotation_mesh, 5.0,
@@ -528,6 +539,85 @@ func _apply(mutations: Dictionary, note: String) -> void:
 	if _suppress or doc == null:
 		return
 	doc.modify_selection(mutations, note)
+
+## Dimensions naturelles d'un GLB en cases (manifeste, sinon AABB réelle).
+func _mesh_natural_dimensions(asset_path: String) -> Vector3:
+	if asset_path.is_empty():
+		return Vector3.ZERO
+	if _mesh_dims_cache.has(asset_path):
+		return _mesh_dims_cache[asset_path]
+	var out := Vector3.ZERO
+	var meta: Dictionary = MapAssetLibraryScript.get_object3d_meta(asset_path)
+	var dims = meta.get("dimensions_cells", [])
+	if dims is Array and (dims as Array).size() >= 3:
+		# Manifeste : largeur X, profondeur Z, hauteur Y.
+		out = Vector3(float(dims[0]), float(dims[2]), float(dims[1]))
+	else:
+		var inst: Node3D = MapAssetLibraryScript.instantiate_object3d_scene(asset_path)
+		if inst != null:
+			var boxes: Array = []
+			_collect_mesh_aabbs(inst, Transform3D.IDENTITY, boxes)
+			var merged := AABB()
+			var first := true
+			for box_variant in boxes:
+				var box: AABB = box_variant
+				merged = box if first else merged.merge(box)
+				first = false
+			if not first:
+				out = merged.size
+			inst.free()
+	_mesh_dims_cache[asset_path] = out
+	return out
+
+func _collect_mesh_aabbs(node: Node, xf: Transform3D, out: Array) -> void:
+	var next_xf := xf
+	if node is Node3D:
+		next_xf = xf * (node as Node3D).transform
+	if node is MeshInstance3D:
+		out.append(next_xf * (node as MeshInstance3D).get_aabb())
+	for child in node.get_children():
+		_collect_mesh_aabbs(child, next_xf, out)
+
+func _mesh_actual_dimensions(elem: Dictionary, natural: Vector3) -> Vector3:
+	var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
+	var out := natural * display_scale
+	var sx := float(elem.get("sizeX", 0.0))
+	var sy := float(elem.get("sizeY", 0.0))
+	var sz := float(elem.get("sizeZ", 0.0))
+	if sx > 0.0:
+		out.x = sx
+	if sy > 0.0:
+		out.y = sy
+	if sz > 0.0:
+		out.z = sz
+	return out
+
+func _apply_mesh_dimension(axis: String, value: float, natural: Vector3) -> void:
+	if doc == null or (doc.selection() as Array).is_empty():
+		return
+	var elem: Dictionary = doc.get_element(str((doc.selection() as Array)[0]))
+	var dims := _mesh_actual_dimensions(elem, natural)
+	if axis == "x":
+		dims.x = maxf(0.05, value)
+	elif axis == "y":
+		dims.y = maxf(0.05, value)
+	else:
+		dims.z = maxf(0.05, value)
+	_apply({
+		"sizeX": dims.x, "sizeY": dims.y, "sizeZ": dims.z,
+		"w": dims.x, "h": dims.z, "display": {"scale": 1.0},
+	}, "Dimensions")
+
+func _apply_mesh_scale(factor: float, natural: Vector3) -> void:
+	if natural.x <= 0.001 and natural.y <= 0.001 and natural.z <= 0.001:
+		_apply({"display": {"scale": maxf(0.1, factor)}}, "Échelle")
+		return
+	var dims := natural * maxf(0.1, factor)
+	_apply({
+		"sizeX": dims.x, "sizeY": dims.y, "sizeZ": dims.z,
+		"w": dims.x, "h": dims.z, "display": {"scale": 1.0},
+	}, "Échelle")
 
 func _stamp_light_selection() -> void:
 	if doc == null:

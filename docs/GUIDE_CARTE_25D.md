@@ -69,6 +69,9 @@ Outils terrain :
   bâtiment le plus proche, une **façade** (porte, fenêtre, balcon, auvent) se
   place contre le **mur le plus proche du clic** (avant, arrière ou côté), le dos
   du module collé au nu du mur. Le fantôme sous le curseur montre la pose réelle.
+- **Échelle** : champ dans les options pour le prochain objet, ou dans
+  l'inspecteur pour la sélection (uniforme X/Y/Z). La poignée de coin
+  redimensionne aussi en conservant les proportions.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

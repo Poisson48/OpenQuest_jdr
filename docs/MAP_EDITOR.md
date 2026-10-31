@@ -125,7 +125,9 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   automatiquement. Aucun outil externe requis pour ajouter ses propres bâtiments.
 - **Dimensions** : largeur X / hauteur Y / profondeur Z en cases, éditables dans
   l'inspecteur ou par la poignée de coin de la sélection (la taille est déduite
-  de l'AABB du GLB à la pose). **Rotation** : champ de l'inspecteur, boutons
+  de l'AABB du GLB à la pose). Le champ **Échelle** applique une échelle
+  uniforme aux trois axes ; la poignée de coin conserve les proportions.
+  **Rotation** : champ de l'inspecteur, boutons
   −90°/+90°, ou poignée de rotation au-dessus de la sélection.
 - **Aimantation des modules** : les toits (`anchor="roof"`) et façades
   (`anchor="wall"`) se posent automatiquement sur le **bâtiment le plus proche**

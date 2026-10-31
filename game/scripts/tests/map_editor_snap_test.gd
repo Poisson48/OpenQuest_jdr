@@ -136,6 +136,42 @@ func _run() -> void:
 		_assert("awning_front_against_wall", float(front_awning.get("y", 0.0)) > 20.9
 			and absf(float(front_awning.get("x", 0.0)) - 20.0) < 0.1)
 
+	# Redimensionnement à la poignée : proportions conservées, pas de hauteur écrasée.
+	var resize_id: String = editor.doc.add_element({
+		"x": 30.0, "y": 30.0, "w": 1.0, "h": 1.0,
+		"asset": "res://assets/objects3d/buildings/maison.glb",
+		"elevation": 0.0, "followTerrain": true,
+		"label": "Maison resize", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, "mesh", "Objet 3D")
+	var resize_elem: Dictionary = editor.doc.get_element(resize_id)
+	var dims_before: Vector3 = editor._mesh_actual_dimensions(resize_elem)
+	_assert("resize_natural_dims", dims_before.x > 0.5 and dims_before.y > 0.5 and dims_before.z > 0.5)
+	editor._handle_state = {
+		"id": resize_id, "x": 30.0, "y": 30.0,
+		"w": dims_before.x, "h": dims_before.z,
+		"mesh_dims": dims_before, "start_grid": Vector2(30.0 + dims_before.x, 30.0),
+	}
+	editor._apply_handle_resize(Vector2(30.0 + dims_before.x * 2.0, 30.0))
+	var dims_after: Vector3 = editor._mesh_actual_dimensions(editor.doc.get_element(resize_id))
+	_assert("resize_keeps_height", dims_after.y > dims_before.y * 1.5 and dims_after.y < dims_before.y * 2.5)
+	_assert("resize_keeps_proportions", absf(dims_after.x / dims_before.x - dims_after.z / dims_before.z) < 0.05)
+	editor._handle_state.clear()
+
+	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
+	var meshes: Array = editor.doc.elements_of_kind("mesh")
+	if not meshes.is_empty():
+		var first_mesh: Dictionary = meshes[0]
+		var first_asset := str(first_mesh.get("asset", ""))
+		var natural: Vector3 = editor._inspector._mesh_natural_dimensions(first_asset)
+		editor.doc.select_only(str(first_mesh.get("id", "")))
+		editor._inspector._apply_mesh_scale(2.0, natural)
+		var scaled_elem: Dictionary = editor.doc.get_element(str(first_mesh.get("id", "")))
+		var scaled_dims: Vector3 = editor._mesh_actual_dimensions(scaled_elem)
+		_assert("inspector_scale_uniform", natural.y > 0.1
+			and absf(scaled_dims.y - natural.y * 2.0) < 0.05
+			and absf(scaled_dims.x - natural.x * 2.0) < 0.05)
+
 	editor.queue_free()
 	await process_frame
 	if _failed:

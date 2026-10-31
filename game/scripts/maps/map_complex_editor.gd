@@ -925,13 +925,21 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 			_press_mode = str(handle.get("kind", "resize"))
 			_drag_ids = [hid]
 			var display: Dictionary = handle_elem.get("display", {}) if handle_elem.get("display") is Dictionary else {}
+			var handle_w := float(handle_elem.get("w", 1.0))
+			var handle_h := float(handle_elem.get("h", 1.0))
+			var mesh_dims := Vector3.ZERO
+			if str(handle_elem.get("kind", "")) == DocumentScript.KIND_MESH:
+				mesh_dims = _mesh_actual_dimensions(handle_elem)
+				handle_w = mesh_dims.x
+				handle_h = mesh_dims.z
 			_handle_state = {
 				"id": hid,
 				"corner": int(handle.get("corner", 0)),
 				"x": float(handle_elem.get("x", 0.0)),
 				"y": float(handle_elem.get("y", 0.0)),
-				"w": float(handle_elem.get("w", 1.0)),
-				"h": float(handle_elem.get("h", 1.0)),
+				"w": handle_w,
+				"h": handle_h,
+				"mesh_dims": mesh_dims,
 				"rotation": float(display.get("rotation", 0.0)),
 				"start_grid": grid,
 			}
@@ -1138,14 +1146,17 @@ func _apply_handle_resize(grid: Vector2) -> void:
 	var fields: Dictionary = {"w": w, "h": h}
 	var kind := str(doc.get_element(id).get("kind", ""))
 	if kind == DocumentScript.KIND_MESH:
-		# Objet 3D : la poignée de coin dimensionne l'objet (X/Z) proportionnellement.
-		var elem: Dictionary = doc.get_element(id)
-		var base_w := maxf(0.01, float(_handle_state.get("w", 1.0)))
-		var ratio := w / base_w
-		fields["sizeX"] = w
-		fields["sizeZ"] = h
-		if float(elem.get("sizeY", 0.0)) > 0.0:
-			fields["sizeY"] = maxf(0.1, float(elem.get("sizeY", 1.0)) * ratio)
+		# Objet 3D : redimensionnement uniforme à partir des dimensions réelles
+		# (pas de la case occupée) pour ne pas écraser la hauteur d'un objet posé
+		# sans sizeY, et sans cumuler les échelles pendant le drag.
+		var base_dims: Vector3 = _handle_state.get("mesh_dims", Vector3.ONE)
+		var new_dims := Vector3(maxf(0.05, base_dims.x * scale),
+			maxf(0.05, base_dims.y * scale), maxf(0.05, base_dims.z * scale))
+		fields = {
+			"w": new_dims.x, "h": new_dims.z,
+			"sizeX": new_dims.x, "sizeY": new_dims.y, "sizeZ": new_dims.z,
+			"display": {"scale": 1.0},
+		}
 		doc.set_live_fields(id, fields)
 		return
 	if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
@@ -1534,7 +1545,26 @@ func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
 		"snapped_to": label,
 	}
 
-## Boîte englobante (en cases) d'un GLB, positions et taille, échelle incluse.
+## Dimensions réelles d'un mesh (cases) : sizeX/Y/Z s'ils existent, sinon les
+## dimensions naturelles du GLB multipliées par display.scale.
+func _mesh_actual_dimensions(elem: Dictionary) -> Vector3:
+	var asset_path := str(elem.get("asset", ""))
+	var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
+	var natural := _mesh_bounds_cells(asset_path, 1.0)
+	var out := natural * display_scale
+	var sx := float(elem.get("sizeX", 0.0))
+	var sy := float(elem.get("sizeY", 0.0))
+	var sz := float(elem.get("sizeZ", 0.0))
+	if sx > 0.0:
+		out.x = sx
+	if sy > 0.0:
+		out.y = sy
+	if sz > 0.0:
+		out.z = sz
+	return out
+
+## Dimensions (en cases) de la boîte englobante du GLB, échelle de pose incluse.
 func _mesh_aabb_cells(asset_path: String, scale_factor: float = -1.0) -> AABB:
 	if asset_path.is_empty():
 		return AABB()
