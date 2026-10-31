@@ -47,6 +47,8 @@ func _run() -> void:
 	_assert("workspace_found", not workspaces.is_empty())
 	if not workspaces.is_empty():
 		var workspace = workspaces[0]
+		var engine = workspace.stage._complex
+		_assert("move_hover_layer", engine != null and engine._move_hover_layer != null)
 		var before: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		workspace._on_grid_clicked(4.0, 4.0, {"mode": SessionToolRegistry.MOVE})
 		await process_frame

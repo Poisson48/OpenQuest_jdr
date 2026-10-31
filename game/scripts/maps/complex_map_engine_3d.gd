@@ -169,6 +169,9 @@ var _lighting_config: Dictionary = {}
 var _style_cfg: Dictionary = {}
 var _hovered_area_id: String = ""
 var _hovered_zone_id: String = ""
+var _move_hover_layer: Control
+var _move_hover_grid := Vector2(-1, -1)
+var _move_hover_valid := false
 var _fit_pending: bool = false
 var _fit_retries: int = 0
 
@@ -179,8 +182,38 @@ func _ready() -> void:
 	set_process(true)
 	_build_viewport_tree()
 	mouse_exited.connect(_clear_area_hover)
+	# Curseur de déplacement (outil Pas) dessiné au-dessus du rendu 3D.
+	_move_hover_layer = Control.new()
+	_move_hover_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_move_hover_layer)
+	_move_hover_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_move_hover_layer.draw.connect(_draw_move_hover)
+
+func _update_move_pointer(screen_pos: Vector2) -> void:
+	var grid := _screen_to_grid(screen_pos)
+	_move_hover_grid = grid
+	_move_hover_valid = grid.x >= 0.0 and grid.y >= 0.0 \
+		and grid.x < float(map_data.get("width", 0)) and grid.y < float(map_data.get("height", 0))
+	if _move_hover_layer != null:
+		_move_hover_layer.queue_redraw()
+
+func _draw_move_hover() -> void:
+	if _move_hover_layer == null or editor_mode or not _move_hover_valid:
+		return
+	if str(session_tool.get("mode", "")) != "move":
+		return
+	var screen := grid_to_screen(_move_hover_grid.x, _move_hover_grid.y, 0.02)
+	if screen == Vector2.ZERO:
+		return
+	var color := Color(0.45, 0.95, 0.55, 0.95)
+	_move_hover_layer.draw_circle(screen, 7.0, Color(0.05, 0.12, 0.06, 0.55))
+	_move_hover_layer.draw_arc(screen, 7.0, 0.0, TAU, 24, color, 2.0, true)
+	_move_hover_layer.draw_circle(screen, 2.0, color)
 
 func _clear_area_hover() -> void:
+	_move_hover_valid = false
+	if _move_hover_layer != null:
+		_move_hover_layer.queue_redraw()
 	mouse_default_cursor_shape = Control.CURSOR_ARROW
 	if _hovered_area_id.is_empty() and _hovered_zone_id.is_empty():
 		return
@@ -445,6 +478,8 @@ func _fit_to_view_when_ready() -> void:
 
 func set_session_tool(tool: Dictionary) -> void:
 	session_tool = tool
+	if _move_hover_layer != null:
+		_move_hover_layer.queue_redraw()
 
 func set_move_policy(p_is_gm: bool, p_owned_member_id: String = "") -> void:
 	is_gm = p_is_gm
@@ -1919,6 +1954,7 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		else:
 			_update_area_hover(motion.position)
+			_update_move_pointer(motion.position)
 
 ## Applique le déplacement de vue correspondant à un mouvement souris.
 func _pan_from_motion(motion: InputEventMouseMotion) -> void:
