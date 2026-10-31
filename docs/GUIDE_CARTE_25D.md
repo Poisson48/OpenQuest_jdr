@@ -24,7 +24,7 @@ Onglet **Monde** (à droite, ou **⤢ Plein écran**) :
 
 | Action | Effet |
 |---|---|
-| **＋ Zone** | crée une carte 2.5D de la taille choisie (nom + thème de départ : Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer) et la pose sous le monde |
+| **＋ Zone** | crée une carte 2.5D de la taille choisie (nom + thème de départ : Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer, Lac) et la pose sous le monde |
 | **Glisser une zone** | change sa position `zoneX/zoneY` sur le plan |
 | **Relier les bords** | détecte les voisins qui partagent un bord (offset en cases si tailles différentes) |
 | **Lier…** | lien manuel : bord, zone cible, décalage |

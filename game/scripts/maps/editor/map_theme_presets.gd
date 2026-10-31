@@ -17,6 +17,7 @@ const THEMES := [
 	{"id": "ruins", "label": "Ruines"},
 	{"id": "snow", "label": "Camp enneigé"},
 	{"id": "beach", "label": "Bord de mer"},
+	{"id": "lake", "label": "Lac"},
 ]
 
 static func theme_ids() -> Array:
@@ -99,6 +100,18 @@ static func apply(map: Dictionary, theme_id: String) -> void:
 					elif y == shore - 1 and (x % 3) != 0:
 						materials[idx] = SAND
 			ambient = "leaves"
+		"lake":
+			var lake_center := Vector2(w * 0.5, h * 0.5)
+			for y in range(h):
+				for x in range(w):
+					var idx := y * w + x
+					var d := Vector2(x, y).distance_to(lake_center)
+					if d < 2.8:
+						heights[idx] = -0.9 * (1.0 - d / 2.8)
+					if d >= 2.8 and d < 4.0:
+						materials[idx] = SAND
+			map["waterLevel"] = -0.25
+			ambient = "fireflies"
 		_:
 			ambient = ""
 	map["terrainMaterials"] = materials

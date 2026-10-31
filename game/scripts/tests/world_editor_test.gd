@@ -168,6 +168,15 @@ func _run() -> void:
 			gd.get_map_play_tokens(str(play_ids[0])).size() >= 2)
 		gd.active_game = saved_game
 
+		# Thème « Lac » : dépression, eau et rive de sable.
+		var lake_sample := {"width": 10, "height": 8}
+		MapThemePresets.apply(lake_sample, "lake")
+		_assert("world_theme_lake_water", float(lake_sample.get("waterLevel", -1.0)) > -1.0)
+		_assert("world_theme_lake_depth",
+			(lake_sample.get("terrainHeights", []) as Array).any(func(v): return float(v) < -0.1))
+		_assert("world_theme_lake_sand",
+			(lake_sample.get("terrainMaterials", []) as Array).has(4))
+
 		# Assigner une carte existante (hors monde) comme nouvelle zone.
 		var free_map: Dictionary = md.create_complex_map("Carte libre", "general", "local", 11, 7)
 		var free_id := str(free_map.get("id", ""))
