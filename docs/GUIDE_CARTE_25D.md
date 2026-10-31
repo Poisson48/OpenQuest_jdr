@@ -73,9 +73,9 @@ Outils terrain :
   l'inspecteur pour la sélection (uniforme X/Y/Z). La poignée de coin
   redimensionne aussi en conservant les proportions.
 - **Outil 🏗 Mur 3D** : glisse un tracé pour construire une **rangée de murs
-  modulaires** (`mur.glb`) orientés et alignés au terrain ; les façades (porte,
-  fenêtre, auvent) peuvent ensuite s'aimanter dessus. Base de construction libre
-  façon Sims.
+  modulaires** (`mur.glb`) orientés et alignés au terrain, avec **hauteur
+  réglable** ; les façades (porte, fenêtre, auvent) peuvent ensuite s'aimanter
+  dessus. Base de construction libre façon Sims.
 - **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs qui
   se recouvrent aux angles), puis pose porte/fenêtre/auvent et un toit.
 - **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une

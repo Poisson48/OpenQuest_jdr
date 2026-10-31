@@ -109,6 +109,7 @@ var _syncing: bool = false
 var _player_view: bool = false
 var _player_view_btn: Button
 var _light_place_radius: float = 3.0
+var _wall_height: float = 1.3
 var _roof_height: float = 1.1
 var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
@@ -1443,6 +1444,7 @@ func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
 		var id: String = doc.add_element({
 			"x": pos.x, "y": pos.y,
 			"w": segment_len, "h": depth,
+			"sizeX": segment_len, "sizeY": _wall_height, "sizeZ": depth,
 			"asset": asset,
 			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
 			"label": "Mur 3D", "layer": 1,
@@ -1451,7 +1453,7 @@ func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
 		ids.append(id)
 	doc.set_selection(ids)
 	doc.commit_transaction()
-	_set_status("Mur 3D : %d segment(s) de %.2f case(s)." % [count, segment_len])
+	_set_status("Mur 3D : %d segment(s) de %.2f case(s), hauteur %.2f." % [count, segment_len, _wall_height])
 
 ## Construit une pièce fermée : quatre rangées de murs qui se recouvrent aux angles.
 func _create_mesh_room(from: Vector2, to: Vector2) -> void:
@@ -3574,9 +3576,11 @@ func _rebuild_tool_options() -> void:
 		if _token_kind == "npc":
 			_line_row(_hbox(_tool_options), "Dialogue", _token_dialogue, func(text): _token_dialogue = text)
 	elif _tool == ToolsScript.MESH_WALL:
+		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
 		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
 	elif _tool == ToolsScript.ROOM_3D:
-		_option_note("Glissez un rectangle : 4 murs + 4 coins pour une pièce fermée. Ajoutez ensuite portes, fenêtres et toit.")
+		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
+		_option_note("Glissez un rectangle : 4 murs pour une pièce fermée. Ajoutez ensuite dallage, portes, fenêtres et toit.")
 	elif _tool == ToolsScript.ROOF_3D:
 		var roof_opt := OptionButton.new()
 		for i in range(ROOF_STYLES.size()):

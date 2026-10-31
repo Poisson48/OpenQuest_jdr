@@ -171,7 +171,15 @@ func _run() -> void:
 		_assert("mesh_wall_chain_rotation", absf(float(first_display.get("rotation", 0.0))) < 1.0)
 		_assert("mesh_wall_chain_follows", bool(first_wall.get("followTerrain", false)))
 	# Tracé vertical : rotation à 90°.
-	var walls_before_v := walls_after.size()
+	# Hauteur de mur personnalisée.
+	editor._wall_height = 2.2
+	editor._create_mesh_wall_chain(Vector2(12.0, 12.0), Vector2(16.0, 12.0))
+	await process_frame
+	var tall_walls := _meshes_with_asset(editor, wall_asset)
+	var tall_wall: Dictionary = tall_walls[tall_walls.size() - 1]
+	_assert("mesh_wall_height", is_equal_approx(float(tall_wall.get("sizeY", 0.0)), 2.2))
+	editor._wall_height = 1.3
+	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame
 	var walls_v := _meshes_with_asset(editor, wall_asset)
