@@ -99,6 +99,7 @@ var _player_view: bool = false
 var _player_view_btn: Button
 var _light_place_radius: float = 3.0
 var _roof_height: float = 1.1
+var _floor_flatten: bool = true
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -1209,6 +1210,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_room(from, to)
 	elif _tool == ToolsScript.ROOF_3D:
 		_create_mesh_roof(from, to)
+	elif _tool == ToolsScript.FLOOR_3D:
+		_create_floor(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1495,6 +1498,27 @@ func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	doc.commit_transaction()
 	_set_status("Toit 3D : %d tuile(s), hauteur %.2f." % [ids.size(), _roof_height])
+
+## Dallage : peint le sol intérieur en pierre et le nivelle (option).
+func _create_floor(from: Vector2, to: Vector2) -> void:
+	var w := int(doc.map_data.get("width", 0))
+	var h := int(doc.map_data.get("height", 0))
+	var x0 := clampi(int(floor(minf(from.x, to.x))), 0, w - 1)
+	var x1 := clampi(int(ceil(maxf(from.x, to.x))) - 1, 0, w - 1)
+	var y0 := clampi(int(floor(minf(from.y, to.y))), 0, h - 1)
+	var y1 := clampi(int(ceil(maxf(from.y, to.y))) - 1, 0, h - 1)
+	if x1 < x0 or y1 < y0:
+		return
+	var count := 0
+	doc.begin_transaction()
+	for cy in range(y0, y1 + 1):
+		for cx in range(x0, x1 + 1):
+			doc.set_terrain_material(cx, cy, 2, "Dallage")
+			if _floor_flatten:
+				doc.set_terrain_height(cx, cy, 0.0, "Dallage")
+			count += 1
+	doc.commit_transaction()
+	_set_status("Dallage : %d case(s) en pierre%s." % [count, ", sol nivelé" if _floor_flatten else ""])
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
@@ -3536,6 +3560,13 @@ func _rebuild_tool_options() -> void:
 	elif _tool == ToolsScript.ROOF_3D:
 		_spin(_hbox(_tool_options), "Hauteur", 0.2, 10.0, _roof_height, 0.1, func(v): _roof_height = v)
 		_option_note("Glissez un rectangle au-dessus d'une pièce : génère une grille de tuiles de toit 2 pans.")
+	elif _tool == ToolsScript.FLOOR_3D:
+		var flatten_chk := CheckBox.new()
+		flatten_chk.text = "Niveler le sol"
+		flatten_chk.button_pressed = _floor_flatten
+		flatten_chk.toggled.connect(func(on): _floor_flatten = on)
+		_tool_options.add_child(flatten_chk)
+		_option_note("Glissez un rectangle à l'intérieur d'une pièce : dallage de pierre (matière 2) et sol à plat.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:

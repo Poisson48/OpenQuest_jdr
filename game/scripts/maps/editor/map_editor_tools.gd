@@ -19,6 +19,7 @@ const WALL := "wall"
 const MESH_WALL := "mesh_wall"
 const ROOM_3D := "room_3d"
 const ROOF_3D := "roof_3d"
+const FLOOR_3D := "floor_3d"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -39,7 +40,7 @@ const MESH := "mesh"
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, MEASURE, PLATFORM, AREA]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, FLOOR_3D, MEASURE, PLATFORM, AREA]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -98,6 +99,10 @@ const DEFS := [
 	{
 		"id": ROOF_3D, "icon": "🛖", "label": "Toit 3D", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser un rectangle : couvre une pièce avec des tuiles de toit 2 pans à la hauteur choisie.",
+	},
+	{
+		"id": FLOOR_3D, "icon": "▦", "label": "Dallage", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser un rectangle : pose un dallage de pierre et nivelle le sol intérieur.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",

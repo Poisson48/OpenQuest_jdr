@@ -209,6 +209,17 @@ func _run() -> void:
 		var roof_tile: Dictionary = roofs_after[roofs_before]
 		_assert("mesh_roof_elevation", is_equal_approx(float(roof_tile.get("elevation", 0.0)), 1.1))
 
+	# Dallage : matière pierre (2) et sol nivelé dans le rectangle.
+	editor._create_floor(Vector2(3.0, 15.0), Vector2(7.0, 17.0))
+	var floor_map: Dictionary = editor.doc.map_data
+	var floor_w := int(floor_map.get("width", 1))
+	var floor_mats: Array = floor_map.get("terrainMaterials", [])
+	_assert("mesh_floor_material", floor_mats.size() > 16 * 15 + 3
+		and int(floor_mats[15 * floor_w + 3]) == 2)
+	var floor_heights: Array = floor_map.get("terrainHeights", [])
+	_assert("mesh_floor_flattened", floor_heights.size() > 16 * 15 + 3
+		and is_equal_approx(float(floor_heights[15 * floor_w + 3]), 0.0))
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():

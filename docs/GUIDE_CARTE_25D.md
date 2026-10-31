@@ -80,6 +80,8 @@ Outils terrain :
   se recouvrent aux angles), puis pose porte/fenêtre/auvent et un toit.
 - **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une
   grille de tuiles de toit 2 pans à la hauteur réglée dans les options.
+- **Outil ▦ Dallage** : glisse un rectangle à l'intérieur : sol en pierre,
+  nivellement optionnel. Idéal pour une pièce habitable.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
