@@ -39,11 +39,12 @@
 
 ### 1.3 Session monde (façon Dofus)
 
-- Monde de démo **7 zones** reliées (village 24×16, place 14×12, forêt avec étang 12×12, taverne 10×8, donjon nocturne 9×9, camp 10×8, ruines 12×10) + temps (pluie aux ruines).
+- Monde de démo **7 zones** reliées (village 24×16, place 14×12, forêt avec étang 12×12, taverne 10×8, donjon nocturne 9×9, camp 10×8, ruines 12×10) + temps (pluie aux ruines, neige au camp), plus un second monde **Îles de Brume** (Lac, plage).
 - **Transitions par les bords** : transfert du pion, fondu, titre de zone, **« Nouvelle zone découverte »** à la première visite.
 - **Carte du monde (M)** : aperçus sols/relief/eau/bâtiments, liens, découvertes, « Vous êtes ici », légende, voyage rapide, survol ; boutons **Groupe** et **Monde** dans la barre.
 - **Figurines 3D par classe** (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise…) et créatures (gobelin, squelette), **nom flottant**, socle joueur, ombre, sélection, **respiration idle**.
-- **Boussole de sorties** en panneau, boussole de zones voisines.
+- **Boussole de sorties** en panneau, sorties **cliquables**, mini-carte (C) avec
+  clic pour recentrer, aide des raccourcis (H).
 - **Caméra** : molette, glisser, bouton Groupe, raccourcis **G** (groupe), **F** (cadrer), **1-9** (zones).
 
 ### 1.4 Assets & outillage
@@ -101,10 +102,11 @@ Schéma de carte v5 : `renderStyle`, `groundMode` (`terrain3d`/`illustrated`),
 Runner : `scripts/run_tests.ps1` (timeout par test, détection `PASS`/JSON,
 captures ignorées par défaut, pas de `--quit` trompeur).
 
-**Dernier run complet : 40 tests, 39 PASS.**
+**Dernier run complet : 42 tests, 41 PASS.**
 
-- PASS : toute la suite carte 2.5D, monde/zones, éditeur, session, scénarios,
-  personnages, table, chargement de scènes, Valbois diorama, déplacement sémantique.
+- PASS : toute la suite carte 2.5D, monde/zones, éditeur, session (mini-carte,
+  déplacement au clic), scénarios, personnages, table, chargement de scènes,
+  Valbois diorama, déplacement sémantique.
 - Seul échec connu, hors parcours carte : `webrtc_pooling_e2e_test` (serveur LAN
   requis, sinon timeout de connexion).
 
@@ -114,7 +116,8 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 `map_editor_library_filter_test`, `map_token_figurine_test`,
 `token_figurine_class_test`, `world_editor_test`, `world_zones_test`,
 `world_navigation_test`, `world_edge_session_test`, `world_map_test`,
-`session_layout_check`, `session_map_input_test`, `session_drag_move_test`.
+`session_layout_check`, `session_map_input_test`, `session_drag_move_test`,
+`session_minimap_test`, `session_move_tool_test`.
 
 ---
 
