@@ -10,6 +10,8 @@ class_name MapWorkspacePanel
 signal speaker_focus_requested(npc_name: String)
 signal notice_requested(text: String)
 
+const WorldNavigationScript := preload("res://scripts/session/world_navigation.gd")
+
 @onready var navigator: MapNavigatorPanel = %MapNavigator
 @onready var stage: MapStagePanel = %MapStage
 @onready var toolbar: MapToolbarPanel = %MapToolbar
@@ -338,11 +340,66 @@ func _on_token_moved(token_id: String, gx: float, gy: float) -> void:
 		return
 	if not GameData.can_session_move_token(map_id, token_id, _is_gm, _owned_member_id()):
 		return
+	# Franchissement d'un bord de zone : on bascule sur la carte voisine.
+	if _try_edge_transition(token_id, gx, gy):
+		return
 	GameData.submit_map_op(map_id, {
 		"type": GameData.MAP_OP_MOVE_TOKEN, "tokenId": token_id, "x": gx, "y": gy,
 	})
 	GameData.save_map_view_state(map_id, stage.get_view_state())
 	refresh()
+
+## Tente une transition par le bord du monde (zones façon Dofus). Renvoie vrai
+## si la carte active a changé (le token est déjà replacé par GameData).
+func _try_edge_transition(token_id: String, gx: float, gy: float) -> bool:
+	var map_id := _current_map_id()
+	var current_map: Dictionary = MapData.get_by_id(map_id)
+	if current_map.is_empty():
+		return false
+	var side: String = WorldNavigationScript.edge_side_near_border(current_map, Vector2(gx, gy))
+	if side.is_empty():
+		return false
+	var maps := _maps_for_world(map_id)
+	if maps.size() < 2:
+		return false
+	var result: Dictionary = WorldNavigationScript.resolve_edge_transition(
+		maps, map_id, side, Vector2(gx, gy))
+	if not bool(result.get("ok", false)):
+		return false
+	var target_id := str(result.get("target_map_id", ""))
+	if not GameData.transition_map_edge(target_id, token_id, result.get("position", Vector2.ZERO)):
+		return false
+	_active_map_id = target_id
+	var target_map: Dictionary = MapData.get_by_id(target_id)
+	notice_requested.emit("Changement de zone : %s" % str(target_map.get("title", "carte")))
+	refresh()
+	return true
+
+## Cartes du monde courant (celles de la session + toutes les zones du même monde).
+func _maps_for_world(current_map_id: String) -> Array:
+	var current: Dictionary = MapData.get_by_id(current_map_id)
+	var world_id := str(current.get("worldId", ""))
+	var out: Array = []
+	var seen: Dictionary = {}
+	for map_id_variant in GameData.active_game.get("mapIds", []):
+		var map: Dictionary = MapData.get_by_id(str(map_id_variant))
+		if map.is_empty() or seen.has(str(map.get("id", ""))):
+			continue
+		out.append(map)
+		seen[str(map.get("id", ""))] = true
+	if not world_id.is_empty():
+		for map_variant in MapData.maps:
+			if not map_variant is Dictionary:
+				continue
+			var map: Dictionary = map_variant
+			if str(map.get("worldId", "")) != world_id:
+				continue
+			var map_id := str(map.get("id", ""))
+			if map_id.is_empty() or seen.has(map_id):
+				continue
+			out.append(map)
+			seen[map_id] = true
+	return out
 
 func _on_prop_moved(prop_id: String, gx: float, gy: float) -> void:
 	var map_id := _current_map_id()

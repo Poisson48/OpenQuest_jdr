@@ -3226,6 +3226,50 @@ func exit_to_world_map() -> void:
 	active_game["mapNavigation"] = nav
 	save_active_game()
 
+## Bascule la carte active à la suite du franchissement d'un bord de zone
+## (monde façon Dofus). Le token est transféré de la carte courante vers la
+## carte cible, à la position miroir calculée par `WorldNavigation`.
+## MVP local/MJ : sauvegarde + diffusion d'état (le chemin joueur P2P passera
+## par les demandes d'opération, comme les autres déplacements).
+func transition_map_edge(target_map_id: String, token_id: String, position: Vector2) -> bool:
+	if active_game.is_empty() or target_map_id.is_empty():
+		return false
+	var target_map := MapData.get_by_id(target_map_id)
+	if target_map.is_empty():
+		return false
+	var current_id := get_active_play_map_id()
+	if current_id.is_empty():
+		return false
+	ensure_map_play_state()
+	if not token_id.is_empty():
+		var tokens: Array = get_map_play_tokens(current_id)
+		var index := -1
+		for i in range(tokens.size()):
+			if str((tokens[i] as Dictionary).get("id", "")) == token_id:
+				index = i
+				break
+		if index < 0:
+			return false
+		var token: Dictionary = (tokens[index] as Dictionary).duplicate(true)
+		tokens.remove_at(index)
+		var target_w := maxf(0.0, float(target_map.get("width", 1)) - 1.0)
+		var target_h := maxf(0.0, float(target_map.get("height", 1)) - 1.0)
+		token["x"] = clampf(position.x, 0.0, target_w)
+		token["y"] = clampf(position.y, 0.0, target_h)
+		var target_entry := get_map_play_entry(target_map_id)
+		(target_entry["tokens"] as Array).append(token)
+	var ids: Array = active_game.get("mapIds", [])
+	if not ids.has(target_map_id):
+		ids.append(target_map_id)
+	active_game["mapIds"] = ids
+	active_game["currentMapId"] = target_map_id
+	var nav: Dictionary = active_game.get("mapNavigation", {})
+	nav["view"] = "local"
+	nav["localMapId"] = target_map_id
+	active_game["mapNavigation"] = nav
+	save_map_play_and_sync()
+	return true
+
 func remove_map_token_at(map_id: String, x: int, y: int) -> void:
 	var entry := get_map_play_entry(map_id)
 	entry["tokens"] = entry["tokens"].filter(func(t):

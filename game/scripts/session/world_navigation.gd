@@ -65,6 +65,28 @@ static func edge_side_for_position(map_data: Dictionary, pos: Vector2) -> String
 		return "south"
 	return ""
 
+## Comme [method edge_side_for_position], mais considère aussi les cases proches
+## du bord (marge en cases) : sert au drag de token qui est souvent clampé sur la
+## dernière case avant de franchir le bord.
+static func edge_side_near_border(map_data: Dictionary, pos: Vector2, margin: float = 0.75) -> String:
+	var outside := edge_side_for_position(map_data, pos)
+	if not outside.is_empty():
+		return outside
+	var w := float(map_data.get("width", 0))
+	var h := float(map_data.get("height", 0))
+	if w <= 0.0 or h <= 0.0:
+		return ""
+	var m := maxf(0.0, margin)
+	if pos.x <= m:
+		return "west"
+	if pos.x >= w - 1.0 - m:
+		return "east"
+	if pos.y <= m:
+		return "north"
+	if pos.y >= h - 1.0 - m:
+		return "south"
+	return ""
+
 ## Résout une transition de bord :
 ## `{ok, target_map_id, position, target_zone}`. `local_pos` en cases centrées.
 static func resolve_edge_transition(
