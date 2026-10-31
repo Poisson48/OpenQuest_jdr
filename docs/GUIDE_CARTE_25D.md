@@ -44,7 +44,7 @@ Onglet **Carte** :
 - **Type de sol** : *Terrain 3D* (heightfield) ou *Fond illustré* (plat).
 - **Eau (niveau)** : `-1` = aucune eau ; sinon hauteur du plan d'eau en cases.
   Creuse d'abord avec **⛰ Relief (U)**, puis règle le niveau.
-- **Ambiance** : lucioles, poussière, feuilles (particules animées).
+- **Ambiance** : lucioles, poussière, feuilles, pluie ou neige (particules animées).
 - **Style de rendu** : Carte 2.5D (défaut), Diorama, VTT 3D, Hybride DD2.
 
 Outils terrain :

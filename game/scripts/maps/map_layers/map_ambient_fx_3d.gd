@@ -7,21 +7,25 @@ class_name MapAmbientFx3D
 ##   - `""` (défaut) : aucune ambiance, aucun nœud ;
 ##   - `"fireflies"` : lucioles flottantes au-dessus du sol / de l'eau ;
 ##   - `"dust"` : poussière flottante (intérieur / donjon) ;
-##   - `"leaves"` : feuilles qui tombent (forêt).
+##   - `"leaves"` : feuilles qui tombent (forêt) ;
+##   - `"rain"` : pluie fine étirée, chute rapide, légère inclinaison ;
+##   - `"snow"` : flocons ronds, chute lente, dérive et tournoiement.
 ## Toute autre valeur est ignorée (aucun rendu).
 ##
 ## Rendu : un `GPUParticles3D` avec un QuadMesh billboard et une **texture ronde
 ## dégradée générée à la volée**, matériau `unshaded` émissif discret, émission
 ## en boîte sur l'emprise de la carte, rampe de couleur (fondu entrée/sortie),
-## gravité/vent propres à chaque effet. Pas de collision, pas d'ombre portée.
-## La nuit, les lucioles brillent un peu plus et poussière/feuilles sont
-## assombries.
+## gravité/vent propres à chaque effet. La pluie utilise un QuadMesh **fin et
+## haut** (aligné sur la vitesse par le billboard particules) pour des gouttes
+## étirées ; la neige garde un sprite rond avec rotation (flutter). Pas de
+## collision, pas d'ombre portée. La nuit, les lucioles brillent un peu plus,
+## poussière/feuilles/pluie sont assombries et la neige prend une teinte bleutée.
 ##
 ## Le calque est instancié par le moteur après l'eau et retiré en mode
 ## `illustrated`.
 
 ## Effets supportés (ordre stable pour l'UI/tests).
-const EFFECTS := ["fireflies", "dust", "leaves"]
+const EFFECTS := ["fireflies", "dust", "leaves", "rain", "snow"]
 const NO_EFFECT := ""
 
 ## Réglages par effet (vitesses et gravité en unités monde × cell_size).
@@ -79,6 +83,57 @@ const EFFECT_CONFIGS := {
 		"height": 3.0,
 		"half_height": 0.5,
 		"angular": 60.0,
+	},
+	"rain": {
+		# Gouttes étirées verticalement : le QuadMesh fin/haut est aligné sur la
+		# vitesse par le mode billboard particules. Chute rapide et inclinée.
+		"amount": 160,
+		"lifetime": 1.4,
+		"color": Color(0.62, 0.72, 0.82, 0.55),
+		"emission": 0.04,
+		"scale_min": 0.35,
+		"scale_max": 0.55,
+		"spread": 4.0,
+		"direction": Vector3(0.18, -1.0, 0.06),
+		"velocity_min": 10.0,
+		"velocity_max": 16.0,
+		"gravity": Vector3(0.0, -8.0, 0.0),
+		"damping_min": 0.0,
+		"damping_max": 0.0,
+		"height": 6.0,
+		"half_height": 2.0,
+		"angular": 0.0,
+		## Taille du sprite en unités monde : fin et haut (goutte étirée).
+		"quad_size": Vector2(0.30, 2.60),
+	},
+	"snow": {
+		# Flocons ronds, chute lente, dérive latérale douce et tournoiement.
+		"amount": 90,
+		"lifetime": 10.0,
+		"color": Color(0.94, 0.96, 1.0, 0.85),
+		"emission": 0.10,
+		"scale_min": 0.12,
+		"scale_max": 0.22,
+		"spread": 22.0,
+		"direction": Vector3(0.25, -1.0, 0.15),
+		"velocity_min": 0.15,
+		"velocity_max": 0.35,
+		"gravity": Vector3(0.0, -0.12, 0.0),
+		"damping_min": 0.1,
+		"damping_max": 0.4,
+		"height": 5.0,
+		"half_height": 2.0,
+		"angular": 60.0,
+		## Dérive latérale douce par turbulence (flocons qui flottent).
+		"turbulence": {
+			"strength": 0.45,
+			"scale": 2.5,
+			"speed": Vector3(0.4, 0.15, 0.4),
+			"influence_min": 0.05,
+			"influence_max": 0.25,
+		},
+		## Sprite carré (flocon rond).
+		"quad_size": Vector2.ONE,
 	},
 }
 
@@ -169,6 +224,10 @@ static func effect_label(effect: String) -> String:
 			return "Poussière"
 		"leaves":
 			return "Feuilles"
+		"rain":
+			return "Pluie"
+		"snow":
+			return "Neige"
 	return "Aucune"
 
 ## Reconstruit (ou retire) l'émetteur de particules.
@@ -214,7 +273,7 @@ func _rebuild() -> void:
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	process.emission_box_extents = Vector3(half_w, half_h, half_d)
 	var direction: Vector3 = config.get("direction", Vector3(0.0, 1.0, 0.0))
-	process.direction = direction
+	process.direction = direction.normalized()
 	process.spread = float(config.get("spread", 180.0))
 	process.initial_velocity_min = float(config.get("velocity_min", 0.05)) * cell
 	process.initial_velocity_max = float(config.get("velocity_max", 0.3)) * cell
@@ -228,12 +287,25 @@ func _rebuild() -> void:
 	if angular > 0.0:
 		process.angular_velocity_min = -angular
 		process.angular_velocity_max = angular
+	# Turbulence optionnelle (dérive latérale douce : neige qui flotte).
+	var turbulence = config.get("turbulence", null)
+	if turbulence is Dictionary:
+		var turb: Dictionary = turbulence
+		process.turbulence_enabled = true
+		process.turbulence_noise_strength = float(turb.get("strength", 0.45))
+		process.turbulence_noise_scale = float(turb.get("scale", 2.5))
+		var turb_speed: Vector3 = turb.get("speed", Vector3(0.4, 0.15, 0.4))
+		process.turbulence_noise_speed = turb_speed
+		process.turbulence_influence_min = float(turb.get("influence_min", 0.05))
+		process.turbulence_influence_max = float(turb.get("influence_max", 0.25))
 	process.color = Color.WHITE
 	process.color_ramp = _make_fade_ramp()
 	particles.process_material = process
 
 	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
+	# Taille du sprite en unités monde : étirée pour la pluie, ronde pour le reste.
+	var quad_size: Vector2 = config.get("quad_size", Vector2.ONE)
+	quad.size = quad_size
 	quad.material = _make_particle_material(config)
 	particles.draw_pass_1 = quad
 
@@ -276,8 +348,11 @@ func _make_particle_material(config: Dictionary) -> StandardMaterial3D:
 	var color: Color = config.get("color", Color.WHITE)
 	if _night_mode:
 		match _effect:
-			"dust", "leaves":
+			"dust", "leaves", "rain":
 				color = color.darkened(0.35)
+			"snow":
+				# Neige : teinte légèrement bleutée la nuit.
+				color = color.lerp(Color(0.72, 0.82, 1.0, color.a), 0.55)
 	mat.albedo_texture = _get_round_texture()
 	mat.albedo_color = color
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

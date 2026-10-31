@@ -1,11 +1,14 @@
 extends SceneTree
 
-## Tests des ambiances animées (lucioles, poussière, feuilles) de la carte 2.5D :
-##   • `MapAmbientFx3D` : aucun effet par défaut, lucioles/poussière/feuilles
-##     actives avec un `GPUParticles3D` (mesh billboard, texture ronde générée,
-##     matériau unshaded émissif, pas d'ombre), effet inconnu ignoré, changement
-##     d'effet, suppression, nuit (lucioles plus brillantes, poussière/feuilles
-##     assombries), pas de reconstruction quand rien ne change ;
+## Tests des ambiances animées (lucioles, poussière, feuilles, pluie, neige) de
+## la carte 2.5D :
+##   • `MapAmbientFx3D` : aucun effet par défaut, effets actifs avec un
+##     `GPUParticles3D` (mesh billboard, texture ronde générée, matériau unshaded
+##     émissif, pas d'ombre), effet inconnu ignoré, changement d'effet,
+##     suppression, nuit (lucioles plus brillantes, poussière/feuilles/pluie
+##     assombries, neige bleutée), pas de reconstruction quand rien ne change ;
+##   • météo : pluie = gouttes étirées verticalement + chute rapide/inclinée,
+##     neige = flocons ronds, chute lente, dérive et rotation ;
 ##   • intégration moteur : `configure`, `refresh_terrain`, API
 ##     `set_ambient_fx`/`get_ambient_fx`/`is_ambient_fx_active`, retrait en mode
 ##     `illustrated`, carte sans ambiance.
@@ -37,6 +40,7 @@ func _run() -> void:
 
 	await _test_layer_basics()
 	await _test_layer_effects()
+	await _test_layer_weather()
 	await _test_layer_updates()
 	await _test_layer_night()
 	await _test_engine_integration()
@@ -195,6 +199,111 @@ func _test_layer_effects() -> void:
 	_assert("normalize_unknown_static", AmbientScript.normalize_effect("brouillard") == "")
 
 # ===========================================================================
+# Météo : pluie étirée / neige ronde
+# ===========================================================================
+
+func _test_layer_weather() -> void:
+	var layer = _make_layer()
+	await _wait_frames(2)
+
+	# --- Pluie : gouttes étirées verticalement, chute rapide et inclinée.
+	layer.configure(W, H, CELL, "rain")
+	_assert("rain_active", layer.is_active())
+	_assert("rain_effect", layer.get_effect() == "rain")
+	_assert("rain_count", layer.get_particle_count() == 160,
+		"count=%d" % layer.get_particle_count())
+	var rain_particles = layer.get_particles()
+	_assert("rain_particles", rain_particles != null)
+	if rain_particles != null:
+		_assert("rain_short_lifetime", rain_particles.lifetime <= 2.0,
+			"lifetime=%f" % rain_particles.lifetime)
+		_assert("rain_no_shadow",
+			rain_particles.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		_assert("rain_draw_mesh", rain_particles.draw_pass_1 is QuadMesh)
+		if rain_particles.draw_pass_1 is QuadMesh:
+			var rain_quad := rain_particles.draw_pass_1 as QuadMesh
+			_assert("rain_stretched_quad",
+				rain_quad.size.y > rain_quad.size.x * 3.0,
+				"size=%s" % [str(rain_quad.size)])
+		if rain_particles.process_material is ParticleProcessMaterial:
+			var rain_process: ParticleProcessMaterial = rain_particles.process_material
+			_assert("rain_falls", rain_process.direction.y < 0.0,
+				"direction=%s" % [str(rain_process.direction)])
+			_assert("rain_slanted", absf(rain_process.direction.x) > 0.01
+				or absf(rain_process.direction.z) > 0.01,
+				"direction=%s" % [str(rain_process.direction)])
+			_assert("rain_fast", rain_process.initial_velocity_max >= 5.0,
+				"velocity=%f" % rain_process.initial_velocity_max)
+			_assert("rain_emission_box",
+				rain_process.emission_shape == ParticleProcessMaterial.EMISSION_SHAPE_BOX)
+	else:
+		_assert("rain_process_material", false)
+	var rain_mat := _particle_material(layer)
+	_assert("rain_material", rain_mat != null)
+	if rain_mat != null:
+		_assert("rain_unshaded",
+			rain_mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED)
+		_assert("rain_blue_grey",
+			rain_mat.albedo_color.b > rain_mat.albedo_color.r
+			and rain_mat.albedo_color.a < 0.8,
+			"color=%s" % [str(rain_mat.albedo_color)])
+
+	# --- Neige : flocons ronds, chute lente, dérive et tournoiement.
+	layer.configure(W, H, CELL, "snow")
+	_assert("snow_active", layer.is_active())
+	_assert("snow_effect", layer.get_effect() == "snow")
+	_assert("snow_count", layer.get_particle_count() == 90,
+		"count=%d" % layer.get_particle_count())
+	var snow_particles = layer.get_particles()
+	_assert("snow_particles", snow_particles != null)
+	if snow_particles != null:
+		_assert("snow_long_lifetime", snow_particles.lifetime >= 6.0,
+			"lifetime=%f" % snow_particles.lifetime)
+		_assert("snow_no_shadow",
+			snow_particles.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		if snow_particles.draw_pass_1 is QuadMesh:
+			var snow_quad := snow_particles.draw_pass_1 as QuadMesh
+			_assert("snow_round_quad", is_equal_approx(snow_quad.size.x, snow_quad.size.y),
+				"size=%s" % [str(snow_quad.size)])
+		if snow_particles.process_material is ParticleProcessMaterial:
+			var snow_process: ParticleProcessMaterial = snow_particles.process_material
+			_assert("snow_falls", snow_process.direction.y < 0.0)
+			_assert("snow_drifts", absf(snow_process.direction.x) > 0.01
+				or absf(snow_process.direction.z) > 0.01,
+				"direction=%s" % [str(snow_process.direction)])
+			_assert("snow_swirls", snow_process.angular_velocity_max > 0.0,
+				"angular=%f" % snow_process.angular_velocity_max)
+			_assert("snow_slow", snow_process.initial_velocity_max < 2.0,
+				"velocity=%f" % snow_process.initial_velocity_max)
+			_assert("snow_flutters", snow_process.turbulence_enabled
+				and snow_process.turbulence_noise_strength > 0.0)
+			_assert("snow_emission_box",
+				snow_process.emission_shape == ParticleProcessMaterial.EMISSION_SHAPE_BOX)
+	else:
+		_assert("snow_process_material", false)
+	var snow_mat := _particle_material(layer)
+	_assert("snow_material", snow_mat != null)
+	if snow_mat != null:
+		var snow_color := snow_mat.albedo_color
+		_assert("snow_white",
+			minf(snow_color.r, minf(snow_color.g, snow_color.b)) > 0.8,
+			"color=%s" % [str(snow_color)])
+		_assert("snow_unshaded",
+			snow_mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED)
+
+	# --- Noms et labels des deux effets météo (les 3 anciens restent).
+	_assert("effects_contains_weather", AmbientScript.EFFECTS.has("rain")
+		and AmbientScript.EFFECTS.has("snow"))
+	_assert("effects_keep_legacy", AmbientScript.EFFECTS.has("fireflies")
+		and AmbientScript.EFFECTS.has("dust")
+		and AmbientScript.EFFECTS.has("leaves"))
+	_assert("normalize_rain", AmbientScript.normalize_effect(" Rain ") == "rain")
+	_assert("normalize_snow", AmbientScript.normalize_effect("SNOW") == "snow")
+	_assert("label_rain", AmbientScript.effect_label("rain") == "Pluie")
+	_assert("label_snow", AmbientScript.effect_label("snow") == "Neige")
+	_assert("label_legacy", AmbientScript.effect_label("leaves") == "Feuilles")
+
+# ===========================================================================
 # Changement d'effet / suppression
 # ===========================================================================
 
@@ -255,6 +364,26 @@ func _test_layer_night() -> void:
 	var night_dust: Color = _particle_material(layer).albedo_color
 	_assert("night_dust_darker", night_dust.get_luminance() < day_dust.get_luminance())
 
+	# Pluie plus sombre la nuit.
+	layer.configure(W, H, CELL, "rain", false)
+	var day_rain: Color = _particle_material(layer).albedo_color
+	layer.configure(W, H, CELL, "rain", true)
+	var night_rain: Color = _particle_material(layer).albedo_color
+	_assert("night_rain_darker", night_rain.get_luminance() < day_rain.get_luminance(),
+		"day=%s night=%s" % [str(day_rain), str(night_rain)])
+	_assert("night_rain_active", layer.is_active() and layer.get_effect() == "rain")
+
+	# Neige légèrement bleutée la nuit.
+	layer.configure(W, H, CELL, "snow", false)
+	var day_snow: Color = _particle_material(layer).albedo_color
+	layer.configure(W, H, CELL, "snow", true)
+	var night_snow: Color = _particle_material(layer).albedo_color
+	_assert("night_snow_blue",
+		(night_snow.b - night_snow.r) > (day_snow.b - day_snow.r)
+		and night_snow.b >= day_snow.b - 0.001,
+		"day=%s night=%s" % [str(day_snow), str(night_snow)])
+	_assert("night_snow_active", layer.is_active() and layer.get_effect() == "snow")
+
 # ===========================================================================
 # Intégration moteur
 # ===========================================================================
@@ -280,6 +409,17 @@ func _test_engine_integration() -> void:
 	_assert("engine_set_leaves", engine.is_ambient_fx_active())
 	_assert("engine_get_leaves", engine.get_ambient_fx() == "leaves")
 	_assert("engine_set_leaves_count", engine._ambient_fx_layer.get_particle_count() == 40)
+
+	# Météo : pluie puis neige via set_ambient_fx.
+	engine.set_ambient_fx("rain")
+	_assert("engine_set_rain", engine.is_ambient_fx_active())
+	_assert("engine_get_rain", engine.get_ambient_fx() == "rain")
+	_assert("engine_set_rain_count", engine._ambient_fx_layer.get_particle_count() == 160)
+	engine.set_ambient_fx("snow")
+	_assert("engine_set_snow", engine.is_ambient_fx_active())
+	_assert("engine_get_snow", engine.get_ambient_fx() == "snow")
+	_assert("engine_set_snow_count", engine._ambient_fx_layer.get_particle_count() == 90)
+
 	engine.set_ambient_fx("")
 	_assert("engine_set_none", not engine.is_ambient_fx_active())
 	engine.set_ambient_fx("inconnu")
@@ -291,6 +431,16 @@ func _test_engine_integration() -> void:
 	await _wait_frames(2)
 	_assert("engine_refresh_dust", engine.is_ambient_fx_active())
 	_assert("engine_refresh_dust_name", engine.get_ambient_fx() == "dust")
+	map["ambientFx"] = "rain"
+	engine.refresh_terrain(map)
+	await _wait_frames(2)
+	_assert("engine_refresh_rain", engine.is_ambient_fx_active())
+	_assert("engine_refresh_rain_name", engine.get_ambient_fx() == "rain")
+	map["ambientFx"] = "snow"
+	engine.refresh_terrain(map)
+	await _wait_frames(2)
+	_assert("engine_refresh_snow", engine.is_ambient_fx_active())
+	_assert("engine_refresh_snow_name", engine.get_ambient_fx() == "snow")
 	map.erase("ambientFx")
 	engine.refresh_terrain(map)
 	await _wait_frames(2)

@@ -376,8 +376,8 @@ Onglet **Carte** :
   lac, avec rendu translucide animé, profondeur et écume de rive (mode Terrain 3D
   uniquement).
 - **Ambiance** : aucune, **lucioles** (étang / forêt), **poussière** (intérieur /
-  donjon) ou **feuilles qui tombent** — particules animées légères, retirées en
-  mode Fond illustré.
+  donjon), **feuilles qui tombent**, **pluie** ou **neige** — particules animées
+  légères, retirées en mode Fond illustré.
 - **Style de rendu** : **Diorama 2.5D** (défaut — fond peint + découpes) ou
   **VTT 3D** (battlemap tactique avec ombres et murs volumétriques).
 - **Dimensions** : redimensionnement non destructif — le terrain existant est

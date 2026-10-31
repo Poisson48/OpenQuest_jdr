@@ -325,7 +325,7 @@ static func build_demo(md: Node) -> Dictionary:
 		elif style == "place" or style == "camp":
 			sub["ambientFx"] = "leaves"
 		elif style == "ruins":
-			sub["ambientFx"] = "dust"
+			sub["ambientFx"] = "rain"
 		# Donjon en ambiance nocturne : lanternes et torches ressortent.
 		if style == "dungeon":
 			sub["lighting"] = {

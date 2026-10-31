@@ -118,6 +118,8 @@ func _ready() -> void:
 		["fireflies", "Lucioles (étang / forêt)"],
 		["dust", "Poussière (intérieur / donjon)"],
 		["leaves", "Feuilles qui tombent (forêt)"],
+		["rain", "Pluie"],
+		["snow", "Neige"],
 	])
 	widgets["ambient_fx"] = fx_opt
 	fx_opt.item_selected.connect(func(_i): ambient_fx_changed.emit())
