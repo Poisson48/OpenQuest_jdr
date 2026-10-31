@@ -23,6 +23,7 @@ Création de personnages, scénarios et cartes, puis session solo ou à plusieur
 - **Valbois** — cartes illustrées HD (`valbois_village.png`, `place_du_marche.png`), zoom lieu → Place du Marché, personnage **Kael** (voleur + portrait)
 - **HUD joueur immersif** — carte plein écran + overlay (`PlayerSessionHud`) ; vue MJ = panneau de session classique
 - **Éditeur battlemap 3D** — Hub → Cartes → carte complexe → Modifier
+- **Carte 2.5D & monde de zones (façon Dofus)** — terrain 3D simple (relief, matières de sol, eau, ambiances), 80 objets 3D (bâtiments, intérieurs, PNJ, toits/façades) avec import GLB, **onglet Monde** (zones de tailles différentes, liens de bords, Tester en session), figurines 3D de tokens, carte du monde en session (M). Guide : [`docs/GUIDE_CARTE_25D.md`](docs/GUIDE_CARTE_25D.md).
 - **Scénarios non linéaires** — graphe de scènes, navigation MJ
 - **Serveur pooling** — salons + signalisation ; jeu P2P ENet en LAN (pas Internet)
 
@@ -43,6 +44,10 @@ Raccourcis de lancement :
 .\scripts\play-godot-mj-demo.ps1                                      # boot session MJ
 .\scripts\play-godot.ps1 res://scenes/debug/valbois_demo_boot.tscn    # Valbois direct
 .\scripts\play-godot.ps1 res://scenes/debug/valbois_player_demo_boot.tscn  # Valbois HUD joueur
+
+# Carte 2.5D / monde de zones
+.\scripts\play-godot.ps1 res://scenes/debug/carte_25d_boot.tscn          # éditeur + monde de démo
+.\scripts\play-godot.ps1 res://scenes/debug/carte_25d_session_boot.tscn  # session sur le monde de démo
 ```
 
 ---
