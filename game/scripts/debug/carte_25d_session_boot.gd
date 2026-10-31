@@ -88,9 +88,12 @@ func _ready() -> void:
 	_add_creature_token(gd, forest_id, "Gobelin", 7.0, 6.0)
 	_add_creature_token(gd, dungeon_id, "Squelette", 5.0, 6.0)
 	# PNJ de vie : figurines 3D nommées dans le village et la taverne.
-	_add_npc_token(gd, village_id, "Marchand", 12.5, 7.2)
-	_add_npc_token(gd, village_id, "Garde", 5.5, 6.0)
-	_add_npc_token(gd, tavern_id, "Villageois", 4.8, 4.2)
+	_add_npc_token(gd, village_id, "Marchand", 12.5, 7.2,
+		"Des marchandises fraîches de Valbois ! Regardez, goûtez.")
+	_add_npc_token(gd, village_id, "Garde", 5.5, 6.0,
+		"Circulez, la place est sûre… pour l'instant.")
+	_add_npc_token(gd, tavern_id, "Taverner", 4.8, 4.2,
+		"Bienvenue à la Taverne du Corbeau, l'auberge est ouverte !")
 	gd.save_map_play_and_sync()
 	print("[MONDE 2.5D] Session monde prête : ", ids.size(), " zones, 3 héros dans le village.")
 	get_tree().call_deferred("change_scene_to_file", "res://scenes/session/session.tscn")
@@ -109,14 +112,18 @@ func _add_creature_token(gd: Node, map_id: String, label: String, x: float, y: f
 	})
 
 ## Ajoute un PNJ pacifique (figurine 3D choisie d'après le label).
-func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float) -> void:
+func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float,
+		dialogue: String = "") -> void:
 	if map_id.is_empty():
 		return
 	var entry: Dictionary = gd.get_map_play_entry(map_id)
-	(entry["tokens"] as Array).append({
+	var token := {
 		"id": "tok-npc-%s" % label.to_lower(),
 		"kind": "npc",
 		"label": label,
 		"x": x, "y": y,
 		"hp": 10, "maxHp": 10,
-	})
+	}
+	if not dialogue.is_empty():
+		token["dialogue"] = dialogue
+	(entry["tokens"] as Array).append(token)

@@ -948,7 +948,10 @@ func _on_token_selected(token_id: String) -> void:
 	if str(tok.get("kind", "")) == "npc":
 		var npc_label := str(tok.get("label", "")).strip_edges()
 		if not npc_label.is_empty():
-			stage.show_speech(npc_label, _npc_line(npc_label),
+			var line := str(tok.get("dialogue", "")).strip_edges()
+			if line.is_empty():
+				line = _npc_line(npc_label)
+			stage.show_speech(npc_label, line,
 				Vector2(float(tok.get("x", 0.0)), float(tok.get("y", 0.0))))
 	_on_inspect_requested({
 		"kind": str(tok.get("kind", "token")),
