@@ -81,6 +81,19 @@ func _run() -> void:
 		img.save_png(out)
 		print("  capture: ", out, " (", img.get_width(), "x", img.get_height(), ")")
 
+	# Capture de l'outil Token en mode PNJ avec dialogue.
+	editor._token_kind = "npc"
+	editor._token_label = "Marchand"
+	editor._token_dialogue = "Des marchandises fraîches de Valbois !"
+	editor._set_tool("token")
+	await _wait(10)
+	var token_img: Image = get_root().get_texture().get_image()
+	if token_img != null:
+		token_img.convert(Image.FORMAT_RGBA8)
+		var token_out := copy_dir.path_join("carte_25d_token_pnj.png")
+		token_img.save_png(token_out)
+		print("  capture: ", token_out)
+
 	# Seconde capture : vue Monde (zones de tailles différentes).
 	if editor._world_panel != null and editor._right_tabs != null:
 		var world_tab: int = editor._right_tabs.get_tab_idx_from_control(editor._world_panel)
