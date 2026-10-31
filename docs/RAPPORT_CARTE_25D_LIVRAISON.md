@@ -20,6 +20,7 @@
 | Eau | niveau d'eau par carte (étangs/lacs creusés, translucide, profondeur, écume) |
 | Ambiances | lucioles, poussière, feuilles, **pluie**, **neige** (jour/nuit) |
 | Objets 3D | **80 objets** livrés (bâtiments, tours, toits/façades, intérieurs, PNJ, nature) |
+| Thèmes de zone | **Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer, Lac** : sols, relief, ambiance et décors de départ (puits, arbres, murs, rochers…) |
 | Biblio | recherche + filtres (bâtiments / toits & façades / personnages / nature / intérieurs / mobilier), **import GLB** avec vignette |
 | Aimantation | toits sur le bâtiment le plus proche, façades sur son avant ; **rotation du bâtiment héritée** ; aperçu fantôme |
 | Édition objet | dimensions X/Y/Z, rotation (R, poignées), élévation, échelle |
@@ -40,7 +41,7 @@
 
 - Monde de démo **7 zones** reliées (village 24×16, place 14×12, forêt avec étang 12×12, taverne 10×8, donjon nocturne 9×9, camp 10×8, ruines 12×10) + temps (pluie aux ruines).
 - **Transitions par les bords** : transfert du pion, fondu, titre de zone, **« Nouvelle zone découverte »** à la première visite.
-- **Carte du monde (M)** : aperçus sols/relief/eau/bâtiments, liens, découvertes, « Vous êtes ici », légende, voyage rapide, survol.
+- **Carte du monde (M)** : aperçus sols/relief/eau/bâtiments, liens, découvertes, « Vous êtes ici », légende, voyage rapide, survol ; boutons **Groupe** et **Monde** dans la barre.
 - **Figurines 3D par classe** (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise…) et créatures (gobelin, squelette), **nom flottant**, socle joueur, ombre, sélection, **respiration idle**.
 - **Boussole de sorties** en panneau, boussole de zones voisines.
 - **Caméra** : molette, glisser, bouton Groupe, raccourcis **G** (groupe), **F** (cadrer), **1-9** (zones).
@@ -145,6 +146,8 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 [`carte_25d_monde_plein_ecran.png`](./screenshots/carte_25d_monde_plein_ecran.png) ·
 [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) ·
 [`carte_25d_sols.png`](./screenshots/carte_25d_sols.png) ·
+[`carte_25d_camp.png`](./screenshots/carte_25d_camp.png) ·
+[`carte_25d_foret.png`](./screenshots/carte_25d_foret.png) ·
 [`carte_25d_etang.png`](./screenshots/carte_25d_etang.png) ·
 [`carte_25d_ruines.png`](./screenshots/carte_25d_ruines.png) ·
 [`session_monde_25d.png`](./screenshots/session_monde_25d.png) ·
