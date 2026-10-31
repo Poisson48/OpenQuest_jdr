@@ -82,7 +82,7 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - Touche **M** (ou bouton **🌍** de la barre) : carte du monde (zones découvertes,
   aperçus des sols/bâtiments, « Vous êtes ici », voyage rapide par clic).
 - **G** recentre la caméra sur le groupe (ou bouton **Groupe** dans la barre), **F** recadre toute la carte.
-- **1-9** bascule rapidement entre les cartes/onglets de zones.
+- **N** affiche/masque les noms flottants ; **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :
   fondu noir + nom de la zone.
 - Les membres sans portrait sont rendus en **figurines 3D par classe**

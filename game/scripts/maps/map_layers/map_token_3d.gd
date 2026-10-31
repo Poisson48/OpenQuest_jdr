@@ -18,6 +18,9 @@ const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 ## Seuil sous lequel une case de relief est considérée comme plate.
 const TERRAIN_RELIEF_EPSILON := 0.001
 
+## Affiche ou masque les noms flottants (raccourci N en session).
+static var labels_enabled: bool = true
+
 var token_data: Dictionary = {}
 var cell_size: float = 1.0
 var snap_to_grid: bool = true
@@ -38,6 +41,7 @@ var _shadow: MeshInstance3D
 var _selection_ring: MeshInstance3D
 var _dragging: bool = false
 var _fig_root: Node3D
+var _name_label: Label3D
 var _fig_base_position := Vector3.ZERO
 var _fig_base_rotation_y := 0.0
 var _idle_time: float = 0.0
@@ -239,6 +243,7 @@ func _add_figurine_visuals() -> bool:
 		name_label.outline_modulate = Color(0, 0, 0, 0.85)
 		name_label.position = Vector3(0, cell_size * 1.7, 0)
 		add_child(name_label)
+		_name_label = name_label
 	# Socle coloré du joueur (identification).
 	var base := MeshInstance3D.new()
 	var base_mesh := CylinderMesh.new()
@@ -275,6 +280,8 @@ func _add_figurine_visuals() -> bool:
 ## Respiration / balancement léger des figurines pour qu'elles paraissent vivantes.
 func _process(delta: float) -> void:
 	_idle_time += delta
+	if _name_label != null:
+		_name_label.visible = labels_enabled
 	if _selection_ring != null and selected_state:
 		var pulse := 1.0 + sin(_idle_time * 3.0) * 0.06
 		_selection_ring.scale = Vector3(pulse, 1.0, pulse)

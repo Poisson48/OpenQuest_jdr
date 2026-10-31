@@ -169,6 +169,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif key.keycode == KEY_F:
 		stage.fit()
 		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_N:
+		# Afficher/masquer les noms flottants des figurines.
+		MapToken3D.labels_enabled = not MapToken3D.labels_enabled
+		notice_requested.emit("Noms des figurines : %s" % ("affichés" if MapToken3D.labels_enabled else "masqués"))
+		get_viewport().set_input_as_handled()
+	elif key.keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD]:
+		stage.zoom_in()
+		get_viewport().set_input_as_handled()
+	elif key.keycode in [KEY_MINUS, KEY_KP_SUBTRACT]:
+		stage.zoom_out()
+		get_viewport().set_input_as_handled()
 	elif key.keycode >= KEY_1 and key.keycode <= KEY_9:
 		# 1-9 : bascule rapide entre les cartes/onglets de zone.
 		if navigator != null and navigator.select_map_index(int(key.keycode - KEY_1)):
