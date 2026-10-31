@@ -37,6 +37,8 @@ var _transitioning: bool = false
 var _zone_title_lbl: Label
 var _zone_new_lbl: Label
 var _help_overlay: PanelContainer
+var _minimap_panel: PanelContainer
+var _minimap: SessionMinimap
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -146,6 +148,33 @@ func _ready() -> void:
 	_help_overlay.add_child(help_text)
 	_help_overlay.visible = false
 
+	# Mini-carte de la zone courante (coin bas-droit, touche C).
+	var mini_layer := Control.new()
+	mini_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mini_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(mini_layer)
+	_minimap_panel = PanelContainer.new()
+	var mini_style := StyleBoxFlat.new()
+	mini_style.bg_color = Color(0.03, 0.03, 0.045, 0.82)
+	mini_style.border_color = Color(0.85, 0.72, 0.42, 0.7)
+	mini_style.set_border_width_all(1)
+	mini_style.set_corner_radius_all(8)
+	mini_style.set_content_margin_all(2)
+	_minimap_panel.add_theme_stylebox_override("panel", mini_style)
+	_minimap_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_minimap_panel.offset_left = -230
+	_minimap_panel.offset_top = -196
+	_minimap_panel.offset_right = -10
+	_minimap_panel.offset_bottom = -10
+	mini_layer.add_child(_minimap_panel)
+	_minimap = SessionMinimap.new()
+	_minimap.custom_minimum_size = Vector2(216, 182)
+	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
+	_minimap.jump_requested.connect(func(grid: Vector2):
+		stage.focus_grid_rect(Rect2(grid - Vector2(4.0, 3.0), Vector2(8.0, 6.0)), 1.5)
+	)
+	_minimap_panel.add_child(_minimap)
+
 	# Carte du monde de session (touche M) : superposée à toute la fenêtre.
 	_world_map = WorldMapOverlayScript.new()
 	get_tree().root.add_child(_world_map)
@@ -213,6 +242,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_F:
 		stage.fit()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_C:
+		if _minimap_panel != null:
+			_minimap_panel.visible = not _minimap_panel.visible
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_H:
 		if _help_overlay != null:
@@ -402,7 +435,17 @@ func refresh() -> void:
 	_render_navigator(ctx, map_ids, active_id)
 	_render_toolbar(state, display_map)
 	_configure_stage(state, ctx, map_id)
+	_update_minimap(map_id)
 	_apply_chrome_visibility()
+
+## Met à jour la mini-carte avec la zone et les pions courants.
+func _update_minimap(map_id: String) -> void:
+	if _minimap == null:
+		return
+	var map := MapData.get_by_id(map_id)
+	var tokens: Array = GameData.get_map_play_tokens(map_id)
+	var selected := GameData.get_selected_token_id(map_id)
+	_minimap.configure(map, tokens, selected)
 
 ## Boussole de sorties : zones voisines accessibles depuis la zone courante.
 func _update_exits_hint(display_map: Dictionary, map_id: String) -> void:
