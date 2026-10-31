@@ -4,11 +4,14 @@ extends SceneTree
 ##   • aucune jupe en mode illustré ;
 ##   • jupe présente en mode terrain3d (mesh séparé, anneau de 4 bandes, AABB qui
 ##     descend de `CLIFF_DEPTH_CELLS` cases sous le bord) ;
+##   • **rebord horizontal** (« lip ») au sommet des 4 bords : sommets
+##     supplémentaires, normales vers le haut, AABB étendue de ~`CLIFF_LIP_CELLS`
+##     au-delà de la carte, roche plus claire que la paroi ;
 ##   • sommet aligné sur les hauteurs des sommets de bord (carte plate et carte
 ##     surélevée) ;
 ##   • reconstruction après changement de relief (`set_terrain_heights`) ;
-##   • normales vers l'extérieur, vertex colors de strates, matériau roche
-##     éclairé, cast_shadow OFF, nuit teintée ;
+##   • normales de paroi vers l'extérieur, vertex colors de strates, matériau
+##     roche éclairé, cast_shadow OFF, nuit teintée ;
 ##   • le maillage du terrain lui-même reste inchangé (pas de régression).
 ##
 ## Autonome : seule la classe MapGround3D est utilisée (aucun autoload).
@@ -20,6 +23,7 @@ const H := 8
 const CELL := 1.0
 const DEPTH := 2.5
 const OUTSET := 0.02
+const LIP := 0.45
 
 var _failed: bool = false
 var _nodes: Array = []
@@ -85,9 +89,16 @@ func _cliff_aabb(ground) -> AABB:
 		return AABB()
 	return mesh.get_aabb()
 
-func _expected_vertex_count() -> int:
+func _expected_wall_vertex_count() -> int:
 	# 4 bandes : (W+3) échantillons horizontaux, (H+3) verticaux, 2 sommets chacun.
 	return 2 * ((W + 3) + (H + 3)) * 2
+
+func _expected_lip_vertex_count() -> int:
+	# 4 rebords : (W+1) échantillons horizontaux, (H+1) verticaux, 2 sommets chacun.
+	return 2 * ((W + 1) + (H + 1)) * 2
+
+func _expected_vertex_count() -> int:
+	return _expected_wall_vertex_count() + _expected_lip_vertex_count()
 
 # ===========================================================================
 # Mode illustré : aucune jupe
@@ -136,20 +147,100 @@ func _test_terrain3d_flat() -> void:
 		_assert("cliff_aabb_top", is_equal_approx(aabb.end.y, 0.0),
 			"max_y=%f" % aabb.end.y)
 
-		# Normales horizontales et orientées vers l'extérieur (4 directions).
+		# Normales : 4 directions horizontales pour la paroi + UP pour le rebord.
 		var normals_seen: Dictionary = {}
-		var all_horizontal := true
+		var wall_normals := 0
+		var lip_normals := 0
+		var other_normals := 0
 		for n in normals:
-			if absf(n.y) > 0.001:
-				all_horizontal = false
-			normals_seen["%d,%d,%d" % [roundi(n.x), roundi(n.y), roundi(n.z)]] = true
-		_assert("cliff_normals_horizontal", all_horizontal)
+			if n.y > 0.999:
+				lip_normals += 1
+			elif absf(n.y) <= 0.001:
+				wall_normals += 1
+				normals_seen["%d,%d,%d" % [roundi(n.x), roundi(n.y), roundi(n.z)]] = true
+			else:
+				other_normals += 1
+		_assert("cliff_normals_wall_count", wall_normals == _expected_wall_vertex_count(),
+			"wall=%d attendu=%d" % [wall_normals, _expected_wall_vertex_count()])
+		_assert("cliff_normals_lip_count", lip_normals == _expected_lip_vertex_count(),
+			"lip=%d attendu=%d" % [lip_normals, _expected_lip_vertex_count()])
+		_assert("cliff_normals_up", lip_normals > 0)
+		_assert("cliff_normals_complete",
+			wall_normals + lip_normals + other_normals == verts.size())
+		_assert("cliff_normals_other", other_normals == 0)
 		_assert("cliff_normals_four_sides", normals_seen.size() == 4,
 			"sides=%d" % normals_seen.size())
 		_assert("cliff_outward_south", normals_seen.has("0,0,1"))
 		_assert("cliff_outward_north", normals_seen.has("0,0,-1"))
 		_assert("cliff_outward_east", normals_seen.has("1,0,0"))
 		_assert("cliff_outward_west", normals_seen.has("-1,0,0"))
+
+		# --- Rebord (« lip ») : sommets au sommet, normales vers le haut, roche
+		# plus claire que la paroi, variation douce.
+		var lip_min_y := INF
+		var lip_max_y := -INF
+		var lip_lum := 0.0
+		var lip_count := 0
+		var wall_top_lum := 0.0
+		var wall_top_count := 0
+		var lip_extent_x_min := INF
+		var lip_extent_x_max := -INF
+		var lip_extent_z_min := INF
+		var lip_extent_z_max := -INF
+		for i in range(verts.size()):
+			if normals[i].y > 0.999:
+				var c := colors[i]
+				lip_lum += c.get_luminance()
+				lip_count += 1
+				lip_min_y = minf(lip_min_y, verts[i].y)
+				lip_max_y = maxf(lip_max_y, verts[i].y)
+				lip_extent_x_min = minf(lip_extent_x_min, verts[i].x)
+				lip_extent_x_max = maxf(lip_extent_x_max, verts[i].x)
+				lip_extent_z_min = minf(lip_extent_z_min, verts[i].z)
+				lip_extent_z_max = maxf(lip_extent_z_max, verts[i].z)
+			elif verts[i].y > -0.01:
+				wall_top_lum += colors[i].get_luminance()
+				wall_top_count += 1
+		var lip_mean := lip_lum / float(maxi(1, lip_count))
+		var wall_top_mean := wall_top_lum / float(maxi(1, wall_top_count))
+		_assert("cliff_lip_flat_top",
+			is_zero_approx(lip_min_y) and is_zero_approx(lip_max_y),
+			"lip y=[%f..%f]" % [lip_min_y, lip_max_y])
+		_assert("cliff_lip_lighter", lip_mean > wall_top_mean,
+			"lip=%f paroi=%f" % [lip_mean, wall_top_mean])
+		var lip_extent := (LIP + OUTSET) * CELL
+		_assert("cliff_lip_extends_x",
+			is_equal_approx(lip_extent_x_min, -lip_extent)
+			and is_equal_approx(lip_extent_x_max, float(W) * CELL + lip_extent),
+			"x=[%f..%f]" % [lip_extent_x_min, lip_extent_x_max])
+		_assert("cliff_lip_extends_z",
+			is_equal_approx(lip_extent_z_min, -lip_extent)
+			and is_equal_approx(lip_extent_z_max, float(H) * CELL + lip_extent),
+			"z=[%f..%f]" % [lip_extent_z_min, lip_extent_z_max])
+		_assert("cliff_lip_beyond_map",
+			(lip_extent_x_max - float(W) * CELL) > LIP * CELL * 0.9,
+			"extension=%f" % (lip_extent_x_max - float(W) * CELL))
+
+		# La paroi elle-même reste au décalage anti z-fighting de l'outset.
+		var wall_z_min := INF
+		var wall_z_max := -INF
+		var wall_x_min := INF
+		var wall_x_max := -INF
+		for i in range(verts.size()):
+			if absf(normals[i].y) > 0.001:
+				continue
+			wall_z_min = minf(wall_z_min, verts[i].z)
+			wall_z_max = maxf(wall_z_max, verts[i].z)
+			wall_x_min = minf(wall_x_min, verts[i].x)
+			wall_x_max = maxf(wall_x_max, verts[i].x)
+		_assert("cliff_wall_z_outset",
+			is_equal_approx(wall_z_min, -OUTSET)
+			and is_equal_approx(wall_z_max, float(H) * CELL + OUTSET),
+			"z=[%f..%f]" % [wall_z_min, wall_z_max])
+		_assert("cliff_wall_x_outset",
+			is_equal_approx(wall_x_min, -OUTSET)
+			and is_equal_approx(wall_x_max, float(W) * CELL + OUTSET),
+			"x=[%f..%f]" % [wall_x_min, wall_x_max])
 
 		# Vertex colors : roche brun-gris (r >= g >= b), opaques, strates variées,
 		# sommet plus clair que la base.
@@ -216,13 +307,20 @@ func _test_terrain3d_flat() -> void:
 		ground.get_cliff_mesh_instance().cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 	_assert("cliff_depth_api", is_equal_approx(ground.get_cliff_depth(), DEPTH))
 	_assert("cliff_depth_world", is_equal_approx(ground.get_cliff_depth_world(), DEPTH * CELL))
+	_assert("cliff_lip_api", is_equal_approx(ground.get_cliff_lip_width(), LIP))
+	_assert("cliff_lip_world", is_equal_approx(ground.get_cliff_lip_width_world(), LIP * CELL))
 	_assert("cliff_vertex_count_api", ground.get_cliff_vertex_count() == _expected_vertex_count())
 
-	# Décalage anti z-fighting : les sommets ne sont pas exactement sur le bord.
+	# AABB : le rebord étend l'emprise de ~lip au-delà de la carte.
 	var aabb_flat := mesh.get_aabb()
-	_assert("cliff_outset",
-		is_equal_approx(aabb_flat.position.z, -OUTSET)
-		and is_equal_approx(aabb_flat.end.z, float(H) * CELL + OUTSET),
+	var lip_extent := (LIP + OUTSET) * CELL
+	_assert("cliff_lip_aabb_x",
+		is_equal_approx(aabb_flat.position.x, -lip_extent)
+		and is_equal_approx(aabb_flat.end.x, float(W) * CELL + lip_extent),
+		"x=[%f..%f]" % [aabb_flat.position.x, aabb_flat.end.x])
+	_assert("cliff_lip_aabb_z",
+		is_equal_approx(aabb_flat.position.z, -lip_extent)
+		and is_equal_approx(aabb_flat.end.z, float(H) * CELL + lip_extent),
 		"z=[%f..%f]" % [aabb_flat.position.z, aabb_flat.end.z])
 
 # ===========================================================================
@@ -239,16 +337,22 @@ func _test_raised_border() -> void:
 	_assert("raised_arrays", not arrays.is_empty())
 	if not arrays.is_empty():
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var max_y := -INF
 		var top_at_one := 0
-		for v in verts:
-			max_y = maxf(max_y, v.y)
-			if is_equal_approx(v.y, 1.0 * CELL):
+		var lip_at_one := 0
+		for i in range(verts.size()):
+			max_y = maxf(max_y, verts[i].y)
+			if is_equal_approx(verts[i].y, 1.0 * CELL):
 				top_at_one += 1
+			if normals[i].y > 0.999 and is_equal_approx(verts[i].y, 1.0 * CELL):
+				lip_at_one += 1
 		_assert("raised_top_follows_border", is_equal_approx(max_y, 1.0 * CELL),
 			"max_y=%f" % max_y)
 		_assert("raised_top_vertices", top_at_one > 0,
 			"count=%d" % top_at_one)
+		_assert("raised_lip_follows_border", lip_at_one > 0,
+			"count=%d" % lip_at_one)
 		# AABB : le point bas reste 2.5 cases sous le niveau bas (0 côté sud).
 		var aabb := _cliff_aabb(ground)
 		_assert("raised_aabb_bottom", is_equal_approx(aabb.position.y, -DEPTH),

@@ -37,10 +37,15 @@ class_name MapGround3D
 ## suit exactement les hauteurs des sommets de bord, la paroi descend de
 ## `CLIFF_DEPTH_CELLS` cases sous le niveau local, les normales pointent vers
 ## l'extérieur et un matériau roche éclairé (rugosité 1, vertex colors en
-## strates) la rend lisible. Le sommet est décalé de `CLIFF_OUTSET_CELLS` vers
-## l'extérieur pour éviter le z-fighting avec le terrain. Aucune ombre portée.
-## Aucune jupe en mode `illustrated`, et elle se reconstruit avec le maillage
-## (configure / set_terrain_heights).
+## strates) la rend lisible. Un **rebord horizontal** (« lip », large de
+## `CLIFF_LIP_CELLS` case) prolonge le sommet vers l'extérieur avec des normales
+## vers le haut et une roche plus claire : il rend le contour de la carte
+## visible même en vue quasi top-down (où la paroi n'est qu'une ligne de
+## profil). Le sommet de la paroi est décalé de `CLIFF_OUTSET_CELLS` vers
+## l'extérieur pour éviter le z-fighting avec le terrain, le lip part de la
+## limite de la carte pour couvrir le raccord. Aucune ombre portée. Aucune jupe
+## en mode `illustrated`, et tout se reconstruit avec le maillage (configure /
+## set_terrain_heights).
 
 const NIGHT_SHADER := preload("res://shaders/map_night_reveal.gdshader")
 const TERRAIN_SPLAT_SHADER := preload("res://shaders/terrain_splat.gdshader")
@@ -78,6 +83,13 @@ const CLIFF_ROCK := Color(0.38, 0.34, 0.29)
 const CLIFF_ROCK_LIGHT := Color(0.54, 0.49, 0.42)
 ## Éclaircissement des strates (maximum ajouté à la couleur de base).
 const CLIFF_STRATA_GAIN := 0.16
+## Rebord horizontal au sommet de la falaise (visible en vue de dessus).
+## Largeur du rebord vers l'extérieur, en cases.
+const CLIFF_LIP_CELLS := 0.45
+## Roche du rebord, un peu plus claire que la paroi pour marquer le contour.
+const CLIFF_LIP := Color(0.46, 0.41, 0.34)
+## Variation douce de couleur du rebord (±).
+const CLIFF_LIP_VARIATION := 0.04
 
 var _mesh_instance: MeshInstance3D
 ## Jupe de falaise : mesh séparé (matériau roche) construit en terrain3d.
@@ -854,6 +866,14 @@ func get_cliff_depth() -> float:
 func get_cliff_depth_world() -> float:
 	return CLIFF_DEPTH_CELLS * maxf(0.0, float(_cfg.get("cell_size", 1.0)))
 
+## Largeur du rebord horizontal au sommet, en cases.
+func get_cliff_lip_width() -> float:
+	return CLIFF_LIP_CELLS
+
+## Largeur du rebord horizontal en unités monde (cases × cell_size).
+func get_cliff_lip_width_world() -> float:
+	return CLIFF_LIP_CELLS * maxf(0.0, float(_cfg.get("cell_size", 1.0)))
+
 ## Nœud de la jupe de falaise (null tant que rien n'est construit).
 func get_cliff_mesh_instance() -> MeshInstance3D:
 	return _cliff_instance
@@ -903,16 +923,20 @@ func _clear_cliff() -> void:
 		_cliff_instance.mesh = null
 		_cliff_instance.visible = false
 
-## Anneau de falaises : 4 bandes verticales le long des bords de la grille.
-## Le sommet de chaque bande reprend exactement les hauteurs des sommets de bord
-## du terrain (`_vertex_height`), la paroi descend de `CLIFF_DEPTH_CELLS` cases.
-## Les sommets sont décalés de `CLIFF_OUTSET_CELLS` vers l'extérieur (z-fighting)
-## et les normales pointent vers l'extérieur de la carte.
+## Anneau de falaises : 4 bandes verticales le long des bords de la grille, plus
+## un rebord horizontal (« lip ») au sommet de chaque bande pour rester lisible
+## en vue de dessus. Le sommet reprend exactement les hauteurs des sommets de
+## bord du terrain (`_vertex_height`), la paroi descend de `CLIFF_DEPTH_CELLS`
+## cases. Les sommets de paroi sont décalés de `CLIFF_OUTSET_CELLS` vers
+## l'extérieur (z-fighting), le lip part de la limite de la carte et s'étend de
+## `CLIFF_LIP_CELLS` case vers l'extérieur, avec des normales vers le haut.
 func _make_cliff_mesh(cell_size: float) -> ArrayMesh:
 	if _terrain_w <= 0 or _terrain_h <= 0:
 		return null
 	var depth := CLIFF_DEPTH_CELLS * cell_size
 	var outset := CLIFF_OUTSET_CELLS * cell_size
+	# Distance externe du rebord (décalage anti z-fighting + largeur du lip).
+	var lip_distance := outset + CLIFF_LIP_CELLS * cell_size
 	# Arrays simples (référence) : convertis en Packed*Array au commit.
 	var verts: Array = []
 	var normals: Array = []
@@ -922,6 +946,10 @@ func _make_cliff_mesh(cell_size: float) -> ArrayMesh:
 	_append_cliff_side(verts, normals, colors, indices, "south", cell_size, depth, outset)
 	_append_cliff_side(verts, normals, colors, indices, "west", cell_size, depth, outset)
 	_append_cliff_side(verts, normals, colors, indices, "east", cell_size, depth, outset)
+	_append_cliff_lip(verts, normals, colors, indices, "north", cell_size, lip_distance)
+	_append_cliff_lip(verts, normals, colors, indices, "south", cell_size, lip_distance)
+	_append_cliff_lip(verts, normals, colors, indices, "west", cell_size, lip_distance)
+	_append_cliff_lip(verts, normals, colors, indices, "east", cell_size, lip_distance)
 	if verts.is_empty():
 		return null
 	var arrays := []
@@ -996,6 +1024,103 @@ func _append_cliff_side(
 		indices.append(b0)
 		indices.append(b1)
 		indices.append(t1)
+
+## Ajoute le **rebord horizontal** d'un côté : bande entre la limite de la carte
+## (niveau exact des hauteurs de bord) et `lip_distance` vers l'extérieur.
+## Normales vers le haut, couleur roche plus claire que la paroi. Les coins sont
+## miterés : le premier/dernier sommet externe recule de `lip_distance` le long
+## du bord, ce qui partage l'arête de coin avec la bande perpendiculaire (pas de
+## trou ni de recouvrement coplanaire).
+func _append_cliff_lip(
+	verts: Array,
+	normals: Array,
+	colors: Array,
+	indices: Array,
+	side: String,
+	cell_size: float,
+	lip_distance: float
+) -> void:
+	var horizontal := side == "north" or side == "south"
+	var segment_count := _terrain_w if horizontal else _terrain_h
+	var first_index := verts.size()
+	for k in range(segment_count + 1):
+		var along_pos := float(k) * cell_size
+		var top_y := 0.0
+		if horizontal:
+			var edge_j := 0 if side == "north" else _terrain_h
+			top_y = _vertex_height(k, edge_j) * cell_size
+		else:
+			var edge_i := 0 if side == "west" else _terrain_w
+			top_y = _vertex_height(edge_i, k) * cell_size
+		var inner := _cliff_lip_inner_position(side, along_pos, top_y, cell_size)
+		# Miter : aux extrémités, le sommet externe recule de lip_distance.
+		var outer_along := along_pos
+		if k == 0:
+			outer_along = -lip_distance
+		elif k == segment_count:
+			outer_along = float(segment_count) * cell_size + lip_distance
+		var outer := _cliff_lip_outer_position(side, outer_along, top_y, lip_distance, cell_size)
+		verts.append(inner)
+		verts.append(outer)
+		normals.append(Vector3.UP)
+		normals.append(Vector3.UP)
+		var col := _cliff_lip_color(top_y, k)
+		colors.append(col)
+		colors.append(col)
+	for k in range(segment_count):
+		var i0 := first_index + k * 2
+		var o0 := i0 + 1
+		var i1 := i0 + 2
+		var o1 := i0 + 3
+		indices.append(i0)
+		indices.append(o0)
+		indices.append(i1)
+		indices.append(o0)
+		indices.append(o1)
+		indices.append(i1)
+
+## Position monde du bord **intérieur** du rebord (limite de la carte).
+func _cliff_lip_inner_position(side: String, along_pos: float, top_y: float, cell_size: float) -> Vector3:
+	match side:
+		"north":
+			return Vector3(along_pos, top_y, 0.0)
+		"south":
+			return Vector3(along_pos, top_y, float(_terrain_h) * cell_size)
+		"west":
+			return Vector3(0.0, top_y, along_pos)
+		"east":
+			return Vector3(float(_terrain_w) * cell_size, top_y, along_pos)
+	return Vector3(along_pos, top_y, 0.0)
+
+## Position monde du bord **extérieur** du rebord.
+func _cliff_lip_outer_position(
+	side: String,
+	along_pos: float,
+	top_y: float,
+	lip_distance: float,
+	cell_size: float
+) -> Vector3:
+	match side:
+		"north":
+			return Vector3(along_pos, top_y, -lip_distance)
+		"south":
+			return Vector3(along_pos, top_y, float(_terrain_h) * cell_size + lip_distance)
+		"west":
+			return Vector3(-lip_distance, top_y, along_pos)
+		"east":
+			return Vector3(float(_terrain_w) * cell_size + lip_distance, top_y, along_pos)
+	return Vector3(along_pos, top_y, 0.0)
+
+## Couleur du rebord : roche plus claire que la paroi, variation douce.
+func _cliff_lip_color(world_y: float, along: int) -> Color:
+	var col := CLIFF_LIP
+	var variation := _terrain_variation(along, int(world_y * 3.0)) * CLIFF_LIP_VARIATION
+	if variation > 0.0:
+		col = col.lightened(variation)
+	else:
+		col = col.darkened(-variation)
+	col.a = 1.0
+	return col
 
 ## Position monde d'un sommet de bande de falaise (X/Z selon le côté, Y fourni).
 func _cliff_side_position(side: String, along_pos: float, top_y: float, outset: float, cell_size: float) -> Vector3:
