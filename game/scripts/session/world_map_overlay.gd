@@ -135,6 +135,10 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.98, 0.9, 0.66))
 	draw_string(font, Vector2(24, 58), "M / Échap : fermer · clic sur une zone découverte : y aller",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.8, 0.7, 0.8))
+	if not zones.is_empty():
+		draw_string(font, Vector2(size.x - 250.0, 36.0),
+			"Découvertes : %d / %d" % [discovered.size(), zones.size()],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.9, 0.86, 0.72, 0.9))
 
 	var bounds := _world_bounds()
 	if bounds.size.x > 0 and _px_per_cell() >= 7.0:

@@ -3273,7 +3273,10 @@ func start_world_playtest(map_ids: Array, current_map_id: String = "", auto_chan
 		"party": party,
 		"mapIds": ids,
 		"mapPlayState": {},
-		"mapNavigation": {"view": "local", "worldMapId": null, "localMapId": current, "worldCell": null},
+		"mapNavigation": {
+			"view": "local", "worldMapId": null, "localMapId": current,
+			"worldCell": null, "discoveredZones": ids.duplicate(),
+		},
 		"currentMapId": current,
 		"mapModeOverrides": {},
 		"status": "playing",
