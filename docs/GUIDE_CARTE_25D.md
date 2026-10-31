@@ -79,8 +79,8 @@ Outils terrain :
   modulaires** (`mur.glb`) orientés et alignés au terrain, avec **hauteur
   réglable** ; les façades (porte, fenêtre, auvent) peuvent ensuite s'aimanter
   dessus. Base de construction libre façon Sims.
-- **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs qui
-  se recouvrent aux angles), puis pose porte/fenêtre/auvent et un toit.
+- **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs + 4
+  coins d'angle), puis pose porte/fenêtre/auvent et un toit.
 - **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une
   grille de tuiles à la hauteur réglée, avec styles **Tuiles / Chaume / Croupe /
   Appentis**.

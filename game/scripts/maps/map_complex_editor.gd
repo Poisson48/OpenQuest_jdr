@@ -1510,8 +1510,28 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	ids.append_array(doc.selection())
 	_create_mesh_wall_chain(Vector2(x0, y1), Vector2(x0, y0))
 	ids.append_array(doc.selection())
+	# Coins : rotations choisies pour que les bras rentrent dans la pièce.
+	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
+	var corner_bounds := _mesh_bounds_cells(corner_asset, 1.0)
+	var corners := [
+		[Vector2(x0, y0), 180.0], [Vector2(x1, y0), 270.0],
+		[Vector2(x1, y1), 0.0], [Vector2(x0, y1), 90.0],
+	]
+	for corner_variant in corners:
+		var corner: Array = corner_variant
+		var pos: Vector2 = corner[0]
+		var id: String = doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": corner_bounds.x, "h": corner_bounds.z,
+			"sizeX": corner_bounds.x, "sizeY": _wall_height, "sizeZ": corner_bounds.z,
+			"asset": corner_asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Coin de mur 3D", "layer": 1,
+			"display": {"rotation": float(corner[1]), "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Coin de mur 3D")
+		ids.append(id)
 	doc.set_selection(ids)
-	_set_status("Pièce 3D construite : 4 murs (angles par recouvrement).")
+	_set_status("Pièce 3D construite : 4 murs + 4 coins.")
 
 ## Maison rapide : enchaîne murs, dallage, toit et porte.
 func _create_mesh_house(from: Vector2, to: Vector2) -> void:
