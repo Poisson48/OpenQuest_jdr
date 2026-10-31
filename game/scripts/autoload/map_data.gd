@@ -1308,6 +1308,72 @@ func delete_map(map_id: String) -> void:
 	maps = maps.filter(func(m): return m.get("id", "") != map_id)
 	save_maps()
 
+## Redimensionne une carte complexe (façon Dofus : zones de tailles libres).
+## Contenu conservé au coin haut-gauche, objets/éléments clampés dans la carte.
+func resize_complex_map(map_id: String, new_w: int, new_h: int) -> bool:
+	var map: Dictionary = get_by_id(map_id)
+	if map.is_empty():
+		return false
+	new_w = clampi(new_w, 3, 96)
+	new_h = clampi(new_h, 3, 96)
+	var old_w := int(map.get("width", 0))
+	var old_h := int(map.get("height", 0))
+	if old_w <= 0 or old_h <= 0 or (old_w == new_w and old_h == new_h):
+		return false
+	map["tiles"] = _resize_flat_array(map.get("tiles", []), old_w, old_h, new_w, new_h, "")
+	map["terrainHeights"] = _resize_flat_array(map.get("terrainHeights", []), old_w, old_h, new_w, new_h, 0.0)
+	map["terrainMaterials"] = _resize_flat_array(map.get("terrainMaterials", []), old_w, old_h, new_w, new_h, 0)
+	_clamp_elements_2d(map.get("meshes", []), new_w, new_h)
+	_clamp_elements_2d(map.get("props", []), new_w, new_h)
+	_clamp_elements_2d(map.get("markers", []), new_w, new_h)
+	# Lieux (areas) : clamp position et taille.
+	for area_variant in map.get("areas", []):
+		if not area_variant is Dictionary:
+			continue
+		var area: Dictionary = area_variant
+		area["x"] = clampf(float(area.get("x", 0.0)), 0.0, float(new_w - 1))
+		area["y"] = clampf(float(area.get("y", 0.0)), 0.0, float(new_h - 1))
+		area["w"] = minf(float(area.get("w", 1.0)), float(new_w) - float(area["x"]))
+		area["h"] = minf(float(area.get("h", 1.0)), float(new_h) - float(area["y"]))
+	map["width"] = new_w
+	map["height"] = new_h
+	map["zoneW"] = new_w
+	map["zoneH"] = new_h
+	update_map(map)
+	return true
+
+func _resize_flat_array(raw, old_w: int, old_h: int, new_w: int, new_h: int, default_value) -> Array:
+	var out: Array = []
+	out.resize(new_w * new_h)
+	out.fill(default_value)
+	if not raw is Array:
+		return out
+	var copy_w := mini(old_w, new_w)
+	var copy_h := mini(old_h, new_h)
+	for y in range(copy_h):
+		for x in range(copy_w):
+			var src: int = y * old_w + x
+			var dst: int = y * new_w + x
+			if src < (raw as Array).size():
+				out[dst] = (raw as Array)[src]
+	return out
+
+func _clamp_elements_2d(elements, new_w: int, new_h: int) -> void:
+	if not elements is Array:
+		return
+	for elem_variant in elements:
+		if not elem_variant is Dictionary:
+			continue
+		var elem: Dictionary = elem_variant
+		var x := clampf(float(elem.get("x", 0.0)), 0.0, float(new_w - 1))
+		var y := clampf(float(elem.get("y", 0.0)), 0.0, float(new_h - 1))
+		elem["x"] = x
+		elem["y"] = y
+		if elem.has("w"):
+			elem["w"] = minf(float(elem.get("w", 1.0)), float(new_w) - x)
+		if elem.has("h"):
+			elem["h"] = minf(float(elem.get("h", 1.0)), float(new_h) - y)
+
 func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():

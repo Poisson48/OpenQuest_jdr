@@ -93,6 +93,18 @@ func _run() -> void:
 			_assert("world_created_map", not created.is_empty())
 			_assert("world_created_terrain3d", str(created.get("groundMode", "")) == "terrain3d")
 			_assert("world_created_zoneW", int(created.get("zoneW", 0)) == 10)
+			# Redimensionnement de la zone (taille libre façon Dofus).
+			var resized_ok: bool = md.resize_complex_map(created_id, 14, 11)
+			_assert("world_resize_ok", resized_ok)
+			var resized: Dictionary = md.get_by_id(created_id)
+			_assert("world_resize_width", int(resized.get("width", 0)) == 14)
+			_assert("world_resize_height", int(resized.get("height", 0)) == 11)
+			_assert("world_resize_zone", int(resized.get("zoneW", 0)) == 14 and int(resized.get("zoneH", 0)) == 11)
+			_assert("world_resize_materials", (resized.get("terrainMaterials", []) as Array).size() == 14 * 11)
+			panel.refresh()
+			var resized_zone: Dictionary = panel._zone_by_id(created_id)
+			_assert("world_resize_panel", not resized_zone.is_empty()
+				and int(resized_zone.get("w", 0)) == 14 and int(resized_zone.get("h", 0)) == 11)
 
 		# Ouvrir la zone sélectionnée émet open_map_requested.
 		var opened := {"map_id": ""}

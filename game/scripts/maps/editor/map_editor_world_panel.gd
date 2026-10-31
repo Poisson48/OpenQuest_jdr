@@ -41,6 +41,9 @@ var _delete_dialog: ConfirmationDialog
 var _zone_dialog: ConfirmationDialog
 var _zone_w_spin: SpinBox
 var _zone_h_spin: SpinBox
+var _resize_dialog: ConfirmationDialog
+var _resize_w_spin: SpinBox
+var _resize_h_spin: SpinBox
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -69,6 +72,7 @@ func _build_ui() -> void:
 	_button(bar, "Valider", func(): validate_world())
 	_button(bar, "Ouvrir", func(): open_selected())
 	_button(bar, "Renommer", func(): _open_rename())
+	_button(bar, "Taille…", func(): _open_resize())
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
@@ -316,6 +320,37 @@ func _ensure_dialogs() -> void:
 	size_row2.add_child(_zone_h_spin)
 	_zone_dialog.confirmed.connect(_apply_create_zone)
 
+	_resize_dialog = ConfirmationDialog.new()
+	_resize_dialog.title = "Taille de la zone"
+	add_child(_resize_dialog)
+	var resize_box := VBoxContainer.new()
+	resize_box.custom_minimum_size = Vector2(320, 130)
+	_resize_dialog.add_child(resize_box)
+	var note := Label.new()
+	note.text = "Redimensionne la carte de cette zone (contenu conservé en haut à gauche)."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(320, 0)
+	resize_box.add_child(note)
+	var row_w := HBoxContainer.new()
+	resize_box.add_child(row_w)
+	var lbl_w := Label.new()
+	lbl_w.text = "Largeur"
+	row_w.add_child(lbl_w)
+	_resize_w_spin = SpinBox.new()
+	_resize_w_spin.min_value = 3
+	_resize_w_spin.max_value = 96
+	row_w.add_child(_resize_w_spin)
+	var row_h := HBoxContainer.new()
+	resize_box.add_child(row_h)
+	var lbl_h := Label.new()
+	lbl_h.text = "Hauteur"
+	row_h.add_child(lbl_h)
+	_resize_h_spin = SpinBox.new()
+	_resize_h_spin.min_value = 3
+	_resize_h_spin.max_value = 96
+	row_h.add_child(_resize_h_spin)
+	_resize_dialog.confirmed.connect(_apply_resize)
+
 func _open_create_zone() -> void:
 	_ensure_dialogs()
 	_zone_dialog.popup_centered(Vector2i(360, 180))
@@ -348,6 +383,35 @@ func _apply_rename() -> void:
 	md.update_map(map)
 	refresh()
 	show_status("Zone renommée : %s" % new_title)
+
+func _open_resize() -> void:
+	_ensure_dialogs()
+	var zone := _zone_by_id(selected_id)
+	if zone.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var map: Dictionary = md.get_by_id(selected_id)
+	if map.is_empty():
+		return
+	_resize_w_spin.value = int(map.get("width", zone.get("w", 12)))
+	_resize_h_spin.value = int(map.get("height", zone.get("h", 9)))
+	_resize_dialog.popup_centered(Vector2i(480, 240))
+
+func _apply_resize() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or selected_id.is_empty():
+		return
+	var new_w := int(_resize_w_spin.value)
+	var new_h := int(_resize_h_spin.value)
+	if md.resize_complex_map(selected_id, new_w, new_h):
+		refresh()
+		fit_view()
+		show_status("Zone redimensionnée : %d×%d." % [new_w, new_h])
+	else:
+		show_status("Taille inchangée ou redimensionnement impossible.")
 
 func _open_delete() -> void:
 	_ensure_dialogs()
