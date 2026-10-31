@@ -39,6 +39,7 @@ var _zone_new_lbl: Label
 var _help_overlay: PanelContainer
 var _minimap_panel: PanelContainer
 var _minimap: SessionMinimap
+var _exits_btn_box: HBoxContainer
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -95,6 +96,9 @@ func _ready() -> void:
 	exits_panel.offset_left = 12
 	exits_panel.offset_top = 8
 	stage.add_child(exits_panel)
+	var exits_box := VBoxContainer.new()
+	exits_box.add_theme_constant_override("separation", 2)
+	exits_panel.add_child(exits_box)
 	_exits_lbl = Label.new()
 	_exits_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_exits_lbl.add_theme_font_size_override("font_size", 12)
@@ -102,7 +106,10 @@ func _ready() -> void:
 	_exits_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	_exits_lbl.add_theme_constant_override("shadow_offset_x", 1)
 	_exits_lbl.add_theme_constant_override("shadow_offset_y", 1)
-	exits_panel.add_child(_exits_lbl)
+	exits_box.add_child(_exits_lbl)
+	_exits_btn_box = HBoxContainer.new()
+	_exits_btn_box.add_theme_constant_override("separation", 4)
+	exits_box.add_child(_exits_btn_box)
 
 	# Aide des raccourcis de session (touche H), centrée et compacte.
 	var help_center := CenterContainer.new()
@@ -452,6 +459,10 @@ func _update_exits_hint(display_map: Dictionary, map_id: String) -> void:
 	if _exits_lbl == null:
 		return
 	_exits_lbl.text = ""
+	if _exits_btn_box != null:
+		for child in _exits_btn_box.get_children():
+			_exits_btn_box.remove_child(child)
+			child.queue_free()
 	var world_id := str(display_map.get("worldId", ""))
 	if world_id.is_empty():
 		return
@@ -473,9 +484,17 @@ func _update_exits_hint(display_map: Dictionary, map_id: String) -> void:
 		var target_map: Dictionary = MapData.get_by_id(target)
 		var title := str(target_map.get("title", target))
 		parts.append("%s %s" % [arrows[side], title])
+		if _exits_btn_box != null:
+			var target_id := target
+			var btn := Button.new()
+			btn.text = "%s %s" % [arrows[side], title]
+			btn.tooltip_text = "Aller à %s" % title
+			btn.add_theme_font_size_override("font_size", 10)
+			btn.pressed.connect(func(): _travel_to_zone(target_id))
+			_exits_btn_box.add_child(btn)
 	if parts.is_empty():
 		return
-	_exits_lbl.text = "🧭 " + " · ".join(parts) + "     (M : carte du monde)"
+	_exits_lbl.text = "🧭 Sorties · (M : carte du monde)"
 
 func _show_empty_state(on: bool) -> void:
 	if _empty_state:
