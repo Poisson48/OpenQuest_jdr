@@ -1418,10 +1418,13 @@ func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
 			"rotation": building_rotation,
 			"snapped_to": label,
 		}
-	# Façade : côté sud (+Y) du bâtiment, à hauteur de mur.
+	# Façade : sur l'avant du bâtiment (côté +Z local, donc suit sa rotation).
+	var front_rad := deg_to_rad(building_rotation)
+	var front_dir := Vector2(-sin(front_rad), cos(front_rad))
+	var facade_offset := building_h_foot * 0.5 + mod_depth * 0.5
 	return {
-		"x": float(best.get("x", grid.x)),
-		"y": float(best.get("y", grid.y)) + building_h_foot * 0.5 + mod_depth * 0.5,
+		"x": float(best.get("x", grid.x)) + front_dir.x * facade_offset,
+		"y": float(best.get("y", grid.y)) + front_dir.y * facade_offset,
 		"elevation": 0.0,
 		"rotation": building_rotation,
 		"snapped_to": label,

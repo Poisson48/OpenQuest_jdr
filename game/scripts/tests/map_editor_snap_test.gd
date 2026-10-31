@@ -83,6 +83,17 @@ func _run() -> void:
 		_assert("rotated_roof_inherits", is_equal_approx(float(display.get("rotation", 0.0)), 90.0))
 		_assert("rotated_roof_at_building", absf(float(rotated_roofs[2].get("x", 0.0)) - 14.0) < 1.0)
 
+	# Façade : posée sur l'avant du bâtiment, qui suit la rotation (90° = ouest).
+	editor._mesh_asset = door_path
+	editor._create_mesh(Vector2(14.0, 14.0))
+	await process_frame
+	var rotated_doors := _meshes_with_asset(editor, door_path)
+	_assert("rotated_door_created", rotated_doors.size() == 2)
+	if rotated_doors.size() == 2:
+		var door_display: Dictionary = rotated_doors[1].get("display", {})
+		_assert("rotated_door_rotation", is_equal_approx(float(door_display.get("rotation", 0.0)), 90.0))
+		_assert("rotated_door_front", float(rotated_doors[1].get("x", 14.0)) < 13.9)
+
 	editor.queue_free()
 	await process_frame
 	if _failed:
