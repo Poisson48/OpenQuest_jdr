@@ -1296,6 +1296,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_insert_window(grid)
 	elif _tool == ToolsScript.FURNISH_3D:
 		_insert_furniture(grid)
+	elif _tool == ToolsScript.STAIRS_3D:
+		_insert_stairs(grid)
 	elif _tool == ToolsScript.MARKER:
 		_create_marker(grid)
 	elif _tool == ToolsScript.EFFECT:
@@ -1607,6 +1609,52 @@ func _create_mesh_fence(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	doc.commit_transaction()
 	_set_status("Clôture : %d segment(s)." % count)
+## Pose un escalier extérieur, adossé au mur 3D le plus proche si possible.
+func _insert_stairs(grid: Vector2) -> void:
+	var wall: Dictionary = {}
+	var best := 2.5
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var distance := center.distance_to(grid)
+		if distance < best:
+			best = distance
+			wall = elem
+	var asset := "res://assets/objects3d/buildings/escalier_exterieur.glb"
+	var bounds := _mesh_aabb_cells(asset, 1.0)
+	var rotation := _mesh_rotation
+	var pos := grid
+	var elevation := 0.0
+	var follow := true
+	if not wall.is_empty():
+		var display: Dictionary = wall.get("display", {}) if wall.get("display") is Dictionary else {}
+		rotation = float(display.get("rotation", 0.0))
+		var natural := _mesh_bounds_cells(str(wall.get("asset", "")), 1.0)
+		var depth := float(wall.get("sizeZ", 0.0))
+		if depth <= 0.0:
+			depth = natural.z
+		var rad := deg_to_rad(rotation)
+		var front := Vector2(-sin(rad), cos(rad))
+		var back_offset := maxf(0.0, -bounds.position.z)
+		pos = Vector2(float(wall.get("x", grid.x)), float(wall.get("y", grid.y))) \
+			+ front * (depth * 0.5 + back_offset)
+		follow = bool(wall.get("followTerrain", true))
+		elevation = float(wall.get("elevation", 0.0))
+	var id: String = doc.add_element({
+		"x": pos.x, "y": pos.y,
+		"w": bounds.size.x, "h": bounds.size.z,
+		"asset": asset, "elevation": elevation,
+		"followTerrain": follow, "tiltToTerrain": false,
+		"label": "Escalier extérieur", "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Escalier")
+	doc.select_only(id)
+	_set_status("Escalier 3D posé%s." % (" contre la façade" if not wall.is_empty() else " libre"))
+
 func _insert_furniture(grid: Vector2) -> void:
 	var preset: Dictionary = {}
 	for preset_variant in FURNITURE_PRESETS:
@@ -3957,6 +4005,8 @@ func _rebuild_tool_options() -> void:
 		)
 		_tool_options.add_child(furnish_opt)
 		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
+	elif _tool == ToolsScript.STAIRS_3D:
+		_option_note("Cliquez près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre.")
 	elif _tool == ToolsScript.FENCE_3D:
 		var fence_opt := OptionButton.new()
 		for i in range(FENCE_STYLES.size()):

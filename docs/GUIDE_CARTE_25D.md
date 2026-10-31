@@ -93,6 +93,8 @@ Outils terrain :
 - **Outil 🪟 Fenêtre 3D** : clique sur un mur ; fenêtre à volets sur la façade.
   Sur un mur **assez haut**, une **ouverture réelle** est découpée (appui +
   linteau) ; sinon la fenêtre reste appliquée sur la façade.
+- **Outil 🪜 Escalier 3D** : clique près d'un mur ; pose un escalier extérieur
+  adossé à la façade (ou libre ailleurs).
 - **Outil 🪑 Meubler** : clique dans une pièce ; pose un ensemble de mobilier
   (salle commune, chambre, comptoir, campement) aligné au sol.
 - **Outil 🪵 Clôture** : glisse le long d'une limite ; pose une clôture

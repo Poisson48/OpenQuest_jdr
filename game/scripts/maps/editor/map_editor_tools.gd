@@ -25,6 +25,7 @@ const HOUSE_3D := "house_3d"
 const WINDOW_3D := "window_3d"
 const FURNISH_3D := "furnish_3d"
 const FENCE_3D := "fence_3d"
+const STAIRS_3D := "stairs_3d"
 const PATH_3D := "path_3d"
 const NOTE := "note"
 const LIGHT := "light"
@@ -43,7 +44,7 @@ const PROP := "prop"
 const MESH := "mesh"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
-const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D]
+const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
 const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA]
@@ -125,6 +126,10 @@ const DEFS := [
 	{
 		"id": FURNISH_3D, "icon": "🪑", "label": "Meubler", "shortcut": "", "group": "place",
 		"hint": "Clic dans une pièce : pose un ensemble de mobilier (salle commune, chambre, comptoir, campement).",
+	},
+	{
+		"id": STAIRS_3D, "icon": "🪜", "label": "Escalier 3D", "shortcut": "", "group": "place",
+		"hint": "Clic près d'un mur : pose un escalier extérieur adossé à la façade.",
 	},
 	{
 		"id": FENCE_3D, "icon": "🪵", "label": "Clôture", "shortcut": "", "group": "place",

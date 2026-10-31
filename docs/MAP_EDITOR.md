@@ -229,7 +229,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🚪 Porte 3D | — | Clic sur un **mur 3D** : ouvre une baie (deux montants) et insère une porte à auvent |
 | Placer | 🏡 Maison rapide | — | Clic-glisser un rectangle : **murs + dallage + toit + porte** en une passe, hauteur de murs réglable |
 | Placer | 🪟 Fenêtre 3D | — | Clic sur un **mur 3D** : fenêtre à volets sur la façade, avec **ouverture réelle** (appui + linteau) si le mur est assez haut |
-| Placer | 🪑 Meubler | — | Clic dans une pièce : ensemble **salle commune / chambre / comptoir / campement** |
+| Placer | 🪜 Escalier 3D | — | Clic près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre |
 | Placer | 🪵 Clôture | — | Clic-glisser : clôture modulaire **barrière / clôture basse / palissade** le long du tracé |
 | Placer | 🛤 Chemin | — | Clic-glisser : chemin peint au sol (terre/autre matière), largeur réglable |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |

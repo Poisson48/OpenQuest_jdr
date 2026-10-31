@@ -187,6 +187,12 @@ func _run() -> void:
 		_meshes_with_asset(editor, wall_asset).size() >= tall_walls_before_window + 3)
 	_assert("mesh_window_cut_created",
 		_meshes_with_asset(editor, "res://assets/objects3d/buildings/fenetre_volets.glb").size() == tall_windows_before + 1)
+	# Escalier adossé à un mur.
+	var stairs_asset := "res://assets/objects3d/buildings/escalier_exterieur.glb"
+	var stairs_before := _meshes_with_asset(editor, stairs_asset).size()
+	editor._insert_stairs(Vector2(float(tall_wall.get("x", 0.0)), float(tall_wall.get("y", 0.0))))
+	await process_frame
+	_assert("mesh_stairs_created", _meshes_with_asset(editor, stairs_asset).size() == stairs_before + 1)
 	editor._wall_height = 1.3
 
 	# Porte 3D : ouverture dans un mur (deux montants + porte).
