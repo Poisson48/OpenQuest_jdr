@@ -188,6 +188,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Terrain | 🖌 Terrain | `B` | Peint les tuiles de sol (taille de pinceau réglable) |
 | Terrain | 🪣 Remplir | `G` | Remplit la zone contiguë de même tuile |
 | Terrain | ⛰ Relief | `U` | Monte / baisse / aplatit / lisse la hauteur du terrain. Les objets 3D posés s'adaptent à la pente. |
+| Terrain | 🟫 Sol | `Y` | Peint la **matière du sol** : herbe, terre/chemin ou pierre/pavé (mélange doux, pinceau réglable). Seulement en mode Terrain 3D. |
 | Brouillard | 🌫 Révéler | `R` | Révèle le brouillard autour du curseur |
 | Brouillard | 🚫 Masquer | `T` | Remasque des cases déjà révélées |
 | Outils | 🔗 Lier | `L` | Clic source puis clic cible : crée un lien orienté |
@@ -343,9 +344,10 @@ Onglet **Carte** :
 - **Fond** : import PNG/JPEG/WebP (les dimensions de grille sont déduites de
   l'image), ajout de calques d'élévation, retrait du fond.
 - **Type de sol** : **Terrain 3D** (heightfield simple, relief peint à l'outil
-  ⛰ et objets 3D adaptés au sol — recommandé pour la carte 2.5D) ou **Fond
-  illustré** (image peinte à plat ; mode historique, aucune déformation). Un
-  fond importé bascule automatiquement en « Fond illustré ».
+  ⛰, matières peintes à l'outil 🟫 Sol — herbe / terre / pierre — et objets 3D
+  adaptés au sol ; recommandé pour la carte 2.5D) ou **Fond illustré** (image
+  peinte à plat ; mode historique, aucune déformation). Un fond importé bascule
+  automatiquement en « Fond illustré ».
 - **Style de rendu** : **Diorama 2.5D** (défaut — fond peint + découpes) ou
   **VTT 3D** (battlemap tactique avec ombres et murs volumétriques).
 - **Dimensions** : redimensionnement non destructif — le terrain existant est
@@ -518,8 +520,10 @@ Un **lieu** (`kind: "area"`) porte en plus :
 
 Ajouts en version 3 : `walls`, `notes`, `layers`, `measure`. En version 4 :
 `areas` (les lieux), `props` (les décors) et `parentMapId` (la carte dont
-celle-ci est le zoom). En version 5 : `meshes` (les objets 3D de la carte 2.5D)
-et `terrainHeights` (une hauteur de relief par case, en cases).
+celle-ci est le zoom). En version 5 : `meshes` (les objets 3D de la carte 2.5D),
+`terrainHeights` (une hauteur de relief par case, en cases) et
+`terrainMaterials` (une matière de sol par case : 0 herbe, 1 terre/chemin,
+2 pierre/pavé).
 `MapData.ensure_map_schema()` les crée à la volée sur les cartes anciennes.
 
 ---

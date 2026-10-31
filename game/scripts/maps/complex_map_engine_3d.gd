@@ -83,6 +83,9 @@ var _terrain_heights: Array = []
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 var _terrain_relief: bool = false
+## Matières du sol (0 herbe, 1 terre, 2 pierre) : tableau plat d'ints,
+## index y*width+x, fourni par `map_data["terrainMaterials"]`.
+var _terrain_materials: Array = []
 ## Mode de sol effectif (`MapData.GROUND_TERRAIN3D` ou `GROUND_ILLUSTRATED`),
 ## résolu depuis `map_data["groundMode"]` (voir `MapData.get_ground_mode`).
 var _ground_mode: String = "illustrated"
@@ -483,7 +486,8 @@ func _load_ground(p_ground_mode: String = "") -> void:
 			light_revealed,
 			night_ambient,
 			_terrain_heights,
-			_ground_mode
+			_ground_mode,
+			_terrain_materials
 		)
 	if _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
@@ -511,23 +515,56 @@ func _load_elevations() -> void:
 # (3,4) = terrainHeights[4*width + 3], et l'interpolation se fait entre
 # centres de cases. Hors des bords de la carte → 0.
 
-## Relit et valide `map_data["terrainHeights"]` (appelé par `configure` et
-## `refresh_terrain`). Un tableau absent ou mal dimensionné = terrain plat.
+## Relit et valide `map_data["terrainHeights"]` et `map_data["terrainMaterials"]`
+## (appelé par `configure` et `refresh_terrain`). Tableau absent ou mal
+## dimensionné = terrain plat / matériau de repli.
 func _sync_terrain_from_map() -> void:
 	_terrain_w = maxi(0, int(map_data.get("width", 0)))
 	_terrain_h = maxi(0, int(map_data.get("height", 0)))
 	_terrain_heights = []
 	_terrain_relief = false
+	_terrain_materials = []
 	var raw = map_data.get("terrainHeights", [])
-	if not (raw is Array):
-		return
-	if _terrain_w <= 0 or _terrain_h <= 0 or (raw as Array).size() != _terrain_w * _terrain_h:
-		return
-	_terrain_heights = raw
-	for value in _terrain_heights:
-		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
-			_terrain_relief = true
-			return
+	if raw is Array and _terrain_w > 0 and _terrain_h > 0 \
+			and (raw as Array).size() == _terrain_w * _terrain_h:
+		_terrain_heights = raw
+		for value in _terrain_heights:
+			if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
+				_terrain_relief = true
+				break
+	_terrain_materials = _normalize_terrain_materials(map_data.get("terrainMaterials", []))
+
+## Matières normalisées (0..2), dimensionnées width*height ; vide si la carte
+## n'en fournit pas (matériau de repli du sol).
+func _normalize_terrain_materials(raw: Variant) -> Array:
+	var materials: Array = []
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return materials
+	var expected: int = _terrain_w * _terrain_h
+	if not (raw is Array) or (raw as Array).size() != expected:
+		return materials
+	materials.resize(expected)
+	for i in range(expected):
+		materials[i] = clampi(int((raw as Array)[i]), 0, 2)
+	return materials
+
+## Copie des matières du sol ([]) si absentes.
+func get_terrain_materials() -> Array:
+	return _terrain_materials.duplicate()
+
+## Met à jour les matières du sol **sans toucher au document** (API directe pour
+## outils/tests ; l'éditeur passe par `refresh_terrain(map_data)` qui relit le
+## document). Met à jour le splat du sol de façon fluide.
+func set_terrain_materials(materials: Array) -> void:
+	_terrain_materials = _normalize_terrain_materials(materials)
+	if _ground != null and is_instance_valid(_ground) and _ground.has_method("set_terrain_materials"):
+		_ground.set_terrain_materials(_terrain_materials)
+
+## Vrai si le sol affiche le shader de matières (splat herbe/terre/pierre).
+func is_terrain_splat_active() -> bool:
+	if _ground == null or not is_instance_valid(_ground):
+		return false
+	return _ground.has_method("is_splat_active") and _ground.is_splat_active()
 
 ## Vrai si la carte a un relief non nul (au moins une case ≠ 0).
 func terrain_has_relief() -> bool:
@@ -612,7 +649,10 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 			_apply_camera_perspective()
 		_apply_atmosphere()
 	elif _ground.has_method("set_terrain_heights"):
-		# Mode inchangé : on reconstruit seulement le maillage du sol.
+		# Mode inchangé : on ne reconstruit que ce qui a bougé. Matières peintes
+		# (splat) et relief sont indépendants ; chaque setter ignore l'inchangé.
+		if _ground.has_method("set_terrain_materials"):
+			_ground.set_terrain_materials(_terrain_materials)
 		_ground.set_terrain_heights(_terrain_heights)
 	elif _ground.has_method("configure"):
 		_load_ground()
@@ -884,6 +924,10 @@ func _rebuild_layers() -> void:
 		_zones_layer.add_child(znode)
 		_zone_nodes[str(zone.get("id", ""))] = znode
 	_apply_session_zone_visibility()
+	# Matières du sol : re-synchronisées à chaque rebuild (no-op si inchangées)
+	# pour couvrir les cas où seules les données de carte ont bougé.
+	if _ground != null and is_instance_valid(_ground) and _ground.has_method("set_terrain_materials"):
+		_ground.set_terrain_materials(_terrain_materials)
 
 func _clear_children(layer: Node, registry: Dictionary) -> void:
 	for child in layer.get_children():

@@ -56,6 +56,9 @@ var _brush_size: int = 0
 var _relief_radius: float = 1.5
 var _relief_strength: float = 0.35
 var _relief_mode: String = "raise"
+## Sol : matière peinte (0 herbe, 1 terre, 2 pierre) + rayon du pinceau.
+var _material_id: int = 0
+var _material_radius: float = 1.5
 var _fog_brush: int = 1
 var _paint_tile: String = ""
 var _selected_template: String = ""
@@ -803,6 +806,11 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		doc.begin_transaction()
 		_paint_relief(grid)
 		return
+	if _tool == ToolsScript.GROUND_MATERIAL:
+		_press_mode = "ground_material"
+		doc.begin_transaction()
+		_paint_ground_material(grid)
+		return
 	if _tool == ToolsScript.BUCKET:
 		doc.bucket_fill(int(roundf(grid.x)), int(roundf(grid.y)), _paint_tile)
 		_press_mode = "none"
@@ -959,6 +967,8 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				_paint_fog(grid)
 		"relief":
 			_paint_relief(grid)
+		"ground_material":
+			_paint_ground_material(grid)
 	_refresh_ghost()
 	_refresh_overlay()
 
@@ -1000,6 +1010,10 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			doc.commit_transaction()
 			_sync_engine()
 			_set_status("Relief appliqué — les objets 3D s'adaptent à la hauteur.")
+		"ground_material":
+			doc.commit_transaction()
+			_sync_engine()
+			_set_status("Sol peint — matière enregistrée avec la carte.")
 	_press_mode = "none"
 	_overlay.drag_preview.clear()
 	if was_live:
@@ -1479,6 +1493,13 @@ func _paint_terrain(grid: Vector2) -> void:
 func _paint_relief(grid: Vector2) -> void:
 	doc.paint_terrain_brush(grid, _relief_radius, _relief_strength, _relief_mode, "Relief")
 	# Aperçu fluide : le moteur reconfigure seulement le sol + les objets posés.
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	_refresh_overlay()
+
+## Peint la matière du sol (herbe / terre / pierre) sous le curseur.
+func _paint_ground_material(grid: Vector2) -> void:
+	doc.paint_terrain_material_brush(grid, _material_radius, _material_id, "Sol")
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
 	_refresh_overlay()
@@ -2202,6 +2223,15 @@ func _refresh_ghost() -> void:
 			"icon": "⛰",
 			"kind": "terrain_height",
 		}
+	elif _tool == ToolsScript.GROUND_MATERIAL:
+		var material_brush := _material_radius * 2.0
+		_overlay.ghost = {
+			"x": _overlay.hover_grid.x,
+			"y": _overlay.hover_grid.y,
+			"w": material_brush, "h": material_brush,
+			"icon": "🟫",
+			"kind": "ground_material",
+		}
 	elif ToolsScript.is_paint_tool(_tool):
 		var brush := float(_brush_size if _tool == ToolsScript.PAINT else _fog_brush) * 2.0 + 1.0
 		_overlay.ghost = {
@@ -2225,6 +2255,8 @@ func _ghost_icon_for_tool() -> String:
 func _ghost_size() -> Vector2:
 	if _tool == ToolsScript.TERRAIN_HEIGHT:
 		return Vector2(_relief_radius * 2.0, _relief_radius * 2.0)
+	if _tool == ToolsScript.GROUND_MATERIAL:
+		return Vector2(_material_radius * 2.0, _material_radius * 2.0)
 	if _tool == ToolsScript.TOKEN:
 		return Vector2(_token_size, _token_size)
 	if _tool == ToolsScript.EFFECT:
@@ -2867,6 +2899,27 @@ func _rebuild_tool_options() -> void:
 			_relief_strength = v
 		)
 		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
+	elif _tool == ToolsScript.GROUND_MATERIAL:
+		var mat_opt := OptionButton.new()
+		var materials := [
+			[DocumentScript.MATERIAL_GRASS, "Herbe", "🌿"],
+			[DocumentScript.MATERIAL_DIRT, "Terre / chemin", "🟫"],
+			[DocumentScript.MATERIAL_STONE, "Pierre / pavé", "🪨"],
+		]
+		for i in range(materials.size()):
+			mat_opt.add_item("%s %s" % [materials[i][2], materials[i][1]], int(materials[i][0]))
+			mat_opt.set_item_metadata(i, int(materials[i][0]))
+			if int(materials[i][0]) == _material_id:
+				mat_opt.select(i)
+		mat_opt.item_selected.connect(func(index):
+			_material_id = int(mat_opt.get_item_metadata(index))
+		)
+		_tool_options.add_child(mat_opt)
+		_spin(_hbox(_tool_options), "Pinceau (cases)", 0.5, 8.0, _material_radius, 0.5, func(v):
+			_material_radius = v
+			_refresh_ghost()
+		)
+		_option_note("Peint la matière du sol. La carte doit être en mode sol 3D (terrain3d). Matière enregistrée avec la carte.")
 	elif _tool == ToolsScript.FOG_REVEAL or _tool == ToolsScript.FOG_HIDE:
 		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_fog_brush), 1, func(v): _fog_brush = int(v))
 	elif _tool == ToolsScript.TEMPLATE:

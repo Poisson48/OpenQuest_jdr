@@ -152,6 +152,7 @@ static func build_demo(md: Node) -> Dictionary:
 			var hill := maxf(0.0, 1.4 * (1.0 - d / 6.5))
 			heights[cy * w + cx] = hill
 	map["terrainHeights"] = heights
+	map["terrainMaterials"] = _demo_materials(w, h, "village")
 	map["zoneX"] = 0
 	map["zoneY"] = 0
 	map["zoneW"] = w
@@ -159,7 +160,7 @@ static func build_demo(md: Node) -> Dictionary:
 	md.update_map(map)
 	map = md.get_by_id(map_id)
 
-	# --- Monde de démonstration : 3 zones adjacentes de tailles différentes ---
+	# --- Monde de démonstration : 5 zones adjacentes de tailles différentes ---
 	var WorldZonesScript: GDScript = load("res://scripts/maps/world/world_zones.gd")
 	var world_maps: Array = [map]
 	var extra_specs := [
@@ -169,6 +170,10 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "puits", "x": 4.0, "y": 5.0},
 				{"name": "caisse", "x": 7.0, "y": 7.0},
 				{"name": "arbre", "x": 9.5, "y": 3.0},
+				{"name": "etal_marche", "x": 10.0, "y": 7.0},
+				{"name": "tonneau", "x": 8.0, "y": 8.5},
+				{"name": "banc", "x": 3.0, "y": 8.0},
+				{"name": "lanterne", "x": 6.0, "y": 4.0},
 			],
 		},
 		{
@@ -177,6 +182,27 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "arbre", "x": 3.0, "y": 3.0},
 				{"name": "arbre_automne", "x": 8.0, "y": 6.0},
 				{"name": "rocher", "x": 5.0, "y": 8.0},
+				{"name": "arbre", "x": 9.0, "y": 9.0},
+				{"name": "botte_foin", "x": 2.5, "y": 6.0},
+			],
+		},
+		{
+			"title": "Taverne du Corbeau", "w": 10, "h": 8, "x": 39, "y": 0,
+			"meshes": [
+				{"name": "banc", "x": 3.0, "y": 3.0},
+				{"name": "banc", "x": 6.0, "y": 3.0},
+				{"name": "tonneau", "x": 2.0, "y": 5.0},
+				{"name": "lanterne", "x": 5.0, "y": 2.0},
+				{"name": "etal_marche", "x": 7.5, "y": 5.0},
+			],
+		},
+		{
+			"title": "Donjon de Valbois", "w": 9, "h": 9, "x": 25, "y": 12,
+			"meshes": [
+				{"name": "mur", "x": 3.0, "y": 4.0},
+				{"name": "mur_coin", "x": 6.0, "y": 4.0},
+				{"name": "lanterne", "x": 4.5, "y": 2.0},
+				{"name": "rocher", "x": 7.0, "y": 7.0},
 			],
 		},
 	]
@@ -196,6 +222,12 @@ static func build_demo(md: Node) -> Dictionary:
 		sub["zoneY"] = int(spec["y"])
 		sub["zoneW"] = int(spec["w"])
 		sub["zoneH"] = int(spec["h"])
+		var style := "place" if str(spec["title"]).contains("Place") else "forest"
+		if str(spec["title"]).contains("Taverne"):
+			style = "tavern"
+		elif str(spec["title"]).contains("Donjon"):
+			style = "dungeon"
+		sub["terrainMaterials"] = _demo_materials(int(spec["w"]), int(spec["h"]), style)
 		var sub_meshes: Array = []
 		for m_variant in spec.get("meshes", []):
 			var m: Dictionary = m_variant
@@ -240,6 +272,47 @@ static func build_demo(md: Node) -> Dictionary:
 	md.preview_map_id = map_id
 
 	return {"map": map, "assets": assets, "cells": Vector2i(int(map.get("width", 24)), int(map.get("height", 16)))} 
+
+## Matières de sol de démonstration (0 herbe, 1 terre/chemin, 2 pierre/pavé).
+static func _demo_materials(w: int, h: int, style: String) -> Array:
+	var materials: Array = []
+	materials.resize(w * h)
+	materials.fill(0)
+	var center := Vector2(float(w) * 0.5, float(h) * 0.5)
+	for cy in range(h):
+		for cx in range(w):
+			var pos := Vector2(float(cx), float(cy))
+			var mat := 0
+			match style:
+				"village":
+					var d := pos.distance_to(Vector2(9.5, 7.5))
+					if d < 2.4:
+						mat = 2
+					elif d < 3.4:
+						mat = 1
+					elif absf(float(cx) - 9.5) < 1.1 or absf(float(cy) - 7.5) < 1.1:
+						mat = 1
+				"place":
+					var dp := pos.distance_to(center)
+					if dp < 2.8:
+						mat = 2
+					elif dp < 4.0:
+						mat = 1
+					elif absf(float(cx) - center.x) < 1.0 or absf(float(cy) - center.y) < 1.0:
+						mat = 1
+				"forest":
+					if absf(float(cx) - float(cy)) < 1.2 and cy > 2 and cy < h - 2:
+						mat = 1
+				"tavern":
+					mat = 1
+					if pos.distance_to(center) < 1.6:
+						mat = 2
+				"dungeon":
+					mat = 2
+					if absf(float(cx) - center.x) < 1.0 or absf(float(cy) - center.y) < 1.0:
+						mat = 1
+			materials[cy * w + cx] = mat
+	return materials
 
 ## Les autoloads ne sont pas des identifiants globaux à la compilation en
 ## mode `--script` : les scripts qui référencent MapData sont chargés à

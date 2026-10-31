@@ -23,6 +23,7 @@ const D_ELEM_MOD := "elem_mod"
 const D_META := "meta"
 const D_TILES := "tiles"
 const D_TERRAIN := "terrain"
+const D_TERRAIN_MATERIAL := "terrain_material"
 const D_FOG := "fog"
 const D_LIGHT_REVEAL := "light_reveal"
 const D_ORDER := "order"
@@ -137,6 +138,8 @@ func _ensure_editor_schema() -> void:
 		map_data["meshes"] = []
 	if not map_data.has("terrainHeights") or typeof(map_data["terrainHeights"]) != TYPE_ARRAY:
 		map_data["terrainHeights"] = []
+	if not map_data.has("terrainMaterials") or typeof(map_data["terrainMaterials"]) != TYPE_ARRAY:
+		map_data["terrainMaterials"] = []
 	if not map_data.has("backgroundTransform") or typeof(map_data["backgroundTransform"]) != TYPE_DICTIONARY:
 		map_data["backgroundTransform"] = {"offsetX": 0.0, "offsetY": 0.0, "scale": 1.0, "opacity": 1.0}
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
@@ -426,6 +429,7 @@ func to_map_data() -> Dictionary:
 	out["props"] = props
 	out["meshes"] = meshes
 	out["terrainHeights"] = _terrain_buffer()
+	out["terrainMaterials"] = _material_buffer()
 	out["markers"] = simple_markers
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
@@ -666,6 +670,8 @@ func _step_label(step: Array) -> String:
 			return "Peinture terrain%s" % suffix
 		D_TERRAIN:
 			return "Relief%s" % suffix
+		D_TERRAIN_MATERIAL:
+			return "Peinture du sol%s" % suffix
 		D_FOG:
 			return "Brouillard"
 		D_ORDER:
@@ -751,6 +757,15 @@ func _apply_delta(delta: Dictionary, use_before: bool) -> void:
 					if hidx >= 0 and hidx < heights.size():
 						heights[hidx] = float((heights_delta as Dictionary)[key])
 				map_data["terrainHeights"] = heights
+		D_TERRAIN_MATERIAL:
+			var materials_delta = delta.get("before" if use_before else "after", {})
+			if materials_delta is Dictionary:
+				var materials: Array = map_data.get("terrainMaterials", [])
+				for key in (materials_delta as Dictionary).keys():
+					var midx := int(key)
+					if midx >= 0 and midx < materials.size():
+						materials[midx] = int((materials_delta as Dictionary)[key])
+				map_data["terrainMaterials"] = materials
 		D_FOG:
 			var fog = delta.get("before" if use_before else "after", [])
 			if fog is Array:
@@ -1165,6 +1180,88 @@ func _terrain_neighbor_average(heights: Array, size: Vector2i, cx: int, cy: int)
 				total += float(heights[idx])
 				count += 1
 	return total / float(maxi(1, count))
+
+
+## Matières du sol (mode terrain3d) : 0 = herbe, 1 = terre/chemin, 2 = pierre.
+const MATERIAL_GRASS := 0
+const MATERIAL_DIRT := 1
+const MATERIAL_STONE := 2
+
+## Tableau plat des matières du sol (une par case), toujours dimensionné.
+func _material_buffer() -> Array:
+	var size := terrain_size()
+	var expected: int = size.x * size.y
+	var materials: Array = map_data.get("terrainMaterials", [])
+	if typeof(materials) != TYPE_ARRAY:
+		materials = []
+	if materials.size() != expected:
+		var resized: Array = []
+		resized.resize(expected)
+		resized.fill(MATERIAL_GRASS)
+		for i in range(mini(materials.size(), expected)):
+			resized[i] = int(materials[i])
+		materials = resized
+		map_data["terrainMaterials"] = materials
+	return materials
+
+func terrain_materials() -> Array:
+	return _material_buffer().duplicate()
+
+func terrain_material(cx: int, cy: int) -> int:
+	var size := terrain_size()
+	if cx < 0 or cy < 0 or cx >= size.x or cy >= size.y:
+		return MATERIAL_GRASS
+	var materials := _material_buffer()
+	var idx: int = cy * size.x + cx
+	return int(materials[idx]) if idx < materials.size() else MATERIAL_GRASS
+
+func set_terrain_material(cx: int, cy: int, value: int, note: String = "Peinture du sol") -> void:
+	var size := terrain_size()
+	if cx < 0 or cy < 0 or cx >= size.x or cy >= size.y:
+		return
+	var materials := _material_buffer()
+	var idx: int = cy * size.x + cx
+	var next := clampi(value, MATERIAL_GRASS, MATERIAL_STONE)
+	if int(materials[idx]) == next:
+		return
+	_push_delta({
+		"type": D_TERRAIN_MATERIAL,
+		"before": {str(idx): int(materials[idx])},
+		"after": {str(idx): next},
+		"note": note,
+	})
+	materials[idx] = next
+	map_data["terrainMaterials"] = materials
+	changed.emit("terrain_material")
+
+## Pinceau de matière du sol (herbe / terre / pierre), une étape d'undo par appel.
+func paint_terrain_material_brush(center: Vector2, radius: float, value: int,
+		note: String = "Peinture du sol") -> void:
+	var size := terrain_size()
+	var materials := _material_buffer()
+	var r := maxf(0.5, radius)
+	var next := clampi(value, MATERIAL_GRASS, MATERIAL_STONE)
+	var min_x := maxi(0, int(floor(center.x - r)))
+	var max_x := mini(size.x - 1, int(ceil(center.x + r)))
+	var min_y := maxi(0, int(floor(center.y - r)))
+	var max_y := mini(size.y - 1, int(ceil(center.y + r)))
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			if Vector2(cx, cy).distance_to(center) > r:
+				continue
+			var idx: int = cy * size.x + cx
+			if int(materials[idx]) == next:
+				continue
+			before[str(idx)] = int(materials[idx])
+			after[str(idx)] = next
+			materials[idx] = next
+	if after.is_empty():
+		return
+	map_data["terrainMaterials"] = materials
+	_push_delta({"type": D_TERRAIN_MATERIAL, "before": before, "after": after, "note": note})
+	changed.emit("terrain_material")
 
 
 ## Remplissage par diffusion (bucket) à partir d'une case.

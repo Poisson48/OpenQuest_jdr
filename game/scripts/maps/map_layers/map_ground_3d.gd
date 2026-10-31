@@ -10,12 +10,20 @@ class_name MapGround3D
 ## sommets sont posés sur la grille de cases (`i * cell_size`, `j * cell_size`),
 ## leur hauteur est la moyenne des cases adjacentes (interpolation bilinéaire
 ## aux bords) et les normales sont calculées. Le matériau est **éclairé**
-## (rugosité 1, métallique 0, aucune texture obligatoire) et coloré par
-## **vertex colors** : herbe / terre / roche selon la pente et la hauteur, avec
-## une variation déterministe douce pour éviter les aplats. Même sans relief
-## (hauteurs nulles), c'est un vrai maillage 3D qui reçoit la lumière. La nuit,
-## le même terrain est simplement teinté sombre (albédo multiplié) : **le relief
-## reste visible**.
+## (rugosité 1, métallique 0). Même sans relief (hauteurs nulles), c'est un vrai
+## maillage 3D qui reçoit la lumière. La nuit, le même terrain est simplement
+## teinté sombre (albédo multiplié) : **le relief reste visible**.
+##
+## **Matières du sol** (`map_data["terrainMaterials"]`, 0 = herbe, 1 = terre,
+## 2 = pierre) : si le tableau est dimensionné, le sol utilise le shader
+## `terrain_splat.gdshader` — trois textures seamless `game/assets/terrain/`
+## (`grass.png`, `dirt.png`, `stone.png`, tuilées 2 cases) mélangées par une
+## **texture de splat** `width × height` (R = herbe, G = terre, B = pierre),
+## avec un second jeu d'UV (UV2, 0..1 sur la carte) et un filtrage linéaire qui
+## adoucit les frontières. Les vertex colors ne portent alors que l'ombrage de
+## pente (gris neutre) et le tout reste **éclairé** (spatial). Sans matières (ou
+## sans textures), on retrouve le matériau actuel : texture de détail d'herbe +
+## vertex colors de palette.
 ##
 ## **`illustrated`** — legacy / carte à fond peint : exactement l'ancien
 ## comportement, un quad XZ texturé (ratio du PNG) et, en mode nuit (brouillard),
@@ -24,6 +32,13 @@ class_name MapGround3D
 ## (elles restent des données logiques pour la pose des objets et le picking).
 
 const NIGHT_SHADER := preload("res://shaders/map_night_reveal.gdshader")
+const TERRAIN_SPLAT_SHADER := preload("res://shaders/terrain_splat.gdshader")
+## Dossier des textures de matières (tuilables, générées par le pipeline Blender).
+const TERRAIN_TEXTURE_DIR := "res://assets/terrain/"
+## Matières du sol (mêmes valeurs que le document).
+const MATERIAL_GRASS := 0
+const MATERIAL_DIRT := 1
+const MATERIAL_STONE := 2
 const MASK_PX_PER_CELL := 8
 const MAX_MASK_SIDE := 1024
 ## Modes de sol (mêmes valeurs que `MapData.GROUND_*`).
@@ -58,6 +73,16 @@ var _ground_mode: String = GROUND_MODE_ILLUSTRATED
 var _terrain_heights: Array = []
 var _terrain_w: int = 0
 var _terrain_h: int = 0
+## Matières du sol : tableau plat d'entiers (0 herbe, 1 terre, 2 pierre).
+var _terrain_materials: Array = []
+## Texture de splat (RGBA, width × height) quand les matières sont actives.
+var _splat_texture: ImageTexture = null
+## Image CPU correspondante : source fiable pour les tests/tools et les mises à
+## jour successives (`ImageTexture.update` ne garantit pas la lecture inverse).
+var _splat_image: Image = null
+var _splat_active: bool = false
+## Textures de matières (chargées à la demande) : "grass" / "dirt" / "stone".
+var _terrain_textures: Dictionary = {}
 ## Bornes des hauteurs (pour la palette du terrain3d).
 var _terrain_min: float = 0.0
 var _terrain_max: float = 0.0
@@ -83,7 +108,8 @@ func configure(
 	light_revealed: Array = [],
 	night_ambient: float = 0.22,
 	terrain_heights: Array = [],
-	ground_mode: String = ""
+	ground_mode: String = "",
+	terrain_materials: Array = []
 ) -> void:
 	_cfg = {
 		"texture": texture,
@@ -98,17 +124,67 @@ func configure(
 		"night_ambient": night_ambient,
 		"terrain_heights": terrain_heights,
 		"ground_mode": ground_mode,
+		"terrain_materials": terrain_materials,
 	}
 	_apply_config()
 
 ## Met à jour les hauteurs **sans recharger le fond** (retour visuel du pinceau
-## de relief dans l'éditeur) : reconstruit uniquement le maillage du sol.
+## de relief dans l'éditeur) : reconstruit le maillage du sol. Si les hauteurs
+## n'ont pas changé (peinture de matières seule), ne fait rien : le splat est
+## mis à jour séparément par `set_terrain_materials`.
 func set_terrain_heights(heights: Array) -> void:
-	_cfg["terrain_heights"] = heights if heights is Array else []
-	if _cfg.has("map_width"):
+	var next: Array = heights if heights is Array else []
+	_cfg["terrain_heights"] = next
+	if not _cfg.has("map_width"):
+		_terrain_heights = next
+		return
+	if _arrays_equal(_terrain_heights, next):
+		return
+	_apply_config()
+
+## Met à jour les **matières du sol** sans reconstruire le viewport : met à jour
+## la texture de splat (peinture fluide) et bascule le matériau seulement si
+## l'activation du splat change (matières présentes/absentes, textures).
+func set_terrain_materials(materials: Array) -> void:
+	_cfg["terrain_materials"] = materials if materials is Array else []
+	if not _cfg.has("map_width"):
+		return
+	if not is_terrain3d():
+		# Mode illustré : les matières ne sont pas rendues.
+		_terrain_materials = []
+		return
+	var next := _normalize_materials(_cfg["terrain_materials"])
+	var next_active := _compute_splat_active_for(next)
+	if next_active != _splat_active:
+		# Bascule shader ↔ matériau de repli : le maillage doit être reconstruit
+		# (les couleurs de sommet changent : palette ou ombrage neutre).
 		_apply_config()
-	else:
-		_terrain_heights = _cfg.get("terrain_heights", [])
+		return
+	if _arrays_equal(_terrain_materials, next):
+		return
+	_terrain_materials = next
+	if _splat_active:
+		_update_splat_texture()
+		var mat := _mesh_instance.material_override
+		if mat is ShaderMaterial:
+			(mat as ShaderMaterial).set_shader_parameter("splat_tex", _splat_texture)
+
+## Vrai si le shader de matières (splat) est actif sur le terrain3d.
+func is_splat_active() -> bool:
+	return _splat_active
+
+## Copie des matières du sol (vide si la carte n'en fournit pas).
+func get_terrain_materials() -> Array:
+	return _terrain_materials.duplicate()
+
+## Texture de splat courante (null si les matières ne sont pas actives).
+func get_splat_texture() -> ImageTexture:
+	return _splat_texture
+
+## Image CPU du splat (toujours à jour, contrairement à `get_image()` d'une
+## `ImageTexture` mise à jour) — pour les outils et les tests.
+func get_splat_image() -> Image:
+	return _splat_image
 
 ## Change le mode de sol à chaud (le moteur recharge ensuite ses paramètres).
 func set_ground_mode(mode: String) -> void:
@@ -176,14 +252,25 @@ func _apply_config() -> void:
 		# Terrain 3D : extent = grille de cases (width × height), cases carrées.
 		_extent = Vector2(float(_terrain_w) * cell_size, float(_terrain_h) * cell_size)
 		_compute_terrain_bounds()
+		_terrain_materials = _normalize_materials(_cfg.get("terrain_materials", []))
+		_splat_active = _compute_splat_active()
 		_mesh_instance.mesh = _make_terrain_mesh(cell_size)
 		_mesh_instance.position = Vector3.ZERO
 		_mesh_instance.rotation_degrees = Vector3.ZERO
+		if _splat_active:
+			_update_splat_texture()
 		_apply_terrain_material(night_mode)
 		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if not _splat_active:
+			_splat_texture = null
+			_splat_image = null
 		return
 
 	# Mode illustré (legacy) : quad plat, ratio du PNG, aucune déformation.
+	_splat_active = false
+	_splat_texture = null
+	_splat_image = null
+	_terrain_materials = []
 	var w := float(map_width) * cell_size
 	var h := float(map_height) * cell_size
 	# Le quad a le même ratio que le PNG : l'illustration n'est ni croppée ni étirée.
@@ -242,11 +329,30 @@ func _apply_day_material(texture: Texture2D, unshaded: bool) -> void:
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mesh_instance.material_override = mat
 
-## Matériau du terrain 3D : éclairé, rugosité 1. Les couleurs viennent des
-## vertex colors (herbe/terre/roche) ; une texture de détail tuilable (si
-## livrée dans `game/assets/terrain/grass.png`) ajoute de la matière au sol.
-## La nuit, l'albédo est simplement multiplié par une teinte sombre.
+## Matériau du terrain 3D.
+##
+## Si les matières sont actives : `ShaderMaterial` `terrain_splat.gdshader` qui
+## mélange les trois textures tuilées (UV) via le splat (UV2) et multiplie par
+## les vertex colors d'ombrage ; il reste éclairé (spatial). `albedo_tint` porte
+## la teinte de nuit.
+##
+## Sinon (pas de matières / textures absentes) : matériau de repli actuel —
+## texture de détail d'herbe tuilable (si livrée) + vertex colors de palette.
 func _apply_terrain_material(night_mode: bool) -> void:
+	if _splat_active:
+		var shader_mat := ShaderMaterial.new()
+		shader_mat.shader = TERRAIN_SPLAT_SHADER
+		shader_mat.set_shader_parameter("grass_tex", _terrain_textures.get("grass"))
+		shader_mat.set_shader_parameter("dirt_tex", _terrain_textures.get("dirt"))
+		shader_mat.set_shader_parameter("stone_tex", _terrain_textures.get("stone"))
+		shader_mat.set_shader_parameter("splat_tex", _splat_texture)
+		shader_mat.set_shader_parameter(
+			"albedo_tint", TERRAIN_NIGHT_TINT if night_mode else Color.WHITE
+		)
+		shader_mat.set_shader_parameter("vertex_color_strength", 1.0)
+		shader_mat.set_shader_parameter("blend_sharpness", 1.0)
+		_mesh_instance.material_override = shader_mat
+		return
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = TERRAIN_NIGHT_TINT if night_mode else Color.WHITE
 	mat.roughness = 1.0
@@ -272,6 +378,106 @@ func _load_terrain_detail_texture() -> Texture2D:
 	if res is Texture2D:
 		return res
 	return null
+
+# ---------------------------------------------------------------------------
+# Matières du sol (splat herbe / terre / pierre)
+# ---------------------------------------------------------------------------
+
+## Matières normalisées (0..2), dimensionnées width*height. Tableau absent ou
+## mal dimensionné → vide (matériau de repli).
+func _normalize_materials(raw: Variant) -> Array:
+	var materials: Array = []
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return materials
+	var expected: int = _terrain_w * _terrain_h
+	if not (raw is Array) or (raw as Array).size() != expected:
+		return materials
+	materials.resize(expected)
+	for i in range(expected):
+		materials[i] = clampi(int((raw as Array)[i]), MATERIAL_GRASS, MATERIAL_STONE)
+	return materials
+
+## Vrai si un splat peut être rendu avec ces matières (textures disponibles).
+func _compute_splat_active_for(materials: Array) -> bool:
+	if not is_terrain3d() or _terrain_w <= 0 or _terrain_h <= 0:
+		return false
+	if materials.size() != _terrain_w * _terrain_h:
+		return false
+	return _ensure_terrain_textures()
+
+func _compute_splat_active() -> bool:
+	return _compute_splat_active_for(_terrain_materials)
+
+## Charge (une seule fois) les trois textures de matières. Faux si l'une manque.
+func _ensure_terrain_textures() -> bool:
+	for name in ["grass", "dirt", "stone"]:
+		if not _terrain_textures.has(name):
+			_terrain_textures[name] = _load_terrain_texture(name)
+		if _terrain_textures[name] == null:
+			return false
+	return true
+
+## Charge une texture de matière : PNG source (mipmaps générées pour le
+## minification) puis repli sur la ressource importée.
+func _load_terrain_texture(texture_name: String) -> Texture2D:
+	var path := TERRAIN_TEXTURE_DIR + texture_name + ".png"
+	var abs_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path):
+		var img := Image.new()
+		if img.load(abs_path) == OK:
+			img.convert(Image.FORMAT_RGBA8)
+			img.generate_mipmaps()
+			return ImageTexture.create_from_image(img)
+	if ResourceLoader.exists(path):
+		var res = load(path)
+		if res is Texture2D:
+			return res
+	push_warning("[MapGround3D] texture de matière manquante : %s" % path)
+	return null
+
+## Construit / met à jour la texture de splat : une case = un texel,
+## R = herbe, G = terre, B = pierre (A = 1). Le filtrage linéaire du shader
+## adoucit les frontières entre matières.
+func _update_splat_texture() -> void:
+	if not _splat_active or _terrain_w <= 0 or _terrain_h <= 0:
+		return
+	var img := Image.create(_terrain_w, _terrain_h, false, Image.FORMAT_RGBA8)
+	for y in range(_terrain_h):
+		for x in range(_terrain_w):
+			var idx := y * _terrain_w + x
+			var material := MATERIAL_GRASS
+			if idx >= 0 and idx < _terrain_materials.size():
+				material = int(_terrain_materials[idx])
+			img.set_pixel(x, y, _material_splat_color(material))
+	_splat_image = img
+	if _splat_texture == null \
+			or _splat_texture.get_width() != _terrain_w \
+			or _splat_texture.get_height() != _terrain_h:
+		_splat_texture = ImageTexture.create_from_image(img)
+	else:
+		_splat_texture.update(img)
+
+## Couleur de splat d'une matière (poids pleins dans un canal).
+func _material_splat_color(material: int) -> Color:
+	match material:
+		MATERIAL_DIRT:
+			return Color(0.0, 1.0, 0.0, 1.0)
+		MATERIAL_STONE:
+			return Color(0.0, 0.0, 1.0, 1.0)
+		_:
+			return Color(1.0, 0.0, 0.0, 1.0)
+
+## Vrai si deux tableaux plats (heights ou materials) ont le même contenu.
+func _arrays_equal(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in range(a.size()):
+		if typeof(a[i]) == TYPE_FLOAT or typeof(b[i]) == TYPE_FLOAT:
+			if not is_equal_approx(float(a[i]), float(b[i])):
+				return false
+		elif a[i] != b[i]:
+			return false
+	return true
 
 func _apply_night_material(
 	day_tex: Texture2D,
@@ -411,10 +617,13 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	## UV2 : 0..1 sur toute la carte, pour la texture de splat des matières.
+	var uv2s := PackedVector2Array()
 	var colors := PackedColorArray()
 	verts.resize(count)
 	normals.resize(count)
 	uvs.resize(count)
+	uv2s.resize(count)
 	colors.resize(count)
 
 	# Hauteurs aux sommets (moyenne des cases adjacentes).
@@ -445,6 +654,10 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 				float(i) / TERRAIN_TILE_CELLS,
 				float(j) / TERRAIN_TILE_CELLS
 			)
+			uv2s[idx] = Vector2(
+				float(i) / float(maxi(1, w)),
+				float(j) / float(maxi(1, h))
+			)
 			var x0 := maxi(i - 1, 0)
 			var x1 := mini(i + 1, w)
 			var z0 := maxi(j - 1, 0)
@@ -453,7 +666,13 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 			var dhdz := (heights[z1 * cols + i] - heights[z0 * cols + i]) / float(maxi(1, z1 - z0))
 			var normal := Vector3(-dhdx, 1.0, -dhdz).normalized()
 			normals[idx] = normal
-			colors[idx] = _terrain_vertex_color(hv, normal, i, j)
+			# Splat actif : les textures portent la couleur des matières, les
+			# vertex colors ne gardent que l'ombrage de pente (gris neutre).
+			# Repli : palette herbe/terre/roche actuelle.
+			if _splat_active:
+				colors[idx] = _terrain_vertex_shade(normal, i, j)
+			else:
+				colors[idx] = _terrain_vertex_color(hv, normal, i, j)
 
 	var indices := PackedInt32Array()
 	indices.resize(w * h * 6)
@@ -477,6 +696,7 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
@@ -505,6 +725,15 @@ func _terrain_vertex_color(hv: float, normal: Vector3, i: int, j: int) -> Color:
 		col = col.darkened(-variation)
 	col.a = 1.0
 	return col
+
+## Ombrage neutre d'un sommet quand les matières (splat) portent la couleur :
+## 1.0 au plat, ~0.78 sur les pentes fortes, plus une variation douce.
+func _terrain_vertex_shade(normal: Vector3, i: int, j: int) -> Color:
+	var slope_deg := rad_to_deg(acos(clampf(normal.y, -1.0, 1.0)))
+	var darken := smoothstep(8.0, 36.0, slope_deg) * 0.22
+	var variation := _terrain_variation(i, j) * TERRAIN_VARIATION
+	var shade := clampf(1.0 - darken + variation, 0.6, 1.0)
+	return Color(shade, shade, shade, 1.0)
 
 ## Bruit déterministe (-1..1) pour casser les aplats sans texture.
 func _terrain_variation(i: int, j: int) -> float:

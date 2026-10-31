@@ -52,6 +52,16 @@ func _test_data(base: Dictionary) -> void:
 	doc.paint_terrain_brush(Vector2(6.0, 5.0), 2.0, 1.0, "flatten")
 	_assert("brush_flatten", absf(doc.terrain_height(6, 5) - doc.terrain_height(7, 6)) < 1.2)
 
+	# Matières du sol : herbe par défaut, puis terre / pierre.
+	_assert("material_buffer_size", doc.terrain_materials().size() == 12 * 10)
+	_assert("material_default_grass", doc.terrain_material(0, 0) == 0)
+	doc.set_terrain_material(2, 3, 1)
+	_assert("material_set_dirt", doc.terrain_material(2, 3) == 1)
+	doc.paint_terrain_material_brush(Vector2(6.0, 5.0), 1.5, 2)
+	_assert("material_brush_stone", doc.terrain_material(6, 5) == 2)
+	_assert("material_brush_radius", doc.terrain_material(6, 5) == 2
+		and doc.terrain_material(9, 5) == 0)
+
 func _test_undo(base: Dictionary) -> void:
 	var doc: Variant = DocScript.new()
 	doc.load_map(base)
@@ -74,17 +84,30 @@ func _test_undo(base: Dictionary) -> void:
 	_assert("undo_whole_stroke", doc.terrain_heights() != after_stroke)
 	_assert("undo_stroke_reset", doc.terrain_heights() == before_stroke)
 
+	# Undo/redo de la peinture de matière.
+	doc.set_terrain_material(1, 1, 2)
+	_assert("material_undo_target", doc.terrain_material(1, 1) == 2)
+	doc.undo()
+	_assert("material_undo_restores", doc.terrain_material(1, 1) == 0)
+	doc.redo()
+	_assert("material_redo", doc.terrain_material(1, 1) == 2)
+
 func _test_serialization(base: Dictionary) -> void:
 	var doc: Variant = DocScript.new()
 	doc.load_map(base)
 	doc.set_terrain_height(2, 3, 2.0)
+	doc.set_terrain_material(4, 2, 2)
 	var snapshot: Dictionary = doc.to_map_data()
 	_assert("ser_array", snapshot.get("terrainHeights") is Array)
 	_assert("ser_size", (snapshot.get("terrainHeights") as Array).size() == 12 * 10)
 	_assert("ser_value", is_equal_approx(float((snapshot["terrainHeights"] as Array)[3 * 12 + 2]), 2.0))
+	_assert("ser_materials_array", snapshot.get("terrainMaterials") is Array)
+	_assert("ser_materials_size", (snapshot.get("terrainMaterials") as Array).size() == 12 * 10)
+	_assert("ser_material_value", int((snapshot["terrainMaterials"] as Array)[2 * 12 + 4]) == 2)
 	var doc2: Variant = DocScript.new()
 	doc2.load_map(snapshot)
 	_assert("reload_value", is_equal_approx(doc2.terrain_height(2, 3), 2.0))
+	_assert("reload_material", doc2.terrain_material(4, 2) == 2)
 
 func _test_editor(base: Dictionary) -> void:
 	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()
@@ -99,6 +122,8 @@ func _test_editor(base: Dictionary) -> void:
 	var ToolsScript: GDScript = load("res://scripts/maps/editor/map_editor_tools.gd")
 	_assert("tool_relief", ToolsScript.label(ToolsScript.TERRAIN_HEIGHT) == "Relief")
 	_assert("tool_relief_shortcut", ToolsScript.tool_for_shortcut("U") == ToolsScript.TERRAIN_HEIGHT)
+	_assert("tool_ground_material", ToolsScript.label(ToolsScript.GROUND_MATERIAL) == "Sol")
+	_assert("tool_ground_material_shortcut", ToolsScript.tool_for_shortcut("Y") == ToolsScript.GROUND_MATERIAL)
 
 	editor._relief_radius = 1.5
 	editor._relief_strength = 0.6

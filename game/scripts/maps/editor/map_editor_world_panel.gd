@@ -10,7 +10,7 @@ extends Control
 signal open_map_requested(map_id: String)
 
 const WorldZonesScript := preload("res://scripts/maps/world/world_zones.gd")
-const BAR_H := 42.0
+const BAR_H := 104.0
 const BASE_PX_PER_CELL := 99.0  # 1 case = BASE_PX_PER_CELL * zoom pixels
 const ZONE_COLORS := [
 	Color(0.28, 0.40, 0.24, 0.92),
@@ -54,13 +54,14 @@ func _ready() -> void:
 # ===========================================================================
 
 func _build_ui() -> void:
-	var bar := HBoxContainer.new()
+	var bar := HFlowContainer.new()
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	bar.offset_left = 6
 	bar.offset_right = -6
 	bar.offset_top = 6
 	bar.offset_bottom = 6 + BAR_H - 12
-	bar.add_theme_constant_override("separation", 4)
+	bar.add_theme_constant_override("h_separation", 4)
+	bar.add_theme_constant_override("v_separation", 4)
 	add_child(bar)
 
 	_button(bar, "＋ Zone", func(): _open_create_zone())
@@ -77,7 +78,7 @@ func _build_ui() -> void:
 	_status_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_status_lbl.offset_left = 8
 	_status_lbl.offset_right = -8
-	_status_lbl.offset_top = BAR_H + 4
+	_status_lbl.offset_top = BAR_H + 6
 	_status_lbl.add_theme_font_size_override("font_size", 11)
 	_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status_lbl)

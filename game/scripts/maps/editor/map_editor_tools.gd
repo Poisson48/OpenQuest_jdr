@@ -21,6 +21,7 @@ const LIGHT := "light"
 const PAINT := "paint"
 const BUCKET := "bucket"
 const TERRAIN_HEIGHT := "terrain_height"
+const GROUND_MATERIAL := "ground_material"
 const FOG_REVEAL := "fog"
 const FOG_HIDE := "fog_hide"
 const ERASE := "erase"
@@ -114,6 +115,10 @@ const DEFS := [
 	{
 		"id": TERRAIN_HEIGHT, "icon": "⛰", "label": "Relief", "shortcut": "U", "group": "terrain",
 		"hint": "Clic ou glisser : monter/baisser le terrain. Les objets 3D posés s'adaptent à la hauteur. Mode, pinceau et force dans les options.",
+	},
+	{
+		"id": GROUND_MATERIAL, "icon": "🟫", "label": "Sol", "shortcut": "Y", "group": "terrain",
+		"hint": "Clic ou glisser : peindre la matière du sol (herbe, terre/chemin, pierre). Choix de matière et taille de pinceau dans les options. Seulement en mode sol 3D.",
 	},
 	{
 		"id": FOG_REVEAL, "icon": "🌫", "label": "Révéler", "shortcut": "R", "group": "fog",
@@ -256,6 +261,8 @@ const SHORTCUTS := [
 	{"keys": "Ctrl+G / Ctrl+Maj+G", "action": "Grouper / Dégrouper"},
 	{"keys": "Ctrl+S", "action": "Enregistrer la carte"},
 	{"keys": "Suppr / Retour arrière", "action": "Supprimer la sélection"},
+	{"keys": "U", "action": "Relief (monter/baisser le terrain)"},
+	{"keys": "Y", "action": "Peinture du sol (herbe / terre / pierre)"},
 	{"keys": "Échap", "action": "Annuler l'action en cours / menu éditeur"},
 	{"keys": "Flèches", "action": "Décaler la sélection (Maj : 1 case)"},
 	{"keys": "Molette", "action": "Zoom · Clic milieu : déplacer la vue"},

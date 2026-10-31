@@ -144,7 +144,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 | **D2** | Éditeur vue monde | onglet **Monde** : plan des zones, création, déplacement, auto-liens, validation, ouverture | `world_editor_test` PASS + capture `carte_25d_monde.png` |
 | **D3** | Transitions session | `WorldNavigation` (résolution de bord, offset, miroir) + `GameData.transition_map_edge` (transfert du token, bascule de carte active, sauvegarde/sync) + déclenchement au drag de token (`map_workspace._try_edge_transition`) | `world_navigation_test`, `world_edge_session_test` PASS |
 | **D4** | Carte du monde + découverte | touche **M** en session : plan des zones, zone courante, zones découvertes, voyage rapide, brouillard de monde (`discoveredZones`) | `world_map_test` PASS |
-| **D5** | Démo Valbois multi-zones | 3 zones de démo livrées (village 24×16, place 14×12, forêt 12×12) ; à étendre | partiel |
+| **D5** | Démo Valbois multi-zones | **5 zones de démo** reliées (village 24×16, place 14×12, forêt 12×12, taverne 10×8, donjon 9×9) avec chemins peints (terre/pierre) | livré |
 | **D6** | Qualité artistique | assets/rendu au niveau Dofus (itération Blender + décors peints), UI polish | à faire |
 
 ---

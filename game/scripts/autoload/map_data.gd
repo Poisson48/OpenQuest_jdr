@@ -706,6 +706,9 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	# Relief : une hauteur de terrain par case (0 = plat).
 	if not map_data.has("terrainHeights") or typeof(map_data["terrainHeights"]) != TYPE_ARRAY:
 		map_data["terrainHeights"] = []
+	# Matières du sol : une par case (0 = herbe, 1 = terre, 2 = pierre).
+	if not map_data.has("terrainMaterials") or typeof(map_data["terrainMaterials"]) != TYPE_ARRAY:
+		map_data["terrainMaterials"] = []
 	# Monde (gestion de cartes façon Dofus) : identifiant du monde de zones.
 	if not map_data.has("worldId"):
 		map_data["worldId"] = ""
