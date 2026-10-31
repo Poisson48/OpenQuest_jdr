@@ -2474,6 +2474,8 @@ func _refresh_ghost() -> void:
 			MapData.MATERIAL_GRASS: Color(0.42, 0.66, 0.34),
 			MapData.MATERIAL_DIRT: Color(0.62, 0.48, 0.32),
 			MapData.MATERIAL_STONE: Color(0.66, 0.64, 0.60),
+			MapData.MATERIAL_SNOW: Color(0.88, 0.91, 0.96),
+			MapData.MATERIAL_SAND: Color(0.86, 0.76, 0.56),
 		}
 		_overlay.ghost = {
 			"x": _overlay.hover_grid.x,
@@ -3189,6 +3191,8 @@ func _rebuild_tool_options() -> void:
 			[DocumentScript.MATERIAL_GRASS, "Herbe", "🌿"],
 			[DocumentScript.MATERIAL_DIRT, "Terre / chemin", "🟫"],
 			[DocumentScript.MATERIAL_STONE, "Pierre / pavé", "🪨"],
+			[DocumentScript.MATERIAL_SNOW, "Neige", "❄️"],
+			[DocumentScript.MATERIAL_SAND, "Sable", "🏖️"],
 		]
 		for i in range(materials.size()):
 			mat_opt.add_item("%s %s" % [materials[i][2], materials[i][1]], int(materials[i][0]))

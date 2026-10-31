@@ -10,6 +10,14 @@ const RENDER_MODE_COMPLEX := "complex"
 ## Type de sol d'une carte 2.5D : vrai terrain 3D (heightfield) ou fond illustré plat.
 const GROUND_TERRAIN3D := "terrain3d"
 const GROUND_ILLUSTRATED := "illustrated"
+## Matières de sol peintes (`terrainMaterials`, une par case) : herbe, terre,
+## pierre, neige, sable. Mêmes valeurs que le document et le calque sol.
+const MATERIAL_GRASS := 0
+const MATERIAL_DIRT := 1
+const MATERIAL_STONE := 2
+const MATERIAL_SNOW := 3
+const MATERIAL_SAND := 4
+const MATERIAL_IDS := [MATERIAL_GRASS, MATERIAL_DIRT, MATERIAL_STONE, MATERIAL_SNOW, MATERIAL_SAND]
 const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
@@ -542,6 +550,38 @@ func get_ground_mode(map_data: Dictionary) -> String:
 	if not str(map_data.get("backgroundImage", "")).strip_edges().is_empty():
 		return GROUND_ILLUSTRATED
 	return GROUND_TERRAIN3D
+
+## Normalise un ID de matière de sol : 0..4 (herbe → sable).
+func normalize_terrain_material(value: int) -> int:
+	return clampi(value, MATERIAL_GRASS, MATERIAL_SAND)
+
+## Libellé d'une matière de sol (UI / aperçus).
+func terrain_material_label(material: int) -> String:
+	match normalize_terrain_material(material):
+		MATERIAL_DIRT:
+			return "Terre / chemin"
+		MATERIAL_STONE:
+			return "Pierre / pavé"
+		MATERIAL_SNOW:
+			return "Neige"
+		MATERIAL_SAND:
+			return "Sable"
+		_:
+			return "Herbe"
+
+## Couleur d'aperçu d'une matière de sol (mini-carte, plans de zones).
+func terrain_material_color(material: int) -> Color:
+	match normalize_terrain_material(material):
+		MATERIAL_DIRT:
+			return Color(0.46, 0.36, 0.25)
+		MATERIAL_STONE:
+			return Color(0.55, 0.52, 0.46)
+		MATERIAL_SNOW:
+			return Color(0.88, 0.91, 0.96)
+		MATERIAL_SAND:
+			return Color(0.86, 0.76, 0.56)
+		_:
+			return Color(0.33, 0.45, 0.25)
 
 func get_grid_config(map_data: Dictionary) -> Dictionary:
 	var cfg: Dictionary = DEFAULT_GRID_CONFIG.duplicate(true)

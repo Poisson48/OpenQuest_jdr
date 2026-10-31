@@ -104,7 +104,7 @@ func _draw() -> void:
 			var b := _grid_to_local(view.end.x, view.end.y)
 			draw_rect(Rect2(a, b - a), Color(1.0, 1.0, 1.0, 0.85), false, 1.5)
 
-## Aperçu du sol : matières peintes (herbe/terre/pierre) et relief.
+## Aperçu du sol : matières peintes (herbe/terre/pierre/neige/sable) et relief.
 func _draw_ground_preview(rect: Rect2) -> void:
 	var size_cells: Vector2i = doc.terrain_size()
 	if size_cells.x <= 0 or size_cells.y <= 0:
@@ -128,6 +128,10 @@ func _draw_ground_preview(rect: Rect2) -> void:
 							color = Color(0.46, 0.36, 0.25)
 						2:
 							color = Color(0.55, 0.52, 0.46)
+						3:
+							color = Color(0.88, 0.91, 0.96)
+						4:
+							color = Color(0.86, 0.76, 0.56)
 			if has_relief:
 				var h: float = doc.terrain_height(cx, cy)
 				if h > 0.0:

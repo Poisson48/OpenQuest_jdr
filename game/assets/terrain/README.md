@@ -1,22 +1,29 @@
 # Terrain — textures de sol tuilables (carte 2.5D)
 
-Trois textures **512×512 seamless** (elles se raccordent exactement quand on les
+Cinq textures **512×512 seamless** (elles se raccordent exactement quand on les
 répète) pour habiller le sol 3D simplifié de la carte 2.5D. Palette échantillonnée
 sur les fonds peints Valbois : terres chaudes, verts désaturés, pierre chaude,
-aucune couleur saturée.
+neige bleutée et sable doré, aucune couleur saturée.
 
 | Fichier | Rôle | Teintes principales |
 |---|---|---|
 | `grass.png` | herbe de prairie / sous-bois | `#3a4429` → `#64704a` → `#a3a870`, herbe sèche `#8d8852` |
 | `dirt.png` | terre, chemin, place battue | `#5c4b38` → `#8a755c` → `#b6a183`, cailloux gris chaud |
 | `stone.png` | pavé / dallage de pierre | `#545048` → `#8c887d` → `#b7b1a4`, joints et mousse |
+| `snow.png` | neige (blanc bleuté, grain fin) | `#a8b8ca` → `#d2dde9` → `#f7fbfe`, congères et éclats de glace |
+| `sand.png` | sable chaud (plage, désert) | `#a3885e` → `#caae7c` → `#eedcb4`, rides douces et petits cailloux |
 
 Chaque texture est livrée avec `*_thumb.png` (256², pour la bibliothèque de
-l'éditeur). `_planche_terrain.png` montre les trois tuiles répétées en 2×2 :
+l'éditeur). `_planche_terrain.png` montre les cinq tuiles répétées en 2×2 :
 c'est le contrôle visuel du raccord.
 
 > Fichiers **générés** par `tools/blender/make_terrain_textures.py`.
 > Ne pas les retoucher à la main.
+
+**IDs des matières** (document / moteur) : `0` herbe, `1` terre, `2` pierre,
+`3` neige, `4` sable (`MATERIAL_GRASS/DIRT/STONE/SNOW/SAND` de `MapData`).
+Le shader de splat `game/shaders/terrain_splat.gdshader` mélange les cinq
+textures via deux textures de poids (RVB herbe/terre/pierre + RG neige/sable).
 
 ---
 

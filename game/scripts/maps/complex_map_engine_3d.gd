@@ -700,8 +700,9 @@ func _sync_terrain_from_map() -> void:
 				break
 	_terrain_materials = _normalize_terrain_materials(map_data.get("terrainMaterials", []))
 
-## Matières normalisées (0..2), dimensionnées width*height ; vide si la carte
-## n'en fournit pas (matériau de repli du sol).
+## Matières normalisées (0..4 : herbe, terre, pierre, neige, sable),
+## dimensionnées width*height ; vide si la carte n'en fournit pas (matériau de
+## repli du sol).
 func _normalize_terrain_materials(raw: Variant) -> Array:
 	var materials: Array = []
 	if _terrain_w <= 0 or _terrain_h <= 0:
@@ -711,7 +712,7 @@ func _normalize_terrain_materials(raw: Variant) -> Array:
 		return materials
 	materials.resize(expected)
 	for i in range(expected):
-		materials[i] = clampi(int((raw as Array)[i]), 0, 2)
+		materials[i] = clampi(int((raw as Array)[i]), MapData.MATERIAL_GRASS, MapData.MATERIAL_SAND)
 	return materials
 
 ## Copie des matières du sol ([]) si absentes.

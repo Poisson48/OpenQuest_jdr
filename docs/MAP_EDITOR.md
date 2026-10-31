@@ -217,7 +217,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Terrain | 🖌 Terrain | `B` | Peint les tuiles de sol (taille de pinceau réglable) |
 | Terrain | 🪣 Remplir | `G` | Remplit la zone contiguë de même tuile |
 | Terrain | ⛰ Relief | `U` | Monte / baisse / aplatit / lisse la hauteur du terrain (cercle de pinceau affiché). Les objets 3D posés s'adaptent à la pente. |
-| Terrain | 🟫 Sol | `Y` | Peint la **matière du sol** : herbe, terre/chemin ou pierre/pavé (mélange doux, pinceau réglable ; cercle de prévisualisation à la couleur du sol). Seulement en mode Terrain 3D. |
+| Terrain | 🟫 Sol | `Y` | Peint la **matière du sol** : herbe, terre/chemin, pierre/pavé, **neige** ou **sable** (mélange doux, pinceau réglable ; cercle de prévisualisation à la couleur du sol). Seulement en mode Terrain 3D. |
 | Brouillard | 🌫 Révéler | `R` | Révèle le brouillard autour du curseur |
 | Brouillard | 🚫 Masquer | `T` | Remasque des cases déjà révélées |
 | Outils | 🔗 Lier | `L` | Clic source puis clic cible : crée un lien orienté |

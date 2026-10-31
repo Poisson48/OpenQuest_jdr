@@ -1182,10 +1182,13 @@ func _terrain_neighbor_average(heights: Array, size: Vector2i, cx: int, cy: int)
 	return total / float(maxi(1, count))
 
 
-## Matières du sol (mode terrain3d) : 0 = herbe, 1 = terre/chemin, 2 = pierre.
+## Matières du sol (mode terrain3d) : 0 = herbe, 1 = terre/chemin, 2 = pierre,
+## 3 = neige, 4 = sable (mêmes IDs que `MapData.MATERIAL_*`).
 const MATERIAL_GRASS := 0
 const MATERIAL_DIRT := 1
 const MATERIAL_STONE := 2
+const MATERIAL_SNOW := 3
+const MATERIAL_SAND := 4
 
 ## Tableau plat des matières du sol (une par case), toujours dimensionné.
 func _material_buffer() -> Array:
@@ -1199,7 +1202,7 @@ func _material_buffer() -> Array:
 		resized.resize(expected)
 		resized.fill(MATERIAL_GRASS)
 		for i in range(mini(materials.size(), expected)):
-			resized[i] = int(materials[i])
+			resized[i] = clampi(int(materials[i]), MATERIAL_GRASS, MATERIAL_SAND)
 		materials = resized
 		map_data["terrainMaterials"] = materials
 	return materials
@@ -1221,7 +1224,7 @@ func set_terrain_material(cx: int, cy: int, value: int, note: String = "Peinture
 		return
 	var materials := _material_buffer()
 	var idx: int = cy * size.x + cx
-	var next := clampi(value, MATERIAL_GRASS, MATERIAL_STONE)
+	var next := clampi(value, MATERIAL_GRASS, MATERIAL_SAND)
 	if int(materials[idx]) == next:
 		return
 	_push_delta({
@@ -1240,7 +1243,7 @@ func paint_terrain_material_brush(center: Vector2, radius: float, value: int,
 	var size := terrain_size()
 	var materials := _material_buffer()
 	var r := maxf(0.5, radius)
-	var next := clampi(value, MATERIAL_GRASS, MATERIAL_STONE)
+	var next := clampi(value, MATERIAL_GRASS, MATERIAL_SAND)
 	var min_x := maxi(0, int(floor(center.x - r)))
 	var max_x := mini(size.x - 1, int(ceil(center.x + r)))
 	var min_y := maxi(0, int(floor(center.y - r)))

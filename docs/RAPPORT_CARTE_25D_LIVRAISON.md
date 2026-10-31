@@ -14,7 +14,7 @@
 | Domaine | Détail |
 |---|---|
 | Terrain | heightfield simple, relief peint (⛰ U) : monter/baisser/aplatir/lisser, rayon et force |
-| Matières de sol | herbe / terre-chemin / pierre-pavé, mélange doux, aperçu circulaire (🟫 Y) |
+| Matières de sol | herbe / terre-chemin / pierre-pavé / **neige** / **sable**, mélange doux, aperçu circulaire (🟫 Y) |
 | Bords de carte | **jupe de falaise** verticale + **rebord horizontal** visible en vue de dessus (effet plateau/îlot) |
 | Fond | **backdrop** dégradé sous le plateau (plus de vide noir) |
 | Eau | niveau d'eau par carte (étangs/lacs creusés, translucide, profondeur, écume) |
@@ -144,6 +144,7 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) ·
 [`carte_25d_monde_plein_ecran.png`](./screenshots/carte_25d_monde_plein_ecran.png) ·
 [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) ·
+[`carte_25d_sols.png`](./screenshots/carte_25d_sols.png) ·
 [`carte_25d_etang.png`](./screenshots/carte_25d_etang.png) ·
 [`carte_25d_ruines.png`](./screenshots/carte_25d_ruines.png) ·
 [`session_monde_25d.png`](./screenshots/session_monde_25d.png) ·

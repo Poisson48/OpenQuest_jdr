@@ -1,10 +1,12 @@
 """Genere les textures de sol tuilables de la carte 2.5D (offline).
 
-Trois textures 512x512 **seamless** (bords raccord quand on les répète) :
+Cinq textures 512x512 **seamless** (bords raccord quand on les répète) :
 
 * ``grass.png``  : herbe Valbois, vert désaturé, touffes et brins peints ;
 * ``dirt.png``   : terre / chemin, brun chaud, cailloux, fissures et taches ;
-* ``stone.png``  : pavé de pierre (dallage irrégulier), joints sombres et mousse.
+* ``stone.png``  : pavé de pierre (dallage irrégulier), joints sombres et mousse ;
+* ``snow.png``   : neige blanc bleuté, grain fin, congères et éclats de glace ;
+* ``sand.png``   : sable chaud, rides douces, quelques cailloux et coquilles.
 
 Tout est procédural (numpy + Pillow), sans téléchargement ni asset externe. Les
 bruits sont **périodiques** (value noise à grille bouclée, fBm multi-échelle,
@@ -20,9 +22,9 @@ Usage :
 
 Sorties (par défaut dans ``game/assets/terrain/``) :
 
-    grass.png, dirt.png, stone.png          # 512x512 RGB, tuilables
-    grass_thumb.png, ...                    # 256x256, pour la bibliothèque
-    _planche_terrain.png                    # planche de contrôle (tuile 2x2)
+    grass.png, dirt.png, stone.png, snow.png, sand.png   # 512x512 RGB, tuilables
+    grass_thumb.png, ...                                 # 256x256, pour la bibliothèque
+    _planche_terrain.png                                 # planche de contrôle (tuile 2x2)
 """
 
 from __future__ import annotations
@@ -65,6 +67,20 @@ PALETTES: dict[str, dict[str, tuple[int, int, int]]] = {
         "light": (165, 160, 148),    # #a5a094
         "pale": (183, 177, 164),     # #b7b1a4
         "accent": (100, 96, 87),     # #646057
+    },
+    "snow": {
+        "shadow": (168, 184, 202),   # #a8b8ca (ombre bleutée)
+        "base": (210, 221, 233),     # #d2dde9
+        "light": (231, 239, 246),    # #e7eff6
+        "pale": (247, 251, 254),     # #f7fbfe
+        "accent": (190, 208, 224),   # #bed0e0 (congères / glace)
+    },
+    "sand": {
+        "shadow": (163, 136, 94),    # #a3885e
+        "base": (202, 174, 124),     # #caae7c
+        "light": (222, 198, 150),    # #dec696
+        "pale": (238, 220, 180),     # #eedcb4
+        "accent": (198, 186, 162),   # #c6baa2 (cailloux clairs)
     },
 }
 
@@ -580,6 +596,130 @@ def build_stone(size: int, seed: int) -> np.ndarray:
     return np.clip(image, 0.0, 1.0)
 
 
+def build_snow(size: int, seed: int) -> np.ndarray:
+    """Neige blanc bleuté : grain fin, congères douces et éclats de glace."""
+    palette = PALETTES["snow"]
+    rng = _rng(seed + 41)
+
+    drifts = fbm(size, seed + 401, octaves=5, base_period=3)
+    clumps = fbm(size, seed + 402, octaves=4, base_period=7)
+    medium = fbm(size, seed + 403, octaves=5, base_period=18)
+    fine = fbm(size, seed + 404, octaves=3, base_period=64)
+    dx = fbm(size, seed + 405, octaves=3, base_period=4)
+    dy = fbm(size, seed + 406, octaves=3, base_period=5)
+
+    field = 0.44 * drifts + 0.28 * clumps + 0.18 * medium + 0.10 * fine
+    field = warp(field, dx, dy, strength=size * 0.035)
+    # La neige reste très claire : contraste doux et niveau haut.
+    t = 0.22 + 0.72 * contrast(field, strength=1.25)
+
+    image = mix_color(
+        [
+            (0.0, palette["shadow"]),
+            (0.30, palette["base"]),
+            (0.66, palette["light"]),
+            (0.90, palette["pale"]),
+        ],
+        t,
+    )
+
+    # Congères : crêtes légèrement plus claires, creux bleutés.
+    crest = np.clip((drifts - 0.58) * 3.2, 0.0, 1.0) * 0.22
+    pale = np.asarray(palette["pale"], dtype=np.float64) / 255.0
+    image = image * (1.0 - crest[..., None]) + pale * crest[..., None]
+    hollow = np.clip((0.42 - clumps) * 2.8, 0.0, 1.0) * 0.18
+    accent = np.asarray(palette["accent"], dtype=np.float64) / 255.0
+    image = image * (1.0 - hollow[..., None]) + accent * hollow[..., None]
+    image = paint_tint(image, clumps, warm=-0.045)
+
+    # Grain fin + éclats de glace (points très clairs).
+    grain = white_noise(size, seed + 407)
+    image *= (0.94 + 0.09 * grain)[..., None]
+    sparkles = white_noise(size, seed + 408)
+    image = np.where(
+        (sparkles > 0.996)[..., None],
+        np.minimum(1.0, image * 1.18 + 0.05),
+        image,
+    )
+    icy = np.clip((medium - 0.72) * 4.0, 0.0, 1.0) * 0.10
+    image = image * (1.0 - icy[..., None]) + accent * icy[..., None]
+
+    image = wrap_filter(image, 0.45).copy()
+    image = wrap_filter(image, 1.0, unsharp=True)
+    return np.clip(image, 0.0, 1.0)
+
+
+def build_sand(size: int, seed: int) -> np.ndarray:
+    """Sable chaud : rides douces, grain fin, quelques cailloux et coquilles."""
+    palette = PALETTES["sand"]
+    rng = _rng(seed + 51)
+
+    dunes = fbm(size, seed + 501, octaves=5, base_period=3)
+    ripples = fbm(size, seed + 502, octaves=4, base_period=9)
+    medium = fbm(size, seed + 503, octaves=4, base_period=22)
+    fine = fbm(size, seed + 504, octaves=3, base_period=70)
+    dx = fbm(size, seed + 505, octaves=3, base_period=4)
+    dy = fbm(size, seed + 506, octaves=3, base_period=6)
+
+    field = 0.40 * dunes + 0.30 * ripples + 0.20 * medium + 0.10 * fine
+    field = warp(field, dx, dy, strength=size * 0.05)
+    t = contrast(field, strength=1.5) * 0.88 + 0.06
+
+    image = mix_color(
+        [
+            (0.0, palette["shadow"]),
+            (0.32, palette["base"]),
+            (0.66, palette["light"]),
+            (0.90, palette["pale"]),
+        ],
+        t,
+    )
+
+    # Rides de sable : fines ondulations douces qui suivent le warp.
+    wave = np.sin(
+        (np.arange(size, dtype=np.float64)[None, :] + dx * size * 0.05)
+        * (2.0 * math.pi * 9.0 / size)
+    )
+    ripple = (wave * 0.5 + 0.5) * 0.12
+    light = np.asarray(palette["light"], dtype=np.float64) / 255.0
+    image = image * (1.0 - ripple[..., None] * 0.5) + light * (ripple[..., None] * 0.5)
+    image = paint_tint(image, ripples, warm=0.06)
+
+    # Grain fin et petits cailloux clairs dispersés.
+    grain = white_noise(size, seed + 507)
+    image *= (0.92 + 0.13 * grain)[..., None]
+    speckles = white_noise(size, seed + 508)
+    image *= np.where(speckles > 0.988, 1.08, 1.0)[..., None]
+    image *= np.where(speckles < 0.012, 0.90, 1.0)[..., None]
+
+    pebble_layer = Image.new("RGB", (size, size), (0, 0, 0))
+    draw = ImageDraw.Draw(pebble_layer)
+    stone_mid = (188, 178, 158)
+    stone_light = (222, 214, 196)
+    stone_dark = (128, 112, 88)
+    for _ in range(int(size * size / 9000)):
+        cx = rng.uniform(0, size)
+        cy = rng.uniform(0, size)
+        radius = rng.uniform(1.8, 3.6)
+        squash = rng.uniform(0.6, 0.9)
+
+        def pebble(d, px, py, r=radius, sq=squash):
+            d.ellipse([px - r + 1.0, py - r * sq + 1.4, px + r + 1.0, py + r * sq + 1.4],
+                      fill=stone_dark)
+            d.ellipse([px - r, py - r * sq, px + r, py + r * sq], fill=stone_mid)
+            d.ellipse([px - r * 0.55, py - r * sq * 0.75, px + r * 0.1, py - r * sq * 0.05],
+                      fill=stone_light)
+
+        _draw_shifted(draw, size, cx, cy, pebble)
+
+    pebbles = np.asarray(pebble_layer).astype(np.float64) / 255.0
+    image = _composite_layer(image, pebbles, strength=0.55)
+
+    image = wrap_filter(image, 0.4).copy()
+    image = wrap_filter(image, 1.0, unsharp=True)
+    return np.clip(image, 0.0, 1.0)
+
+
 # --------------------------------------------------------------------------- #
 # Vérification / planche
 # --------------------------------------------------------------------------- #
@@ -621,11 +761,17 @@ def verify_texture(path: Path, expected_size: int) -> list[str]:
 
 def build_preview(out_root: Path) -> Path | None:
     """Planche : chaque texture répétée en 2x2 pour vérifier le raccord."""
-    names = [("grass", "herbe"), ("dirt", "terre / chemin"), ("stone", "pavé de pierre")]
-    tile = 320
+    names = [
+        ("grass", "herbe"),
+        ("dirt", "terre / chemin"),
+        ("stone", "pavé de pierre"),
+        ("snow", "neige"),
+        ("sand", "sable"),
+    ]
+    tile = 280
     label_h = 34
     cell = tile + 12
-    preview = Image.new("RGB", (cell * 3 + 12, tile + label_h + 24), (232, 221, 198))
+    preview = Image.new("RGB", (cell * len(names) + 12, tile + label_h + 24), (232, 221, 198))
     draw = ImageDraw.Draw(preview)
     try:
         font = ImageFont.truetype("DejaVuSans.ttf", 17)
@@ -682,6 +828,8 @@ def main() -> int:
             "grass": build_grass,
             "dirt": build_dirt,
             "stone": build_stone,
+            "snow": build_snow,
+            "sand": build_sand,
         }
         for name, builder in builders.items():
             image = builder(size, args.seed)
@@ -694,7 +842,7 @@ def main() -> int:
             print(f"[OK] {path} ({path.stat().st_size / 1024.0:.1f} Ko) + thumb {THUMB_SIZE}px")
 
     issues: list[str] = []
-    for name in ("grass", "dirt", "stone"):
+    for name in ("grass", "dirt", "stone", "snow", "sand"):
         issues.extend(verify_texture(out_root / f"{name}.png", size))
 
     build_preview(out_root)
@@ -703,7 +851,7 @@ def main() -> int:
         for issue in issues:
             print(f"[ECHEC] {issue}")
         return 1
-    print(f"TERRAIN_RESULT ok=3 textures={size}x{size} seamless=oui")
+    print(f"TERRAIN_RESULT ok=5 textures={size}x{size} seamless=oui")
     return 0
 
 

@@ -986,6 +986,10 @@ func _material_color(material: int) -> Color:
 			return Color(0.46, 0.36, 0.25)
 		2:
 			return Color(0.55, 0.52, 0.46)
+		3:
+			return Color(0.88, 0.91, 0.96)
+		4:
+			return Color(0.86, 0.76, 0.56)
 		_:
 			return Color(0.33, 0.45, 0.25)
 

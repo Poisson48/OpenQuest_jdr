@@ -49,7 +49,7 @@ Onglet **Carte** :
 
 Outils terrain :
 
-- **🟫 Sol (Y)** : peint herbe / terre-chemin / pierre-pavé.
+- **🟫 Sol (Y)** : peint herbe / terre-chemin / pierre-pavé / **neige** / **sable**.
 - **⛰ Relief (U)** : monte, baisse, aplatit, lisse ; rayon et force réglables.
 - Les cartes en terrain 3D ont une **jupe de falaise** et un **fond de plateau**
   dégradé : elles se lisent comme des îlots.
