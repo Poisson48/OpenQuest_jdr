@@ -85,6 +85,9 @@ static func build_demo(md: Node) -> Dictionary:
 	map["ambientFx"] = "leaves"
 	map["fogEnabled"] = false
 	map["worldId"] = "demo-valbois"
+	map["markers"] = [
+		{"id": "mk-place-valbois", "type": "poi", "label": "Place du Marché", "x": 12.0, "y": 8.0},
+	]
 	md.update_map(map)
 	map = md.get_by_id(map_id)
 	if map.is_empty():
