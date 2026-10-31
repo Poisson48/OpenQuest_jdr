@@ -30,6 +30,12 @@ func _run() -> void:
 	await process_frame
 	editor.load_map(village)
 	await process_frame
+	# Navigation rapide entre zones du monde (émet l'ouverture d'une autre zone).
+	var cycle_targets: Array = []
+	editor.open_map_requested.connect(func(id): cycle_targets.append(id))
+	editor._cycle_world_map(1)
+	_assert("world_cycle_emits", not cycle_targets.is_empty()
+		and str(cycle_targets[0]) != str(village.get("id", "")))
 	editor._set_tool("mesh")
 	editor._mesh_snap_modules = true
 

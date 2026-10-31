@@ -259,6 +259,8 @@ Le bouton **?** de la barre d'action ouvre l'**aide rapide** : parcours en 4
 Le bouton **✓** vérifie la carte (dimensions des tampons, objets hors limites,
 assets manquants, eau sans dépression, liens de zone cassés) et affiche un rapport.
 Le bouton **📷** exporte une image PNG du rendu 3D de la carte (sans l'interface).
+Les boutons **‹ / ›** ouvrent la zone précédente/suivante du même monde sans passer
+par l'onglet Monde.
 Le bouton **▶ Tester** enregistre la carte puis lance une session de jeu sur cette
 carte — ou sur toutes les zones de son monde si elle en a un.
 

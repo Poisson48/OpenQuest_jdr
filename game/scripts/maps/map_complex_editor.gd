@@ -395,6 +395,8 @@ func _build_action_bar() -> void:
 	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
 	bar.add_child(VSeparator.new())
+	_icon_button(bar, "‹", "Zone précédente du monde", func(): _cycle_world_map(-1))
+	_icon_button(bar, "›", "Zone suivante du monde", func(): _cycle_world_map(1))
 	var test_btn := Button.new()
 	test_btn.text = "▶ Tester"
 	test_btn.tooltip_text = "Enregistre puis lance une session de jeu sur cette carte (et son monde si elle en a un)."
@@ -2400,6 +2402,42 @@ func _on_open_map_requested(map_id: String) -> void:
 	if doc.is_dirty():
 		save_now()
 	open_map_requested.emit(map_id)
+
+## Ouvre la zone précédente/suivante du monde courant (navigation rapide).
+func _cycle_world_map(direction: int) -> void:
+	var map_id := str(doc.map_data.get("id", ""))
+	var world_id := str(doc.map_data.get("worldId", ""))
+	if map_id.is_empty() or world_id.is_empty():
+		_set_status("Cette carte n'appartient pas à un monde.")
+		return
+	var zones: Array = []
+	for map_variant in MapData.maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("worldId", "")) != world_id or str(map.get("renderMode", "")) != "complex":
+			continue
+		zones.append(map)
+	if zones.size() <= 1:
+		return
+	zones.sort_custom(func(a, b):
+		var ay := int((a as Dictionary).get("zoneY", 0))
+		var by := int((b as Dictionary).get("zoneY", 0))
+		if ay == by:
+			return int((a as Dictionary).get("zoneX", 0)) < int((b as Dictionary).get("zoneX", 0))
+		return ay < by
+	)
+	var current := -1
+	for i in range(zones.size()):
+		if str((zones[i] as Dictionary).get("id", "")) == map_id:
+			current = i
+			break
+	if current < 0:
+		return
+	var next := (current + direction + zones.size()) % zones.size()
+	if next == current:
+		return
+	_on_open_map_requested(str((zones[next] as Dictionary).get("id", "")))
 
 func _focus_selection() -> void:
 	var bounds: Rect2 = doc.selection_bounds()
