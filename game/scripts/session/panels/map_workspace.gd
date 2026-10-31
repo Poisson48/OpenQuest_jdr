@@ -31,6 +31,7 @@ var _immersive: bool = false
 var _pending_nav: Dictionary = {}
 var _inspect_hint: String = ""
 var _world_map: Control
+var _exits_lbl: Label
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -66,6 +67,20 @@ func _ready() -> void:
 
 	%BtnEmptyHub.pressed.connect(_on_empty_hub_pressed)
 	%BtnEmptyMaps.pressed.connect(_on_empty_maps_pressed)
+
+	# Boussole de sorties (zones voisines) + rappel carte du monde.
+	_exits_lbl = Label.new()
+	_exits_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_exits_lbl.add_theme_font_size_override("font_size", 12)
+	_exits_lbl.add_theme_color_override("font_color", Color(1.0, 0.93, 0.75, 0.92))
+	_exits_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	_exits_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	_exits_lbl.add_theme_constant_override("shadow_offset_y", 1)
+	_exits_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_exits_lbl.offset_left = 12
+	_exits_lbl.offset_right = -12
+	_exits_lbl.offset_top = 8
+	stage.add_child(_exits_lbl)
 
 	# Carte du monde de session (touche M) : superposée à toute la fenêtre.
 	_world_map = WorldMapOverlayScript.new()
@@ -159,6 +174,7 @@ func refresh() -> void:
 	var map_id := str(display_map.get("id", ""))
 	if not str(display_map.get("worldId", "")).is_empty():
 		GameData.mark_world_zone_discovered(map_id)
+	_update_exits_hint(display_map, map_id)
 
 	_explore_mode = not str(display_map.get("backgroundImage", "")).strip_edges().is_empty()
 	_mode = MapMode.COMPLEX if _explore_mode else GameData.get_effective_render_mode(active_id)
@@ -170,6 +186,36 @@ func refresh() -> void:
 	_render_toolbar(state, display_map)
 	_configure_stage(state, ctx, map_id)
 	_apply_chrome_visibility()
+
+## Boussole de sorties : zones voisines accessibles depuis la zone courante.
+func _update_exits_hint(display_map: Dictionary, map_id: String) -> void:
+	if _exits_lbl == null:
+		return
+	_exits_lbl.text = ""
+	var world_id := str(display_map.get("worldId", ""))
+	if world_id.is_empty():
+		return
+	var zones: Array = WorldNavigationScript.zones_for_world(_maps_for_world(map_id), world_id)
+	var zone: Dictionary = {}
+	for zone_variant in zones:
+		if str((zone_variant as Dictionary).get("id", "")) == map_id:
+			zone = zone_variant
+			break
+	if zone.is_empty():
+		return
+	var arrows := {"north": "↑ N", "east": "→ E", "south": "↓ S", "west": "← O"}
+	var parts: PackedStringArray = PackedStringArray()
+	for side in ["north", "east", "south", "west"]:
+		var info: Dictionary = WorldNavigationScript.neighbor_on_side(zones, zone, side)
+		var target := str(info.get("target", ""))
+		if target.is_empty():
+			continue
+		var target_map: Dictionary = MapData.get_by_id(target)
+		var title := str(target_map.get("title", target))
+		parts.append("%s %s" % [arrows[side], title])
+	if parts.is_empty():
+		return
+	_exits_lbl.text = "🧭 " + " · ".join(parts) + "     (M : carte du monde)"
 
 func _show_empty_state(on: bool) -> void:
 	if _empty_state:
