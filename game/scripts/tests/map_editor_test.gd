@@ -438,6 +438,14 @@ func _test_editor_ui(base: Dictionary) -> void:
 	await process_frame
 	_assert("ui_help_visible", editor._help_dialog != null and editor._help_dialog.visible)
 	editor._help_dialog.hide()
+	# Vérification de carte : rapport affiché.
+	var map_issues: Array = editor._collect_map_issues()
+	_assert("ui_validate_collect", map_issues is Array)
+	editor._validate_map()
+	await process_frame
+	_assert("ui_validate_visible", editor._validate_dialog != null and editor._validate_dialog.visible)
+	_assert("ui_validate_report", editor._validate_text != null and not editor._validate_text.text.is_empty())
+	editor._validate_dialog.hide()
 
 	# Ultrawide 21:9 — docks % de la largeur réelle, centre restant.
 	editor.size = Vector2(2560, 1080)

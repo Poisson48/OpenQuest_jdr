@@ -77,6 +77,8 @@ var _mesh_footprint_cache: Dictionary = {}
 ## Dialogue d'import de modèles 3D (GLB/glTF) pour la bibliothèque d'objets.
 var _mesh_import_dialog: FileDialog
 var _help_dialog: AcceptDialog
+var _validate_dialog: AcceptDialog
+var _validate_text: RichTextLabel
 var _last_saved_at: float = 0.0
 var _status_badges: HBoxContainer
 var _policy_chip: Label
@@ -407,6 +409,7 @@ func _build_action_bar() -> void:
 	bar.add_child(_player_view_btn)
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
 	_icon_button(bar, "?", "Aide rapide : parcours et raccourcis", func(): _open_help())
+	_icon_button(bar, "✓", "Vérifier la carte (tailles, objets, eau, liens)", func(): _validate_map())
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
@@ -756,6 +759,17 @@ func _build_dialogs() -> void:
 [b]Aide complète[/b] : docs/GUIDE_CARTE_25D.md et docs/MAP_EDITOR.md"""
 	help_box.add_child(help_text)
 	_help_dialog.confirmed.connect(func(): _help_dialog.hide())
+
+	_validate_dialog = AcceptDialog.new()
+	_validate_dialog.title = "Vérification de la carte"
+	add_child(_validate_dialog)
+	var validate_box := VBoxContainer.new()
+	validate_box.custom_minimum_size = Vector2(560, 360)
+	_validate_dialog.add_child(validate_box)
+	_validate_text = RichTextLabel.new()
+	_validate_text.bbcode_enabled = true
+	_validate_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	validate_box.add_child(_validate_text)
 
 	_template_name_dialog = %TemplateNameDialog
 	_template_name_input = %TemplateNameInput
@@ -2240,6 +2254,76 @@ func _test_current_map() -> void:
 		_set_status("Session de test lancée (%d zone(s))." % ids.size())
 	else:
 		_set_status("Impossible de lancer la session de test.")
+
+## Vérifie la carte et affiche un rapport (tailles de tampons, objets hors
+## limites, assets manquants, eau sans dépression, liens de zone cassés).
+func _validate_map() -> void:
+	if _validate_dialog == null:
+		_build_dialogs()
+	var issues := _collect_map_issues()
+	if issues.is_empty():
+		_validate_text.text = "[color=#9fe08a]✓ Aucun problème détecté.[/color]\n\nLa carte est cohérente."
+	else:
+		var lines: Array = ["[b]%d problème(s) détecté(s)[/b]" % issues.size(), ""]
+		for issue in issues:
+			lines.append("• %s" % str(issue))
+		_validate_text.text = "\n".join(lines)
+	_validate_dialog.popup_centered(Vector2i(620, 420))
+	_set_status("Vérification : %d problème(s)." % issues.size())
+
+## Liste des problèmes détectés sur la carte courante (vide si tout est bon).
+func _collect_map_issues() -> Array:
+	var issues: Array = []
+	var map: Dictionary = doc.map_data
+	var w := int(map.get("width", 0))
+	var h := int(map.get("height", 0))
+	if w <= 0 or h <= 0:
+		issues.append("Dimensions invalides (%d×%d)." % [w, h])
+		return issues
+	var expected := w * h
+	for key in ["terrainHeights", "terrainMaterials"]:
+		var buffer = map.get(key, [])
+		if not buffer is Array or (buffer as Array).size() != expected:
+			issues.append("%s : %d valeurs pour %d cases." % [key, (buffer as Array).size() if buffer is Array else 0, expected])
+	for key in ["meshes", "props", "markers"]:
+		var elements = map.get(key, [])
+		if not elements is Array:
+			continue
+		for element_variant in elements:
+			if not element_variant is Dictionary:
+				continue
+			var element: Dictionary = element_variant
+			var ex := float(element.get("x", 0.0))
+			var ey := float(element.get("y", 0.0))
+			if ex < -0.5 or ey < -0.5 or ex > float(w) - 0.5 or ey > float(h) - 0.5:
+				issues.append("%s hors carte en %.1f,%.1f." % [str(element.get("label", element.get("id", key))), ex, ey])
+			var asset := str(element.get("asset", ""))
+			if not asset.is_empty() and not FileAccess.file_exists(asset):
+				issues.append("Asset introuvable : %s." % asset)
+	var water := float(map.get("waterLevel", -1.0))
+	if water > -1.0:
+		var heights = map.get("terrainHeights", [])
+		var has_hollow := false
+		if heights is Array:
+			for value in heights:
+				if float(value) < water - 0.01:
+					has_hollow = true
+					break
+		if not has_hollow:
+			issues.append("Eau au niveau %.2f sans dépression : la carte serait inondée." % water)
+	var world_id := str(map.get("worldId", ""))
+	if not world_id.is_empty():
+		var edges: Dictionary = map.get("edges", {}) if map.get("edges") is Dictionary else {}
+		for side in edges:
+			var edge = edges[side]
+			if not edge is Dictionary:
+				continue
+			var target := str((edge as Dictionary).get("target", ""))
+			if target.is_empty():
+				continue
+			if MapData.get_by_id(target).is_empty():
+				issues.append("Lien %s vers une zone inexistante (%s)." % [side, target])
+	return issues
 
 func _open_help() -> void:
 	if _help_dialog == null:
