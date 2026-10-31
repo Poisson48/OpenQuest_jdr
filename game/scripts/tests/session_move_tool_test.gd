@@ -59,6 +59,16 @@ func _run() -> void:
 		await process_frame
 		var stepped: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		_assert("move_arrow_step", stepped.x == 5 and stepped.y == 4)
+		# Une case occupée par une autre figurine refuse le déplacement.
+		gd.active_game["party"].append({
+			"id": "move-bran", "name": "Bran", "class": "Garde", "hp": 15, "isPlayer": true,
+			"portrait": "", "image": "", "stats": {},
+		})
+		gd.place_complex_member_token(village_id, 6.0, 4.0, "move-bran")
+		workspace._on_grid_clicked(6.0, 4.0, {"mode": SessionToolRegistry.MOVE})
+		await process_frame
+		var blocked: Vector2i = gd.get_member_token_position(village_id, "move-aria")
+		_assert("move_blocked_occupied", blocked.x == 5 and blocked.y == 4)
 	session.queue_free()
 	await process_frame
 	if _failed:

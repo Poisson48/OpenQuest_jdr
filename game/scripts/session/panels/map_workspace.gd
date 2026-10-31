@@ -738,6 +738,9 @@ func _move_selected_token(gx: float, gy: float) -> void:
 	if token_id.is_empty():
 		notice_requested.emit("Sélectionnez un personnage à déplacer.")
 		return
+	if _cell_has_other_token(map_id, gx, gy, token_id):
+		notice_requested.emit("Cette case est déjà occupée.")
+		return
 	_on_token_moved(token_id, gx, gy)
 
 func _selected_token_for_move(map_id: String) -> String:
@@ -773,7 +776,22 @@ func _move_selected_step(direction: Vector2i) -> void:
 		clampi(pos.y + direction.y, 0, maxi(0, int(map.get("height", 1)) - 1)))
 	if target == pos:
 		return
+	if _cell_has_other_token(map_id, float(target.x), float(target.y), token_id):
+		notice_requested.emit("Cette case est déjà occupée.")
+		return
 	_on_token_moved(token_id, float(target.x), float(target.y))
+
+## Vrai si une autre figurine occupe déjà la case (marge 0,6 case).
+func _cell_has_other_token(map_id: String, gx: float, gy: float, exclude_id: String) -> bool:
+	for tok_variant in GameData.get_map_play_tokens(map_id):
+		if not tok_variant is Dictionary:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("id", "")) == exclude_id or bool(tok.get("hidden", false)):
+			continue
+		if Vector2(float(tok.get("x", 0.0)), float(tok.get("y", 0.0))).distance_to(Vector2(gx, gy)) < 0.6:
+			return true
+	return false
 
 func _on_inspect_requested(info: Dictionary) -> void:
 	var map_id := _current_map_id()
