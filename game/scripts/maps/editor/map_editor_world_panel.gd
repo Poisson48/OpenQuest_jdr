@@ -208,8 +208,9 @@ func _sync_world_selector(md: Node) -> void:
 	_world_opt.set_block_signals(true)
 	_world_opt.clear()
 	if world_ids.is_empty():
-		_world_opt.add_item("Aucun monde")
-		_world_opt.disabled = true
+		_world_opt.add_item("＋ Nouveau monde")
+		_world_opt.set_item_metadata(0, "__new__")
+		_world_opt.disabled = false
 	else:
 		_world_opt.disabled = false
 		for i in range(world_ids.size()):
@@ -222,12 +223,18 @@ func _sync_world_selector(md: Node) -> void:
 			_world_opt.set_item_metadata(i, world_id)
 			if world_id == _view_world_id:
 				_world_opt.select(i)
+		_world_opt.add_separator()
+		_world_opt.add_item("＋ Nouveau monde")
+		_world_opt.set_item_metadata(_world_opt.item_count - 1, "__new__")
 	_world_opt.set_block_signals(false)
 
 func _on_world_selected(index: int) -> void:
 	if _world_opt == null or index < 0:
 		return
 	var world_id := str(_world_opt.get_item_metadata(index))
+	if world_id == "__new__":
+		_create_new_world()
+		return
 	if world_id.is_empty() or world_id == _view_world_id:
 		return
 	_view_world_id = world_id
@@ -235,6 +242,17 @@ func _on_world_selected(index: int) -> void:
 	refresh()
 	fit_view()
 	show_status("Monde affiché : %s." % world_id)
+
+## Crée un nouveau monde avec une première zone pour démarrer de zéro.
+func _create_new_world() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	_view_world_id = md.generate_id("monde")
+	selected_id = ""
+	create_zone(12, 9, "Zone de départ", "empty")
+	fit_view()
+	show_status("Nouveau monde créé : %s." % _view_world_id)
 
 ## Monde courant : monde sélectionné dans la liste, sinon celui de la carte.
 func _current_world_id() -> String:

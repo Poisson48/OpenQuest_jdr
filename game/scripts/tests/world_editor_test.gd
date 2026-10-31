@@ -226,6 +226,21 @@ func _run() -> void:
 				and panel.zones.size() == 1)
 			panel._on_world_selected(0)
 
+		# Création d'un nouveau monde depuis le sélecteur.
+		var new_world_index := -1
+		for i in range(panel._world_opt.item_count):
+			if str(panel._world_opt.get_item_metadata(i)) == "__new__":
+				new_world_index = i
+				break
+		_assert("world_selector_has_new", new_world_index >= 0)
+		if new_world_index >= 0:
+			panel._on_world_selected(new_world_index)
+			_assert("world_new_created", not panel._view_world_id.is_empty()
+				and panel.zones.size() == 1)
+			if not panel.selected_id.is_empty():
+				_created_maps.append(str(panel.selected_id))
+			panel._on_world_selected(0)
+
 		# Export / import d'un monde complet (zones + liens remappés).
 		var bundle_a: Dictionary = md.create_complex_map("Bundle A", "general", "local", 10, 7)
 		var bundle_b: Dictionary = md.create_complex_map("Bundle B", "general", "local", 8, 6)
