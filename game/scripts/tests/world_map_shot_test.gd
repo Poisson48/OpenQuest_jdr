@@ -42,7 +42,7 @@ func _run() -> void:
 		"mapIds": ids, "currentMapId": ids[0], "gmType": "ai",
 		"party": [{"id": "hero-1", "name": "Aria", "portrait": ""}],
 		"mapPlayState": {}, "mapModeOverrides": {},
-		"mapNavigation": {"view": "local", "localMapId": ids[0], "discoveredZones": ids.slice(0, 3)},
+		"mapNavigation": {"view": "local", "localMapId": ids[0], "discoveredZones": ids.duplicate()},
 	}
 	gd.ensure_map_play_state()
 

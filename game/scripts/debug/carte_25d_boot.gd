@@ -255,10 +255,39 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "mur", "x": 6.5, "y": 0.6},
 				{"name": "mur_coin", "x": 8.0, "y": 0.6},
 				{"name": "lanterne", "x": 4.5, "y": 1.5},
+				{"name": "lanterne", "x": 2.5, "y": 5.0},
+				{"name": "lanterne", "x": 6.8, "y": 5.0},
 				{"name": "rocher", "x": 7.0, "y": 7.0},
 				{"name": "sarcophage", "x": 4.0, "y": 4.5},
 				{"name": "pile_os", "x": 2.0, "y": 6.5},
 				{"name": "herse", "x": 4.5, "y": 7.6},
+			],
+		},
+		{
+			"title": "Camp des Bûcherons", "w": 10, "h": 8, "x": 39, "y": 8,
+			"meshes": [
+				{"name": "grange", "x": 2.5, "y": 2.5},
+				{"name": "tas_de_bois", "x": 6.8, "y": 2.8},
+				{"name": "botte_foin", "x": 4.6, "y": 5.0},
+				{"name": "tonneau", "x": 6.4, "y": 5.4},
+				{"name": "banc", "x": 3.4, "y": 5.6},
+				{"name": "lanterne", "x": 5.0, "y": 2.2},
+				{"name": "pnj_villageois", "x": 4.2, "y": 3.8},
+				{"name": "cloture_basse", "x": 7.4, "y": 6.4},
+			],
+		},
+		{
+			"title": "Ruines de l'Ouest", "w": 12, "h": 10, "x": 13, "y": 16,
+			"meshes": [
+				{"name": "mur", "x": 2.5, "y": 3.0},
+				{"name": "mur_coin", "x": 5.5, "y": 3.0},
+				{"name": "mur", "x": 8.5, "y": 3.0},
+				{"name": "herse", "x": 6.0, "y": 6.5},
+				{"name": "sarcophage", "x": 8.0, "y": 7.0},
+				{"name": "pile_os", "x": 3.0, "y": 7.0},
+				{"name": "gros_rocher", "x": 10.0, "y": 8.0},
+				{"name": "falaise", "x": 10.0, "y": 2.0},
+				{"name": "buisson", "x": 2.0, "y": 8.0},
 			],
 		},
 	]
@@ -283,14 +312,26 @@ static func build_demo(md: Node) -> Dictionary:
 			style = "tavern"
 		elif str(spec["title"]).contains("Donjon"):
 			style = "dungeon"
+		elif str(spec["title"]).contains("Camp"):
+			style = "camp"
+		elif str(spec["title"]).contains("Ruines"):
+			style = "ruins"
 		sub["terrainMaterials"] = _demo_materials(int(spec["w"]), int(spec["h"]), style)
 		# Ambiances animées par type de zone.
 		if style == "forest":
 			sub["ambientFx"] = "fireflies"
 		elif style == "tavern" or style == "dungeon":
 			sub["ambientFx"] = "dust"
-		elif style == "place":
+		elif style == "place" or style == "camp":
 			sub["ambientFx"] = "leaves"
+		elif style == "ruins":
+			sub["ambientFx"] = "dust"
+		# Donjon en ambiance nocturne : lanternes et torches ressortent.
+		if style == "dungeon":
+			sub["lighting"] = {
+				"enabled": true, "direction": "nw", "intensity": 0.15,
+				"nightMode": true, "nightAmbient": 0.45,
+			}
 		# Étang en forêt : dépression douce + plan d'eau.
 		if style == "forest":
 			var w_sub := int(spec["w"])
@@ -394,6 +435,18 @@ static func _demo_materials(w: int, h: int, style: String) -> Array:
 				"dungeon":
 					mat = 2
 					if absf(float(cx) - center.x) < 1.0 or absf(float(cy) - center.y) < 1.0:
+						mat = 1
+				"camp":
+					mat = 0
+					if pos.distance_to(center) < 3.2:
+						mat = 1
+					elif absf(float(cx) - 5.0) < 1.0:
+						mat = 1
+				"ruins":
+					mat = 0
+					if pos.distance_to(center) < 4.6:
+						mat = 2
+					elif absf(float(cx) - center.x) < 1.2:
 						mat = 1
 			materials[cy * w + cx] = mat
 	return materials
