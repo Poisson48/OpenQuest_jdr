@@ -30,7 +30,7 @@
 ### 1.2 Monde de zones
 
 - **Onglet Monde** : plan des zones, zoom/pan, plein écran.
-- **Multi-mondes** : sélecteur avec noms lisibles, **＋ Nouveau monde**, **Nommer…**, **Supprimer ce monde…**, export/import (nom conservé).
+- **Multi-mondes** : sélecteur avec noms lisibles, **＋ Nouveau monde**, **Nommer…**, **Supprimer ce monde…**, export/import (nom conservé, import comme nouveau monde indépendant).
 - Zones de **tailles libres**, nom personnalisé, **thèmes de départ** (Village, Forêt, Ruines, Camp enneigé, Bord de mer, Lac) avec décors de départ, positions libres, glisser-déposer.
 - **Liens de bords** : auto-détection, édition manuelle, points d'accroche cliquables (clic = éditer, clic droit = retirer), **lignes visibles** sur le plan ; suppression d'une zone nettoie les liens orphelins.
 - **Taille…**, **Dupliquer**, **Assigner une carte existante**, **Supprimer**, **Valider** ; **chevauchements signalés en rouge**.
@@ -44,6 +44,7 @@
 - **Transitions par les bords** : transfert du pion, fondu, titre de zone, **« Nouvelle zone découverte »** à la première visite.
 - **Carte du monde (M)** : aperçus sols/relief/eau/bâtiments, liens, découvertes, « Vous êtes ici », légende, voyage rapide, survol ; boutons **Groupe** et **Monde** dans la barre.
 - **Figurines 3D par classe** (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise…) et créatures (gobelin, squelette), **nom flottant**, socle joueur, ombre, sélection, **respiration idle**.
+- **PNJ de démo** (marchand, garde, villageois) et créatures, **ambiances lumineuses** (taverne au foyer, donjon aux torches).
 - **Boussole de sorties** en panneau, sorties **cliquables**, **outil Pas (D)** pour
   déplacer au clic, mini-carte (C) avec clic pour recentrer, aide des raccourcis (H).
 - **Caméra** : molette, glisser, bouton Groupe, raccourcis **G** (groupe), **F** (cadrer), **1-9** (zones).
