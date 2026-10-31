@@ -103,14 +103,25 @@ Ou ouvrir `game/` dans l’éditeur Godot → F5 (`scenes/main_menu.tscn`).
 ### Tests headless
 
 ```bash
-# Exemples (Godot dans le PATH ou Flatpak)
+# Runner complet (sans --quit : les tests asynchrones doivent finir leurs assertions)
+GODOT_BIN=/chemin/vers/godot ./scripts/run_tests.ps1
+./scripts/run_tests.ps1 -Filter '^(map_|world_|session_)'   # sous-ensemble
+./scripts/run_tests.ps1 -IncludeShots                      # captures d'écran (fenêtré)
+```
+
+Le runner applique un timeout par test, vérifie la sortie `PASS`/`FAIL` et
+**ignore par défaut les tests de capture** (qui nécessitent une fenêtre).
+
+```bash
+# Exemples directs (Godot dans le PATH ou Flatpak)
 godot --headless --path game -s res://scripts/tests/map_camera_test.gd
 godot --headless --path game -s res://scripts/tests/map_mode_test.gd
 godot --headless --path game -s res://scripts/tests/quest_navigation_test.gd
 godot --headless --path game -s res://scripts/tests/valbois_player_hud_test.gd
 ```
 
-Suites utiles : `map_*`, `quest_navigation_test`, `scenario_editor_test`, `valbois_*`.  
+Suites utiles : `map_*`, `world_*`, `session_*`, `quest_navigation_test`,
+`scenario_editor_test`, `valbois_*`.
 `user_flow_test` est connu pour échouer (cherche encore une carte simple là où Valbois est complexe).
 
 ---
