@@ -251,6 +251,8 @@ distribuer horizontalement ; le document expose aussi `top`, `bottom`,
 
 Le bouton **?** de la barre d'action ouvre l'**aide rapide** : parcours en 4
 étapes (terrain, objets 3D, monde, session), astuces d'aimantation et raccourcis.
+Le bouton **▶ Tester** enregistre la carte puis lance une session de jeu sur cette
+carte — ou sur toutes les zones de son monde si elle en a un.
 
 ---
 

@@ -392,6 +392,12 @@ func _build_action_bar() -> void:
 	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
 	bar.add_child(VSeparator.new())
+	var test_btn := Button.new()
+	test_btn.text = "▶ Tester"
+	test_btn.tooltip_text = "Enregistre puis lance une session de jeu sur cette carte (et son monde si elle en a un)."
+	test_btn.add_theme_font_size_override("font_size", 11)
+	test_btn.pressed.connect(_test_current_map)
+	bar.add_child(test_btn)
 	_player_view_btn = Button.new()
 	_player_view_btn.toggle_mode = true
 	_player_view_btn.text = "👁 Vue joueur"
@@ -2205,6 +2211,35 @@ func _do_redo() -> void:
 		_set_status("Rétabli.")
 	else:
 		_set_status("Rien à rétablir.")
+
+## Enregistre la carte puis lance une session de test (monde entier si la carte
+## appartient à un monde de zones).
+func _test_current_map() -> void:
+	var map_id := str(doc.map_data.get("id", ""))
+	if map_id.is_empty():
+		_set_status("Impossible de tester : carte non enregistrée.")
+		return
+	save_now()
+	var gd = get_node_or_null("/root/GameData")
+	if gd == null or not gd.has_method("start_world_playtest"):
+		_set_status("Session de test indisponible.")
+		return
+	var ids: Array = [map_id]
+	var world_id := str(doc.map_data.get("worldId", ""))
+	if not world_id.is_empty():
+		var world_ids: Array = []
+		for map_variant in MapData.maps:
+			if not map_variant is Dictionary:
+				continue
+			var map: Dictionary = map_variant
+			if str(map.get("worldId", "")) == world_id and str(map.get("renderMode", "")) == "complex":
+				world_ids.append(str(map.get("id", "")))
+		if not world_ids.is_empty():
+			ids = world_ids
+	if gd.start_world_playtest(ids, map_id):
+		_set_status("Session de test lancée (%d zone(s))." % ids.size())
+	else:
+		_set_status("Impossible de lancer la session de test.")
 
 func _open_help() -> void:
 	if _help_dialog == null:
