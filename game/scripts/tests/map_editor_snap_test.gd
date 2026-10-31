@@ -181,6 +181,16 @@ func _run() -> void:
 		_assert("mesh_wall_chain_vertical_rotation",
 			absf(float(vert_display.get("rotation", 0.0)) - 90.0) < 1.0)
 
+	# Même chose via l'état de l'outil (press → drag → release).
+	editor._set_tool("mesh_wall")
+	var ui_walls_before := _meshes_with_asset(editor, wall_asset).size()
+	var mods := {"shift": false, "ctrl": false, "alt": false}
+	editor._on_pointer_pressed(Vector2(2.0, 10.0), Vector2(200, 200), MOUSE_BUTTON_LEFT, mods)
+	editor._on_pointer_moved(Vector2(8.0, 10.0), Vector2(400, 200), mods)
+	editor._on_pointer_released(Vector2(8.0, 10.0), Vector2(400, 200), MOUSE_BUTTON_LEFT, mods)
+	await process_frame
+	_assert("mesh_wall_tool_drag", _meshes_with_asset(editor, wall_asset).size() > ui_walls_before)
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():
