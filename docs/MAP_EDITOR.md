@@ -173,6 +173,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
 - **⤢ Plein écran** : affiche la vue Monde sur tout l'éditeur (Échap ou
   « Réduire » pour revenir à l'onglet).
+- **▶ Tester** : lance une session de jeu sur le monde courant (deux héros
+  placés sur la carte active, transitions et carte du monde disponibles).
 - Chaque carte porte `worldId`, `zoneX/zoneY/zoneW/zoneH` et `edges`
   (nord/sud/est/ouest).
 

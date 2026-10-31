@@ -3231,6 +3231,66 @@ func exit_to_world_map() -> void:
 ## carte cible, à la position miroir calculée par `WorldNavigation`.
 ## MVP local/MJ : sauvegarde + diffusion d'état (le chemin joueur P2P passera
 ## par les demandes d'opération, comme les autres déplacements).
+## Lance une session de test sur un monde de zones (depuis l'éditeur) : crée une
+## partie avec deux héros, les zones fournies et place le groupe sur la carte
+## courante. `auto_change = false` permet de tester sans changer de scène.
+func start_world_playtest(map_ids: Array, current_map_id: String = "", auto_change: bool = true) -> bool:
+	var ids: Array = []
+	for map_id_variant in map_ids:
+		var map_id := str(map_id_variant)
+		if map_id.is_empty() or MapData.get_by_id(map_id).is_empty() or ids.has(map_id):
+			continue
+		ids.append(map_id)
+	if ids.is_empty():
+		return false
+	var current := str(current_map_id)
+	if not ids.has(current):
+		current = str(ids[0])
+	var raw_party := [
+		{
+			"id": "playtest-aria", "name": "Aria", "race": "Humaine",
+			"class": "Aventurière", "roster": "general", "hp": 12, "ac": 14,
+			"isPlayer": true, "portrait": "", "image": "", "stats": {},
+		},
+		{
+			"id": "playtest-bran", "name": "Bran", "race": "Humain",
+			"class": "Garde", "roster": "general", "hp": 15, "ac": 16,
+			"isPlayer": true, "portrait": "", "image": "", "stats": {},
+		},
+	]
+	var party: Array = []
+	for member_variant in raw_party:
+		var normalized := normalize_character(member_variant)
+		if not normalized.is_empty():
+			party.append(normalized)
+	active_game = {
+		"id": generate_id("game"),
+		"scenarioId": "playtest-monde-25d",
+		"scenarioTitle": "Test du monde 2.5D",
+		"questFormat": "oneshot",
+		"mode": "solo",
+		"gmType": "human",
+		"party": party,
+		"mapIds": ids,
+		"mapPlayState": {},
+		"mapNavigation": {"view": "local", "worldMapId": null, "localMapId": current, "worldCell": null},
+		"currentMapId": current,
+		"mapModeOverrides": {},
+		"status": "playing",
+	}
+	ensure_map_play_state()
+	var current_map: Dictionary = MapData.get_by_id(current)
+	var width := float(current_map.get("width", 12))
+	var height := float(current_map.get("height", 9))
+	var start_x := maxf(0.5, width * 0.5 - 0.5)
+	var start_y := maxf(0.5, height * 0.5 - 0.5)
+	for i in range(party.size()):
+		place_complex_member_token(current, start_x + float(i) * 1.2, start_y, str((party[i] as Dictionary).get("id", "")))
+	save_active_game()
+	if auto_change:
+		get_tree().call_deferred("change_scene_to_file", "res://scenes/session/session.tscn")
+	return true
+
 func transition_map_edge(target_map_id: String, token_id: String, position: Vector2) -> bool:
 	if active_game.is_empty() or target_map_id.is_empty():
 		return false

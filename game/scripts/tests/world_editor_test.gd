@@ -152,6 +152,19 @@ func _run() -> void:
 		_assert("world_fullscreen_off", not panel.is_fullscreen()
 			and panel.get_parent() == editor._right_tabs)
 
+		# Session de test lancée depuis la vue Monde (sans changement de scène).
+		var gd = get_root().get_node("GameData")
+		var saved_game: Dictionary = gd.active_game.duplicate(true)
+		var play_ids: Array = []
+		for zone_variant in panel.zones:
+			play_ids.append(str((zone_variant as Dictionary).get("id", "")))
+		_assert("world_playtest_start", gd.start_world_playtest(play_ids, str(play_ids[0]), false))
+		_assert("world_playtest_current", str(gd.active_game.get("currentMapId", "")) == str(play_ids[0]))
+		_assert("world_playtest_party", (gd.active_game.get("party", []) as Array).size() >= 2)
+		_assert("world_playtest_tokens",
+			gd.get_map_play_tokens(str(play_ids[0])).size() >= 2)
+		gd.active_game = saved_game
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:

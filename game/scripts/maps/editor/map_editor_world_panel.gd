@@ -81,6 +81,7 @@ func _build_ui() -> void:
 	_button(bar, "Lier…", func(): _open_link())
 	_button(bar, "Valider", func(): validate_world())
 	_button(bar, "Ouvrir", func(): open_selected())
+	_button(bar, "▶ Tester", func(): test_world())
 	_button(bar, "Renommer", func(): _open_rename())
 	_button(bar, "Taille…", func(): _open_resize())
 	_button(bar, "Dupliquer", func(): duplicate_selected())
@@ -334,6 +335,24 @@ func open_selected() -> void:
 		show_status("Sélectionnez d'abord une zone.")
 		return
 	open_map_requested.emit(selected_id)
+
+## Lance une session de test sur le monde courant (depuis l'éditeur).
+func test_world() -> void:
+	if zones.is_empty():
+		show_status("Aucune zone à tester.")
+		return
+	var gd = get_node_or_null("/root/GameData")
+	if gd == null or not gd.has_method("start_world_playtest"):
+		show_status("Session indisponible.")
+		return
+	var ids: Array = []
+	for zone_variant in zones:
+		ids.append(str((zone_variant as Dictionary).get("id", "")))
+	var current := current_id if zones.any(func(z): return str((z as Dictionary).get("id", "")) == current_id) else str((zones[0] as Dictionary).get("id", ""))
+	if gd.start_world_playtest(ids, current):
+		show_status("Session de test lancée sur le monde.")
+	else:
+		show_status("Impossible de lancer la session de test.")
 
 func show_status(text: String) -> void:
 	if _status_lbl:
