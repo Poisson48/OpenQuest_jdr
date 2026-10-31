@@ -404,6 +404,7 @@ func _ensure_dialogs() -> void:
 		return
 	_rename_dialog = AcceptDialog.new()
 	_rename_dialog.title = "Renommer la zone"
+	_rename_dialog.ok_button_text = "Renommer"
 	add_child(_rename_dialog)
 	var rename_box := VBoxContainer.new()
 	rename_box.custom_minimum_size = Vector2(340, 56)
@@ -414,11 +415,15 @@ func _ensure_dialogs() -> void:
 
 	_delete_dialog = ConfirmationDialog.new()
 	_delete_dialog.title = "Supprimer la zone"
+	_delete_dialog.ok_button_text = "Supprimer"
+	_delete_dialog.cancel_button_text = "Annuler"
 	add_child(_delete_dialog)
 	_delete_dialog.confirmed.connect(_apply_delete)
 
 	_zone_dialog = ConfirmationDialog.new()
 	_zone_dialog.title = "Nouvelle zone"
+	_zone_dialog.ok_button_text = "Créer"
+	_zone_dialog.cancel_button_text = "Annuler"
 	add_child(_zone_dialog)
 	var zone_box := VBoxContainer.new()
 	zone_box.custom_minimum_size = Vector2(300, 140)
@@ -475,6 +480,8 @@ func _ensure_dialogs() -> void:
 
 	_resize_dialog = ConfirmationDialog.new()
 	_resize_dialog.title = "Taille de la zone"
+	_resize_dialog.ok_button_text = "Redimensionner"
+	_resize_dialog.cancel_button_text = "Annuler"
 	add_child(_resize_dialog)
 	var resize_box := VBoxContainer.new()
 	resize_box.custom_minimum_size = Vector2(320, 130)
@@ -506,6 +513,8 @@ func _ensure_dialogs() -> void:
 
 	_link_dialog = ConfirmationDialog.new()
 	_link_dialog.title = "Lier une zone"
+	_link_dialog.ok_button_text = "Relier"
+	_link_dialog.cancel_button_text = "Annuler"
 	add_child(_link_dialog)
 	var link_box := VBoxContainer.new()
 	link_box.custom_minimum_size = Vector2(340, 150)
@@ -541,6 +550,8 @@ func _ensure_dialogs() -> void:
 
 	_assign_dialog = ConfirmationDialog.new()
 	_assign_dialog.title = "Assigner une carte existante au monde"
+	_assign_dialog.ok_button_text = "Assigner"
+	_assign_dialog.cancel_button_text = "Annuler"
 	add_child(_assign_dialog)
 	var assign_box := VBoxContainer.new()
 	assign_box.custom_minimum_size = Vector2(380, 110)
@@ -556,6 +567,8 @@ func _ensure_dialogs() -> void:
 
 	_unlink_dialog = ConfirmationDialog.new()
 	_unlink_dialog.title = "Retirer le lien"
+	_unlink_dialog.ok_button_text = "Retirer"
+	_unlink_dialog.cancel_button_text = "Annuler"
 	add_child(_unlink_dialog)
 	_unlink_dialog.confirmed.connect(_apply_unlink)
 
