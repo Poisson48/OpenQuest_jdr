@@ -207,6 +207,25 @@ func _run() -> void:
 		panel.refresh()
 		_assert("world_assign_panel", not panel._zone_by_id(free_id).is_empty())
 
+		# Sélecteur de monde : crée un second monde et vérifie le basculement.
+		var other_map: Dictionary = md.create_complex_map("Autre monde", "general", "local", 9, 7)
+		var other_id := str(other_map.get("id", ""))
+		_created_maps.append(other_id)
+		md.assign_map_to_world(other_id, "other-world", 0, 0)
+		panel.refresh()
+		_assert("world_selector_multi", panel._world_opt != null and panel._world_opt.item_count >= 2)
+		var other_index := -1
+		for i in range(panel._world_opt.item_count):
+			if str(panel._world_opt.get_item_metadata(i)) == "other-world":
+				other_index = i
+				break
+		_assert("world_selector_has_other", other_index >= 0)
+		if other_index >= 0:
+			panel._on_world_selected(other_index)
+			_assert("world_selector_switches", panel._view_world_id == "other-world"
+				and panel.zones.size() == 1)
+			panel._on_world_selected(0)
+
 		# Export / import d'un monde complet (zones + liens remappés).
 		var bundle_a: Dictionary = md.create_complex_map("Bundle A", "general", "local", 10, 7)
 		var bundle_b: Dictionary = md.create_complex_map("Bundle B", "general", "local", 8, 6)

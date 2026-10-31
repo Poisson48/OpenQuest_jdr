@@ -28,6 +28,8 @@ var pan: Vector2 = Vector2.ZERO
 var _status_lbl: Label
 var _error_lbl: Label
 var _bar: HFlowContainer
+var _world_opt: OptionButton
+var _view_world_id: String = ""
 var _drag_active := false
 var _drag_zone_id := ""
 var _drag_start_screen := Vector2.ZERO
@@ -90,6 +92,12 @@ func _build_ui() -> void:
 	_bar = bar
 	bar.resized.connect(_update_bar_height)
 
+	_world_opt = OptionButton.new()
+	_world_opt.custom_minimum_size = Vector2(150, 0)
+	_world_opt.add_theme_font_size_override("font_size", 10)
+	_world_opt.tooltip_text = "Monde affiché (plusieurs mondes possibles)."
+	_world_opt.item_selected.connect(_on_world_selected)
+	bar.add_child(_world_opt)
 	_button(bar, "＋ Zone", func(): _open_create_zone())
 	_button(bar, "Relier les bords", func(): auto_link())
 	_button(bar, "Lier…", func(): _open_link())
@@ -148,7 +156,10 @@ func refresh() -> void:
 	if md == null:
 		queue_redraw()
 		return
-	var world_id := _current_world_id()
+	if _view_world_id.is_empty():
+		_view_world_id = _derived_world_id()
+	_sync_world_selector(md)
+	var world_id := _view_world_id if not _view_world_id.is_empty() else _derived_world_id()
 	current_id = _current_map_id()
 	for map_variant in md.maps:
 		if not map_variant is Dictionary:
@@ -178,8 +189,61 @@ func _zone_by_id(zone_id: String) -> Dictionary:
 			return zone_variant
 	return {}
 
-## Monde courant : celui de la carte éditée, sinon le premier monde trouvé.
+## Alimente la liste des mondes disponibles et sélectionne le monde affiché.
+func _sync_world_selector(md: Node) -> void:
+	if _world_opt == null or md == null:
+		return
+	var world_ids: Array = []
+	for map_variant in md.maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("renderMode", "")) != "complex":
+			continue
+		var world_id := str(map.get("worldId", ""))
+		if world_id.is_empty() or world_ids.has(world_id):
+			continue
+		world_ids.append(world_id)
+	world_ids.sort()
+	_world_opt.set_block_signals(true)
+	_world_opt.clear()
+	if world_ids.is_empty():
+		_world_opt.add_item("Aucun monde")
+		_world_opt.disabled = true
+	else:
+		_world_opt.disabled = false
+		for i in range(world_ids.size()):
+			var world_id := str(world_ids[i])
+			var count := 0
+			for map_variant in md.maps:
+				if map_variant is Dictionary and str((map_variant as Dictionary).get("worldId", "")) == world_id:
+					count += 1
+			_world_opt.add_item("%s (%d)" % [world_id, count], i)
+			_world_opt.set_item_metadata(i, world_id)
+			if world_id == _view_world_id:
+				_world_opt.select(i)
+	_world_opt.set_block_signals(false)
+
+func _on_world_selected(index: int) -> void:
+	if _world_opt == null or index < 0:
+		return
+	var world_id := str(_world_opt.get_item_metadata(index))
+	if world_id.is_empty() or world_id == _view_world_id:
+		return
+	_view_world_id = world_id
+	selected_id = ""
+	refresh()
+	fit_view()
+	show_status("Monde affiché : %s." % world_id)
+
+## Monde courant : monde sélectionné dans la liste, sinon celui de la carte.
 func _current_world_id() -> String:
+	if not _view_world_id.is_empty():
+		return _view_world_id
+	return _derived_world_id()
+
+## Monde déduit de la carte éditée, sinon premier monde trouvé.
+func _derived_world_id() -> String:
 	var md = get_node_or_null("/root/MapData")
 	if md == null:
 		return ""
