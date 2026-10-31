@@ -133,7 +133,14 @@ func fit_view() -> void:
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.035, 0.03, 0.92), true)
 	var font := get_theme_default_font()
-	draw_string(font, Vector2(24, 36), "CARTE DU MONDE",
+	var heading := "CARTE DU MONDE"
+	var md_title = get_node_or_null("/root/MapData")
+	if md_title != null and not current_id.is_empty():
+		var current_map: Dictionary = md_title.get_by_id(current_id)
+		var world_title := str(md_title.get_world_title(str(current_map.get("worldId", ""))))
+		if not world_title.is_empty():
+			heading = "CARTE DU MONDE — %s" % world_title
+	draw_string(font, Vector2(24, 36), heading,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.98, 0.9, 0.66))
 	draw_string(font, Vector2(24, 58), "M / Échap : fermer · clic sur une zone découverte : y aller",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.8, 0.7, 0.8))

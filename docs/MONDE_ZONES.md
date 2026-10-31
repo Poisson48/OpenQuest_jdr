@@ -117,7 +117,8 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 ## 5. Session : vue monde et transitions
 
 - Touche **M** : carte du monde (zones découvertes, position courante, noms) ;
-  clic sur une zone découverte = voyage rapide (bascule de carte active).
+  le titre affiche le **nom du monde** ; clic sur une zone découverte = voyage
+  rapide (bascule de carte active).
 - **Survol** d'une zone : liseré clair et détail « nom (taille) » dans le pied de page.
 - **Liens** entre zones tracés sur le plan (ligne dorée + flèche) ; cliquer sa
   propre zone referme la carte du monde. Les aperçus incluent sols, relief,
