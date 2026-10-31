@@ -43,15 +43,17 @@ func _run() -> void:
 		_assert("roof_elevated", float(roofs[0].get("elevation", 0.0)) > 0.5)
 		_assert("roof_centered", absf(float(roofs[0].get("x", 0.0)) - 7.0) < 1.5)
 
-	# Façade aimantée côté sud de la maison.
+	# Façade aimantée côté sud de la maison (la démo contient déjà une porte).
+	var base_doors := _meshes_with_asset(editor, door_path).size()
 	editor._mesh_asset = door_path
 	editor._create_mesh(Vector2(7.0, 6.0))
 	await process_frame
 	var doors := _meshes_with_asset(editor, door_path)
-	_assert("door_created", doors.size() == 1)
-	if doors.size() == 1:
-		_assert("door_on_ground", is_equal_approx(float(doors[0].get("elevation", 0.0)), 0.0))
-		_assert("door_in_front", float(doors[0].get("y", 0.0)) > 6.0)
+	_assert("door_created", doors.size() == base_doors + 1)
+	if doors.size() == base_doors + 1:
+		var door: Dictionary = doors[doors.size() - 1]
+		_assert("door_on_ground", is_equal_approx(float(door.get("elevation", 0.0)), 0.0))
+		_assert("door_in_front", float(door.get("y", 0.0)) > 6.0)
 
 	# Sans aimantation : le module reste à l'endroit cliqué, à plat.
 	editor._mesh_snap_modules = false
@@ -88,11 +90,11 @@ func _run() -> void:
 	editor._create_mesh(Vector2(14.0, 14.0))
 	await process_frame
 	var rotated_doors := _meshes_with_asset(editor, door_path)
-	_assert("rotated_door_created", rotated_doors.size() == 2)
-	if rotated_doors.size() == 2:
-		var door_display: Dictionary = rotated_doors[1].get("display", {})
+	_assert("rotated_door_created", rotated_doors.size() == base_doors + 2)
+	if rotated_doors.size() == base_doors + 2:
+		var door_display: Dictionary = rotated_doors[rotated_doors.size() - 1].get("display", {})
 		_assert("rotated_door_rotation", is_equal_approx(float(door_display.get("rotation", 0.0)), 90.0))
-		_assert("rotated_door_front", float(rotated_doors[1].get("x", 14.0)) < 13.9)
+		_assert("rotated_door_front", float(rotated_doors[rotated_doors.size() - 1].get("x", 14.0)) < 13.9)
 
 	editor.queue_free()
 	await process_frame
