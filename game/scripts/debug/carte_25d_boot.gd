@@ -370,6 +370,17 @@ static func build_demo(md: Node) -> Dictionary:
 						pond[cy * w_sub + cx] = -0.75 * (1.0 - dp / 2.6)
 			sub["terrainHeights"] = pond
 			sub["waterLevel"] = -0.25
+			# Plage de sable autour de l'étang (matière ID 4).
+			var forest_mats: Array = sub.get("terrainMaterials", [])
+			for cy_f in range(h_sub):
+				for cx_f in range(w_sub):
+					var idx_f := cy_f * w_sub + cx_f
+					if idx_f >= forest_mats.size():
+						continue
+					var shore := Vector2(cx_f, cy_f).distance_to(pond_center)
+					if shore >= 2.3 and shore < 3.5:
+						forest_mats[idx_f] = MapData.MATERIAL_SAND
+			sub["terrainMaterials"] = forest_mats
 		var sub_meshes: Array = []
 		for m_variant in spec.get("meshes", []):
 			var m: Dictionary = m_variant
