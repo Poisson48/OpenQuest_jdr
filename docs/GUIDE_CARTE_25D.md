@@ -87,7 +87,8 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
 - **H** ouvre l'**aide des raccourcis** de session (Échap pour fermer).
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :
-  fondu noir + nom de la zone.
+  fondu noir + nom de la zone, et **« Nouvelle zone découverte »** à la première
+  visite. Les **sorties** de la zone sont aussi cliquables en haut à gauche.
 - Les membres sans portrait sont rendus en **figurines 3D par classe**
   (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise),
   avec leur **nom flottant** au-dessus et une **respiration discrète** ; les
