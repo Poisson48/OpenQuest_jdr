@@ -143,6 +143,15 @@ func _run() -> void:
 		panel.fit_view()
 		_assert("world_fit_zoom", panel.zoom > 0.0 and panel.zoom <= 2.0)
 
+		# Plein écran : la vue Monde sort de l'onglet puis y revient.
+		panel.toggle_fullscreen()
+		await process_frame
+		_assert("world_fullscreen_on", panel.is_fullscreen() and panel.get_parent() == editor)
+		panel.toggle_fullscreen()
+		await process_frame
+		_assert("world_fullscreen_off", not panel.is_fullscreen()
+			and panel.get_parent() == editor._right_tabs)
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:

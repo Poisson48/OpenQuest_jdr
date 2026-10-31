@@ -98,6 +98,20 @@ func _run() -> void:
 				print("  capture: ", world_out, " (", world_img.get_width(), "x", world_img.get_height(), ")")
 				_assert("world_zones_visible", editor._world_panel.zones.size() >= 3)
 
+			# Plein écran de la vue Monde.
+			editor._world_panel.toggle_fullscreen()
+			await _wait(10)
+			editor._world_panel.fit_view()
+			await _wait(10)
+			var full_img: Image = get_root().get_texture().get_image()
+			if full_img != null:
+				full_img.convert(Image.FORMAT_RGBA8)
+				var full_out := copy_dir.path_join("carte_25d_monde_plein_ecran.png")
+				full_img.save_png(full_out)
+				print("  capture: ", full_out, " (", full_img.get_width(), "x", full_img.get_height(), ")")
+			editor._world_panel.toggle_fullscreen()
+			await _wait(6)
+
 	if _failed:
 		printerr("map_25d_editor_shot_test:FAIL")
 		quit(1)

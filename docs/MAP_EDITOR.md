@@ -165,6 +165,8 @@ peuvent avoir des **tailles différentes**). Voir
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
   **Supprimer**.
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
+- **⤢ Plein écran** : affiche la vue Monde sur tout l'éditeur (Échap ou
+  « Réduire » pour revenir à l'onglet).
 - Chaque carte porte `worldId`, `zoneX/zoneY/zoneW/zoneH` et `edges`
   (nord/sud/est/ouest).
 

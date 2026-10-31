@@ -416,6 +416,8 @@ func _bind_docks() -> void:
 
 	_world_panel = %Monde
 	_world_panel.open_map_requested.connect(_on_open_map_requested)
+	if _world_panel.has_method("set_editor_root"):
+		_world_panel.set_editor_root(self)
 	_world_panel.visibility_changed.connect(func():
 		if _world_panel.visible:
 			_world_panel.refresh()

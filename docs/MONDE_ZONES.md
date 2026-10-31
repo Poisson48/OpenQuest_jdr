@@ -107,6 +107,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 - **Déplacer / redimensionner** une zone sur le plan (les tailles restent libres ; « Taille… » redimensionne la carte en conservant son contenu ; « Dupliquer » copie la zone sous elle-même).
 - **Relier** : auto-détection des bords qui se recouvrent + édition manuelle d'un lien (bord, carte cible, offset).
 - **Ouvrir** une zone (double-clic) → éditeur de carte classique ; retour au plan monde.
+- **Plein écran** : la vue Monde occupe tout l'éditeur (Échap / « Réduire »).
 - **Vérification** : zones qui se chevauchent, bords orphelins, tailles incohérentes, liens pointant vers une zone absente.
 - **Fond de monde** : importer un plan peint (optionnel) pour poser les zones dessus.
 

@@ -48,6 +48,11 @@ var _link_dialog: ConfirmationDialog
 var _link_side_opt: OptionButton
 var _link_target_opt: OptionButton
 var _link_offset_spin: SpinBox
+var _editor_root: Control
+var _fullscreen: bool = false
+var _original_parent: Node
+var _original_index: int = 0
+var _fullscreen_btn: Button
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -82,6 +87,7 @@ func _build_ui() -> void:
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
+	_fullscreen_btn = _button(bar, "⤢ Plein écran", func(): toggle_fullscreen())
 	_ensure_dialogs()
 
 	_status_lbl = Label.new()
@@ -265,6 +271,63 @@ func validate_world() -> void:
 	if _error_lbl:
 		_error_lbl.text = "\n".join(errors.slice(0, 6))
 	show_status("%d erreur(s) — voir le détail en bas." % errors.size())
+
+## L'éditeur fournit sa racine pour pouvoir passer la vue Monde en plein écran.
+func set_editor_root(root: Control) -> void:
+	_editor_root = root
+
+func is_fullscreen() -> bool:
+	return _fullscreen
+
+func toggle_fullscreen() -> void:
+	if _fullscreen:
+		_exit_fullscreen()
+	else:
+		_enter_fullscreen()
+
+func _enter_fullscreen() -> void:
+	if _editor_root == null or _fullscreen:
+		return
+	_original_parent = get_parent()
+	_original_index = get_index()
+	if _original_parent != null:
+		_original_parent.remove_child(self)
+	_editor_root.add_child(self)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	z_index = 90
+	_fullscreen = true
+	_has_fitted = false
+	if _fullscreen_btn != null:
+		_fullscreen_btn.text = "⤡ Réduire"
+	call_deferred("fit_view")
+	queue_redraw()
+
+func _exit_fullscreen() -> void:
+	if not _fullscreen or _original_parent == null:
+		return
+	var current_parent := get_parent()
+	if current_parent != null:
+		current_parent.remove_child(self)
+	_original_parent.add_child(self)
+	var count := _original_parent.get_child_count()
+	_original_parent.move_child(self, clampi(_original_index, 0, count - 1))
+	z_index = 0
+	_fullscreen = false
+	_has_fitted = false
+	if _fullscreen_btn != null:
+		_fullscreen_btn.text = "⤢ Plein écran"
+	call_deferred("fit_view")
+	queue_redraw()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _fullscreen:
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed \
+			and not (event as InputEventKey).echo \
+			and (event as InputEventKey).keycode == KEY_ESCAPE:
+		_exit_fullscreen()
+		get_viewport().set_input_as_handled()
 
 func open_selected() -> void:
 	if selected_id.is_empty():
