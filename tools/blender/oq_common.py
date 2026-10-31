@@ -98,6 +98,13 @@ DEFAULT_PALETTE: dict[str, str] = {
     "hay_dark": "#7f6338",
     "hay_light": "#c4a96b",
     "wicker": "#9a7a4e",
+    # Kit v3 : os, flamme emissive, fer sombre.
+    "bone": "#cfc3a4",
+    "bone_dark": "#a89c80",
+    "flame": "#cf6f2a",
+    "flame_core": "#e8a94e",
+    "iron_dark": "#3d4043",
+    "ember": "#7a4024",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.
@@ -400,6 +407,30 @@ def add_uv_sphere(
     return _finish_part(obj, material)
 
 
+def add_torus(
+    name: str,
+    major_radius: float,
+    minor_radius: float,
+    location: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    material: bpy.types.Material | None = None,
+    major_segments: int = 8,
+    minor_segments: int = 4,
+    rotation: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> bpy.types.Object:
+    """Tore low-poly (maillons de chaine, anneaux, poignees)."""
+    bpy.ops.mesh.primitive_torus_add(
+        major_segments=major_segments,
+        minor_segments=minor_segments,
+        major_radius=major_radius,
+        minor_radius=minor_radius,
+        location=location,
+        rotation=rotation,
+    )
+    obj = bpy.context.object
+    obj.name = name
+    return _finish_part(obj, material)
+
+
 def add_mesh(
     name: str,
     vertices: Iterable[Sequence[float]],
@@ -519,11 +550,15 @@ def triangle_count(obj: bpy.types.Object) -> int:
     return len(mesh.loop_triangles)
 
 
-def normalize_asset(obj: bpy.types.Object, name: str) -> bpy.types.Object:
-    """Applique les conventions : origine au centre de la base, z=0, transforms neutres.
+def normalize_asset(
+    obj: bpy.types.Object, name: str, *, anchor: str = "base"
+) -> bpy.types.Object:
+    """Applique les conventions d'origine, transforms neutres.
 
-    Apres cette fonction : ``obj.location == (0, 0, 0)``, rotation/scale a
-    1, base du mesh a z=0, x/y du bbox centres sur 0.
+    ``anchor="base"`` : origine au centre de la base, z=0, x/y du bbox centres.
+    ``anchor="wall"`` : objet mural (torche, chaîne, enseigne) ; l'origine reste
+    au **pied du mur** (z=0, x=0, y=0 dans l'espace de conception) sans recentrer
+    le bbox ni plaquer le mesh au sol : le point d'ancrage est le bas du mur.
     """
     obj.name = name
     obj.data.name = name
@@ -537,13 +572,19 @@ def normalize_asset(obj: bpy.types.Object, name: str) -> bpy.types.Object:
     if not mesh.vertices:
         raise ValueError(f"{name}: mesh vide")
     mins, maxs = _bounds_from_vertices((v.co for v in mesh.vertices))
-    center_x = (mins.x + maxs.x) * 0.5
-    center_y = (mins.y + maxs.y) * 0.5
-    delta = Vector((-center_x, -center_y, -mins.z))
-    if delta.length > 1e-9:
-        for vertex in mesh.vertices:
-            vertex.co += delta
-        mesh.update()
+    if anchor == "wall":
+        # Le mesh est deja construit avec le mur en y=0 et le sol en z=0 :
+        # on ne recentre pas, on verifie juste que la geometrie est au-dessus.
+        if mins.z < -1e-4:
+            raise ValueError(f"{name}: geometrie murale sous le sol (min_z={mins.z:.3f})")
+    else:
+        center_x = (mins.x + maxs.x) * 0.5
+        center_y = (mins.y + maxs.y) * 0.5
+        delta = Vector((-center_x, -center_y, -mins.z))
+        if delta.length > 1e-9:
+            for vertex in mesh.vertices:
+                vertex.co += delta
+            mesh.update()
     obj.location = (0.0, 0.0, 0.0)
     obj.rotation_euler = (0.0, 0.0, 0.0)
     obj.scale = (1.0, 1.0, 1.0)
@@ -551,11 +592,11 @@ def normalize_asset(obj: bpy.types.Object, name: str) -> bpy.types.Object:
 
 
 def finalize_asset(
-    parts: Sequence[bpy.types.Object], name: str
+    parts: Sequence[bpy.types.Object], name: str, *, anchor: str = "base"
 ) -> bpy.types.Object:
     """Fusionne, normalise et valide un asset avant export."""
     obj = join_objects(parts, name)
-    normalize_asset(obj, name)
+    normalize_asset(obj, name, anchor=anchor)
     for polygon in obj.data.polygons:
         polygon.use_smooth = False
     triangles = triangle_count(obj)

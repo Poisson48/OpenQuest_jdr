@@ -310,7 +310,7 @@ $terrainExit = 0
 $sheetExit = 0
 $pythonPath = $null
 $terrainRoot = Join-Path $repoRoot 'game\assets\terrain'
-$sheetPath = Join-Path $outRoot '_planche_assets2.png'
+$sheetPath = Join-Path $outRoot '_planche_assets3.png'
 
 if (-not $SkipTerrainTextures) {
     $pythonPath = Resolve-PythonPath -Explicit $PythonExe
@@ -331,7 +331,7 @@ if (-not $SkipTerrainTextures) {
 
         if ($terrainExit -eq 0) {
             $sheetLog = [System.IO.Path]::GetTempFileName()
-            $sheetExit = Invoke-PythonStep -Label 'Planche de controle enrichie' `
+            $sheetExit = Invoke-PythonStep -Label 'Planche de controle v3 (objets + sols)' `
                 -PythonPath $pythonPath `
                 -Arguments @(
                     (Join-Path $scriptDir 'make_contact_sheet.py'),

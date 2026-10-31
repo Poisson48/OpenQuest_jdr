@@ -38,9 +38,10 @@ Tous les scripts sont **offline** : aucune texture importée, aucun télécharge
 aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
 générées par du bruit périodique (numpy + Pillow).
 
-Le pipeline couvre désormais le **kit enrichi v2** (murs, mobilier urbain,
-étal de marché, charrette, foin) et les **textures de sol tuilables**
-(herbe, terre/chemin, pavé de pierre).
+Le pipeline couvre désormais le **kit v3** (intérieur de taverne, donjon,
+petits décors), le **kit enrichi v2** (murs, mobilier urbain, étal de marché,
+charrette, foin) et les **textures de sol tuilables** (herbe, terre/chemin,
+pavé de pierre).
 
 ---
 
@@ -50,7 +51,7 @@ Le pipeline couvre désormais le **kit enrichi v2** (murs, mobilier urbain,
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 18 modèles + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 30 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
 ├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
@@ -61,11 +62,14 @@ game/assets/objects3d/
 ├── README.md               # catalogue et mode d'emploi côté moteur
 ├── manifest.json           # métadonnées générées (nom, dims, tris, tags)
 ├── _planche_assets.png     # planche de contrôle v1
-├── _planche_assets2.png    # planche enrichie v2 (objets + sols)
-├── buildings/              # maison*, tour*, mur, mur_coin
+├── _planche_assets2.png    # planche v2 (historique)
+├── _planche_assets3.png    # planche courante v3 (sols + 35 objets)
+├── buildings/              # maison*, tour*, mur, mur_coin, herse
 ├── props/                  # pont, caisse*, palissade, puits, barriere, etal_marche,
-│                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin
-├── vegetation/             # arbre, arbre_automne
+│                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin,
+│                           #   table_tabourets, comptoir, tonneau_couche, tapis, lit,
+│                           #   torche_murale, chaine_murale, sarcophage, pile_os, enseigne
+├── vegetation/             # arbre, arbre_automne, buisson
 └── terrain/                # rocher
 
 game/assets/terrain/
@@ -85,6 +89,7 @@ game/assets/terrain/
 |---|---|
 | **Échelle** | 1 unité Blender = **1 case de carte** |
 | **Origine** | **centre de la base**, base posée à `z = 0` (sol) |
+| **Objets muraux** | origine au **pied du mur** (`z = 0`, mur en `+Y`) : géométrie suspendue au-dessus du sol (torche, chaîne, enseigne) |
 | **Axes Blender** | `+Z` = haut, face avant de l'objet vers `-Y` |
 | **Axes glTF/Godot** | export `export_yup=True` : `+Y` = haut, face avant vers **`+Z`** |
 | **Transforms** | rotation/scale à 1, location à 0 : tout est cuit dans le mesh |
@@ -96,12 +101,17 @@ game/assets/terrain/
 La conversion glTF est automatique : dans Blender, un objet « regarde » vers
 `-Y` ; après `export_yup=True`, cette direction devient `+Z` côté glTF/Godot.
 Les scripts de contrôle vérifient l'origine au pied et le centrage de la base.
+Pour les **objets muraux** (ancre `wall` du manifeste), l'origine est au pied du
+mur : le mesh commence au-dessus du sol, `verify_glb.py` le tolère et l'éditeur
+doit tourner l'objet pour plaquer son côté `+Y` contre le mur.
 
 ### Assemblage et normalisation
 
 `oq_common.finalize_asset()` fusionne les primitives en un seul mesh puis
 `normalize_asset()` garantit : origine au centre de la base, `z_min = 0`,
 `x/y` centrés, rotation/scale neutres, facettes plates (`use_smooth = False`).
+Avec `anchor="wall"`, la normalisation ne recentre ni ne plaque au sol : le mesh
+doit être construit avec le mur en `y = 0` et le sol en `z = 0`.
 
 ### Fermeture des volumes
 
@@ -198,6 +208,12 @@ reste gérée par le moteur : **aucune ombre n'est cuite** dans les assets.
 Exception assumée : le `pont` n'a pas de jupe (il enjambe l'eau) ; ses culées
 en pierre sont élargies.
 
+**Intérieurs (kit v3)** : les meubles de taverne utilisent une **dalle plate en
+bois** (`wood_dark`) et ceux du donjon une **dalle en pierre** (`stone_dark`) au
+lieu de la jupe d'herbe : même rôle de raccord, mais avec la matière du sol
+intérieur. Les objets muraux (torche, chaîne, enseigne) n'ont pas de dalle : ils
+se fixent au mur, origine au pied du mur.
+
 ### 4.5 Lisibilité de dessus
 
 Formes massives, toits contrastés (terre cuite ou ardoise sur enduit clair),
@@ -241,7 +257,9 @@ sont générées et nommées (`maison_petite`, `maison`, `maison_grande`,
 | `botte_foin` | 1.10 × 0.85 × 0.67 | ~0,9 case |
 
 Ces dimensions incluent le contour (+0,014 de chaque côté) et la jupe. Le
-manifeste et le récapitulatif de `run_build.ps1` les affichent.
+manifeste et le récapitulatif de `run_build.ps1` les affichent. Les objets
+muraux du kit v3 sont listés en §5.2 avec, en plus, leur **hauteur au-dessus du
+pied du mur**.
 
 ### 5.1 Kit enrichi v2 (10 objets)
 
@@ -271,6 +289,38 @@ Notes de style :
   glTF) : Godot peut l'utiliser en source de lumière douce ;
 * les jupes de sol (herbe/terre) restent posées sous chaque objet pour le
   raccord avec le décor peint.
+
+### 5.2 Kit v3 (12 objets) — intérieur taverne, donjon, petits décors
+
+Troisième passe : donner de la vie aux zones **taverne (10×8)** et **donjon
+(9×9)**, plus deux décors extérieurs. Les chopes et bouteilles sont intégrées
+sur la table et le comptoir (pas de prop séparé).
+
+| Asset | Catégorie | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|---|
+| `table_tabourets` | props | 1.74 × 1.76 × 1.29 | 1 400 (700+700) | Table ronde + 3 tabourets, chope et bouteille |
+| `comptoir` | props | 2.34 × 1.28 × 1.87 | 2 536 (1 268+1 268) | Comptoir + arrière-bar à bouteilles |
+| `tonneau_couche` | props | 1.18 × 0.98 × 0.75 | 784 (392+392) | Tonneau couché sur cales, robinet |
+| `tapis` | props | 2.02 × 1.26 × 0.08 | 1 352 (676+676) | Tapis à motif losange, plaque plate opaque |
+| `lit` | props | 1.48 × 2.04 × 0.78 | 888 (444+444) | Lit de taverne (bois, matelas, couverture) |
+| `torche_murale` | props | 0.22 × 0.51 × 0.89 · h sol 2.39 | 308 (154+154) | Torche murale émissive (flamme) |
+| `chaine_murale` | props | 0.29 × 0.19 × 1.64 · h sol 1.73 | 1 144 (572+572) | Chaîne et anneau muraux |
+| `sarcophage` | props | 1.44 × 0.96 × 1.02 | 760 (380+380) | Sarcophage de pierre avec gisant |
+| `pile_os` | props | 1.32 × 1.06 × 0.41 | 984 (492+492) | Pile d'os et de crânes |
+| `enseigne` | props | 1.04 × 1.00 × 1.08 · h sol 2.53 | 1 080 (540+540) | Enseigne de taverne suspendue |
+| `herse` | buildings | 2.22 × 0.44 × 2.44 | 1 152 (576+576) | Herse / grille en fer relevable |
+| `buisson` | vegetation | 1.23 × 1.07 × 0.78 | 492 (246+246) | Buisson touffu avec fleurs |
+
+Notes :
+
+* **ancrage mural** : `torche_murale`, `chaine_murale` et `enseigne` sont
+  suspendus ; leur origine est au pied du mur (géométrie au-dessus du sol) ;
+* **émission** : `flame`/`flame_core` pour la torche (en plus de `lamp` pour la
+  lanterne) ; exportées en `emissiveFactor` glTF ;
+* **aucun alpha** : le tapis, les flammes et les chaînes sont de la géométrie
+  opaque (pas de feuille alpha, pas de transparence) ;
+* les dalles de raccord intérieures (bois/pierre) évitent la coupure nette avec
+  le sol peint.
 
 ---
 
@@ -458,15 +508,18 @@ Ces réglages sont centralisés dans `oq_common` (`DEFAULT_AZIMUTH_DEG`,
 `render_thumbnail`) : ne pas les modifier par asset, sinon la bibliothèque
 devient hétérogène.
 
-Deux planches de contrôle :
+Planche de contrôle courante (tous les kits + textures de sol) :
 
 ```powershell
 python tools/blender/make_contact_sheet.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
 ```
 
-La seconde ajoute une rangée de textures de sol et sert de référence pour le
-kit v2 (26 cases : 3 sols + 23 objets).
+La seconde ajoute une rangée de textures de sol : `_planche_assets3.png`
+(38 cases : 3 sols + 35 objets). `_planche_assets.png` et
+`_planche_assets2.png` restent les planches historiques v1/v2. Les objets
+muraux y affichent leur hauteur au pied du mur, l'AABB seule ne mesurant que la
+géométrie suspendue.
 
 ---
 
@@ -539,6 +592,12 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
    en albédo mat (`roughness = 1`, `metallic = 0`), répétées avec
    `uv1_scale` constant ; ce sont elles qui donnent l'échelle et la matière
    générale, les objets se posent dessus via leur jupe de raccord.
+9. **Objets muraux** : `torche_murale`, `chaine_murale`, `enseigne` ont leur
+   origine au pied du mur ; les tourner pour que le côté `+Y` soit contre le mur.
+   L'éditeur peut lire `anchor: "wall"` et `height_above_floor` dans le
+   manifeste pour afficher l'empreinte et la hauteur de pose.
+10. **Intérieurs** : poser les meubles de taverne/donjon sur leurs dalles
+   (bois/pierre) ; l'ombre de contact reste moteur, comme pour les extérieurs.
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -605,13 +664,13 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets 3D | 23 (18 modèles + 5 variantes) |
-| Triangles / asset | 344 → **2 304** max (contour inclus), budget 5 000 |
-| Triangles total | **22 228** |
-| GLB / asset | ~33 → ~165 Ko (vertex colors + contour) |
-| Vignette / asset | ~114 → ~195 Ko (512 RGBA) |
+| Assets 3D | 35 (30 modèles + 5 variantes) |
+| Triangles / asset | 308 → **2 536** max (contour inclus), budget 5 000 |
+| Triangles total | **35 108** |
+| GLB / asset | ~33 → ~189 Ko (vertex colors + contour) |
+| Vignette / asset | ~111 → ~195 Ko (512 RGBA) |
 | Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
-| Planches | `_planche_assets.png`, `_planche_assets2.png` (26 cases), `_planche_terrain.png` |
+| Planches | `_planche_assets3.png` (38 cases), historique `_planche_assets{,2}.png`, `_planche_terrain.png` |
 
 Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
 skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
@@ -638,9 +697,9 @@ dans les GLB).
 .\tools\blender\run_build.ps1 -SkipThumbs
 .\tools\blender\run_build.ps1 -SkipVerify
 
-# Textures de sol tuilables seules + planche enrichie
+# Textures de sol tuilables seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
 
 # Build complet sans les textures (Pillow absent par ex.)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
@@ -805,6 +864,7 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 - [ ] < 5 000 triangles **contour inclus** ;
 - [ ] palette Valbois, matériaux mats/opaques, pas de texture ni d'alpha ;
 - [ ] jupe de raccord au sol présente (sauf exception documentée) ;
+- [ ] objets muraux : `anchor="wall"`, mur en `+Y`, origine au pied du mur ;
 - [ ] contour `*_outline` présent, matériaux `doubleSided: false` ;
 - [ ] `COLOR_0` présent sur le mesh principal ;
 - [ ] GLB + vignette 512 générés, vignette lisible et cadrée ;
@@ -845,3 +905,9 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
   porté par la géométrie du terrain.
 * Une seule échelle de tuile par texture : pas d'atlas ni de mélange de
   transitions herbe/terre/pavé (à composer côté moteur si besoin).
+* Les objets muraux (torche, chaîne, enseigne) ont une AABB qui ne mesure que la
+  géométrie suspendue ; leur hauteur de pose est fournie séparément dans le
+  manifeste (`height_above_floor`).
+* Les vignettes d'objets ajourés (herse, chaîne) sont cadrées sur l'objet
+  entier : le centre de l'image peut être transparent, c'est normal (le contrôle
+  qualité mesure la couverture de la zone centrale, pas un pixel).

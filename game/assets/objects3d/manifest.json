@@ -5,6 +5,32 @@
   "forward_axis_gltf": "+Z",
   "assets": [
     {
+      "name": "herse",
+      "base": "herse",
+      "variant": "base",
+      "category": "buildings",
+      "glb": "buildings/herse.glb",
+      "thumb": "buildings/herse_thumb.png",
+      "description": "Herse / grille en fer relevable, pointes vers le bas (~2,2 cases de large).",
+      "tags": [
+        "donjon",
+        "defense",
+        "passage"
+      ],
+      "dimensions_cells": [
+        2.216,
+        0.44,
+        2.44
+      ],
+      "height_above_floor": 2.44,
+      "anchor": "base",
+      "triangles": 1152,
+      "triangles_base": 576,
+      "vertices": 660,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "maison",
       "base": "maison",
       "variant": "base",
@@ -22,6 +48,8 @@
         1.808,
         1.877
       ],
+      "height_above_floor": 1.877,
+      "anchor": "base",
       "triangles": 1928,
       "triangles_base": 964,
       "vertices": 1048,
@@ -46,6 +74,8 @@
         2.097,
         2.174
       ],
+      "height_above_floor": 2.174,
+      "anchor": "base",
       "triangles": 2304,
       "triangles_base": 1152,
       "vertices": 1220,
@@ -70,6 +100,8 @@
         1.486,
         1.543
       ],
+      "height_above_floor": 1.543,
+      "anchor": "base",
       "triangles": 1856,
       "triangles_base": 928,
       "vertices": 1012,
@@ -94,6 +126,8 @@
         0.697,
         1.298
       ],
+      "height_above_floor": 1.298,
+      "anchor": "base",
       "triangles": 784,
       "triangles_base": 392,
       "vertices": 464,
@@ -118,6 +152,8 @@
         1.689,
         1.294
       ],
+      "height_above_floor": 1.294,
+      "anchor": "base",
       "triangles": 1336,
       "triangles_base": 668,
       "vertices": 808,
@@ -142,6 +178,8 @@
         1.33,
         2.368
       ],
+      "height_above_floor": 2.368,
+      "anchor": "base",
       "triangles": 1088,
       "triangles_base": 544,
       "vertices": 624,
@@ -166,6 +204,8 @@
         1.54,
         2.744
       ],
+      "height_above_floor": 2.744,
+      "anchor": "base",
       "triangles": 1144,
       "triangles_base": 572,
       "vertices": 652,
@@ -190,6 +230,8 @@
         0.676,
         0.978
       ],
+      "height_above_floor": 0.978,
+      "anchor": "base",
       "triangles": 488,
       "triangles_base": 244,
       "vertices": 280,
@@ -214,6 +256,8 @@
         0.437,
         0.938
       ],
+      "height_above_floor": 0.938,
+      "anchor": "base",
       "triangles": 496,
       "triangles_base": 248,
       "vertices": 288,
@@ -238,6 +282,8 @@
         0.85,
         0.667
       ],
+      "height_above_floor": 0.667,
+      "anchor": "base",
       "triangles": 548,
       "triangles_base": 274,
       "vertices": 320,
@@ -262,6 +308,8 @@
         1.052,
         0.762
       ],
+      "height_above_floor": 0.762,
+      "anchor": "base",
       "triangles": 688,
       "triangles_base": 344,
       "vertices": 404,
@@ -286,9 +334,37 @@
         1.32,
         0.954
       ],
+      "height_above_floor": 0.954,
+      "anchor": "base",
       "triangles": 720,
       "triangles_base": 360,
       "vertices": 420,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "chaine_murale",
+      "base": "chaine_murale",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/chaine_murale.glb",
+      "thumb": "props/chaine_murale_thumb.png",
+      "description": "Chaine murale a maillons et anneau, accrochee au mur (~1,7 case de haut).",
+      "tags": [
+        "donjon",
+        "mobilier",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        0.29,
+        0.189,
+        1.643
+      ],
+      "height_above_floor": 1.738,
+      "anchor": "wall",
+      "triangles": 1144,
+      "triangles_base": 572,
+      "vertices": 576,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -310,9 +386,63 @@
         1.744,
         0.94
       ],
+      "height_above_floor": 0.94,
+      "anchor": "base",
       "triangles": 1208,
       "triangles_base": 604,
       "vertices": 668,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "comptoir",
+      "base": "comptoir",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/comptoir.glb",
+      "thumb": "props/comptoir_thumb.png",
+      "description": "Comptoir de taverne et arriere-bar a etageres, bouteilles et chopes (~2,3 cases).",
+      "tags": [
+        "taverne",
+        "commerce",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        2.34,
+        1.279,
+        1.873
+      ],
+      "height_above_floor": 1.873,
+      "anchor": "base",
+      "triangles": 2536,
+      "triangles_base": 1268,
+      "vertices": 1398,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "enseigne",
+      "base": "enseigne",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/enseigne.glb",
+      "thumb": "props/enseigne_thumb.png",
+      "description": "Enseigne de taverne suspendue, potence fer et panneau peint (~2,6 cases de haut).",
+      "tags": [
+        "taverne",
+        "signalisation",
+        "exterieur"
+      ],
+      "dimensions_cells": [
+        1.04,
+        0.996,
+        1.083
+      ],
+      "height_above_floor": 2.538,
+      "anchor": "wall",
+      "triangles": 1080,
+      "triangles_base": 540,
+      "vertices": 580,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -334,6 +464,8 @@
         1.527,
         2.004
       ],
+      "height_above_floor": 2.004,
+      "anchor": "base",
       "triangles": 1792,
       "triangles_base": 896,
       "vertices": 1020,
@@ -358,9 +490,37 @@
         0.835,
         2.303
       ],
+      "height_above_floor": 2.303,
+      "anchor": "base",
       "triangles": 396,
       "triangles_base": 198,
       "vertices": 250,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "lit",
+      "base": "lit",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/lit.glb",
+      "thumb": "props/lit_thumb.png",
+      "description": "Lit simple de taverne : bois, matelas, couverture et oreiller (~1,4 x 2 cases).",
+      "tags": [
+        "taverne",
+        "mobilier",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        1.48,
+        2.04,
+        0.784
+      ],
+      "height_above_floor": 0.784,
+      "anchor": "base",
+      "triangles": 888,
+      "triangles_base": 444,
+      "vertices": 490,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -382,6 +542,8 @@
         0.51,
         1.244
       ],
+      "height_above_floor": 1.244,
+      "anchor": "base",
       "triangles": 620,
       "triangles_base": 310,
       "vertices": 378,
@@ -406,9 +568,37 @@
         0.782,
         2.014
       ],
+      "height_above_floor": 2.014,
+      "anchor": "base",
       "triangles": 344,
       "triangles_base": 172,
       "vertices": 196,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pile_os",
+      "base": "pile_os",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pile_os.glb",
+      "thumb": "props/pile_os_thumb.png",
+      "description": "Pile d'os et de cranes low-poly (~1,3 x 1 case).",
+      "tags": [
+        "donjon",
+        "funeraire",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        1.32,
+        1.064,
+        0.406
+      ],
+      "height_above_floor": 0.406,
+      "anchor": "base",
+      "triangles": 984,
+      "triangles_base": 492,
+      "vertices": 588,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -430,6 +620,8 @@
         1.3,
         1.094
       ],
+      "height_above_floor": 1.094,
+      "anchor": "base",
       "triangles": 1880,
       "triangles_base": 940,
       "vertices": 1060,
@@ -454,9 +646,89 @@
         1.021,
         1.444
       ],
+      "height_above_floor": 1.444,
+      "anchor": "base",
       "triangles": 816,
       "triangles_base": 408,
       "vertices": 464,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "sarcophage",
+      "base": "sarcophage",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/sarcophage.glb",
+      "thumb": "props/sarcophage_thumb.png",
+      "description": "Sarcophage de pierre avec gisant et bandeaux sculptes (~1,3 x 0,8 case).",
+      "tags": [
+        "donjon",
+        "funeraire",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        1.44,
+        0.96,
+        1.018
+      ],
+      "height_above_floor": 1.018,
+      "anchor": "base",
+      "triangles": 760,
+      "triangles_base": 380,
+      "vertices": 418,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "table_tabourets",
+      "base": "table_tabourets",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/table_tabourets.glb",
+      "thumb": "props/table_tabourets_thumb.png",
+      "description": "Table ronde de taverne avec trois tabourets, chope et bouteille (~1,7 case).",
+      "tags": [
+        "taverne",
+        "mobilier",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        1.74,
+        1.761,
+        1.288
+      ],
+      "height_above_floor": 1.288,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 772,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tapis",
+      "base": "tapis",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/tapis.glb",
+      "thumb": "props/tapis_thumb.png",
+      "description": "Tapis de taverne a motif losange (~1,9 x 1,2 case), plaque plate opaque.",
+      "tags": [
+        "taverne",
+        "textile",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        2.021,
+        1.26,
+        0.082
+      ],
+      "height_above_floor": 0.082,
+      "anchor": "base",
+      "triangles": 1352,
+      "triangles_base": 676,
+      "vertices": 794,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -478,9 +750,63 @@
         0.914,
         0.843
       ],
+      "height_above_floor": 0.843,
+      "anchor": "base",
       "triangles": 648,
       "triangles_base": 324,
       "vertices": 352,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "tonneau_couche",
+      "base": "tonneau_couche",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/tonneau_couche.glb",
+      "thumb": "props/tonneau_couche_thumb.png",
+      "description": "Tonneau couche sur cales avec robinet (~1 case).",
+      "tags": [
+        "taverne",
+        "marchandise",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        1.18,
+        0.979,
+        0.747
+      ],
+      "height_above_floor": 0.747,
+      "anchor": "base",
+      "triangles": 784,
+      "triangles_base": 392,
+      "vertices": 426,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "torche_murale",
+      "base": "torche_murale",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/torche_murale.glb",
+      "thumb": "props/torche_murale_thumb.png",
+      "description": "Torche murale emissive : support fer, manche bois et flamme (~2,4 cases de haut).",
+      "tags": [
+        "donjon",
+        "eclairage",
+        "interieur"
+      ],
+      "dimensions_cells": [
+        0.22,
+        0.515,
+        0.888
+      ],
+      "height_above_floor": 2.382,
+      "anchor": "wall",
+      "triangles": 308,
+      "triangles_base": 154,
+      "vertices": 190,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -502,6 +828,8 @@
         1.18,
         0.866
       ],
+      "height_above_floor": 0.866,
+      "anchor": "base",
       "triangles": 352,
       "triangles_base": 176,
       "vertices": 200,
@@ -526,6 +854,8 @@
         1.051,
         2.103
       ],
+      "height_above_floor": 2.103,
+      "anchor": "base",
       "triangles": 396,
       "triangles_base": 198,
       "vertices": 222,
@@ -550,9 +880,37 @@
         1.051,
         2.103
       ],
+      "height_above_floor": 2.103,
+      "anchor": "base",
       "triangles": 396,
       "triangles_base": 198,
       "vertices": 222,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "buisson",
+      "base": "buisson",
+      "variant": "base",
+      "category": "vegetation",
+      "glb": "vegetation/buisson.glb",
+      "thumb": "vegetation/buisson_thumb.png",
+      "description": "Buisson touffu avec quelques fleurs (~1,1 case).",
+      "tags": [
+        "nature",
+        "decor",
+        "exterieur"
+      ],
+      "dimensions_cells": [
+        1.228,
+        1.074,
+        0.783
+      ],
+      "height_above_floor": 0.783,
+      "anchor": "base",
+      "triangles": 492,
+      "triangles_base": 246,
+      "vertices": 290,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     }

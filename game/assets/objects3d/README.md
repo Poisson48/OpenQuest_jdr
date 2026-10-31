@@ -5,7 +5,7 @@ Assets **procéduraux low‑poly** prêts à poser sur la grille de la carte 2.5
 posés sur une grille, avec un décor peint en fond. Les objets sont pensés pour
 être **lisibles de dessus mais fondus dans l'illustration Valbois** : palette
 terre/bois/pierre chaude et désaturée, matériaux mats, AO + mottling cuits en
-vertex colors, contour encre et jupe de raccord au sol.
+vertex colors, contour encre et raccord au sol.
 
 Le kit est complété par les **textures de sol tuilables**
 [`game/assets/terrain/`](../terrain/README.md) (herbe, terre/chemin, pavé).
@@ -26,11 +26,14 @@ Le kit est complété par les **textures de sol tuilables**
 | Origine | **centre de la base**, posée sur le sol (`y = 0` en glTF/Godot) |
 | Axes glTF | `+Y` = haut, face avant de l'objet vers **`+Z`** |
 | Transforms | rotation/scale à 1, location à 0 (bake dans le mesh) |
-| Budget | **< 5 000 triangles** par asset (contour encre inclus ; max actuel : 2 304) |
+| Budget | **< 5 000 triangles** par asset (contour encre inclus ; max actuel : 2 536) |
 | Matériaux | mats (roughness 0,92, metallic 0, specular 0,15), palette Valbois, **aucune transparence, aucune texture alpha**, faces simples (backface culling) |
 | Détail | AO + mottling en **vertex colors `COLOR_0`** (multiplicateur) |
 | Contour | coque inversée `*_outline` en encre sombre (double le nombre de triangles) |
-| Sol | **jupe de raccord** herbe/terre très plate, débordant du bâti |
+| Sol extérieur | **jupe de raccord** herbe/terre très plate, débordant du bâti |
+| Sol intérieur | **dalle plate** bois (taverne) ou pierre (donjon) sous le meuble |
+| Objets muraux | origine au **pied du mur** (z=0), géométrie suspendue au-dessus ; le côté `+Y` est le mur |
+| Émission | seuls la lanterne (`lamp`) et la torche (`flame`/`flame_core`) sont émissives |
 | Caméra/lumière | **jamais exportées** dans le GLB |
 | Vignette | `<nom>_thumb.png` 512×512, fond transparent, cadrage 3/4 identique pour tous |
 
@@ -40,8 +43,10 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-23 assets (18 modèles + 5 variantes de taille/teinte), **22 228 triangles** au
-total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
+35 assets (30 modèles + 5 variantes de taille/teinte), **35 108 triangles** au
+total, 2 536 au maximum. Dimension = AABB réelle du GLB (contour inclus).
+Pour les objets muraux, la hauteur indiquée `h sol` est la distance depuis le
+pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
 
 ### Bâtiments et structures — `buildings/`
 
@@ -54,8 +59,9 @@ total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 | `tour_grande` | 1.71 × 1.54 × 2.74 | 1 144 (572+572) | Donjon secondaire, tour de siège |
 | `mur` | 2.36 × 0.70 × 1.30 | 784 (392+392) | Enceinte, mur de soutènement (module 2 cases) |
 | `mur_coin` | 2.10 × 1.69 × 1.29 | 1 336 (668+668) | Coin d'enceinte en L |
+| `herse` | 2.22 × 0.44 × 2.44 | 1 152 (576+576) | Herse / grille en fer relevable du donjon |
 
-### Décors — `props/`
+### Décors extérieurs — `props/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
 |---|---|---|---|
@@ -73,12 +79,28 @@ total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 | `charrette` | 1.61 × 1.74 × 0.94 | 1 208 (604+604) | Charrette à bras, roues et brancards |
 | `botte_foin` | 1.10 × 0.85 × 0.67 | 548 (274+274) | Botte de foin liée |
 
+### Kit intérieur v3 — taverne & donjon — `props/`
+
+| Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
+|---|---|---|---|
+| `table_tabourets` | 1.74 × 1.76 × 1.29 | 1 400 (700+700) | Table ronde + 3 tabourets, chope et bouteille |
+| `comptoir` | 2.34 × 1.28 × 1.87 | 2 536 (1 268+1 268) | Comptoir + arrière-bar à bouteilles |
+| `tonneau_couche` | 1.18 × 0.98 × 0.75 | 784 (392+392) | Tonneau couché sur cales, robinet |
+| `tapis` | 2.02 × 1.26 × 0.08 | 1 352 (676+676) | Tapis à motif losange (plaque plate opaque) |
+| `lit` | 1.48 × 2.04 × 0.78 | 888 (444+444) | Lit de taverne (bois, matelas, couverture) |
+| `torche_murale` | 0.22 × 0.51 × 0.89 · **h sol 2.39** | 308 (154+154) | Torche murale émissive (flamme) |
+| `chaine_murale` | 0.29 × 0.19 × 1.64 · **h sol 1.73** | 1 144 (572+572) | Chaîne et anneau muraux |
+| `sarcophage` | 1.44 × 0.96 × 1.02 | 760 (380+380) | Sarcophage de pierre avec gisant |
+| `pile_os` | 1.32 × 1.06 × 0.41 | 984 (492+492) | Pile d'os et de crânes |
+| `enseigne` | 1.04 × 1.00 × 1.08 · **h sol 2.53** | 1 080 (540+540) | Enseigne de taverne suspendue (potence + panneau peint) |
+
 ### Végétation — `vegetation/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
 |---|---|---|---|
 | `arbre` | 1.03 × 1.05 × 2.10 | 396 (198+198) | Forêt, bosquet, bord de chemin (feuillu) |
 | `arbre_automne` | 1.03 × 1.05 × 2.10 | 396 (198+198) | Variante de teinte ocre (même géométrie) |
+| `buisson` | 1.23 × 1.07 × 0.78 | 492 (246+246) | Buisson touffu avec fleurs |
 
 ### Terrain — `terrain/`
 
@@ -86,11 +108,13 @@ total, 2 304 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 |---|---|---|---|
 | `rocher` | 1.45 × 1.18 × 0.87 | 352 (176+176) | Obstacle, relief, décor minéral |
 
-Chaque asset est accompagné de sa vignette : `buildings/maison_thumb.png`, etc.
-Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, triangles,
-description) — il est **informatif** : l'éditeur peut scanner les dossiers.
-`_planche_assets.png` est la planche du kit v1 ; `_planche_assets2.png` est la
-planche de contrôle enrichie (textures de sol + 23 objets).
+Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
+Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
+pied du mur éventuelle, ancre, triangles, description) — il est **informatif** :
+l'éditeur peut scanner les dossiers.
+`_planche_assets3.png` est la planche de contrôle courante (textures de sol +
+35 objets). `_planche_assets.png` et `_planche_assets2.png` sont les planches
+historiques des kits v1 et v2.
 
 ---
 
@@ -125,6 +149,9 @@ func _prepare_mesh_node(root: Node) -> void:
 Points d'intégration importants :
 
 - **Origine au pied** : `position` = point au sol ; la face avant regarde `+Z`.
+- **Objets muraux** (`torche_murale`, `chaine_murale`, `enseigne`) : l'origine
+  est au pied du mur, la géométrie est suspendue au-dessus. Tourner l'objet
+  pour que son côté `+Y` (le mur) soit contre le mur de la scène.
 - **Contour** : le GLB contient deux meshes (`<nom>` et `<nom>_outline`).
   Mettre `cast_shadow = SHADOW_CASTING_SETTING_OFF` sur `*_outline`.
 - **Vertex colors** : `COLOR_0` multiplie la couleur de base. Godot 4
@@ -132,8 +159,8 @@ Points d'intégration importants :
   activer `Vertex Color > Use as Albedo` sur le `StandardMaterial3D`.
 - **Faces simples** : `doubleSided: false` dans le GLB (indispensable au
   contour). Ne pas forcer le rendu double face côté moteur.
-- **Lanterne** : le matériau `lamp` est émissif (`emissiveFactor` glTF) ; il
-  peut servir de source de lumière douce côté moteur.
+- **Émission** : `lamp` (lanterne) et `flame`/`flame_core` (torche) exportent
+  un `emissiveFactor` ; utilisables comme lumière douce côté moteur.
 - **Sol** : textures tuilables dans `game/assets/terrain/` (voir
   [`../terrain/README.md`](../terrain/README.md)).
 - Dimensions en cases : voir les tableaux (ex. `pont` = 2,64 cases).
@@ -145,11 +172,11 @@ Points d'intégration importants :
 ## Régénérer les assets
 
 ```powershell
-# Tout : GLB + vignettes + contrôle + textures de sol + planche enrichie
+# Tout : GLB + vignettes + contrôle + textures de sol + planche v3
 .\tools\blender\run_build.ps1
 
 # Uniquement certains objets (itération)
-.\tools\blender\run_build.ps1 -Only maison,mur,lanterne
+.\tools\blender\run_build.ps1 -Only maison,mur,lit
 
 # Fallback si EEVEE ne rend pas sur la machine (Cycles CPU)
 .\tools\blender\run_build.ps1 -Engine cycles -Samples 24
@@ -157,9 +184,9 @@ Points d'intégration importants :
 # Sans textures de sol (si Pillow absent)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
 
-# Textures de sol seules + planche de contrôle du raccord
+# Textures de sol seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets2.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets3.png --terrain
 ```
 
 Appel direct sans le wrapper :
@@ -167,7 +194,7 @@ Appel direct sans le wrapper :
 ```powershell
 & "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" `
     --background --python-exit-code 1 `
-    --python tools/blender/build_prototypes.py -- --only maison
+    --python tools/blender/build_prototypes.py -- --only lit,torche_murale
 ```
 
 Exporter un `.blend` d'artiste (contour encre optionnel) :
@@ -185,8 +212,10 @@ Exporter un `.blend` d'artiste (contour encre optionnel) :
 
 1. **Objet procédural** (aucun asset externe) : ajouter une fonction
    `build_<nom>(mats)` dans `tools/blender/build_prototypes.py`, puis une entrée
-   `AssetSpec` (catégorie, description, tags, variantes éventuelles). Le
-   pipeline applique automatiquement subdivision, AO/mottling, contour et jupe.
+   `AssetSpec` (catégorie, description, tags, variantes éventuelles, `anchor`).
+   Le pipeline applique automatiquement subdivision, AO/mottling, contour et
+   raccord au sol. Pour un objet mural, utiliser `anchor="wall"` et construire
+   le mesh avec le mur en `+Y` et le sol en `z=0`.
 2. **Objet modélisé à la main** : livrer un `.blend` propre (un mesh, transforms
    appliquées, origine au pied, face avant vers `-Y` dans Blender, pas de
    caméra/lumière), puis passer par `export_blend.py` (éventuellement
@@ -194,5 +223,5 @@ Exporter un `.blend` d'artiste (contour encre optionnel) :
 3. Régénérer : `.\tools\blender\run_build.ps1 -Only <nom>` puis vérifier le
    récapitulatif, la planche de vignettes et `verify_glb.py`.
 
-Le nommage est en **minuscules ASCII snake_case** (`maison_grande`,
-`arbre_automne`) ; les variantes utilisent un suffixe de taille/teinte.
+Le nommage est en **minuscules ASCII snake_case** (`table_tabourets`,
+`torche_murale`) ; les variantes utilisent un suffixe de taille/teinte.

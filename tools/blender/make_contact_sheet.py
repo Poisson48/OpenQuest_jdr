@@ -106,7 +106,12 @@ def draw_asset(
     dims_text = " × ".join(f"{value:g}" for value in dims) if any(dims) else ""
     meta = str(asset.get("meta") or "")
     if not meta:
-        meta = f"{category} · {dims_text} cases · {triangles} tris" if dims_text else category
+        is_wall = str(asset.get("anchor") or "base") == "wall"
+        height_floor = asset.get("height_above_floor")
+        if is_wall and height_floor:
+            meta = f"{category} · h sol {float(height_floor):g} cases · {triangles} tris"
+        else:
+            meta = f"{category} · {dims_text} cases · {triangles} tris" if dims_text else category
 
     label_y = y + height - 46
     draw.text(

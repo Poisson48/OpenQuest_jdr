@@ -233,12 +233,15 @@ def audit_thumbnail(path: Path, expected_size: int) -> tuple[bool, list[str], di
         if coverage > 0.98:
             issues.append("vignette entierement opaque (fond opaque ?)")
         center_y, center_x = height // 2, width // 2
-        center_alpha = float(
-            alpha[max(0, center_y - 2) : center_y + 3, max(0, center_x - 2) : center_x + 3].max()
-        )
-        metrics["center_alpha"] = center_alpha
-        if center_alpha < 0.5:
-            issues.append("aucun objet au centre du cadrage")
+        # Certains objets sont ajoures (herse, chaine) : le pixel central peut
+        # etre transparent alors que l'objet occupe bien le centre. On mesure
+        # donc la couverture opaque de la zone centrale (1/4 de l'image).
+        half = max(8, min(width, height) // 8)
+        central = alpha[center_y - half : center_y + half, center_x - half : center_x + half]
+        central_coverage = float((central > 0.5).mean())
+        metrics["central_coverage"] = central_coverage
+        if central_coverage < 0.01:
+            issues.append("objet absent du centre du cadrage")
     finally:
         bpy.data.images.remove(image)
     return not issues, issues, metrics
@@ -288,6 +291,20 @@ def main(argv: list[str]) -> int:
     log(f"OpenQuest / verification des assets 3D - {len(glb_paths)} GLB dans {root}")
     log("=" * 96)
 
+    # Ancres declarees par le manifeste (les objets muraux ont une origine au
+    # pied du mur : leur geometrie commence au-dessus du sol, ce n'est pas une
+    # erreur de placement).
+    manifest_path = root / "manifest.json"
+    anchors: dict[str, str] = {}
+    if manifest_path.is_file():
+        try:
+            manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for asset in manifest_data.get("assets", []):
+                if isinstance(asset, dict) and asset.get("name"):
+                    anchors[str(asset["name"])] = str(asset.get("anchor") or "base")
+        except (json.JSONDecodeError, OSError):
+            anchors = {}
+
     failures = 0
     warnings_total = 0
     budget_max = 0
@@ -320,14 +337,22 @@ def main(argv: list[str]) -> int:
         if imported["triangles"] > TRIANGLE_BUDGET:
             issues.append(f"budget depasse ({imported['triangles']} > {TRIANGLE_BUDGET})")
         min_z = float(imported["min_z"])
-        if not (-MAX_GROUND_TOLERANCE <= min_z <= MAX_ORIGIN_TOLERANCE):
-            issues.append(f"base pas au sol (min_z={min_z:.3f})")
-        if abs(float(imported["center_x"])) > MAX_CENTER_TOLERANCE or abs(
-            float(imported["center_y"])
-        ) > MAX_CENTER_TOLERANCE:
-            issues.append(
-                f"base non centree (x={imported['center_x']:.3f}, y={imported['center_y']:.3f})"
-            )
+        anchor = anchors.get(glb_path.stem, "base")
+        if anchor == "wall":
+            # Origine au pied du mur : la geometrie est suspendue au-dessus du sol.
+            # Certains objets muraux descendent bas (chaîne) : on verifie
+            # seulement qu'ils ne passent pas sous le sol.
+            if min_z < -MAX_GROUND_TOLERANCE:
+                issues.append(f"objet mural sous le sol (min_z={min_z:.3f})")
+        else:
+            if not (-MAX_GROUND_TOLERANCE <= min_z <= MAX_ORIGIN_TOLERANCE):
+                issues.append(f"base pas au sol (min_z={min_z:.3f})")
+            if abs(float(imported["center_x"])) > MAX_CENTER_TOLERANCE or abs(
+                float(imported["center_y"])
+            ) > MAX_CENTER_TOLERANCE:
+                issues.append(
+                    f"base non centree (x={imported['center_x']:.3f}, y={imported['center_y']:.3f})"
+                )
         if not imported["node_transforms_neutral"]:
             warnings.append("transforms de noeuds non neutres")
         if imported["vertices"] == 0:
@@ -361,7 +386,7 @@ def main(argv: list[str]) -> int:
         log(
             f"[{status}] {relative}  meshes={imported['meshes']} "
             f"verts={imported['vertices']} tris={imported['triangles']} "
-            f"dims={dims_text} nodes={container['nodes']} "
+            f"dims={dims_text} anchor={anchor} nodes={container['nodes']} "
             f"outline={'oui' if outline else 'non'} "
             + (
                 f"thumb={int(thumb_metrics.get('width', 0))}px cov={coverage:.0%} "
@@ -373,7 +398,6 @@ def main(argv: list[str]) -> int:
         )
 
     # Coherence du manifeste (informatif).
-    manifest_path = root / "manifest.json"
     if manifest_path.is_file():
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

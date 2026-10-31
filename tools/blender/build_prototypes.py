@@ -60,6 +60,7 @@ from oq_common import (  # noqa: E402
     add_ground_skirt,
     add_ico_sphere,
     add_mesh,
+    add_torus,
     apply_transforms,
     bake_vertex_colors,
     build_outline,
@@ -883,6 +884,525 @@ def build_botte_foin(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
+# Kit v3 : intérieur taverne, donjon, petits décors
+# --------------------------------------------------------------------------- #
+
+
+def _floor_patch(
+    name: str,
+    size: tuple[float, float],
+    location: tuple[float, float],
+    material: bpy.types.Material,
+    height: float = 0.03,
+) -> bpy.types.Object:
+    """Dalle plate de raccord au sol (bois de taverne, pierre de donjon).
+
+    Même rôle que la jupe herbe/terre des extérieurs, mais avec la matière du
+    sol intérieur : évite la coupure nette entre l'objet et le sol peint.
+    """
+    return add_box(
+        name,
+        (size[0], size[1], height),
+        (location[0], location[1], height * 0.5),
+        material,
+    )
+
+
+def build_table_tabourets(mats: Mats) -> list[bpy.types.Object]:
+    """Table ronde de taverne + trois tabourets + chope et bouteille (~1,7 case)."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (1.72, 1.72), (0, 0), mats["wood_dark"])
+    ]
+    # Table ronde : piètement central, plateau, ceinture.
+    parts.append(add_cylinder("table_foot", 0.28, 0.06, (0, 0, 0.045), mats["wood_dark"], vertices=10))
+    parts.append(add_cylinder("table_leg", 0.09, 0.68, (0, 0, 0.38), mats["wood"], vertices=8))
+    parts.append(add_cylinder("table_top", 0.46, 0.09, (0, 0, 0.76), mats["wood_light"], vertices=12))
+    parts.append(add_cylinder("table_rim", 0.40, 0.025, (0, 0, 0.815), mats["wood_dark"], vertices=12))
+    # Tabourets autour.
+    for x, y in (
+        (0.0, 0.70),
+        (-0.61, -0.35),
+        (0.61, -0.35),
+    ):
+        parts.append(add_cylinder("stool_seat", 0.18, 0.07, (x, y, 0.53), mats["wood"], vertices=10))
+        parts.append(add_cylinder("stool_leg", 0.07, 0.50, (x, y, 0.25), mats["wood_dark"], vertices=8))
+        parts.append(add_cylinder("stool_foot", 0.15, 0.05, (x, y, 0.025), mats["wood_dark"], vertices=8))
+    # Chope et bouteille sur la table.
+    parts.append(add_cylinder("mug", 0.06, 0.13, (0.17, 0.12, 0.87), mats["plaster_light"], vertices=8))
+    parts.append(
+        add_torus(
+            "mug_handle",
+            0.045,
+            0.014,
+            (0.235, 0.12, 0.87),
+            mats["plaster_light"],
+            major_segments=6,
+            minor_segments=4,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    parts.append(add_cylinder("bottle", 0.05, 0.30, (-0.18, -0.06, 0.945), mats["roof_slate"], vertices=8))
+    parts.append(
+        add_cylinder("bottle_neck", 0.022, 0.15, (-0.18, -0.06, 1.165), mats["roof_slate"], vertices=8)
+    )
+    parts.append(add_cylinder("bottle_cork", 0.026, 0.04, (-0.18, -0.06, 1.245), mats["wood"], vertices=8))
+    return parts
+
+
+def build_comptoir(mats: Mats) -> list[bpy.types.Object]:
+    """Comptoir de taverne + arrière-bar à étagères et bouteilles (~2,3 cases)."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (2.32, 1.24), (0, 0), mats["wood_dark"])
+    ]
+    # Comptoir.
+    parts.append(add_box("counter_body", (2.02, 0.60, 0.92), (0, 0, 0.46), mats["wood_dark"]))
+    parts.append(add_box("counter_top", (2.16, 0.78, 0.10), (0, 0, 0.97), mats["wood_light"]))
+    for index, x in enumerate((-0.66, 0.0, 0.66)):
+        material = mats["wood"] if index % 2 == 0 else mats["wood_light"]
+        parts.append(add_box("counter_panel", (0.60, 0.05, 0.78), (x, -0.325, 0.46), material))
+    parts.append(
+        add_cylinder(
+            "foot_rail",
+            0.035,
+            1.96,
+            (0, -0.40, 0.16),
+            mats["metal"],
+            vertices=8,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    parts.append(add_box("counter_edge", (2.18, 0.10, 0.07), (0, -0.40, 1.03), mats["wood_dark"]))
+    # Arrière-bar.
+    for x in (-0.95, 0.95):
+        parts.append(add_box("shelf_post", (0.08, 0.08, 1.78), (x, 0.50, 0.89), mats["wood_dark"]))
+    parts.append(add_box("shelf_back", (1.95, 0.05, 1.68), (0, 0.61, 0.94), mats["wood_dark"]))
+    for z in (1.16, 1.54):
+        parts.append(add_box("shelf", (1.95, 0.30, 0.05), (0, 0.44, z), mats["wood"]))
+    bottle_materials = [mats["roof_slate"], mats["leaf"], mats["glow"], mats["roof"], mats["water"]]
+    for index in range(9):
+        x = -0.80 + index * 0.20
+        z = 1.16 if index % 2 == 0 else 1.54
+        material = bottle_materials[index % len(bottle_materials)]
+        parts.append(add_cylinder("bottle", 0.035, 0.20, (x, 0.44, z + 0.125), material, vertices=8))
+        parts.append(add_cylinder("bottle_neck", 0.016, 0.09, (x, 0.44, z + 0.265), material, vertices=8))
+    # Chopes sur le comptoir.
+    for x in (-0.52, 0.38):
+        parts.append(add_cylinder("bar_mug", 0.06, 0.13, (x, -0.10, 1.085), mats["plaster_light"], vertices=8))
+    parts.append(add_cylinder("bar_bottle", 0.05, 0.28, (0.72, -0.12, 1.16), mats["roof_slate"], vertices=8))
+    return parts
+
+
+def build_tonneau_couche(mats: Mats) -> list[bpy.types.Object]:
+    """Tonneau couché sur cales, robinet au front (~1 case)."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (1.16, 0.88), (0, 0), mats["wood_dark"])
+    ]
+    parts.append(
+        add_cylinder(
+            "barrel",
+            0.34,
+            0.82,
+            (0, 0, 0.37),
+            mats["wood"],
+            vertices=12,
+            rotation=(0.0, math.pi * 0.5, 0.0),
+        )
+    )
+    for x in (-0.26, 0.0, 0.26):
+        parts.append(
+            add_cylinder(
+                "hoop",
+                0.352,
+                0.05,
+                (x, 0, 0.37),
+                mats["metal"],
+                vertices=12,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+    for x in (-0.415, 0.415):
+        parts.append(
+            add_cylinder(
+                "lid",
+                0.315,
+                0.035,
+                (x, 0, 0.37),
+                mats["wood_light"],
+                vertices=12,
+                rotation=(0.0, math.pi * 0.5, 0.0),
+            )
+        )
+    parts.append(add_box("chock", (0.72, 0.10, 0.10), (0, -0.36, 0.05), mats["wood_dark"]))
+    parts.append(
+        add_cylinder(
+            "tap",
+            0.035,
+            0.16,
+            (0.0, -0.44, 0.24),
+            mats["metal"],
+            vertices=8,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    return parts
+
+
+def build_tapis(mats: Mats) -> list[bpy.types.Object]:
+    """Tapis de taverne (~1,9 x 1,2 case), plaque plate décorative opaque."""
+    parts: list[bpy.types.Object] = [
+        add_box("rug_back", (1.96, 1.24, 0.016), (0, 0, 0.008), mats["wood_dark"]),
+        add_box("rug_base", (1.86, 1.14, 0.026), (0, 0, 0.029), mats["cloth"]),
+    ]
+    # Frise extérieure.
+    for y in (-0.47, 0.47):
+        parts.append(add_box("border", (1.86, 0.10, 0.010), (0, y, 0.045), mats["plaster_light"]))
+    for x in (-0.82, 0.82):
+        parts.append(add_box("border", (0.10, 0.94, 0.010), (x, 0, 0.045), mats["plaster_light"]))
+    # Frise intérieure.
+    for y in (-0.36, 0.36):
+        parts.append(add_box("inner_border", (1.60, 0.035, 0.008), (0, y, 0.049), mats["roof_dark"]))
+    for x in (-0.70, 0.70):
+        parts.append(add_box("inner_border", (0.035, 0.72, 0.008), (x, 0, 0.049), mats["roof_dark"]))
+    # Motif central en losange.
+    parts.append(
+        add_box("motif", (0.52, 0.52, 0.008), (0, 0, 0.050), mats["glow"], rotation=(0.0, 0.0, math.pi * 0.25))
+    )
+    parts.append(
+        add_box(
+            "motif_core",
+            (0.26, 0.26, 0.008),
+            (0, 0, 0.054),
+            mats["cloth"],
+            rotation=(0.0, 0.0, math.pi * 0.25),
+        )
+    )
+    for x in (-0.60, 0.60):
+        for y in (-0.32, 0.32):
+            parts.append(
+                add_box(
+                    "corner",
+                    (0.10, 0.10, 0.008),
+                    (x, y, 0.050),
+                    mats["plaster_light"],
+                    rotation=(0.0, 0.0, math.pi * 0.25),
+                )
+            )
+    # Franges aux extrémités.
+    for x in (-0.985, 0.985):
+        for index in range(7):
+            y = -0.48 + index * 0.16
+            parts.append(add_box("fringe", (0.035, 0.09, 0.006), (x, y, 0.020), mats["plaster_light"]))
+    return parts
+
+
+def build_lit(mats: Mats) -> list[bpy.types.Object]:
+    """Lit simple de taverne (~1,4 x 2 cases) : bois, matelas, couverture, oreiller."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (1.46, 2.02), (0, 0), mats["wood_dark"])
+    ]
+    parts.append(add_box("frame", (1.00, 1.80, 0.20), (0, 0, 0.20), mats["wood"]))
+    parts.append(add_box("headboard", (1.08, 0.10, 0.66), (0, 0.92, 0.43), mats["wood_dark"]))
+    parts.append(add_box("footboard", (1.08, 0.08, 0.34), (0, -0.92, 0.27), mats["wood_dark"]))
+    for x in (-0.44, 0.44):
+        for y in (-0.86, 0.86):
+            parts.append(add_box("leg", (0.08, 0.08, 0.22), (x, y, 0.11), mats["wood_dark"]))
+    parts.append(add_box("mattress", (0.92, 1.64, 0.16), (0, 0, 0.38), mats["plaster_light"]))
+    parts.append(add_box("blanket", (0.94, 1.04, 0.06), (0, -0.30, 0.475), mats["cloth"]))
+    parts.append(add_box("blanket_fold", (0.94, 0.16, 0.075), (0, 0.18, 0.48), mats["plaster_light"]))
+    parts.append(add_box("pillow", (0.56, 0.30, 0.12), (0, 0.64, 0.50), mats["plaster_light"]))
+    return parts
+
+
+def build_torche_murale(mats: Mats) -> list[bpy.types.Object]:
+    """Torche murale émissive (~2,4 cases de haut), accrochée au mur (+Y)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("wall_plate", (0.18, 0.06, 0.30), (0, 0.09, 1.92), mats["iron_dark"]))
+    parts.append(add_box("arm", (0.10, 0.32, 0.08), (0, -0.03, 1.96), mats["iron_dark"]))
+    parts.append(
+        add_cylinder(
+            "handle",
+            0.045,
+            0.55,
+            (0, -0.18, 1.78),
+            mats["wood_dark"],
+            vertices=8,
+            rotation=(-0.35, 0.0, 0.0),
+        )
+    )
+    parts.append(
+        add_cylinder(
+            "collar",
+            0.07,
+            0.06,
+            (0, -0.22, 1.99),
+            mats["metal"],
+            vertices=8,
+            rotation=(-0.35, 0.0, 0.0),
+        )
+    )
+    parts.append(
+        add_ico_sphere("ember", 0.075, (0, -0.275, 2.04), mats["ember"], subdivisions=1, scale=(1.2, 1.0, 0.7))
+    )
+    parts.append(add_cone("flame_base", 0.10, 0.18, (0, -0.275, 2.12), mats["flame"], vertices=7))
+    parts.append(
+        add_cone("flame_mid", 0.070, 0.22, (0, -0.270, 2.18), mats["flame_core"], vertices=6,
+                 rotation=(0.10, 0.0, 0.0))
+    )
+    parts.append(
+        add_cone("flame_tip", 0.036, 0.18, (0.01, -0.255, 2.28), mats["flame"], vertices=5,
+                 rotation=(-0.18, 0.0, 0.0))
+    )
+    parts.append(
+        add_cone("flame_side", 0.045, 0.14, (0.065, -0.245, 2.10), mats["flame"], vertices=5,
+                 rotation=(0.0, 0.45, 0.0))
+    )
+    return parts
+
+
+def build_chaine_murale(mats: Mats) -> list[bpy.types.Object]:
+    """Chaîne murale et anneau (~1,7 case de haut), fixée au mur (+Y)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("wall_plate", (0.16, 0.05, 0.22), (0, 0.06, 1.62), mats["iron_dark"]))
+    parts.append(
+        add_torus(
+            "top_ring",
+            0.085,
+            0.022,
+            (0, 0.02, 1.51),
+            mats["metal"],
+            major_segments=8,
+            minor_segments=4,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    for index in range(9):
+        z = 1.40 - index * 0.115
+        rotation = (math.pi * 0.5, 0.0, 0.0) if index % 2 == 0 else (0.0, math.pi * 0.5, 0.0)
+        parts.append(
+            add_torus(
+                "link",
+                0.075,
+                0.020,
+                (0, 0.02, z),
+                mats["iron_dark"],
+                major_segments=6,
+                minor_segments=4,
+                rotation=rotation,
+            )
+        )
+    parts.append(
+        add_torus(
+            "shackle",
+            0.105,
+            0.026,
+            (0, 0.02, 0.24),
+            mats["metal"],
+            major_segments=8,
+            minor_segments=4,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    return parts
+
+
+def build_sarcophage(mats: Mats) -> list[bpy.types.Object]:
+    """Sarcophage de pierre avec gisant (~1,3 x 0,8 case)."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (1.42, 0.94), (0, 0), mats["stone_dark"])
+    ]
+    parts.append(add_box("plinth", (1.16, 0.62, 0.10), (0, 0, 0.08), mats["stone_dark"]))
+    parts.append(add_box("base", (1.04, 0.52, 0.50), (0, 0, 0.38), mats["stone"]))
+    # Bandeaux sculptés.
+    for y in (-0.27, 0.27):
+        parts.append(add_box("band", (1.05, 0.025, 0.06), (0, y, 0.55), mats["stone_light"]))
+    parts.append(add_box("lid", (1.12, 0.58, 0.16), (0, 0, 0.71), mats["stone_light"]))
+    parts.append(add_box("lid_ridge", (1.00, 0.34, 0.08), (0, 0, 0.82), mats["stone"]))
+    # Gisant : tête + corps + mains.
+    parts.append(
+        add_ico_sphere(
+            "effigy_head", 0.10, (0, 0.16, 0.90), mats["stone_light"], subdivisions=1, scale=(0.9, 1.0, 0.9)
+        )
+    )
+    parts.append(add_box("effigy_body", (0.22, 0.52, 0.07), (0, -0.06, 0.88), mats["stone_light"]))
+    for x in (-0.14, 0.14):
+        parts.append(add_box("effigy_arm", (0.07, 0.30, 0.05), (x, -0.02, 0.905), mats["stone"]))
+    return parts
+
+
+def build_pile_os(mats: Mats) -> list[bpy.types.Object]:
+    """Pile d'os et de crânes (~1,3 x 1 case)."""
+    parts: list[bpy.types.Object] = [
+        _floor_patch("floor", (1.30, 1.00), (0, 0), mats["stone_dark"])
+    ]
+    bones = [
+        (-0.26, -0.10, 0.10, 0.55, 0.35),
+        (0.06, 0.12, 0.09, 0.62, -0.55),
+        (0.30, -0.20, 0.15, 0.48, 1.05),
+        (-0.06, -0.28, 0.20, 0.44, 0.15),
+        (0.12, 0.24, 0.26, 0.36, 1.35),
+    ]
+    for index, (x, y, z, length, angle) in enumerate(bones):
+        parts.append(
+            add_cylinder(
+                "bone",
+                0.034,
+                length,
+                (x, y, z),
+                mats["bone"],
+                vertices=6,
+                rotation=(math.pi * 0.5, 0.0, angle),
+            )
+        )
+        for sign in (-0.5, 0.5):
+            ex = x + math.sin(angle) * length * sign
+            ey = y - math.cos(angle) * length * sign
+            parts.append(
+                add_ico_sphere(
+                    "bone_end", 0.052, (ex, ey, z), mats["bone"], subdivisions=1, seed=70 + index
+                )
+            )
+    for index, (x, y, z) in enumerate(((-0.08, 0.08, 0.26), (0.22, -0.04, 0.22))):
+        parts.append(
+            add_ico_sphere(
+                "skull",
+                0.13,
+                (x, y, z),
+                mats["bone"],
+                subdivisions=1,
+                scale=(1.0, 0.86, 0.92),
+                jitter=0.012,
+                seed=90 + index,
+            )
+        )
+        parts.append(add_box("jaw", (0.14, 0.10, 0.06), (x, y - 0.10, z - 0.10), mats["bone_dark"]))
+        for dx in (-0.045, 0.045):
+            parts.append(
+                add_box("socket", (0.04, 0.03, 0.035), (x + dx, y - 0.10, z + 0.02), mats["iron_dark"])
+            )
+    return parts
+
+
+def build_herse(mats: Mats) -> list[bpy.types.Object]:
+    """Herse / grille en fer relevable (~2,2 cases de large, 2,4 de haut)."""
+    parts: list[bpy.types.Object] = [
+        add_box("threshold", (2.20, 0.42, 0.06), (0, 0, 0.03), mats["stone_dark"])
+    ]
+    parts.append(add_box("top_beam", (2.05, 0.20, 0.20), (0, 0, 2.32), mats["iron_dark"]))
+    parts.append(add_box("mid_beam", (1.98, 0.12, 0.09), (0, 0, 0.98), mats["metal"]))
+    for index in range(6):
+        x = -0.85 + index * 0.34
+        parts.append(add_cylinder("bar", 0.042, 1.96, (x, 0, 1.27), mats["iron_dark"], vertices=6))
+        parts.append(
+            add_cone(
+                "spike",
+                0.07,
+                0.24,
+                (x, 0, 0.23),
+                mats["metal"],
+                vertices=6,
+                rotation=(math.pi, 0.0, 0.0),
+            )
+        )
+        parts.append(add_box("bar_cap", (0.10, 0.10, 0.06), (x, 0, 2.20), mats["metal"]))
+    return parts
+
+
+def build_buisson(mats: Mats) -> list[bpy.types.Object]:
+    """Buisson touffu (~1,1 case) avec quelques fleurs."""
+    parts: list[bpy.types.Object] = [
+        add_ground_skirt("grass_skirt", (1.18, 1.08), mats["grass"], seed=61)
+    ]
+    clusters = [
+        (0.0, 0.0, 0.30, 0.42, "leaf"),
+        (0.24, -0.10, 0.24, 0.30, "leaf_light"),
+        (-0.24, 0.12, 0.23, 0.28, "leaf_dark"),
+        (0.02, 0.22, 0.22, 0.24, "leaf"),
+    ]
+    for index, (x, y, z, radius, material_key) in enumerate(clusters):
+        parts.append(
+            add_ico_sphere(
+                "bush",
+                radius,
+                (x, y, z),
+                mats[material_key],
+                subdivisions=1,
+                scale=(1.08, 1.0, 0.88),
+                jitter=0.06,
+                seed=120 + index,
+            )
+        )
+    flower_positions = [
+        (-0.16, -0.22, 0.52),
+        (0.14, -0.16, 0.60),
+        (0.28, 0.08, 0.42),
+        (-0.28, 0.18, 0.42),
+        (0.02, 0.25, 0.50),
+        (-0.06, 0.02, 0.68),
+    ]
+    for index, (x, y, z) in enumerate(flower_positions):
+        parts.append(
+            add_ico_sphere(
+                "flower",
+                0.038,
+                (x, y, z),
+                mats["plaster_light"] if index % 2 == 0 else mats["glow"],
+                subdivisions=1,
+                seed=140 + index,
+            )
+        )
+    return parts
+
+
+def build_enseigne(mats: Mats) -> list[bpy.types.Object]:
+    """Enseigne de taverne suspendue (~2,6 cases de haut), fixée au mur (+Y)."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_box("wall_plate", (0.18, 0.08, 0.62), (0, 0.14, 2.22), mats["iron_dark"]))
+    parts.append(add_box("arm", (0.10, 0.98, 0.10), (0, -0.26, 2.46), mats["iron_dark"]))
+    parts.append(
+        add_box("brace", (0.08, 0.42, 0.08), (0, 0.02, 2.34), mats["metal"], rotation=(0.7, 0.0, 0.0))
+    )
+    # Deux courtes chaînes.
+    for x in (-0.28, 0.28):
+        for index in range(3):
+            z = 2.36 - index * 0.10
+            rotation = (math.pi * 0.5, 0.0, 0.0) if index % 2 == 0 else (0.0, math.pi * 0.5, 0.0)
+            parts.append(
+                add_torus(
+                    "link",
+                    0.045,
+                    0.014,
+                    (x, -0.62, z),
+                    mats["metal"],
+                    major_segments=6,
+                    minor_segments=4,
+                    rotation=rotation,
+                )
+            )
+    # Panneau et cadre.
+    parts.append(add_box("board", (0.95, 0.09, 0.62), (0, -0.62, 1.82), mats["wood_light"]))
+    for z in (2.14, 1.50):
+        parts.append(add_box("board_frame", (1.00, 0.11, 0.07), (0, -0.62, z), mats["wood_dark"]))
+    for x in (-0.475, 0.475):
+        parts.append(add_box("board_frame", (0.07, 0.11, 0.62), (x, -0.62, 1.82), mats["wood_dark"]))
+    # Emblème peint : chope mousseuse.
+    parts.append(add_box("emblem_mug", (0.24, 0.02, 0.22), (0, -0.665, 1.80), mats["glow"]))
+    parts.append(
+        add_torus(
+            "emblem_handle",
+            0.065,
+            0.018,
+            (0.17, -0.665, 1.78),
+            mats["glow"],
+            major_segments=8,
+            minor_segments=4,
+            rotation=(math.pi * 0.5, 0.0, 0.0),
+        )
+    )
+    parts.append(add_box("emblem_foam", (0.27, 0.02, 0.07), (0, -0.665, 1.94), mats["plaster_light"]))
+    return parts
+
+
+# --------------------------------------------------------------------------- #
 # Declarations des assets
 # --------------------------------------------------------------------------- #
 
@@ -909,6 +1429,7 @@ class AssetSpec:
     description: str
     tags: tuple[str, ...] = field(default_factory=tuple)
     variants: tuple[Variant, ...] = field(default_factory=tuple)
+    anchor: str = "base"  # "base" (defaut) ou "wall" (objet mural)
 
 
 def asset_name(spec: AssetSpec, variant: Variant) -> str:
@@ -1107,6 +1628,93 @@ ASSETS: list[AssetSpec] = [
         "Botte de foin liee (~0,9 case), brins qui depassent.",
         ("campagne", "ferme", "decor"),
     ),
+    AssetSpec(
+        "table_tabourets",
+        "props",
+        build_table_tabourets,
+        "Table ronde de taverne avec trois tabourets, chope et bouteille (~1,7 case).",
+        ("taverne", "mobilier", "interieur"),
+    ),
+    AssetSpec(
+        "comptoir",
+        "props",
+        build_comptoir,
+        "Comptoir de taverne et arriere-bar a etageres, bouteilles et chopes (~2,3 cases).",
+        ("taverne", "commerce", "interieur"),
+    ),
+    AssetSpec(
+        "tonneau_couche",
+        "props",
+        build_tonneau_couche,
+        "Tonneau couche sur cales avec robinet (~1 case).",
+        ("taverne", "marchandise", "interieur"),
+    ),
+    AssetSpec(
+        "tapis",
+        "props",
+        build_tapis,
+        "Tapis de taverne a motif losange (~1,9 x 1,2 case), plaque plate opaque.",
+        ("taverne", "textile", "interieur"),
+    ),
+    AssetSpec(
+        "lit",
+        "props",
+        build_lit,
+        "Lit simple de taverne : bois, matelas, couverture et oreiller (~1,4 x 2 cases).",
+        ("taverne", "mobilier", "interieur"),
+    ),
+    AssetSpec(
+        "torche_murale",
+        "props",
+        build_torche_murale,
+        "Torche murale emissive : support fer, manche bois et flamme (~2,4 cases de haut).",
+        ("donjon", "eclairage", "interieur"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "chaine_murale",
+        "props",
+        build_chaine_murale,
+        "Chaine murale a maillons et anneau, accrochee au mur (~1,7 case de haut).",
+        ("donjon", "mobilier", "interieur"),
+        anchor="wall",
+    ),
+    AssetSpec(
+        "sarcophage",
+        "props",
+        build_sarcophage,
+        "Sarcophage de pierre avec gisant et bandeaux sculptes (~1,3 x 0,8 case).",
+        ("donjon", "funeraire", "interieur"),
+    ),
+    AssetSpec(
+        "pile_os",
+        "props",
+        build_pile_os,
+        "Pile d'os et de cranes low-poly (~1,3 x 1 case).",
+        ("donjon", "funeraire", "interieur"),
+    ),
+    AssetSpec(
+        "herse",
+        "buildings",
+        build_herse,
+        "Herse / grille en fer relevable, pointes vers le bas (~2,2 cases de large).",
+        ("donjon", "defense", "passage"),
+    ),
+    AssetSpec(
+        "buisson",
+        "vegetation",
+        build_buisson,
+        "Buisson touffu avec quelques fleurs (~1,1 case).",
+        ("nature", "decor", "exterieur"),
+    ),
+    AssetSpec(
+        "enseigne",
+        "props",
+        build_enseigne,
+        "Enseigne de taverne suspendue, potence fer et panneau peint (~2,6 cases de haut).",
+        ("taverne", "signalisation", "exterieur"),
+        anchor="wall",
+    ),
 ]
 
 
@@ -1176,14 +1784,14 @@ def main(argv: list[str]) -> int:
         try:
             reset_scene()
             mats = material_palette(
-                variant.palette, prefix=f"{name}_", emissive={"lamp": 1.1}
+                variant.palette, prefix=f"{name}_", emissive={"lamp": 1.1, "flame": 0.9, "flame_core": 1.6}
             )
             parts = spec.builder(mats)
-            obj = finalize_asset(parts, name)
+            obj = finalize_asset(parts, name, anchor=spec.anchor)
             if variant.scale != 1.0:
                 obj.scale = (variant.scale, variant.scale, variant.scale)
                 apply_transforms(obj)
-                normalize_asset(obj, name)
+                normalize_asset(obj, name, anchor=spec.anchor)
 
             # Detail 2.5D : subdivision legere (place pour les vertex colors),
             # AO + mottling cuits, contour encre "inverted hull".
@@ -1217,6 +1825,8 @@ def main(argv: list[str]) -> int:
                     f"{TRIANGLE_BUDGET}"
                 )
             dims = object_dimensions(objects)
+            mins, maxs = oq.object_bounds(objects)
+            height_above_floor = round(maxs.z, 3) if spec.anchor == "wall" else round(dims[2], 3)
             vertices = sum(len(item.data.vertices) for item in objects)
 
             category_dir_path = out_root / spec.category
@@ -1251,6 +1861,8 @@ def main(argv: list[str]) -> int:
                     ),
                     "tags": list(spec.tags),
                     "dimensions_cells": [round(d, 3) for d in dims],
+                    "height_above_floor": height_above_floor,
+                    "anchor": spec.anchor,
                     "triangles": triangles,
                     "triangles_base": triangles_base,
                     "vertices": vertices,

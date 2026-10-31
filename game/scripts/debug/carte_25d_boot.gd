@@ -66,6 +66,11 @@ func _on_open_map_requested(map_id: String) -> void:
 static func build_demo(md: Node) -> Dictionary:
 	if md == null:
 		return {}
+	# Repart d'un monde de démo propre : les captures/tests ne doivent pas
+	# empiler des copies de zones à chaque exécution.
+	for existing_variant in md.maps.duplicate():
+		if existing_variant is Dictionary and str((existing_variant as Dictionary).get("worldId", "")) == "demo-valbois":
+			md.delete_map(str((existing_variant as Dictionary).get("id", "")))
 	var map: Dictionary = md.create_complex_map("Démo 2.5D — objets 3D", "general", "local", 24, 16)
 	if map.is_empty():
 		return {}
@@ -115,6 +120,8 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "barriere", "x": 5.0, "y": 11.0, "rotation": 0.0, "w": 2.0, "h": 0.5},
 		{"name": "mur", "x": 11.0, "y": 11.2, "rotation": 0.0, "w": 2.0, "h": 0.5},
 		{"name": "mur_coin", "x": 13.0, "y": 11.2, "rotation": 0.0, "w": 1.0, "h": 1.0},
+		{"name": "enseigne", "x": 8.6, "y": 5.2, "rotation": 0.0, "w": 1.0, "h": 1.0},
+		{"name": "buisson", "x": 4.2, "y": 9.6, "rotation": 0.0, "w": 1.2, "h": 1.0},
 	]
 	var meshes: Array = []
 	for entry in placements:
@@ -174,6 +181,9 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "tonneau", "x": 8.0, "y": 8.5},
 				{"name": "banc", "x": 3.0, "y": 8.0},
 				{"name": "lanterne", "x": 6.0, "y": 4.0},
+				{"name": "enseigne", "x": 8.5, "y": 4.5},
+				{"name": "buisson", "x": 11.0, "y": 9.5},
+				{"name": "buisson", "x": 2.0, "y": 2.5},
 			],
 		},
 		{
@@ -184,25 +194,37 @@ static func build_demo(md: Node) -> Dictionary:
 				{"name": "rocher", "x": 5.0, "y": 8.0},
 				{"name": "arbre", "x": 9.0, "y": 9.0},
 				{"name": "botte_foin", "x": 2.5, "y": 6.0},
+				{"name": "buisson", "x": 2.0, "y": 2.0},
+				{"name": "buisson", "x": 7.0, "y": 10.0},
 			],
 		},
 		{
 			"title": "Taverne du Corbeau", "w": 10, "h": 8, "x": 39, "y": 0,
 			"meshes": [
-				{"name": "banc", "x": 3.0, "y": 3.0},
-				{"name": "banc", "x": 6.0, "y": 3.0},
-				{"name": "tonneau", "x": 2.0, "y": 5.0},
-				{"name": "lanterne", "x": 5.0, "y": 2.0},
-				{"name": "etal_marche", "x": 7.5, "y": 5.0},
+				{"name": "mur", "x": 1.5, "y": 0.0},
+				{"name": "mur", "x": 4.0, "y": 0.0},
+				{"name": "mur", "x": 6.5, "y": 0.0},
+				{"name": "mur_coin", "x": 9.0, "y": 0.0},
+				{"name": "table_tabourets", "x": 4.5, "y": 4.0},
+				{"name": "comptoir", "x": 7.8, "y": 1.6},
+				{"name": "tonneau_couche", "x": 1.4, "y": 6.6},
+				{"name": "tapis", "x": 2.6, "y": 3.2},
+				{"name": "lit", "x": 8.4, "y": 6.6},
+				{"name": "lanterne", "x": 4.5, "y": 1.2},
 			],
 		},
 		{
 			"title": "Donjon de Valbois", "w": 9, "h": 9, "x": 25, "y": 12,
 			"meshes": [
-				{"name": "mur", "x": 3.0, "y": 4.0},
-				{"name": "mur_coin", "x": 6.0, "y": 4.0},
-				{"name": "lanterne", "x": 4.5, "y": 2.0},
+				{"name": "mur", "x": 1.5, "y": 0.6},
+				{"name": "mur", "x": 4.0, "y": 0.6},
+				{"name": "mur", "x": 6.5, "y": 0.6},
+				{"name": "mur_coin", "x": 8.0, "y": 0.6},
+				{"name": "lanterne", "x": 4.5, "y": 1.5},
 				{"name": "rocher", "x": 7.0, "y": 7.0},
+				{"name": "sarcophage", "x": 4.0, "y": 4.5},
+				{"name": "pile_os", "x": 2.0, "y": 6.5},
+				{"name": "herse", "x": 4.5, "y": 7.6},
 			],
 		},
 	]
@@ -231,7 +253,8 @@ static func build_demo(md: Node) -> Dictionary:
 		var sub_meshes: Array = []
 		for m_variant in spec.get("meshes", []):
 			var m: Dictionary = m_variant
-			var path := str(by_name.get(str(m.get("name", "")).to_lower(), ""))
+			var lookup := str(m.get("name", "")).to_lower().replace("_", " ").replace("-", " ")
+			var path := str(by_name.get(lookup, ""))
 			if path.is_empty():
 				continue
 			sub_meshes.append({
@@ -271,7 +294,12 @@ static func build_demo(md: Node) -> Dictionary:
 	map = md.get_by_id(map_id)
 	md.preview_map_id = map_id
 
-	return {"map": map, "assets": assets, "cells": Vector2i(int(map.get("width", 24)), int(map.get("height", 16)))} 
+	return {
+		"map": map,
+		"assets": assets,
+		"world_maps": world_maps,
+		"cells": Vector2i(int(map.get("width", 24)), int(map.get("height", 16))),
+	} 
 
 ## Matières de sol de démonstration (0 herbe, 1 terre/chemin, 2 pierre/pavé).
 static func _demo_materials(w: int, h: int, style: String) -> Array:
