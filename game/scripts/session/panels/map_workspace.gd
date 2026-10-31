@@ -137,6 +137,7 @@ func _ready() -> void:
 
 [b]Déplacements[/b]
 • Glisser un pion vers un bord de carte change de zone.
+• Sorties cliquables en haut à gauche (fondu vers la zone voisine).
 • Boutons [b]Groupe[/b] (G) et [b]Monde[/b] (M) dans la barre.
 
 [b]Carte du monde[/b]
@@ -150,6 +151,7 @@ func _ready() -> void:
 • [b]1-9[/b] : changer de carte/zone.
 
 [b]Divers[/b]
+• [b]C[/b] : mini-carte (clic = recentrer la caméra).
 • [b]N[/b] : afficher/masquer les noms des figurines.
 • [b]H[/b] ou [b]Échap[/b] : fermer cette aide."""
 	_help_overlay.add_child(help_text)

@@ -336,7 +336,12 @@ func _update_status() -> void:
 	if not hover.is_empty():
 		extra += " · survol : %s (%d×%d)" % [
 			str(hover.get("title", "")), int(hover.get("w", 0)), int(hover.get("h", 0))]
-	_status_lbl.text = "%d zone(s) · molette = zoom · glisser = déplacer une zone · double-clic = ouvrir%s" % [zones.size(), extra]
+	var world_prefix := ""
+	var md = get_node_or_null("/root/MapData")
+	var world_id := _current_world_id()
+	if md != null and not world_id.is_empty():
+		world_prefix = "Monde : %s · " % str(md.get_world_title(world_id))
+	_status_lbl.text = "%s%d zone(s) · molette = zoom · glisser = déplacer une zone · double-clic = ouvrir%s" % [world_prefix, zones.size(), extra]
 
 # ===========================================================================
 # Actions
