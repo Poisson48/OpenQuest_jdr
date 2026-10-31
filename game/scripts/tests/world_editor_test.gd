@@ -280,11 +280,18 @@ func _run() -> void:
 			_assert("world_import_edges", str((first_edges.get("east", {}) as Dictionary).get("target", ""))
 				== str(imported_ids[1]))
 
-		# Suppression d'un monde depuis le sélecteur.
+		# Suppression d'un monde depuis le sélecteur (nettoie les liens orphelins).
+		var link_src: Dictionary = md.create_complex_map("Lien vers autre monde", "general", "local", 6, 6)
+		var link_src_id := str(link_src.get("id", ""))
+		_created_maps.append(link_src_id)
+		md.assign_map_to_world(link_src_id, "test-world", 60, 60)
+		md.set_zone_edge(link_src_id, "east", other_id)
 		panel._view_world_id = "other-world"
 		panel.refresh()
 		panel._apply_delete_world()
 		_assert("world_delete", md.get_by_id(other_id).is_empty())
+		var cleaned_edges: Dictionary = md.get_by_id(link_src_id).get("edges", {})
+		_assert("world_delete_cleans_links", cleaned_edges.is_empty())
 
 	editor.queue_free()
 	await process_frame

@@ -1349,6 +1349,35 @@ func delete_map(map_id: String) -> void:
 	if map_id.is_empty() or is_demo_map_id(map_id):
 		return
 	maps = maps.filter(func(m): return m.get("id", "") != map_id)
+	# Nettoie les références orphelines laissées par la carte supprimée.
+	for map_variant in maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		var edges: Dictionary = map.get("edges", {}) if map.get("edges") is Dictionary else {}
+		var changed := false
+		for side in edges.keys():
+			var edge = edges[side]
+			if edge is Dictionary and str((edge as Dictionary).get("target", "")) == map_id:
+				edges.erase(side)
+				changed = true
+		if changed:
+			map["edges"] = edges
+		var location_links = map.get("locationLinks", [])
+		if location_links is Array:
+			var kept: Array = []
+			for link_variant in location_links:
+				if link_variant is Dictionary and str((link_variant as Dictionary).get("targetMapId", "")) == map_id:
+					continue
+				kept.append(link_variant)
+			if kept.size() != (location_links as Array).size():
+				map["locationLinks"] = kept
+		for area_variant in map.get("areas", []):
+			if not area_variant is Dictionary:
+				continue
+			var area: Dictionary = area_variant
+			if str(area.get("targetMapId", "")) == map_id:
+				area["targetMapId"] = ""
 	save_maps()
 
 ## Redimensionne une carte complexe (façon Dofus : zones de tailles libres).
