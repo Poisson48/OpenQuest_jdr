@@ -169,6 +169,25 @@ func _draw() -> void:
 			draw_circle(rect.get_center(), 7.0, Color(1.0, 0.9, 0.5))
 			draw_circle(rect.get_center(), 3.0, Color(0.15, 0.12, 0.08))
 
+	# Pied de page : zone courante + légende.
+	var footer_top := size.y - 52.0
+	draw_rect(Rect2(0, footer_top, size.x, 52.0), Color(0.0, 0.0, 0.0, 0.45), true)
+	var md_footer = get_node_or_null("/root/MapData")
+	var current_title := ""
+	if md_footer != null:
+		current_title = str(md_footer.get_by_id(current_id).get("title", ""))
+	if not current_title.is_empty():
+		draw_string(font, Vector2(24, footer_top + 30.0),
+			"Vous êtes ici : %s" % current_title,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.9, 0.62))
+	var legend_x := size.x - 300.0
+	draw_rect(Rect2(legend_x, footer_top + 16.0, 14, 14), Color(0.28, 0.40, 0.24), true)
+	draw_string(font, Vector2(legend_x + 20, footer_top + 28.0), "Découverte",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.88, 0.85, 0.75))
+	draw_rect(Rect2(legend_x + 110, footer_top + 16.0, 14, 14), Color(0.12, 0.12, 0.14), true)
+	draw_string(font, Vector2(legend_x + 130, footer_top + 28.0), "Inconnue",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.68, 0.62))
+
 ## Mini-aperçu d'une zone : sols peints (matières) + points des bâtiments.
 func _draw_zone_content(zone: Dictionary, rect: Rect2, is_known: bool) -> void:
 	if not is_known:
