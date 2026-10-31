@@ -33,6 +33,14 @@ var _drag_start_screen := Vector2.ZERO
 var _drag_offset := Vector2.ZERO
 var _dragged := false
 var _has_fitted := false
+var current_id: String = ""
+
+var _rename_dialog: AcceptDialog
+var _rename_input: LineEdit
+var _delete_dialog: ConfirmationDialog
+var _zone_dialog: ConfirmationDialog
+var _zone_w_spin: SpinBox
+var _zone_h_spin: SpinBox
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -55,12 +63,15 @@ func _build_ui() -> void:
 	bar.add_theme_constant_override("separation", 4)
 	add_child(bar)
 
-	_button(bar, "＋ Zone", func(): create_zone())
+	_button(bar, "＋ Zone", func(): _open_create_zone())
 	_button(bar, "Relier les bords", func(): auto_link())
 	_button(bar, "Valider", func(): validate_world())
 	_button(bar, "Ouvrir", func(): open_selected())
+	_button(bar, "Renommer", func(): _open_rename())
+	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
+	_ensure_dialogs()
 
 	_status_lbl = Label.new()
 	_status_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -103,6 +114,7 @@ func refresh() -> void:
 		queue_redraw()
 		return
 	var world_id := _current_world_id()
+	current_id = _current_map_id()
 	for map_variant in md.maps:
 		if not map_variant is Dictionary:
 			continue
@@ -254,6 +266,107 @@ func show_status(text: String) -> void:
 		_status_lbl.text = text
 
 # ===========================================================================
+# Dialogues (création / renommage / suppression)
+# ===========================================================================
+
+func _ensure_dialogs() -> void:
+	if _rename_dialog != null:
+		return
+	_rename_dialog = AcceptDialog.new()
+	_rename_dialog.title = "Renommer la zone"
+	add_child(_rename_dialog)
+	var rename_box := VBoxContainer.new()
+	rename_box.custom_minimum_size = Vector2(340, 56)
+	_rename_dialog.add_child(rename_box)
+	_rename_input = LineEdit.new()
+	rename_box.add_child(_rename_input)
+	_rename_dialog.confirmed.connect(_apply_rename)
+
+	_delete_dialog = ConfirmationDialog.new()
+	_delete_dialog.title = "Supprimer la zone"
+	add_child(_delete_dialog)
+	_delete_dialog.confirmed.connect(_apply_delete)
+
+	_zone_dialog = ConfirmationDialog.new()
+	_zone_dialog.title = "Nouvelle zone"
+	add_child(_zone_dialog)
+	var zone_box := VBoxContainer.new()
+	zone_box.custom_minimum_size = Vector2(300, 90)
+	_zone_dialog.add_child(zone_box)
+	var size_row := HBoxContainer.new()
+	zone_box.add_child(size_row)
+	var w_label := Label.new()
+	w_label.text = "Largeur"
+	size_row.add_child(w_label)
+	_zone_w_spin = SpinBox.new()
+	_zone_w_spin.min_value = 3
+	_zone_w_spin.max_value = 96
+	_zone_w_spin.value = 12
+	size_row.add_child(_zone_w_spin)
+	var size_row2 := HBoxContainer.new()
+	zone_box.add_child(size_row2)
+	var h_label := Label.new()
+	h_label.text = "Hauteur"
+	size_row2.add_child(h_label)
+	_zone_h_spin = SpinBox.new()
+	_zone_h_spin.min_value = 3
+	_zone_h_spin.max_value = 96
+	_zone_h_spin.value = 9
+	size_row2.add_child(_zone_h_spin)
+	_zone_dialog.confirmed.connect(_apply_create_zone)
+
+func _open_create_zone() -> void:
+	_ensure_dialogs()
+	_zone_dialog.popup_centered(Vector2i(360, 180))
+
+func _apply_create_zone() -> void:
+	create_zone(int(_zone_w_spin.value), int(_zone_h_spin.value))
+
+func _open_rename() -> void:
+	_ensure_dialogs()
+	var zone := _zone_by_id(selected_id)
+	if zone.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	_rename_input.text = str(zone.get("title", ""))
+	_rename_dialog.popup_centered(Vector2i(420, 140))
+	_rename_input.grab_focus()
+
+func _apply_rename() -> void:
+	var zone := _zone_by_id(selected_id)
+	var md = get_node_or_null("/root/MapData")
+	if zone.is_empty() or md == null:
+		return
+	var new_title := _rename_input.text.strip_edges()
+	if new_title.is_empty():
+		return
+	var map: Dictionary = md.get_by_id(selected_id)
+	if map.is_empty():
+		return
+	map["title"] = new_title
+	md.update_map(map)
+	refresh()
+	show_status("Zone renommée : %s" % new_title)
+
+func _open_delete() -> void:
+	_ensure_dialogs()
+	var zone := _zone_by_id(selected_id)
+	if zone.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	_delete_dialog.dialog_text = "Supprimer la zone « %s » ?" % str(zone.get("title", ""))
+	_delete_dialog.popup_centered(Vector2i(420, 140))
+
+func _apply_delete() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or selected_id.is_empty():
+		return
+	md.delete_map(selected_id)
+	selected_id = ""
+	refresh()
+	show_status("Zone supprimée.")
+
+# ===========================================================================
 # Géométrie écran
 # ===========================================================================
 
@@ -314,6 +427,10 @@ func _draw() -> void:
 		draw_rect(rect, color, true)
 		draw_rect(rect, Color(0.95, 0.86, 0.55, 1.0) if selected else Color(0.10, 0.09, 0.07, 0.9),
 			false, 2.0 if selected else 1.0)
+		# Zone actuellement ouverte dans l'éditeur : liseré cyan + point.
+		if str(zone.get("id", "")) == current_id:
+			draw_rect(rect, Color(0.55, 0.85, 1.0, 0.9), false, 2.0)
+			draw_circle(rect.get_center(), 4.5, Color(0.55, 0.85, 1.0))
 		# Nom + taille (si assez de place).
 		if rect.size.x > 70.0 and rect.size.y > 32.0:
 			var font := get_theme_default_font()

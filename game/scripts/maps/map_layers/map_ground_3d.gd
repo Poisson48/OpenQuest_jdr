@@ -29,6 +29,8 @@ const MAX_MASK_SIDE := 1024
 ## Modes de sol (mêmes valeurs que `MapData.GROUND_*`).
 const GROUND_MODE_TERRAIN3D := "terrain3d"
 const GROUND_MODE_ILLUSTRATED := "illustrated"
+## Nombre de cases couvertes par une répétition de la texture de détail du sol.
+const TERRAIN_TILE_CELLS := 2.0
 ## Un tableau de hauteurs n'est « relief » que si une case dépasse ce seuil.
 const TERRAIN_RELIEF_EPSILON := 0.001
 ## Palette du terrain 3D (couleurs sRGB).
@@ -240,9 +242,10 @@ func _apply_day_material(texture: Texture2D, unshaded: bool) -> void:
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_mesh_instance.material_override = mat
 
-## Matériau du terrain 3D : éclairé, sans texture, rugosité 1. Les couleurs
-## viennent des vertex colors (herbe/terre/roche). La nuit, l'albédo est
-## simplement multiplié par une teinte sombre — le relief reste lisible.
+## Matériau du terrain 3D : éclairé, rugosité 1. Les couleurs viennent des
+## vertex colors (herbe/terre/roche) ; une texture de détail tuilable (si
+## livrée dans `game/assets/terrain/grass.png`) ajoute de la matière au sol.
+## La nuit, l'albédo est simplement multiplié par une teinte sombre.
 func _apply_terrain_material(night_mode: bool) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = TERRAIN_NIGHT_TINT if night_mode else Color.WHITE
@@ -253,8 +256,22 @@ func _apply_terrain_material(night_mode: bool) -> void:
 	mat.vertex_color_use_as_albedo = true
 	mat.vertex_color_is_srgb = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var detail := _load_terrain_detail_texture()
+	if detail != null:
+		mat.albedo_texture = detail
+		mat.texture_repeat = true
 	_mesh_instance.material_override = mat
+
+## Texture de détail du terrain (facultative) : bruit de sol peint, tuilé.
+func _load_terrain_detail_texture() -> Texture2D:
+	var path := "res://assets/terrain/grass.png"
+	if not (ResourceLoader.exists(path) or FileAccess.file_exists(ProjectSettings.globalize_path(path))):
+		return null
+	var res = load(path) if ResourceLoader.exists(path) else null
+	if res is Texture2D:
+		return res
+	return null
 
 func _apply_night_material(
 	day_tex: Texture2D,
@@ -425,8 +442,8 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 			var hv := heights[idx]
 			verts[idx] = Vector3(float(i) * cell_size, hv * cell_size, float(j) * cell_size)
 			uvs[idx] = Vector2(
-				float(i) / float(maxi(1, w)),
-				float(j) / float(maxi(1, h))
+				float(i) / TERRAIN_TILE_CELLS,
+				float(j) / TERRAIN_TILE_CELLS
 			)
 			var x0 := maxi(i - 1, 0)
 			var x1 := mini(i + 1, w)

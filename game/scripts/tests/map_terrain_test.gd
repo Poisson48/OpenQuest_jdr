@@ -345,7 +345,10 @@ func _test_ground_layer() -> void:
 		_assert("ground_terrain3d_lit",
 			mat.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL)
 		_assert("ground_terrain3d_roughness", is_equal_approx(mat.roughness, 1.0))
-		_assert("ground_terrain3d_no_texture", mat.albedo_texture == null)
+		_assert("ground_terrain3d_texture_optional",
+			mat.albedo_texture == null or mat.albedo_texture is Texture2D)
+		if mat.albedo_texture is Texture2D:
+			_assert("ground_terrain3d_texture_repeat", mat.texture_repeat)
 		_assert("ground_terrain3d_vertex_colors", mat.vertex_color_use_as_albedo)
 		_assert("ground_terrain3d_day_white", mat.albedo_color.is_equal_approx(Color.WHITE))
 	_assert("ground_terrain3d_no_shadow",
