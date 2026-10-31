@@ -13,6 +13,8 @@ class_name MapToken3D
 signal drag_finished(token_id: String, gx: float, gy: float)
 signal selected(token_id: String)
 
+const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
+
 ## Seuil sous lequel une case de relief est considérée comme plate.
 const TERRAIN_RELIEF_EPSILON := 0.001
 
@@ -24,6 +26,10 @@ var party: Array = []
 var selected_state: bool = false
 var diorama_mode: bool = false
 var pawn_mode: bool = false
+## Figurine 3D (GLB) utilisée en mode diorama/2.5D à la place de la découpe 2D.
+var figurine_asset: String = ""
+var _fig_aabb_acc := AABB()
+var _fig_aabb_has := false
 
 var _sprite: Sprite3D
 var _mesh: MeshInstance3D
@@ -141,6 +147,9 @@ func _build_visuals() -> void:
 	add_child(shape)
 
 func _build_diorama_visuals() -> void:
+	# Figurine 3D du kit (PNJ) : rendu volume à la place de la découpe 2D.
+	if not figurine_asset.is_empty() and _add_figurine_visuals():
+		return
 	# Ombre 3D discrète au sol (le perso lui-même est un calque 2D overlay).
 	_shadow = MeshInstance3D.new()
 	var shadow_mesh := CylinderMesh.new()
@@ -175,6 +184,90 @@ func set_pawn_mode(on: bool) -> void:
 	_sync_position()
 	if selected_state:
 		set_selected(true)
+
+## Choisit une figurine 3D (GLB) pour ce token en mode 2.5D/diorama.
+func set_figurine_asset(path: String) -> void:
+	if figurine_asset == path:
+		return
+	figurine_asset = path
+	_build_visuals()
+	_sync_position()
+	if selected_state:
+		set_selected(true)
+
+func has_figurine() -> bool:
+	return not figurine_asset.is_empty() and _cutout == null and _overlay_texture == null \
+		and get_child_count() > 0
+
+## Instancie la figurine, la met à l'échelle (≈1,15 case de haut), centrée sur la
+## case, avec socle coloré + ombre de contact + disque de sélection.
+func _add_figurine_visuals() -> bool:
+	var scene = AssetLibraryScript.instantiate_object3d_scene(figurine_asset)
+	if not (scene is Node3D):
+		return false
+	var fig: Node3D = scene
+	var aabb := _compute_node_aabb(fig)
+	var base_height := maxf(aabb.size.y, 0.01)
+	var factor := (cell_size * 1.15) / base_height
+	fig.scale = Vector3.ONE * factor
+	var center := aabb.get_center()
+	fig.position = Vector3(-center.x * factor, -aabb.position.y * factor, -center.z * factor)
+	add_child(fig)
+	# Socle coloré du joueur (identification).
+	var base := MeshInstance3D.new()
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = cell_size * 0.34
+	base_mesh.bottom_radius = cell_size * 0.36
+	base_mesh.height = cell_size * 0.05
+	base.mesh = base_mesh
+	base.position.y = cell_size * 0.025
+	var base_mat := StandardMaterial3D.new()
+	base_mat.albedo_color = _token_color()
+	base_mat.roughness = 0.6
+	base.material_override = base_mat
+	base.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(base)
+	# Ombre de contact.
+	_shadow = MeshInstance3D.new()
+	var shadow_mesh := CylinderMesh.new()
+	shadow_mesh.top_radius = cell_size * 0.32
+	shadow_mesh.bottom_radius = cell_size * 0.32
+	shadow_mesh.height = 0.018
+	_shadow.mesh = shadow_mesh
+	_shadow.position = Vector3(0, 0.01, 0)
+	var shadow_mat := StandardMaterial3D.new()
+	shadow_mat.albedo_color = Color(0, 0, 0, 0.4)
+	shadow_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shadow_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow_mat.render_priority = -40
+	_shadow.material_override = shadow_mat
+	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_shadow)
+	_add_selection_disc()
+	return true
+
+## AABB combinée d'un nœud 3D et de ses enfants MeshInstance3D.
+func _compute_node_aabb(node: Node3D) -> AABB:
+	_fig_aabb_has = false
+	_fig_aabb_acc = AABB()
+	_accumulate_aabb(node, Transform3D.IDENTITY)
+	return _fig_aabb_acc
+
+func _accumulate_aabb(node: Node3D, xform: Transform3D) -> void:
+	var local := xform * node.transform
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		var aabb: AABB = (node as MeshInstance3D).mesh.get_aabb()
+		for i in range(8):
+			var point := aabb.get_endpoint(i)
+			var world_point := local * point
+			if not _fig_aabb_has:
+				_fig_aabb_acc = AABB(world_point, Vector3.ZERO)
+				_fig_aabb_has = true
+			else:
+				_fig_aabb_acc = _fig_aabb_acc.expand(world_point)
+	for child in node.get_children():
+		if child is Node3D:
+			_accumulate_aabb(child as Node3D, local)
 
 ## Pion façon pièce d'échecs : profil de révolution (socle évasé, col,
 ## tête sphérique), verni à la couleur du joueur. Se pose / se soulève

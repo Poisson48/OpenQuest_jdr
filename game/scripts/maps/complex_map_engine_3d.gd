@@ -947,6 +947,17 @@ func _rebuild_layers() -> void:
 		node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
 		if table_view and node.has_method("set_pawn_mode"):
 			node.set_pawn_mode(true)
+		# En carte 2.5D, les membres sans portrait deviennent des figurines 3D.
+		if not table_view and not has_image and str(tok.get("kind", "")) == "member" \
+				and MapRenderStyleScript.is_map_25d(map_data) and node.has_method("set_figurine_asset"):
+			var figurines := [
+				"res://assets/objects3d/props/pnj_aventurier.glb",
+				"res://assets/objects3d/props/pnj_marchand.glb",
+				"res://assets/objects3d/props/pnj_garde.glb",
+			]
+			var key := str(tok.get("memberId", tok.get("label", "héros")))
+			var fig_index: int = abs(int(key.hash())) % figurines.size()
+			node.set_figurine_asset(figurines[fig_index])
 		if use_cutout and node.has_method("set_overlay_height"):
 			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
 			# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
