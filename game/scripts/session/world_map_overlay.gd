@@ -22,6 +22,7 @@ var discovered: Dictionary = {}
 var current_id: String = ""
 var zoom: float = 1.0
 var pan: Vector2 = Vector2.ZERO
+var hover_zone_id: String = ""
 var _has_fitted := false
 
 func _ready() -> void:
@@ -156,8 +157,10 @@ func _draw() -> void:
 		draw_rect(rect, color, true)
 		# Aperçu du contenu des zones découvertes (sols + bâtiments).
 		_draw_zone_content(zone, rect, is_known)
-		var border := Color(1.0, 0.88, 0.45, 1.0) if is_current else Color(0.08, 0.07, 0.06, 0.9)
-		draw_rect(rect, border, false, 3.0 if is_current else 1.0)
+		var is_hover := zone_id == hover_zone_id and not is_current
+		var border := Color(0.85, 0.93, 1.0, 0.95) if is_hover \
+			else (Color(1.0, 0.88, 0.45, 1.0) if is_current else Color(0.08, 0.07, 0.06, 0.9))
+		draw_rect(rect, border, false, 3.0 if is_current else (2.0 if is_hover else 1.0))
 		if rect.size.x > 70.0 and rect.size.y > 34.0:
 			if is_known:
 				draw_rect(Rect2(rect.position, Vector2(rect.size.x, 34.0)), Color(0.02, 0.02, 0.02, 0.45), true)
@@ -184,6 +187,20 @@ func _draw() -> void:
 		draw_string(font, Vector2(24, footer_top + 30.0),
 			"Vous êtes ici : %s" % current_title,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(1.0, 0.9, 0.62))
+	# Survol : détail de la zone sous le curseur.
+	var hover_zone := {}
+	for zone_variant in zones:
+		if str((zone_variant as Dictionary).get("id", "")) == hover_zone_id:
+			hover_zone = zone_variant
+			break
+	if not hover_zone.is_empty():
+		var hover_title := str(hover_zone.get("title", ""))
+		var hover_text := "Survol : %s (%d×%d)" % [
+			hover_title, int(hover_zone.get("w", 0)), int(hover_zone.get("h", 0))]
+		if not discovered.has(str(hover_zone.get("id", ""))):
+			hover_text = "Survol : zone inconnue"
+		draw_string(font, Vector2(24, footer_top + 14.0), hover_text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.9, 1.0, 0.9))
 	var legend_x := size.x - 300.0
 	draw_rect(Rect2(legend_x, footer_top + 16.0, 14, 14), Color(0.28, 0.40, 0.24), true)
 	draw_string(font, Vector2(legend_x + 20, footer_top + 28.0), "Découverte",
@@ -287,6 +304,17 @@ func _gui_input(event: InputEvent) -> void:
 			pan += motion.relative
 			queue_redraw()
 			accept_event()
+		else:
+			var hovered := _zone_at_screen(motion.position)
+			var new_hover := "" if hovered.is_empty() else str(hovered.get("id", ""))
+			if new_hover != hover_zone_id:
+				hover_zone_id = new_hover
+				queue_redraw()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT and not hover_zone_id.is_empty():
+		hover_zone_id = ""
+		queue_redraw()
 
 func _zone_at_screen(pos: Vector2) -> Dictionary:
 	for i in range(zones.size() - 1, -1, -1):

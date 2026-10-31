@@ -117,6 +117,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 
 - Touche **M** : carte du monde (zones découvertes, position courante, noms) ;
   clic sur une zone découverte = voyage rapide (bascule de carte active).
+- **Survol** d'une zone : liseré clair et détail « nom (taille) » dans le pied de page.
 - Transition par les bords (cf. 3.3) avec glissement de caméra.
 - Boussole / indicateur de sortie au survol des bords.
 - Le brouillard de monde masque les zones non découvertes ; découvre une zone en y entrant.
