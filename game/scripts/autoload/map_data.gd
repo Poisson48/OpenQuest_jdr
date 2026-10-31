@@ -1558,8 +1558,7 @@ func import_world_bundle(bundle: Dictionary, target_world_id: String = "") -> Di
 		return {}
 	var world_id := target_world_id.strip_edges()
 	if world_id.is_empty():
-		world_id = str(bundle.get("worldId", "")).strip_edges()
-	if world_id.is_empty():
+		# Cible omise : nouveau monde indépendant (ne pas réutiliser l'id source).
 		world_id = generate_id("world")
 	# Conserve le nom du monde cible s'il existe, sinon celui du bundle importé.
 	var target_exists := false

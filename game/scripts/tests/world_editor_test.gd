@@ -276,6 +276,12 @@ func _run() -> void:
 			_assert("world_import_new_ids", str(imported_ids[0]) != bundle_a_id
 				and str(imported_ids[1]) != bundle_b_id)
 			_assert("world_import_title", md.get_world_title("bundle-dst") == "Monde Source")
+			var imported_auto: Dictionary = md.import_world_bundle(bundle, "")
+			var auto_world := str(imported_auto.get("worldId", ""))
+			_assert("world_import_empty_new", not auto_world.is_empty()
+				and auto_world != "bundle-src" and auto_world != "bundle-dst")
+			for auto_id_variant in imported_auto.get("mapIds", []):
+				_created_maps.append(str(auto_id_variant))
 			var first_edges: Dictionary = first.get("edges", {})
 			_assert("world_import_edges", str((first_edges.get("east", {}) as Dictionary).get("target", ""))
 				== str(imported_ids[1]))
