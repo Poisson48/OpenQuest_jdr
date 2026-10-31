@@ -118,7 +118,7 @@ func _ready() -> void:
 	stage.add_child(help_center)
 	_help_overlay = PanelContainer.new()
 	_help_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_help_overlay.custom_minimum_size = Vector2(560, 520)
+	_help_overlay.custom_minimum_size = Vector2(560, 560)
 	var help_style := StyleBoxFlat.new()
 	help_style.bg_color = Color(0.04, 0.04, 0.05, 0.94)
 	help_style.border_color = Color(0.85, 0.72, 0.42, 0.8)
@@ -127,12 +127,17 @@ func _ready() -> void:
 	help_style.set_content_margin_all(16)
 	_help_overlay.add_theme_stylebox_override("panel", help_style)
 	help_center.add_child(_help_overlay)
+	var help_col := VBoxContainer.new()
+	help_col.add_theme_constant_override("separation", 6)
+	_help_overlay.add_child(help_col)
 	var help_text := RichTextLabel.new()
 	help_text.bbcode_enabled = true
 	help_text.scroll_active = true
 	help_text.fit_content = false
 	help_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	help_text.custom_minimum_size = Vector2(520, 480)
+	help_text.add_theme_font_size_override("normal_font_size", 13)
+	help_text.add_theme_font_size_override("bold_font_size", 14)
+	help_text.custom_minimum_size = Vector2(520, 470)
 	help_text.text = """[center][b]Aide de session[/b][/center]
 
 [b]Déplacements[/b]
@@ -155,7 +160,13 @@ func _ready() -> void:
 • [b]C[/b] : mini-carte (clic = recentrer la caméra).
 • [b]N[/b] : afficher/masquer les noms des figurines.
 • [b]H[/b] ou [b]Échap[/b] : fermer cette aide."""
-	_help_overlay.add_child(help_text)
+	help_col.add_child(help_text)
+	var help_close := Button.new()
+	help_close.text = "Fermer (H)"
+	help_close.custom_minimum_size = Vector2(0, 30)
+	help_close.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	help_close.pressed.connect(func(): _help_overlay.visible = false)
+	help_col.add_child(help_close)
 	_help_overlay.visible = false
 
 	# Mini-carte de la zone courante (coin bas-droit, touche C).
