@@ -78,7 +78,7 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - Dans l'éditeur, **Monde → ▶ Tester** : la session démarre sur le monde courant.
 - Touche **M** : carte du monde (zones découvertes, aperçus des sols/bâtiments,
   « Vous êtes ici », voyage rapide par clic).
-- **G** recentre la caméra sur le groupe, **F** recadre toute la carte.
+- **G** recentre la caméra sur le groupe (ou bouton **Groupe** dans la barre), **F** recadre toute la carte.
 - **1-9** bascule rapidement entre les cartes/onglets de zones.
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :
   fondu noir + nom de la zone.

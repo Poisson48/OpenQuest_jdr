@@ -11,6 +11,7 @@ signal exit_to_world_requested
 signal zoom_in_requested
 signal zoom_out_requested
 signal fit_requested
+signal focus_party_requested
 
 ## Taille de case de référence d'une table virtuelle : sert à traduire
 ## l'échelle mesurée en pourcentage compréhensible.
@@ -28,6 +29,7 @@ func _ready() -> void:
 	%BtnZoomOut.pressed.connect(func(): zoom_out_requested.emit())
 	%BtnZoomIn.pressed.connect(func(): zoom_in_requested.emit())
 	%BtnFit.pressed.connect(func(): fit_requested.emit())
+	%BtnGroup.pressed.connect(func(): focus_party_requested.emit())
 
 func set_tabs(maps: Array, active_id: String) -> void:
 	for child in _tabs.get_children():

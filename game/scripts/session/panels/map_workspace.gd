@@ -44,6 +44,7 @@ func _ready() -> void:
 	navigator.zoom_in_requested.connect(func(): stage.zoom_in())
 	navigator.zoom_out_requested.connect(func(): stage.zoom_out())
 	navigator.fit_requested.connect(func(): stage.fit())
+	navigator.focus_party_requested.connect(func(): _focus_party())
 
 	stage.cell_clicked.connect(_on_cell_clicked)
 	stage.grid_clicked.connect(_on_grid_clicked)
