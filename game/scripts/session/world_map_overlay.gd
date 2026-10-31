@@ -1,0 +1,214 @@
+extends Control
+
+## Carte du monde de session (façon Dofus) : affiche les zones du monde courant,
+## celles déjà découvertes et la zone active. Clic sur une zone découverte =
+## voyage rapide (bascule de carte active).
+##
+## Créée par `MapWorkspacePanel`, affichée/masquée avec `M`.
+
+signal zone_selected(map_id: String)
+
+const ZONE_COLORS := [
+	Color(0.28, 0.40, 0.24, 0.95),
+	Color(0.34, 0.30, 0.42, 0.95),
+	Color(0.42, 0.32, 0.24, 0.95),
+	Color(0.24, 0.36, 0.40, 0.95),
+	Color(0.40, 0.36, 0.22, 0.95),
+	Color(0.36, 0.26, 0.28, 0.95),
+]
+
+var zones: Array = []
+var discovered: Dictionary = {}
+var current_id: String = ""
+var zoom: float = 1.0
+var pan: Vector2 = Vector2.ZERO
+var _has_fitted := false
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	visible = false
+	resized.connect(func():
+		if not _has_fitted:
+			fit_view()
+		queue_redraw()
+	)
+	refresh()
+
+func refresh() -> void:
+	zones.clear()
+	var md = get_node_or_null("/root/MapData")
+	var gd = get_node_or_null("/root/GameData")
+	if md == null or gd == null:
+		queue_redraw()
+		return
+	current_id = str(gd.get_active_play_map_id())
+	if current_id.is_empty():
+		var ids: Array = gd.active_game.get("mapIds", []) if gd.active_game is Dictionary else []
+		if not ids.is_empty():
+			current_id = str(ids[0])
+	var current_map: Dictionary = md.get_by_id(current_id)
+	var world_id := str(current_map.get("worldId", ""))
+	if not current_id.is_empty():
+		gd.mark_world_zone_discovered(current_id)
+	discovered.clear()
+	for map_id_variant in gd.get_discovered_world_zones():
+		discovered[str(map_id_variant)] = true
+	for map_variant in md.maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("renderMode", "")) != "complex":
+			continue
+		if not world_id.is_empty() and str(map.get("worldId", "")) != world_id:
+			continue
+		if str(map.get("worldId", "")).is_empty():
+			continue
+		var w := int(map.get("zoneW", map.get("width", 0)))
+		var h := int(map.get("zoneH", map.get("height", 0)))
+		if w <= 0 or h <= 0:
+			continue
+		zones.append({
+			"id": str(map.get("id", "")),
+			"title": str(map.get("title", "Carte")),
+			"x": int(map.get("zoneX", 0)),
+			"y": int(map.get("zoneY", 0)),
+			"w": w,
+			"h": h,
+		})
+	zones.sort_custom(func(a, b):
+		if int(a.get("y", 0)) != int(b.get("y", 0)):
+			return int(a.get("y", 0)) < int(b.get("y", 0))
+		return int(a.get("x", 0)) < int(b.get("x", 0))
+	)
+	queue_redraw()
+
+# ===========================================================================
+# Géométrie
+# ===========================================================================
+
+func _px_per_cell() -> float:
+	return 12.0 * zoom
+
+func _world_to_screen(cell: Vector2) -> Vector2:
+	return pan + cell * _px_per_cell()
+
+func _screen_to_world(pos: Vector2) -> Vector2:
+	return (pos - pan) / maxf(0.001, _px_per_cell())
+
+func _zone_rect(zone: Dictionary) -> Rect2:
+	return Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
+		Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
+
+func _world_bounds() -> Rect2i:
+	if zones.is_empty():
+		return Rect2i()
+	var min_p := Vector2i(999999, 999999)
+	var max_p := Vector2i(-999999, -999999)
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		min_p.x = mini(min_p.x, int(zone.get("x", 0)))
+		min_p.y = mini(min_p.y, int(zone.get("y", 0)))
+		max_p.x = maxi(max_p.x, int(zone.get("x", 0)) + int(zone.get("w", 0)))
+		max_p.y = maxi(max_p.y, int(zone.get("y", 0)) + int(zone.get("h", 0)))
+	return Rect2i(min_p, max_p - min_p)
+
+func fit_view() -> void:
+	var bounds := _world_bounds()
+	if bounds.size.x <= 0 or bounds.size.y <= 0 or size.x < 50.0:
+		return
+	var area := size - Vector2(80, 140)
+	zoom = clampf(minf(area.x / (float(bounds.size.x) * 12.0),
+		area.y / (float(bounds.size.y) * 12.0)), 0.2, 3.0)
+	var center := (Vector2(bounds.position) + Vector2(bounds.size) * 0.5) * _px_per_cell()
+	pan = size * 0.5 - center
+	_has_fitted = true
+	queue_redraw()
+
+# ===========================================================================
+# Dessin
+# ===========================================================================
+
+func _draw() -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.04, 0.035, 0.03, 0.92), true)
+	var font := get_theme_default_font()
+	draw_string(font, Vector2(24, 36), "CARTE DU MONDE",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.98, 0.9, 0.66))
+	draw_string(font, Vector2(24, 58), "M / Échap : fermer · clic sur une zone découverte : y aller",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.8, 0.7, 0.8))
+
+	var bounds := _world_bounds()
+	if bounds.size.x > 0 and _px_per_cell() >= 7.0:
+		_draw_grid(bounds)
+
+	for i in range(zones.size()):
+		var zone: Dictionary = zones[i]
+		var rect := _zone_rect(zone)
+		var zone_id := str(zone.get("id", ""))
+		var is_known := discovered.has(zone_id)
+		var is_current := zone_id == current_id
+		var color: Color = ZONE_COLORS[i % ZONE_COLORS.size()] if is_known else Color(0.12, 0.12, 0.14, 0.95)
+		if is_current:
+			color = color.lightened(0.16)
+		draw_rect(rect, color, true)
+		var border := Color(1.0, 0.88, 0.45, 1.0) if is_current else Color(0.08, 0.07, 0.06, 0.9)
+		draw_rect(rect, border, false, 3.0 if is_current else 1.0)
+		if rect.size.x > 70.0 and rect.size.y > 34.0:
+			var title := str(zone.get("title", "Carte")) if is_known else "?"
+			var dims := "%d×%d" % [int(zone.get("w", 0)), int(zone.get("h", 0))]
+			var text_col := Color(1.0, 0.95, 0.82) if is_known else Color(0.55, 0.52, 0.48)
+			draw_string(font, rect.position + Vector2(8, 20), title,
+				HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 16.0, 14, text_col)
+			if is_known:
+				draw_string(font, rect.position + Vector2(8, 36), dims,
+					HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 16.0, 11, Color(0.9, 0.86, 0.74, 0.8))
+		if is_current:
+			draw_circle(rect.get_center(), 7.0, Color(1.0, 0.9, 0.5))
+			draw_circle(rect.get_center(), 3.0, Color(0.15, 0.12, 0.08))
+
+func _draw_grid(bounds: Rect2i) -> void:
+	var top_left := _world_to_screen(Vector2(bounds.position))
+	var bottom_right := _world_to_screen(Vector2(bounds.position) + Vector2(bounds.size))
+	var color := Color(1, 1, 1, 0.05)
+	var step := _px_per_cell() * 5.0
+	var x := top_left.x
+	while x <= bottom_right.x:
+		draw_line(Vector2(x, top_left.y), Vector2(x, bottom_right.y), color, 1.0)
+		x += step
+	var y := top_left.y
+	while y <= bottom_right.y:
+		draw_line(Vector2(top_left.x, y), Vector2(bottom_right.x, y), color, 1.0)
+		y += step
+
+# ===========================================================================
+# Interaction
+# ===========================================================================
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			zoom = clampf(zoom * 1.12, 0.2, 4.0)
+			queue_redraw()
+			accept_event()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			zoom = clampf(zoom / 1.12, 0.2, 4.0)
+			queue_redraw()
+			accept_event()
+		elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			var hit := _zone_at_screen(mb.position)
+			if not hit.is_empty() and discovered.has(str(hit.get("id", ""))):
+				zone_selected.emit(str(hit.get("id", "")))
+			accept_event()
+	elif event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		if motion.button_mask & (MOUSE_BUTTON_MASK_MIDDLE | MOUSE_BUTTON_MASK_RIGHT):
+			pan += motion.relative
+			queue_redraw()
+			accept_event()
+
+func _zone_at_screen(pos: Vector2) -> Dictionary:
+	for i in range(zones.size() - 1, -1, -1):
+		var zone: Dictionary = zones[i]
+		if _zone_rect(zone).has_point(pos):
+			return zone
+	return {}

@@ -11,6 +11,7 @@ signal speaker_focus_requested(npc_name: String)
 signal notice_requested(text: String)
 
 const WorldNavigationScript := preload("res://scripts/session/world_navigation.gd")
+const WorldMapOverlayScript := preload("res://scripts/session/world_map_overlay.gd")
 
 @onready var navigator: MapNavigatorPanel = %MapNavigator
 @onready var stage: MapStagePanel = %MapStage
@@ -29,6 +30,7 @@ var _gm_view: bool = true
 var _immersive: bool = false
 var _pending_nav: Dictionary = {}
 var _inspect_hint: String = ""
+var _world_map: Control
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -64,6 +66,47 @@ func _ready() -> void:
 
 	%BtnEmptyHub.pressed.connect(_on_empty_hub_pressed)
 	%BtnEmptyMaps.pressed.connect(_on_empty_maps_pressed)
+
+	# Carte du monde de session (touche M) : superposée à toute la fenêtre.
+	_world_map = WorldMapOverlayScript.new()
+	get_tree().root.add_child(_world_map)
+	_world_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_world_map.visible = false
+	_world_map.zone_selected.connect(_on_world_zone_selected)
+	tree_exiting.connect(func():
+		if _world_map != null and is_instance_valid(_world_map):
+			_world_map.queue_free()
+	)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventKey:
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_M:
+		_toggle_world_map()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_ESCAPE and _world_map != null and _world_map.visible:
+		_world_map.visible = false
+		get_viewport().set_input_as_handled()
+
+func _toggle_world_map() -> void:
+	if _world_map == null:
+		return
+	_world_map.visible = not _world_map.visible
+	if _world_map.visible:
+		_world_map.refresh()
+		_world_map.fit_view()
+
+func _on_world_zone_selected(map_id: String) -> void:
+	if map_id.is_empty():
+		return
+	if GameData.enter_world_zone(map_id):
+		_active_map_id = map_id
+		if _world_map != null:
+			_world_map.visible = false
+		refresh()
 
 # ---------------------------------------------------------------------------
 # API
@@ -114,6 +157,8 @@ func refresh() -> void:
 		_show_empty_state(true)
 		return
 	var map_id := str(display_map.get("id", ""))
+	if not str(display_map.get("worldId", "")).is_empty():
+		GameData.mark_world_zone_discovered(map_id)
 
 	_explore_mode = not str(display_map.get("backgroundImage", "")).strip_edges().is_empty()
 	_mode = MapMode.COMPLEX if _explore_mode else GameData.get_effective_render_mode(active_id)

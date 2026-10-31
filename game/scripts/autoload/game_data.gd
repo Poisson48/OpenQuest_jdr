@@ -3268,6 +3268,52 @@ func transition_map_edge(target_map_id: String, token_id: String, position: Vect
 	nav["localMapId"] = target_map_id
 	active_game["mapNavigation"] = nav
 	save_map_play_and_sync()
+	mark_world_zone_discovered(target_map_id)
+	return true
+
+## Marque une zone du monde comme découverte (carte du monde / découverte).
+func mark_world_zone_discovered(map_id: String) -> void:
+	if active_game.is_empty() or map_id.is_empty():
+		return
+	ensure_map_play_state()
+	var nav: Dictionary = active_game.get("mapNavigation", {})
+	if not nav.has("discoveredZones") or typeof(nav["discoveredZones"]) != TYPE_ARRAY:
+		nav["discoveredZones"] = []
+	var discovered: Array = nav["discoveredZones"]
+	if discovered.has(map_id):
+		return
+	discovered.append(map_id)
+	nav["discoveredZones"] = discovered
+	active_game["mapNavigation"] = nav
+	save_active_game()
+
+## Zones découvertes du monde courant.
+func get_discovered_world_zones() -> Array:
+	if active_game.is_empty():
+		return []
+	var nav: Dictionary = active_game.get("mapNavigation", {})
+	var discovered = nav.get("discoveredZones", [])
+	return (discovered as Array).duplicate() if discovered is Array else []
+
+## Bascule directe sur une zone du monde (carte du monde / voyage rapide).
+## Ne déplace aucun token : la navigation change de carte active.
+func enter_world_zone(map_id: String) -> bool:
+	if active_game.is_empty() or map_id.is_empty():
+		return false
+	if MapData.get_by_id(map_id).is_empty():
+		return false
+	ensure_map_play_state()
+	var ids: Array = active_game.get("mapIds", [])
+	if not ids.has(map_id):
+		ids.append(map_id)
+	active_game["mapIds"] = ids
+	active_game["currentMapId"] = map_id
+	var nav: Dictionary = active_game.get("mapNavigation", {})
+	nav["view"] = "local"
+	nav["localMapId"] = map_id
+	active_game["mapNavigation"] = nav
+	save_map_play_and_sync()
+	mark_world_zone_discovered(map_id)
 	return true
 
 func remove_map_token_at(map_id: String, x: int, y: int) -> void:

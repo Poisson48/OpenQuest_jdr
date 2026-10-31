@@ -112,10 +112,14 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 
 ## 5. Session : vue monde et transitions
 
-- Touche **M** : carte du monde (zones découvertes, position courante, noms).
+- Touche **M** : carte du monde (zones découvertes, position courante, noms) ;
+  clic sur une zone découverte = voyage rapide (bascule de carte active).
 - Transition par les bords (cf. 3.3) avec glissement de caméra.
 - Boussole / indicateur de sortie au survol des bords.
 - Le brouillard de monde masque les zones non découvertes ; découvre une zone en y entrant.
+- Implémentation : `WorldNavigation` (bords), `GameData.transition_map_edge`
+  (transfert du token), `GameData.enter_world_zone` + `world_map_overlay.gd`
+  (carte du monde, découverte persistante `discoveredZones`, voyage rapide).
 
 ---
 
@@ -139,7 +143,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 | **D1** | Modèle monde + zones | `WorldZones` (zones, positions, tailles, edges, auto-voisinage, mirror, validation) + `worldId` sur les cartes | `world_zones_test` PASS |
 | **D2** | Éditeur vue monde | onglet **Monde** : plan des zones, création, déplacement, auto-liens, validation, ouverture | `world_editor_test` PASS + capture `carte_25d_monde.png` |
 | **D3** | Transitions session | `WorldNavigation` (résolution de bord, offset, miroir) + `GameData.transition_map_edge` (transfert du token, bascule de carte active, sauvegarde/sync) + déclenchement au drag de token (`map_workspace._try_edge_transition`) | `world_navigation_test`, `world_edge_session_test` PASS |
-| **D4** | Carte du monde + découverte | touche M, brouillard de monde, boussole | à faire |
+| **D4** | Carte du monde + découverte | touche **M** en session : plan des zones, zone courante, zones découvertes, voyage rapide, brouillard de monde (`discoveredZones`) | `world_map_test` PASS |
 | **D5** | Démo Valbois multi-zones | 3 zones de démo livrées (village 24×16, place 14×12, forêt 12×12) ; à étendre | partiel |
 | **D6** | Qualité artistique | assets/rendu au niveau Dofus (itération Blender + décors peints), UI polish | à faire |
 
