@@ -274,9 +274,14 @@ func _add_figurine_visuals() -> bool:
 
 ## Respiration / balancement léger des figurines pour qu'elles paraissent vivantes.
 func _process(delta: float) -> void:
+	_idle_time += delta
+	if _selection_ring != null and selected_state:
+		var pulse := 1.0 + sin(_idle_time * 3.0) * 0.06
+		_selection_ring.scale = Vector3(pulse, 1.0, pulse)
+	elif _selection_ring != null:
+		_selection_ring.scale = Vector3.ONE
 	if _fig_root == null or _dragging:
 		return
-	_idle_time += delta
 	var t := _idle_time * 1.8 + _idle_phase
 	_fig_root.position.y = _fig_base_position.y + sin(t) * cell_size * 0.012
 	_fig_root.rotation_degrees.y = _fig_base_rotation_y + sin(t * 0.55) * 1.8
