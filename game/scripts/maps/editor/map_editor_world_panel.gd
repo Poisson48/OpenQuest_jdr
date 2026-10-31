@@ -32,6 +32,7 @@ var _world_opt: OptionButton
 var _view_world_id: String = ""
 var _world_title_dialog: AcceptDialog
 var _world_title_input: LineEdit
+var _delete_world_dialog: ConfirmationDialog
 var _drag_active := false
 var _drag_zone_id := ""
 var _drag_start_screen := Vector2.ZERO
@@ -229,6 +230,8 @@ func _sync_world_selector(md: Node) -> void:
 		_world_opt.add_separator()
 		_world_opt.add_item("＋ Nouveau monde")
 		_world_opt.set_item_metadata(_world_opt.item_count - 1, "__new__")
+		_world_opt.add_item("Supprimer ce monde…")
+		_world_opt.set_item_metadata(_world_opt.item_count - 1, "__delete__")
 	_world_opt.set_block_signals(false)
 
 func _open_world_title() -> void:
@@ -259,6 +262,9 @@ func _on_world_selected(index: int) -> void:
 	if world_id == "__new__":
 		_create_new_world()
 		return
+	if world_id == "__delete__":
+		_open_delete_world()
+		return
 	if world_id.is_empty() or world_id == _view_world_id:
 		return
 	_view_world_id = world_id
@@ -277,6 +283,36 @@ func _create_new_world() -> void:
 	create_zone(12, 9, "Zone de départ", "empty")
 	fit_view()
 	show_status("Nouveau monde créé : %s." % _view_world_id)
+
+func _open_delete_world() -> void:
+	_ensure_dialogs()
+	var world_id := _current_world_id()
+	if world_id.is_empty() or zones.is_empty():
+		show_status("Aucun monde à supprimer.")
+		return
+	var md = get_node_or_null("/root/MapData")
+	var title := str(md.get_world_title(world_id)) if md != null else world_id
+	_delete_world_dialog.dialog_text = "Supprimer le monde « %s » et ses %d zone(s) ? Cette action est définitive." % [
+		title, zones.size()]
+	_delete_world_dialog.popup_centered(Vector2i(500, 170))
+
+func _apply_delete_world() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var world_id := _current_world_id()
+	var deleted := 0
+	for map_variant in md.maps.duplicate():
+		if not map_variant is Dictionary:
+			continue
+		if str((map_variant as Dictionary).get("worldId", "")) == world_id:
+			md.delete_map(str((map_variant as Dictionary).get("id", "")))
+			deleted += 1
+	_view_world_id = ""
+	selected_id = ""
+	refresh()
+	fit_view()
+	show_status("Monde supprimé (%d zone(s))." % deleted)
 
 ## Monde courant : monde sélectionné dans la liste, sinon celui de la carte.
 func _current_world_id() -> String:
@@ -730,6 +766,13 @@ func _ensure_dialogs() -> void:
 	_world_title_input.placeholder_text = "ex. Royaume de Valbois"
 	title_box.add_child(_world_title_input)
 	_world_title_dialog.confirmed.connect(_apply_world_title)
+
+	_delete_world_dialog = ConfirmationDialog.new()
+	_delete_world_dialog.title = "Supprimer le monde"
+	_delete_world_dialog.ok_button_text = "Supprimer"
+	_delete_world_dialog.cancel_button_text = "Annuler"
+	add_child(_delete_world_dialog)
+	_delete_world_dialog.confirmed.connect(_apply_delete_world)
 
 func _open_create_zone() -> void:
 	_ensure_dialogs()

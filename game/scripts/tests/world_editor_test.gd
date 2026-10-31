@@ -280,6 +280,12 @@ func _run() -> void:
 			_assert("world_import_edges", str((first_edges.get("east", {}) as Dictionary).get("target", ""))
 				== str(imported_ids[1]))
 
+		# Suppression d'un monde depuis le sélecteur.
+		panel._view_world_id = "other-world"
+		panel.refresh()
+		panel._apply_delete_world()
+		_assert("world_delete", md.get_by_id(other_id).is_empty())
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:

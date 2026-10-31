@@ -164,7 +164,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Sélecteur de monde** (en tête de la barre) : bascule l'affichage entre les
   différents mondes existants (avec leur **nom lisible** et leur nombre de zones),
   ou **＋ Nouveau monde** pour démarrer un monde de zéro (première zone créée
-  automatiquement). **Nommer…** renomme le monde courant.
+  automatiquement). **Nommer…** renomme le monde courant ; **Supprimer ce
+  monde…** le retire avec toutes ses zones (confirmation).
 - **＋ Zone** : crée une carte 2.5D (terrain 3D) et la pose sous le monde, avec
   un **nom libre**, une **taille** largeur × hauteur et un **thème de départ**
   (Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer, **Lac**) qui pré-peint
