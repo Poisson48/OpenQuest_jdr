@@ -211,7 +211,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 |--------|-------|--------|--------------|
 | Navigation | 👆 Sélection | `V` | Clic : sélectionner · glisser dans le vide : rectangle de sélection · glisser un élément : déplacer |
 | Navigation | ✋ Navigation | `H` | Clic-glisser : déplacer la vue (aussi : clic milieu, ou `Espace` maintenu) |
-| Placer | 🧍 Token | `1` | Pose un token joueur/PNJ (taille et couleur réglables) |
+| Placer | 🧍 Token | `1` | Pose un token **Joueur / PNJ / Monstre** (taille, couleur) ; un PNJ peut porter un **dialogue** affiché en session |
 | Placer | 📍 Marqueur | `2` | Pose un marqueur narratif (PNJ, indice, danger, ville…) |
 | Placer | 🔥 Effet | `3` | Pose un effet de particules (feu, fumée, magie, pluie) |
 | Placer | ⭕ Zone ronde | `4` | Pose une zone circulaire (sort, piège, aura) |

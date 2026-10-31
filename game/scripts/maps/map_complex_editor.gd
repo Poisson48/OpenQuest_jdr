@@ -47,6 +47,8 @@ var _effect_preset: String = "fire"
 var _marker_type: String = "npc"
 var _member_index: int = 0
 var _token_label: String = ""
+var _token_kind: String = "member"
+var _token_dialogue: String = ""
 var _token_size: float = 1.0
 var _zone_radius: float = 1.5
 var _zone_label: String = "Zone"
@@ -1241,16 +1243,21 @@ func _place_pose_element(grid: Vector2) -> void:
 func _create_token(grid: Vector2) -> void:
 	var label := _token_label
 	if label.is_empty():
-		label = "Token %d" % (doc.count_of_kind(DocumentScript.KIND_TOKEN) + 1)
-	var color: String = str(MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()])
-	var emoji: String = str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[_member_index % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()])
-	var portrait := _default_token_portrait()
+		var prefix := "Token"
+		if _token_kind == "npc":
+			prefix = "PNJ"
+		elif _token_kind == "monster":
+			prefix = "Monstre"
+		label = "%s %d" % [prefix, doc.count_of_kind(DocumentScript.KIND_TOKEN) + 1]
+	var color: String = str(MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]) \
+		if _token_kind == "member" else ("#d9b45a" if _token_kind == "npc" else "#b3513f")
+	var emoji: String = str(MapData.MEMBER_PLAYER_EMOJIS_GENERAL[_member_index % MapData.MEMBER_PLAYER_EMOJIS_GENERAL.size()]) \
+		if _token_kind == "member" else ("🧑" if _token_kind == "npc" else "👹")
+	var portrait := _default_token_portrait() if _token_kind == "member" else ""
 	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": _token_size, "h": _token_size,
-		"tokenKind": "member",
-		"memberId": "editor-mock-%d" % _member_index,
-		"memberIndex": _member_index,
+		"tokenKind": _token_kind,
 		"label": label,
 		"emoji": emoji,
 		"color": color,
@@ -1258,6 +1265,12 @@ func _create_token(grid: Vector2) -> void:
 		"scale": maxf(_token_size, 1.0),
 		"layer": 4,
 	}, DocumentScript.KIND_TOKEN, "Token")
+	var elem: Dictionary = doc.get_element(id)
+	if _token_kind == "member":
+		elem["memberId"] = "editor-mock-%d" % _member_index
+		elem["memberIndex"] = _member_index
+	elif _token_kind == "npc" and not _token_dialogue.is_empty():
+		elem["dialogue"] = _token_dialogue
 	doc.select_only(id)
 
 func _default_token_portrait() -> String:
@@ -3311,6 +3324,29 @@ func _rebuild_tool_options() -> void:
 	if _tool == ToolsScript.TOKEN:
 		_spin(_hbox(_tool_options), "Taille", 0.5, 6.0, _token_size, 0.5, func(v): _token_size = v)
 		_line_row(_hbox(_tool_options), "Nom", _token_label, func(text): _token_label = text)
+		var kind_col := VBoxContainer.new()
+		kind_col.add_theme_constant_override("separation", 1)
+		kind_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_hbox(_tool_options).add_child(kind_col)
+		var kind_lbl := Label.new()
+		kind_lbl.text = "Type"
+		kind_lbl.add_theme_font_size_override("font_size", 10)
+		kind_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		kind_col.add_child(kind_lbl)
+		var kind_opt := OptionButton.new()
+		for kind_entry in [["member", "Joueur"], ["npc", "PNJ"], ["monster", "Monstre"]]:
+			var idx := kind_opt.item_count
+			kind_opt.add_item(str(kind_entry[1]), idx)
+			kind_opt.set_item_metadata(idx, str(kind_entry[0]))
+			if str(kind_entry[0]) == _token_kind:
+				kind_opt.select(idx)
+		kind_opt.item_selected.connect(func(index: int):
+			_token_kind = str(kind_opt.get_item_metadata(index))
+			_rebuild_tool_options()
+		)
+		kind_col.add_child(kind_opt)
+		if _token_kind == "npc":
+			_line_row(_hbox(_tool_options), "Dialogue", _token_dialogue, func(text): _token_dialogue = text)
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
