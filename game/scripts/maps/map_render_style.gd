@@ -75,7 +75,7 @@ const CONFIGS := {
 	VTT: {
 		"perspective": false,
 		"fov": 38.0,
-		"tilt": -72.0,
+		"tilt": -90.0,
 		"shadows": true,
 		"litProps": true,
 		"volumetricWalls": true,
