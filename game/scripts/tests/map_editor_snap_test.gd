@@ -158,6 +158,29 @@ func _run() -> void:
 	_assert("resize_keeps_proportions", absf(dims_after.x / dims_before.x - dims_after.z / dims_before.z) < 0.05)
 	editor._handle_state.clear()
 
+	# Construction d'un mur 3D modulaire le long d'un tracé.
+	var wall_asset := "res://assets/objects3d/buildings/mur.glb"
+	var walls_before := _meshes_with_asset(editor, wall_asset).size()
+	editor._create_mesh_wall_chain(Vector2(2.0, 2.0), Vector2(8.0, 2.0))
+	await process_frame
+	var walls_after := _meshes_with_asset(editor, wall_asset)
+	_assert("mesh_wall_chain_count", walls_after.size() > walls_before)
+	if walls_after.size() > walls_before:
+		var first_wall: Dictionary = walls_after[walls_before]
+		var first_display: Dictionary = first_wall.get("display", {})
+		_assert("mesh_wall_chain_rotation", absf(float(first_display.get("rotation", 0.0))) < 1.0)
+		_assert("mesh_wall_chain_follows", bool(first_wall.get("followTerrain", false)))
+	# Tracé vertical : rotation à 90°.
+	var walls_before_v := walls_after.size()
+	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
+	await process_frame
+	var walls_v := _meshes_with_asset(editor, wall_asset)
+	_assert("mesh_wall_chain_vertical", walls_v.size() > walls_before_v)
+	if walls_v.size() > walls_before_v:
+		var vert_display: Dictionary = walls_v[walls_before_v].get("display", {})
+		_assert("mesh_wall_chain_vertical_rotation",
+			absf(float(vert_display.get("rotation", 0.0)) - 90.0) < 1.0)
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():

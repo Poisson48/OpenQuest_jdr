@@ -72,6 +72,10 @@ Outils terrain :
 - **Échelle** : champ dans les options pour le prochain objet, ou dans
   l'inspecteur pour la sélection (uniforme X/Y/Z). La poignée de coin
   redimensionne aussi en conservant les proportions.
+- **Outil 🏗 Mur 3D** : glisse un tracé pour construire une **rangée de murs
+  modulaires** (`mur.glb`) orientés et alignés au terrain ; les façades (porte,
+  fenêtre, auvent) peuvent ensuite s'aimanter dessus. Base de construction libre
+  façon Sims.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

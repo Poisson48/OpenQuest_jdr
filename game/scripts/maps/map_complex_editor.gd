@@ -1186,7 +1186,7 @@ func _constrain_axis(from: Vector2, to: Vector2) -> Vector2:
 	return Vector2(from.x, to.y)
 
 func _drag_preview_mode() -> String:
-	if _tool == ToolsScript.WALL or _tool == ToolsScript.MEASURE:
+	if _tool == ToolsScript.WALL or _tool == ToolsScript.MESH_WALL or _tool == ToolsScript.MEASURE:
 		return "line"
 	return "rect"
 
@@ -1202,6 +1202,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_platform(from, to)
 	elif _tool == ToolsScript.WALL:
 		_create_wall(from, to)
+	elif _tool == ToolsScript.MESH_WALL:
+		_create_mesh_wall_chain(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1225,7 +1227,6 @@ func _finish_draw(to: Vector2) -> void:
 
 func _snap(v: Vector2) -> Vector2:
 	return ToolsScript.snap_vector(v, _snap_mode)
-
 func _in_bounds(grid: Vector2) -> bool:
 	var w := float(doc.map_data.get("width", 16))
 	var h := float(doc.map_data.get("height", 12))
@@ -1398,6 +1399,38 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 		"display": {"rotation": rad_to_deg(delta.angle())},
 	}, DocumentScript.KIND_WALL, "Mur")
 	doc.select_only(id)
+
+## Construction « Sims » : une rangée de murs 3D modulaires le long du tracé.
+## Les segments suivent l'angle du trait et s'adaptent au terrain.
+func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
+	var delta := to - from
+	var total := delta.length()
+	if total < 0.5:
+		_set_status("Tracé de mur trop court.")
+		return
+	var asset := "res://assets/objects3d/buildings/mur.glb"
+	var bounds := _mesh_bounds_cells(asset, 1.0)
+	var segment_len := maxf(1.0, bounds.x)
+	var depth := maxf(0.3, bounds.z)
+	var rotation := rad_to_deg(atan2(delta.y, delta.x))
+	var count := maxi(1, int(round(total / segment_len)))
+	var ids: Array = []
+	doc.begin_transaction()
+	for index in range(count):
+		var t := (float(index) + 0.5) / float(count)
+		var pos := from + delta * t
+		var id: String = doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": segment_len, "h": depth,
+			"asset": asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Mur 3D", "layer": 1,
+			"display": {"rotation": rotation, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Mur 3D")
+		ids.append(id)
+	doc.set_selection(ids)
+	doc.commit_transaction()
+	_set_status("Mur 3D : %d segment(s) de %.2f case(s)." % [count, segment_len])
 
 ## Pose un décor à l'échelle de son asset : une maison garde ses proportions,
 ## on ne se retrouve pas avec une charrette carrée.
@@ -3432,6 +3465,8 @@ func _rebuild_tool_options() -> void:
 		kind_col.add_child(kind_opt)
 		if _token_kind == "npc":
 			_line_row(_hbox(_tool_options), "Dialogue", _token_dialogue, func(text): _token_dialogue = text)
+	elif _tool == ToolsScript.MESH_WALL:
+		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:

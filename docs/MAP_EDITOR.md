@@ -221,7 +221,8 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | ▭ Zone rect. | `5` | Trace une zone rectangulaire au glisser |
 | Placer | ⬡ Zone libre | `6` | Clics successifs = sommets · `Entrée` ou clic droit ferme le polygone |
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
-| Placer | 🧱 Mur | `8` | Trace un mur 3D qui projette de vraies ombres (`Maj` : contraint à l'axe) |
+| Placer | 🧱 Mur | `8` | Trace un mur de plateau (occultation, vue VTT) |
+| Placer | 🏗 Mur 3D | — | Clic-glisser : construis une **rangée de murs 3D modulaires** (`mur.glb`) orientés le long du tracé, alignés au terrain — base de construction « Sims » |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
 | Placer | 🧊 Objet 3D | `O` | Pose un mesh 3D (GLB exporté de Blender) : bâtiment, tour, pont, rocher. `R` : pivoter · échelle dans les options. |
 | Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |

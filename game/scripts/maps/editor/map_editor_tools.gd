@@ -16,6 +16,7 @@ const ZONE_RECT := "zone_rect"
 const ZONE_POLY := "zone_poly"
 const PLATFORM := "platform"
 const WALL := "wall"
+const MESH_WALL := "mesh_wall"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -36,7 +37,7 @@ const MESH := "mesh"
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MEASURE, PLATFORM, AREA]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, MEASURE, PLATFORM, AREA]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -83,6 +84,10 @@ const DEFS := [
 	{
 		"id": WALL, "icon": "🧱", "label": "Mur", "shortcut": "8", "group": "place",
 		"hint": "Clic-glisser : tracer un mur. Maj : contraindre à l'horizontale/verticale.",
+	},
+	{
+		"id": MESH_WALL, "icon": "🏗", "label": "Mur 3D", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser : construire une rangée de murs 3D modulaires (mur.glb), orientée le long du tracé.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",
