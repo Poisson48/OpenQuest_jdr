@@ -259,8 +259,10 @@ func _run() -> void:
 		md.assign_map_to_world(bundle_a_id, "bundle-src", 0, 0)
 		md.assign_map_to_world(bundle_b_id, "bundle-src", 11, 0)
 		md.set_zone_edge(bundle_a_id, "east", bundle_b_id)
+		md.set_world_title("bundle-src", "Monde Source")
 		var bundle: Dictionary = md.export_world_bundle("bundle-src")
 		_assert("world_export_zones", (bundle.get("zones", []) as Array).size() == 2)
+		_assert("world_export_title", str(bundle.get("worldTitle", "")) == "Monde Source")
 		var imported: Dictionary = md.import_world_bundle(bundle, "bundle-dst")
 		var imported_ids: Array = imported.get("mapIds", [])
 		_assert("world_import_count", imported_ids.size() == 2)
@@ -273,6 +275,7 @@ func _run() -> void:
 				and str(second.get("worldId", "")) == "bundle-dst")
 			_assert("world_import_new_ids", str(imported_ids[0]) != bundle_a_id
 				and str(imported_ids[1]) != bundle_b_id)
+			_assert("world_import_title", md.get_world_title("bundle-dst") == "Monde Source")
 			var first_edges: Dictionary = first.get("edges", {})
 			_assert("world_import_edges", str((first_edges.get("east", {}) as Dictionary).get("target", ""))
 				== str(imported_ids[1]))

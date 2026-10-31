@@ -188,8 +188,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Assigner…** : rattache une carte existante (hors monde) comme nouvelle zone
   du monde courant.
 - **Exporter… / Importer…** : exporte le monde complet (toutes ses zones + leurs
-  liens) en JSON, ou réimporte un bundle comme zones du monde courant (ids
-  régénérés, liens internes remappés).
+  liens, avec son nom) en JSON, ou réimporte un bundle comme zones du monde
+  courant (ids régénérés, liens internes remappés, nom conservé).
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
 - **⤢ Plein écran** : affiche la vue Monde sur tout l'éditeur (Échap ou
   « Réduire » pour revenir à l'onglet).

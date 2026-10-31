@@ -1516,6 +1516,7 @@ func export_world_bundle(world_id: String) -> Dictionary:
 	return {
 		"version": 1,
 		"worldId": world_id,
+		"worldTitle": get_world_title(world_id),
 		"exportsAt": Time.get_unix_time_from_system(),
 		"zones": zone_maps,
 	}
@@ -1531,6 +1532,13 @@ func import_world_bundle(bundle: Dictionary, target_world_id: String = "") -> Di
 		world_id = str(bundle.get("worldId", "")).strip_edges()
 	if world_id.is_empty():
 		world_id = generate_id("world")
+	# Conserve le nom du monde cible s'il existe, sinon celui du bundle importé.
+	var target_exists := false
+	for map_variant in maps:
+		if map_variant is Dictionary and str((map_variant as Dictionary).get("worldId", "")) == world_id:
+			target_exists = true
+			break
+	var world_title := get_world_title(world_id) if target_exists else str(bundle.get("worldTitle", "")).strip_edges()
 	var id_map: Dictionary = {}
 	var pending: Array = []
 	for zone_variant in source_zones:
@@ -1542,6 +1550,8 @@ func import_world_bundle(bundle: Dictionary, target_world_id: String = "") -> Di
 		var new_id: String = generate_id("map")
 		copy["id"] = new_id
 		copy["worldId"] = world_id
+		if not world_title.is_empty():
+			copy["worldTitle"] = world_title
 		copy["edges"] = {}
 		if old_id.is_empty():
 			old_id = new_id
