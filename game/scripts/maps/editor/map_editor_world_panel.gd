@@ -776,6 +776,7 @@ func _draw() -> void:
 	var bounds: Rect2i = WorldZonesScript.world_bounds(zones)
 	if bounds.size.x > 0 and _px_per_cell() >= 6.0:
 		_draw_grid(bounds)
+	# 1) Fonds + contenus des zones.
 	for i in range(zones.size()):
 		var zone: Dictionary = zones[i]
 		var rect := Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
@@ -788,14 +789,18 @@ func _draw() -> void:
 		_draw_zone_content(zone, rect)
 		draw_rect(rect, Color(0.95, 0.86, 0.55, 1.0) if selected else Color(0.10, 0.09, 0.07, 0.9),
 			false, 2.0 if selected else 1.0)
-		# Zone actuellement ouverte dans l'éditeur : liseré cyan + point.
 		if str(zone.get("id", "")) == current_id:
 			draw_rect(rect, Color(0.55, 0.85, 1.0, 0.9), false, 2.0)
 			draw_circle(rect.get_center(), 4.5, Color(0.55, 0.85, 1.0))
-		# Survol : liseré clair.
 		if str(zone.get("id", "")) == hover_zone_id and not selected:
 			draw_rect(rect, Color(0.85, 0.93, 1.0, 0.9), false, 1.5)
-		# Nom + taille (si assez de place).
+	# 2) Liens entre zones (au-dessus des fonds, sous les libellés).
+	_draw_connections()
+	# 3) Libellés + points d'accroche.
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		var rect := Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
+			Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
 		if rect.size.x > 70.0 and rect.size.y > 32.0:
 			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 32.0)), Color(0.02, 0.02, 0.02, 0.5), true)
 			var font := get_theme_default_font()
@@ -867,6 +872,61 @@ func _material_color(material: int) -> Color:
 			return Color(0.55, 0.52, 0.46)
 		_:
 			return Color(0.33, 0.45, 0.25)
+
+## Point d'accroche d'un bord de zone (décalé de 6 px vers l'extérieur).
+func _edge_marker_point(zone: Dictionary, side: String) -> Vector2:
+	var rect := Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
+		Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
+	match side:
+		"north":
+			return rect.position + Vector2(rect.size.x * 0.5, -6)
+		"south":
+			return rect.position + Vector2(rect.size.x * 0.5, rect.size.y + 6)
+		"east":
+			return rect.position + Vector2(rect.size.x + 6, rect.size.y * 0.5)
+		"west":
+			return rect.position + Vector2(-6, rect.size.y * 0.5)
+	return rect.get_center()
+
+func _opposite_side(side: String) -> String:
+	match side:
+		"north": return "south"
+		"south": return "north"
+		"east": return "west"
+		"west": return "east"
+	return ""
+
+## Trace les liens entre zones sur le plan (ligne + flèche vers la zone voisine).
+func _draw_connections() -> void:
+	var seen: Dictionary = {}
+	var color := Color(0.98, 0.82, 0.35, 0.42)
+	var arrow_color := Color(0.98, 0.82, 0.35, 0.8)
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		var zone_id := str(zone.get("id", ""))
+		var edges: Dictionary = zone.get("edges", {}) if zone.get("edges") is Dictionary else {}
+		for side in ["north", "south", "east", "west"]:
+			var edge: Dictionary = edges.get(side, {}) if edges.get(side) is Dictionary else {}
+			var target_id := str(edge.get("target", ""))
+			if target_id.is_empty():
+				continue
+			var reverse_key := "%s|%s" % [target_id, _opposite_side(side)]
+			if seen.has(reverse_key):
+				continue
+			seen["%s|%s" % [zone_id, side]] = true
+			var target_zone := _zone_by_id(target_id)
+			if target_zone.is_empty():
+				continue
+			var from := _edge_marker_point(zone, side)
+			var to := _edge_marker_point(target_zone, _opposite_side(side))
+			if from.distance_to(to) < 2.0:
+				continue
+			draw_line(from, to, color, 1.5)
+			var dir := (to - from).normalized()
+			var normal := Vector2(-dir.y, dir.x)
+			draw_colored_polygon(PackedVector2Array([
+				to, to - dir * 7.0 + normal * 4.0, to - dir * 7.0 - normal * 4.0,
+			]), arrow_color)
 
 func _draw_grid(bounds: Rect2i) -> void:
 	var top_left := _world_to_screen(Vector2(bounds.position))

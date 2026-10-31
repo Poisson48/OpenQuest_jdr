@@ -169,6 +169,8 @@ peuvent avoir des **tailles différentes**). Voir
   zones sont cliquables : un clic ouvre l'édition du lien de ce bord, un
   **clic droit** sur un bord déjà lié propose de retirer le lien.
 - **Survol** d'une zone : liseré clair + détail dans la ligne d'état.
+- Les **liens entre zones** sont tracés sur le plan (ligne dorée + flèche vers la
+  zone voisine).
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
