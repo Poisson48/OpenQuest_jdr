@@ -83,6 +83,8 @@ Outils terrain :
   Appentis**.
 - **Outil ▦ Dallage** : glisse un rectangle à l'intérieur : sol au choix
   (**pierre, terre, herbe, sable, neige**), nivellement optionnel.
+- **Outil 🚪 Porte 3D** : clique sur un mur 3D ; le mur est remplacé par deux
+  montants laissant une ouverture, et une porte à auvent est insérée.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

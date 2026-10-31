@@ -179,6 +179,18 @@ func _run() -> void:
 	var tall_wall: Dictionary = tall_walls[tall_walls.size() - 1]
 	_assert("mesh_wall_height", is_equal_approx(float(tall_wall.get("sizeY", 0.0)), 2.2))
 	editor._wall_height = 1.3
+
+	# Porte 3D : ouverture dans un mur (deux montants + porte).
+	editor._create_mesh_wall_chain(Vector2(12.0, 10.0), Vector2(17.0, 10.0))
+	await process_frame
+	var door_path_ui := "res://assets/objects3d/buildings/porte_auvent.glb"
+	var ui_wall_count := _meshes_with_asset(editor, wall_asset).size()
+	var ui_door_count := _meshes_with_asset(editor, door_path_ui).size()
+	var target_wall: Dictionary = _meshes_with_asset(editor, wall_asset)[ui_wall_count - 1]
+	editor._insert_door(Vector2(float(target_wall.get("x", 0.0)), float(target_wall.get("y", 0.0))))
+	await process_frame
+	_assert("mesh_door_opening", _meshes_with_asset(editor, wall_asset).size() == ui_wall_count + 1)
+	_assert("mesh_door_created", _meshes_with_asset(editor, door_path_ui).size() == ui_door_count + 1)
 	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame

@@ -1259,6 +1259,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		return
 	if _tool == ToolsScript.TOKEN:
 		_create_token(grid)
+	elif _tool == ToolsScript.DOOR_3D:
+		_insert_door(grid)
 	elif _tool == ToolsScript.MARKER:
 		_create_marker(grid)
 	elif _tool == ToolsScript.EFFECT:
@@ -1476,7 +1478,80 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	_set_status("Pièce 3D construite : 4 murs (angles par recouvrement).")
 
-## Couvre un rectangle avec des tuiles de toit 2 pans à la hauteur `_roof_height`.
+## Insère une porte dans un mur 3D : le segment est remplacé par deux montants
+## qui laissent une ouverture, puis la porte est posée dans le passage.
+func _insert_door(grid: Vector2) -> void:
+	var wall: Dictionary = {}
+	var best := 2.5
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var distance := center.distance_to(grid)
+		if distance < best:
+			best = distance
+			wall = elem
+	if wall.is_empty():
+		_set_status("Porte 3D : cliquez près d'un mur 3D.")
+		return
+	var display: Dictionary = wall.get("display", {}) if wall.get("display") is Dictionary else {}
+	var rotation := float(display.get("rotation", 0.0))
+	var wall_asset := str(wall.get("asset", ""))
+	var natural := _mesh_bounds_cells(wall_asset, 1.0)
+	var length := float(wall.get("sizeX", 0.0))
+	if length <= 0.0:
+		length = natural.x
+	var height := float(wall.get("sizeY", 0.0))
+	if height <= 0.0:
+		height = natural.y
+	var depth := float(wall.get("sizeZ", 0.0))
+	if depth <= 0.0:
+		depth = natural.z
+	var door_asset := "res://assets/objects3d/buildings/porte_auvent.glb"
+	var door_bounds := _mesh_bounds_cells(door_asset, 1.0)
+	var gap := maxf(1.0, door_bounds.x)
+	if length < gap + 0.6:
+		_set_status("Porte 3D : mur trop court pour une ouverture.")
+		return
+	var center := Vector2(float(wall.get("x", grid.x)), float(wall.get("y", grid.y)))
+	var rad := deg_to_rad(rotation)
+	var along := Vector2(cos(rad), sin(rad))
+	var front := Vector2(-sin(rad), cos(rad))
+	var piece_len := (length - gap) * 0.5
+	var wall_id := str(wall.get("id", ""))
+	var follow := bool(wall.get("followTerrain", true))
+	var elevation := float(wall.get("elevation", 0.0))
+	var layer := int(wall.get("layer", 1))
+	doc.begin_transaction()
+	doc.remove_element(wall_id)
+	for side in [-1.0, 1.0]:
+		var pos := center + along * (float(side) * (gap * 0.5 + piece_len * 0.5))
+		doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": piece_len, "h": depth,
+			"sizeX": piece_len, "sizeY": height, "sizeZ": depth,
+			"asset": wall_asset, "elevation": elevation,
+			"followTerrain": follow, "tiltToTerrain": false,
+			"label": "Mur 3D", "layer": layer,
+			"display": {"rotation": rotation, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Mur 3D")
+	var door_id: String = doc.add_element({
+		"x": center.x + front.x * 0.02, "y": center.y + front.y * 0.02,
+		"w": gap, "h": depth,
+		"sizeX": door_bounds.x,
+		"sizeY": minf(door_bounds.y, height * 0.82),
+		"sizeZ": door_bounds.z,
+		"asset": door_asset, "elevation": elevation,
+		"followTerrain": follow, "tiltToTerrain": false,
+		"label": "Porte à auvent", "layer": layer,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Porte")
+	doc.select_only(door_id)
+	doc.commit_transaction()
+	_set_status("Porte 3D insérée : ouverture %.2f, deux montants." % gap)
 func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
