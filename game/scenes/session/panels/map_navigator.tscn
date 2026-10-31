@@ -73,8 +73,16 @@ text = "Cadrer"
 
 [node name="BtnGroup" type="Button" parent="Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
+custom_minimum_size = Vector2(38, 34)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Recentrer sur le groupe (G)"
-text = "Groupe"
+text = "👥"
+
+[node name="BtnWorld" type="Button" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(38, 34)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Carte du monde (M)"
+text = "🌍"
