@@ -38,11 +38,12 @@ Tous les scripts sont **offline** : aucune texture importée, aucun télécharge
 aucun asset externe. Les objets sont procéduraux, et les textures de sol sont
 générées par du bruit périodique (numpy + Pillow).
 
-Le pipeline couvre désormais le **kit v5** (relief, forêt, berges, eau), le
-**kit v4** (bâtiments variés, détails de toit, figurines PNJ), le **kit v3**
-(intérieur de taverne, donjon, petits décors), le **kit enrichi v2** (murs,
-mobilier urbain, étal de marché, charrette, foin) et les **textures de sol
-tuilables** (herbe, terre/chemin, pavé de pierre).
+Le pipeline couvre désormais le **kit v6** (figurines de personnages et
+créatures), le **kit v5** (relief, forêt, berges, eau), le **kit v4** (bâtiments
+variés, détails de toit, figurines PNJ), le **kit v3** (intérieur de taverne,
+donjon, petits décors), le **kit enrichi v2** (murs, mobilier urbain, étal de
+marché, charrette, foin) et les **textures de sol tuilables** (herbe,
+terre/chemin, pavé de pierre).
 
 ---
 
@@ -52,7 +53,7 @@ tuilables** (herbe, terre/chemin, pavé de pierre).
 tools/blender/
 ├── oq_common.py            # helpers partagés (scène, matériaux, primitives,
 │                           #   normalisation, vertex colors, contour, export, rendu)
-├── build_prototypes.py     # génère les 56 modèles + variantes (GLB + vignettes)
+├── build_prototypes.py     # génère les 63 modèles + variantes (GLB + vignettes)
 ├── export_blend.py         # CLI générique : .blend d'artiste -> GLB + vignette
 ├── verify_glb.py           # contrôle qualité GLB + vignettes (reimport Blender)
 ├── make_terrain_textures.py # textures de sol 512² seamless (numpy + Pillow)
@@ -66,7 +67,8 @@ game/assets/objects3d/
 ├── _planche_assets2.png    # planche v2 (historique)
 ├── _planche_assets3.png    # planche v3 (historique)
 ├── _planche_assets4.png    # planche v4 (historique)
-├── _planche_assets5.png    # planche courante v5 (sols + 61 objets)
+├── _planche_assets5.png    # planche v5 (historique)
+├── _planche_assets6.png    # planche courante v6 (sols + 68 objets)
 ├── buildings/              # maison*, tour*, mur, mur_coin, herse, forge, chapelle,
 │                           #   grange, ecurie, maison_etage, manoir, tour_guet_bois,
 │                           #   marche_couvert, toit_lucarne
@@ -74,7 +76,9 @@ game/assets/objects3d/
 │                           #   tonneau, lanterne, banc, panneau, charrette, botte_foin,
 │                           #   table_tabourets, comptoir, tonneau_couche, tapis, lit,
 │                           #   torche_murale, chaine_murale, sarcophage, pile_os, enseigne,
-│                           #   fontaine, puits_couvert, pnj_aventurier, pnj_marchand, pnj_garde
+│                           #   fontaine, puits_couvert, pnj_aventurier, pnj_archere, pnj_mage,
+│                           #   pnj_voleuse, pnj_pretresse, pnj_garde, pnj_marchand,
+│                           #   pnj_villageois, pnj_gobelin, pnj_squelette
 ├── vegetation/             # arbre, arbre_automne, buisson, arbre_majestueux,
 │                           #   haie, bosquet, roseaux, nenuphars
 └── terrain/                # rocher, falaise, gros_rocher
@@ -98,7 +102,7 @@ game/assets/terrain/
 | **Origine** | **centre de la base**, base posée à `z = 0` (sol) |
 | **Objets muraux** | origine au **pied du mur** (`z = 0`, mur en `+Y`) : géométrie suspendue au-dessus du sol (torche, chaîne, enseigne) |
 | **Élément de toit** | `toit_lucarne` : origine à la **base du toit** (`z = 0`), pas de dalle, à poser au sommet d'un bâtiment |
-| **Figurines PNJ** | socle rond discret (`anchor="base"`), pas de jupe : utilisables en intérieur comme en extérieur |
+| **Figurines** | socle rond discret (`anchor="base"`), pas de jupe : utilisables en intérieur comme en extérieur ; tags `class:...` / `creature:...` |
 | **Objets d'eau** | `ponton`, `barque`, `nenuphars` : pas de jupe, origine au niveau de l'eau (`z = 0`) |
 | **Axes Blender** | `+Z` = haut, face avant de l'objet vers `-Y` |
 | **Axes glTF/Godot** | export `export_yup=True` : `+Y` = haut, face avant vers **`+Z`** |
@@ -395,6 +399,36 @@ Notes :
 * **barque** creuse (coque, bau, bancs, rames) ; **nénuphars** plats sans alpha ;
 * **bannière** non émissive, drapée sur mât avec emblème peint.
 
+### 5.5 Kit v6 (10 figurines) — personnages et créatures
+
+Sixième passe : remplacer le choix par hash entre 3 PNJ par une vraie variété
+lisible (classes + créatures), utilisable comme props ou tokens de session.
+Toutes les figurines font ~1 case de large, socle rond sans jupe, visage peint,
+et portent un tag `class:...` ou `creature:...` dans le manifeste.
+
+| Asset | Tags | Dimensions (cases) | Tris (mesh+contour) | Description |
+|---|---|---|---|---|
+| `pnj_aventurier` | class:aventurier | 0.86 × 0.70 × 1.14 | 1 016 | Épée, bouclier, cape, sac à dos |
+| `pnj_archere` | class:archere | 0.70 × 0.70 × 1.24 | 1 072 | Arc, carquois et flèches, capuche |
+| `pnj_mage` | class:mage | 0.83 × 0.70 × 1.80 | 1 284 | Robe, chapeau pointu, bâton à orbe, barbe |
+| `pnj_voleuse` | class:voleuse | 0.70 × 0.70 × 1.00 | 792 | Capuche, écharpe, deux dagues |
+| `pnj_pretresse` | class:pretresse | 0.70 × 0.70 × 1.39 | 1 232 | Robe longue, cape, symbole sacré, diadème |
+| `pnj_garde` | class:garde | 0.85 × 0.70 × 2.01 | 900 | Armure, casque à plumet, hallebarde |
+| `pnj_marchand` | class:marchand | 0.84 × 0.70 × 1.60 | 1 120 | Chapeau large, sac, bâton |
+| `pnj_villageois` | class:villageois | 0.81 × 0.70 × 1.05 | 1 016 | Tunique, tablier, seau |
+| `pnj_gobelin` | creature:gobelin | 0.62 × 0.62 × 0.86 | 716 | Petit, vert, grandes oreilles, dague |
+| `pnj_squelette` | creature:squelette | 0.68 × 0.66 × 1.19 | 1 096 | Ossature, crâne, épée rouillée |
+
+Notes :
+
+* les 3 noms historiques (`pnj_aventurier`, `pnj_marchand`, `pnj_garde`) sont
+  **conservés** (compatibilité du code de démo) mais enrichis et re-taggés ;
+* les tokens peuvent filtrer le manifeste sur `class:` / `creature:` pour
+  choisir une figurine par rôle plutôt que par hash ;
+* couleurs distinctes et silhouettes différentes (chapeau, arc, hallebarde,
+  capuche, robe) pour rester lisibles vus de dessus ;
+* pas d'animation : figurines en pose statique, socle inclus dans le maillage.
+
 ---
 
 ## 6. Générer les prototypes
@@ -585,12 +619,12 @@ Planche de contrôle courante (tous les kits + textures de sol) :
 
 ```powershell
 python tools/blender/make_contact_sheet.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
 ```
 
-La seconde ajoute une rangée de textures de sol : `_planche_assets5.png`
-(64 cases : 3 sols + 61 objets). `_planche_assets.png` à
-`_planche_assets4.png` restent les planches historiques v1→v4. Les objets
+La seconde ajoute une rangée de textures de sol : `_planche_assets6.png`
+(71 cases : 3 sols + 68 objets). `_planche_assets.png` à
+`_planche_assets5.png` restent les planches historiques v1→v5. Les objets
 muraux y affichent leur hauteur au pied du mur, l'AABB seule ne mesurant que la
 géométrie suspendue.
 
@@ -679,6 +713,9 @@ C'est la partie qui décide si les objets « jurent » ou non avec la carte.
 13. **Environnement v5** : poser `falaise` en bord de relief ; les objets d'eau
    (`ponton`, `barque`, `nenuphars`) se placent au niveau du plan d'eau animé,
    sans jupe ; `arbre_majestueux` et `bosquet` servent de masses forestières.
+14. **Figurines v6** : les 10 figurines partagent le socle rond et l'origine au
+   pied ; le moteur peut choisir un rôle via les tags `class:...` / `creature:...`
+   du manifeste (fin du hash entre 3 PNJ).
 
 ### 10.3 Composer sans réglage (MJ non technique)
 
@@ -745,13 +782,13 @@ Une variante ne doit pas dupliquer la géométrie : même builder, autre teinte 
 
 | Indicateur | Valeur actuelle |
 |---|---|
-| Assets 3D | 61 (56 modèles + 5 variantes) |
+| Assets 3D | 68 (63 modèles + 5 variantes) |
 | Triangles / asset | 308 → **3 036** max (contour inclus), budget 5 000 |
-| Triangles total | **70 120** |
+| Triangles total | **77 688** |
 | GLB / asset | ~33 → ~219 Ko (vertex colors + contour) |
 | Vignette / asset | ~111 → ~195 Ko (512 RGBA) |
 | Textures de sol | 3 × 512² RGB, ~510–550 Ko chacune (PNG), + thumbs 256² |
-| Planches | `_planche_assets5.png` (64 cases), historiques `_planche_assets{,2,3,4}.png`, `_planche_terrain.png` |
+| Planches | `_planche_assets6.png` (71 cases), historiques `_planche_assets{,2,3,4,5}.png`, `_planche_terrain.png` |
 
 Les GLB restent légers : pas de texture embarquée, pas d'animation, pas de
 skin. Les textures de sol sont des PNG externes (réutilisables, non embarqués
@@ -780,7 +817,7 @@ dans les GLB).
 
 # Textures de sol tuilables seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
 
 # Build complet sans les textures (Pillow absent par ex.)
 .\tools\blender\run_build.ps1 -SkipTerrainTextures
@@ -949,6 +986,7 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
 - [ ] `toit_lucarne` : pas de dalle de sol, origine à la base du toit ;
 - [ ] figurines PNJ : socle rond, pas de jupe, visage lisible, ~1 case ;
 - [ ] objets d'eau : pas de jupe, origine au niveau de l'eau (z=0) ;
+- [ ] figurines : socle rond, visage peint, tag `class:...` / `creature:...` ;
 - [ ] contour `*_outline` présent, matériaux `doubleSided: false` ;
 - [ ] `COLOR_0` présent sur le mesh principal ;
 - [ ] GLB + vignette 512 générés, vignette lisible et cadrée ;
@@ -1005,3 +1043,6 @@ lourd) plutôt que de réduire l'échelle UV à l'extrême.
   n'a pas de rambarde pour rester lisible et léger.
 * La falaise est un module de relief 2×2 : elle ne gère pas de transitions
   douces avec les cases voisines (à composer côté éditeur/moteur).
+* Les figurines v6 sont statiques et très low-poly (~0,7–1,3 k tris) : les
+  visages sont peints (yeux/nez) et non sculptés, les armes/props restent des
+  volumes simples. Le socle fait partie du maillage (pas d'objet séparé).

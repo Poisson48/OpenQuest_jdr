@@ -23,6 +23,8 @@ func _run() -> void:
 			"isPlayer": true, "portrait": "", "image": "", "stats": {}},
 		{"id": "hero-bran", "name": "Bran", "class": "Garde", "hp": 15, "ac": 16,
 			"isPlayer": true, "portrait": "", "image": "", "stats": {}},
+		{"id": "hero-celia", "name": "Célia", "class": "Marchande", "hp": 10, "ac": 12,
+			"isPlayer": true, "portrait": "", "image": "", "stats": {}},
 	]
 	var clean_ids: Array = ids.duplicate()
 	var keep_names: Dictionary = {}
@@ -41,6 +43,7 @@ func _run() -> void:
 	gd.save_active_game()
 	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
 	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
+	gd.place_complex_member_token(village_id, 10.2, 8.2, "hero-celia")
 
 	var session: Node = (load("res://scenes/session/session.tscn") as PackedScene).instantiate()
 	get_root().add_child(session)

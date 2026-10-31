@@ -1788,96 +1788,373 @@ def build_puits_couvert(mats: Mats) -> list[bpy.types.Object]:
 
 
 # --------------------------------------------------------------------------- #
-# Figurines PNJ (~1 case, socle rond discret)
+# Figurines de personnages v6 (~1 case, socle rond discret, visages peints)
 # --------------------------------------------------------------------------- #
 
 
-def build_pnj_aventurier(mats: Mats) -> list[bpy.types.Object]:
-    """PNJ aventurier : cape verte, épée dans le dos, sacoche."""
-    parts = _npc_base(mats, seed=211)
-    for x in (-0.10, 0.10):
-        parts.append(add_box("leg", (0.12, 0.14, 0.34), (x, 0, 0.26), mats["roof_slate"]))
-        parts.append(add_box("boot", (0.13, 0.21, 0.10), (x, -0.03, 0.10), mats["wood_dark"]))
-    parts.append(add_box("torso", (0.34, 0.21, 0.34), (0, 0, 0.60), mats["leaf"]))
-    parts.append(add_box("belt", (0.36, 0.23, 0.06), (0, 0, 0.44), mats["wood_dark"]))
-    parts.append(add_box("buckle", (0.06, 0.03, 0.05), (0, -0.12, 0.44), mats["glow"]))
-    for x in (-0.22, 0.22):
-        parts.append(add_box("arm", (0.10, 0.13, 0.30), (x, 0, 0.62), mats["leaf"]))
-        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.45), mats["skin"], subdivisions=1))
-    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.925), mats["skin"], subdivisions=1, scale=(0.95, 0.95, 1.0)))
-    parts.append(add_ico_sphere("hair", 0.14, (0, 0.02, 0.965), mats["hair"], subdivisions=1, scale=(1.0, 0.95, 0.6)))
-    _npc_face(parts, mats, 0.925)
-    # Cape.
-    parts.append(add_box("cloak", (0.30, 0.07, 0.52), (0, 0.15, 0.55), mats["leaf_dark"], rotation=(-0.10, 0.0, 0.0)))
-    parts.append(add_box("cloak_pin", (0.08, 0.05, 0.06), (0, 0.04, 0.78), mats["glow"]))
-    # Épée dans le dos + sacoche.
-    parts.append(add_box("sword_blade", (0.05, 0.02, 0.55), (0.20, 0.19, 0.79), mats["metal"], rotation=(0.30, 0.0, 0.25)))
-    parts.append(add_box("sword_hilt", (0.12, 0.03, 0.04), (0.13, 0.16, 0.51), mats["wood_dark"], rotation=(0.30, 0.0, 0.25)))
-    parts.append(add_box("satchel", (0.16, 0.11, 0.16), (-0.22, 0.06, 0.42), mats["wood"]))
+def _npc_base(mats: Mats, seed: int, radius: float = 0.34) -> list[bpy.types.Object]:
+    """Socle rond discret (sans jupe) : utilisable en intérieur comme en extérieur."""
+    parts: list[bpy.types.Object] = []
+    parts.append(add_cylinder("socle", radius, 0.06, (0, 0, 0.03), mats["stone_dark"], vertices=12))
+    parts.append(
+        add_cylinder("socle_top", radius - 0.035, 0.02, (0, 0, 0.07), mats["stone_light"], vertices=12)
+    )
     return parts
 
 
-def build_pnj_marchand(mats: Mats) -> list[bpy.types.Object]:
-    """PNJ marchand : chapeau large, tunique ocre, bourse et ballot."""
-    parts = _npc_base(mats, seed=212)
-    for x in (-0.11, 0.11):
-        parts.append(add_box("leg", (0.13, 0.15, 0.30), (x, 0, 0.24), mats["wood"]))
-        parts.append(add_box("boot", (0.14, 0.21, 0.10), (x, -0.03, 0.09), mats["wood_dark"]))
-    parts.append(add_box("belly", (0.42, 0.28, 0.40), (0, 0, 0.57), mats["glow"]))
-    parts.append(add_box("belt", (0.44, 0.30, 0.07), (0, 0, 0.40), mats["wood_dark"]))
-    parts.append(add_box("strap", (0.07, 0.30, 0.05), (0.10, 0.01, 0.66), mats["wood_dark"], rotation=(0.0, 0.0, 0.55)))
-    for x in (-0.25, 0.25):
-        parts.append(add_box("arm", (0.11, 0.14, 0.28), (x, 0, 0.58), mats["glow"]))
+def _npc_face(parts: list[bpy.types.Object], mats: Mats, z: float) -> None:
+    """Yeux et nez peints pour donner un visage aux figurines."""
+    for x in (-0.055, 0.055):
+        parts.append(add_box("eye", (0.028, 0.018, 0.028), (x, -0.125, z + 0.01), mats["iron_dark"]))
+    parts.append(add_box("nose", (0.028, 0.035, 0.025), (0, -0.145, z - 0.02), mats["skin_dark"]))
+
+
+def build_pnj_aventurier(mats: Mats) -> list[bpy.types.Object]:
+    """Aventurier (classe) : épée, bouclier, cape et sac à dos."""
+    parts = _npc_base(mats, seed=211)
+    for x in (-0.10, 0.10):
+        parts.append(add_box("leg", (0.12, 0.15, 0.30), (x, 0, 0.25), mats["roof_slate"]))
+        parts.append(add_box("boot", (0.13, 0.22, 0.10), (x, -0.03, 0.13), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.36, 0.23, 0.34), (0, 0, 0.57), mats["leaf"]))
+    parts.append(add_box("belt", (0.38, 0.25, 0.06), (0, 0, 0.41), mats["wood_dark"]))
+    parts.append(add_box("buckle", (0.06, 0.03, 0.05), (0, -0.13, 0.41), mats["glow"]))
+    for x in (-0.235, 0.235):
+        parts.append(add_box("arm", (0.11, 0.14, 0.30), (x, 0, 0.58), mats["leaf"]))
         parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.42), mats["skin"], subdivisions=1))
-    parts.append(add_ico_sphere("head", 0.14, (0, 0, 0.90), mats["skin"], subdivisions=1, scale=(1.0, 1.0, 0.98)))
-    parts.append(add_ico_sphere("beard", 0.11, (0, -0.07, 0.84), mats["hair"], subdivisions=1, scale=(0.9, 0.75, 0.8)))
-    _npc_face(parts, mats, 0.90)
-    parts.append(add_cylinder("hat_brim", 0.23, 0.035, (0, 0, 1.05), mats["wood"], vertices=12))
-    parts.append(add_cylinder("hat_crown", 0.13, 0.13, (0, 0, 1.13), mats["wood_dark"], vertices=10))
-    parts.append(add_cylinder("hat_band", 0.135, 0.03, (0, 0, 1.07), mats["roof_dark"], vertices=10))
-    # Bourse et ballot de marchandise.
-    parts.append(add_ico_sphere("purse", 0.09, (0.18, -0.14, 0.38), mats["cloth"], subdivisions=1, scale=(1.0, 0.9, 0.9)))
-    parts.append(add_box("bundle", (0.26, 0.24, 0.22), (-0.24, 0.16, 0.42), mats["cloth"]))
-    parts.append(add_box("bundle_strap", (0.28, 0.03, 0.24), (-0.24, 0.16, 0.42), mats["wood_dark"]))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.86), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("hair", 0.14, (0, 0.02, 0.895), mats["hair"], subdivisions=1, scale=(1.0, 0.95, 0.6)))
+    parts.append(
+        add_ico_sphere("hood", 0.155, (0, 0.04, 0.90), mats["leaf_dark"], subdivisions=1, scale=(1.05, 1.0, 0.75))
+    )
+    _npc_face(parts, mats, 0.86)
+    # Cape et sac à dos.
+    parts.append(add_box("cape", (0.32, 0.06, 0.52), (0, 0.17, 0.52), mats["leaf_dark"], rotation=(-0.08, 0.0, 0.0)))
+    parts.append(add_box("backpack", (0.20, 0.12, 0.26), (0, 0.19, 0.56), mats["wood"]))
+    parts.append(
+        add_cylinder("bedroll", 0.06, 0.32, (0, 0.21, 0.73), mats["cloth"], vertices=8,
+                     rotation=(0.0, math.pi * 0.5, 0.0))
+    )
+    # Épée (main droite) et bouclier (main gauche).
+    parts.append(
+        add_box("sword_blade", (0.05, 0.02, 0.52), (0.31, -0.04, 0.86), mats["metal"],
+                rotation=(0.10, 0.0, 0.10))
+    )
+    parts.append(add_box("sword_guard", (0.14, 0.04, 0.05), (0.29, -0.03, 0.59), mats["wood_dark"]))
+    parts.append(add_ico_sphere("sword_pommel", 0.035, (0.28, -0.02, 0.55), mats["glow"], subdivisions=1))
+    parts.append(
+        add_cylinder("shield", 0.16, 0.05, (-0.33, -0.13, 0.56), mats["wood"], vertices=10,
+                     rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    parts.append(
+        add_cylinder("shield_boss", 0.055, 0.07, (-0.33, -0.17, 0.56), mats["glow"], vertices=8,
+                     rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    return parts
+
+
+def build_pnj_archere(mats: Mats) -> list[bpy.types.Object]:
+    """Archère (classe) : arc, carquois et flèches, capuche."""
+    parts = _npc_base(mats, seed=214)
+    for x in (-0.10, 0.10):
+        parts.append(add_box("leg", (0.12, 0.15, 0.30), (x, 0, 0.25), mats["wood"]))
+        parts.append(add_box("boot", (0.13, 0.22, 0.10), (x, -0.03, 0.13), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.32, 0.21, 0.33), (0, 0, 0.56), mats["leaf_light"]))
+    parts.append(add_box("belt", (0.34, 0.23, 0.06), (0, 0, 0.41), mats["wood_dark"]))
+    for x in (-0.22, 0.22):
+        parts.append(add_box("arm", (0.10, 0.13, 0.29), (x, 0, 0.57), mats["leaf_light"]))
+        parts.append(add_ico_sphere("hand", 0.052, (x, -0.01, 0.42), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.13, (0, 0, 0.85), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("hair", 0.14, (0, 0.03, 0.88), mats["hair"], subdivisions=1, scale=(1.0, 0.95, 0.75)))
+    parts.append(
+        add_ico_sphere("hood", 0.15, (0, 0.05, 0.89), mats["leaf_dark"], subdivisions=1, scale=(1.05, 1.0, 0.8))
+    )
+    _npc_face(parts, mats, 0.85)
+    # Queue de cheval.
+    parts.append(add_cylinder("ponytail", 0.05, 0.28, (0, 0.17, 0.72), mats["hair"], vertices=6, rotation=(0.5, 0.0, 0.0)))
+    # Arc (grip + deux branches + corde).
+    parts.append(add_cylinder("bow_grip", 0.024, 0.24, (-0.32, -0.12, 0.58), mats["wood_dark"], vertices=6))
+    parts.append(
+        add_cylinder("bow_upper", 0.019, 0.44, (-0.32, -0.17, 0.86), mats["wood"], vertices=6,
+                     rotation=(0.35, 0.0, 0.0))
+    )
+    parts.append(
+        add_cylinder("bow_lower", 0.019, 0.44, (-0.32, -0.17, 0.30), mats["wood"], vertices=6,
+                     rotation=(-0.35, 0.0, 0.0))
+    )
+    parts.append(add_box("bow_string", (0.008, 0.008, 0.86), (-0.32, -0.26, 0.58), mats["plaster_light"]))
+    # Carquois et flèches dans le dos.
+    parts.append(
+        add_cylinder("quiver", 0.07, 0.38, (0.18, 0.17, 0.76), mats["wood_dark"], vertices=8,
+                     rotation=(0.18, 0.15, 0.0))
+    )
+    for index in range(4):
+        x = 0.12 + index * 0.035
+        parts.append(add_cylinder("arrow", 0.008, 0.42, (x, 0.20, 1.00), mats["wood"], vertices=5,
+                                  rotation=(0.15, 0.12, 0.0)))
+        parts.append(add_cone("fletching", 0.018, 0.06, (x, 0.16, 1.19), mats["cloth"], vertices=4))
+    return parts
+
+
+def build_pnj_mage(mats: Mats) -> list[bpy.types.Object]:
+    """Mage (classe) : robe, chapeau pointu, bâton à orbe, barbe."""
+    parts = _npc_base(mats, seed=215)
+    parts.append(add_cone("robe_skirt", 0.34, 0.55, (0, 0, 0.35), mats["robe_purple"], vertices=10, radius2=0.24))
+    parts.append(add_cylinder("robe_body", 0.24, 0.60, (0, 0, 0.85), mats["robe_purple"], vertices=10))
+    parts.append(add_cylinder("robe_belt", 0.25, 0.07, (0, 0, 0.62), mats["glow"], vertices=12))
+    for x in (-0.26, 0.26):
+        parts.append(add_box("sleeve", (0.13, 0.16, 0.32), (x, 0, 0.82), mats["robe_purple"]))
+        parts.append(add_ico_sphere("hand", 0.05, (x, -0.02, 0.64), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 1.16), mats["skin"], subdivisions=1))
+    _npc_face(parts, mats, 1.16)
+    # Barbe et cheveux.
+    parts.append(
+        add_ico_sphere("beard", 0.12, (0, -0.09, 1.03), mats["plaster_light"], subdivisions=1,
+                       scale=(0.95, 0.75, 1.35))
+    )
+    parts.append(
+        add_ico_sphere("hair", 0.14, (0, 0.04, 1.20), mats["plaster_light"], subdivisions=1,
+                       scale=(1.0, 0.95, 0.6))
+    )
+    # Chapeau pointu.
+    parts.append(add_cylinder("hat_brim", 0.23, 0.04, (0, 0, 1.31), mats["robe_purple"], vertices=12))
+    parts.append(add_cone("hat_cone", 0.17, 0.40, (0, 0, 1.53), mats["robe_purple"], vertices=10))
+    parts.append(add_ico_sphere("hat_tip", 0.04, (0, 0, 1.74), mats["glow"], subdivisions=1))
+    # Bâton à orbe.
+    parts.append(add_cylinder("staff", 0.025, 1.55, (0.34, -0.02, 0.86), mats["wood"], vertices=6))
+    parts.append(add_ico_sphere("orb", 0.08, (0.34, -0.02, 1.66), mats["glow"], subdivisions=1))
+    parts.append(
+        add_torus("orb_ring", 0.11, 0.015, (0.34, -0.02, 1.66), mats["metal"], major_segments=10, minor_segments=4,
+                  rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    return parts
+
+
+def build_pnj_voleuse(mats: Mats) -> list[bpy.types.Object]:
+    """Voleuse (classe) : capuche, écharpe, deux dagues, sacoches."""
+    parts = _npc_base(mats, seed=216)
+    for x in (-0.10, 0.10):
+        parts.append(add_box("leg", (0.11, 0.15, 0.28), (x, 0, 0.23), mats["roof_slate"]))
+        parts.append(add_box("boot", (0.12, 0.21, 0.10), (x, -0.03, 0.11), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.30, 0.20, 0.30), (0, 0, 0.52), mats["roof_slate"]))
+    parts.append(add_box("belt", (0.32, 0.22, 0.06), (0, 0, 0.38), mats["wood_dark"]))
+    for x in (-0.21, 0.21):
+        parts.append(add_box("arm", (0.09, 0.12, 0.27), (x, 0, 0.54), mats["roof_slate"]))
+        parts.append(add_ico_sphere("hand", 0.05, (x, -0.01, 0.40), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.13, (0, 0, 0.80), mats["skin"], subdivisions=1))
+    parts.append(
+        add_ico_sphere("hood", 0.155, (0, 0.04, 0.84), mats["roof_slate"], subdivisions=1,
+                       scale=(1.05, 1.0, 0.85))
+    )
+    _npc_face(parts, mats, 0.80)
+    parts.append(add_box("scarf", (0.26, 0.06, 0.10), (0, -0.12, 0.66), mats["cloth"]))
+    parts.append(add_box("scarf_tail", (0.08, 0.04, 0.26), (0.14, -0.04, 0.50), mats["cloth"], rotation=(0.0, 0.0, 0.2)))
+    # Dagues jumelles.
+    for side in (-1, 1):
+        x = side * 0.235
+        parts.append(
+            add_box("dagger_blade", (0.035, 0.015, 0.26), (x, -0.07, 0.58), mats["metal"],
+                    rotation=(0.0, side * 0.35, 0.0))
+        )
+        parts.append(add_box("dagger_hilt", (0.05, 0.03, 0.07), (x, -0.05, 0.42), mats["wood_dark"]))
+    # Sacoches à la ceinture.
+    for x in (-0.15, 0.15):
+        parts.append(add_box("pouch", (0.09, 0.08, 0.10), (x, -0.10, 0.36), mats["wood"]))
+    return parts
+
+
+def build_pnj_pretresse(mats: Mats) -> list[bpy.types.Object]:
+    """Prêtresse (classe) : robe longue, cape, symbole sacré, diadème."""
+    parts = _npc_base(mats, seed=217)
+    parts.append(add_cone("robe_skirt", 0.30, 0.60, (0, 0, 0.38), mats["plaster_light"], vertices=10, radius2=0.21))
+    parts.append(add_cylinder("robe_body", 0.20, 0.55, (0, 0, 0.88), mats["plaster_light"], vertices=10))
+    parts.append(add_box("robe_trim", (0.06, 0.04, 0.55), (0, -0.20, 0.86), mats["glow"]))
+    parts.append(add_cylinder("robe_belt", 0.21, 0.06, (0, 0, 0.64), mats["glow"], vertices=12))
+    for x in (-0.26, 0.26):
+        parts.append(add_box("sleeve", (0.11, 0.14, 0.30), (x, 0, 0.86), mats["plaster_light"]))
+        parts.append(add_ico_sphere("hand", 0.05, (x, -0.02, 0.68), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.13, (0, 0, 1.14), mats["skin"], subdivisions=1))
+    parts.append(
+        add_ico_sphere("hair", 0.145, (0, 0.06, 1.15), mats["hair"], subdivisions=1,
+                       scale=(1.0, 0.85, 1.05))
+    )
+    _npc_face(parts, mats, 1.14)
+    # Cape bleue et diadème doré.
+    parts.append(add_box("cape", (0.40, 0.06, 0.72), (0, 0.20, 0.78), mats["robe_blue"], rotation=(-0.06, 0.0, 0.0)))
+    parts.append(add_box("cape_trim", (0.42, 0.07, 0.06), (0, 0.20, 1.12), mats["glow"]))
+    parts.append(
+        add_torus("circlet", 0.14, 0.018, (0, 0, 1.22), mats["glow"], major_segments=10, minor_segments=4,
+                  rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    # Symbole sacré porté en sautoir (soleil stylisé).
+    parts.append(add_cylinder("amulet_chain", 0.012, 0.28, (0, -0.16, 1.02), mats["metal"], vertices=5,
+                              rotation=(math.pi * 0.5, 0.0, 0.0)))
+    parts.append(
+        add_cylinder("sun_disc", 0.075, 0.03, (0, -0.19, 0.90), mats["glow"], vertices=10,
+                     rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    for index, angle in enumerate((0.0, 0.785, 1.57, 2.356)):
+        parts.append(
+            add_box("sun_ray", (0.02, 0.02, 0.07), (math.cos(angle) * 0.10, -0.19, 0.90 + math.sin(angle) * 0.10),
+                    mats["glow"], rotation=(0.0, 0.0, angle))
+        )
     return parts
 
 
 def build_pnj_garde(mats: Mats) -> list[bpy.types.Object]:
-    """PNJ garde : casque, lance, bouclier, tabard."""
+    """Garde (classe) : armure, casque à plumet, hallebarde."""
     parts = _npc_base(mats, seed=213)
     for x in (-0.11, 0.11):
         parts.append(add_box("leg", (0.13, 0.14, 0.32), (x, 0, 0.25), mats["roof_slate"]))
         parts.append(add_box("boot", (0.14, 0.21, 0.10), (x, -0.03, 0.09), mats["iron_dark"]))
-    parts.append(add_box("torso", (0.36, 0.23, 0.36), (0, 0, 0.60), mats["metal"]))
-    parts.append(add_box("tabard", (0.24, 0.04, 0.34), (0, -0.13, 0.58), mats["cloth"]))
-    parts.append(add_box("belt", (0.38, 0.25, 0.06), (0, 0, 0.43), mats["wood_dark"]))
-    for x in (-0.24, 0.24):
-        parts.append(add_box("arm", (0.11, 0.14, 0.30), (x, 0, 0.61), mats["metal"]))
-        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.44), mats["skin"], subdivisions=1))
-    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.92), mats["skin"], subdivisions=1))
-    parts.append(add_ico_sphere("helmet", 0.145, (0, 0, 0.955), mats["metal"], subdivisions=1, scale=(1.0, 1.0, 0.85)))
-    _npc_face(parts, mats, 0.92)
-    parts.append(add_box("nasal", (0.035, 0.05, 0.14), (0, -0.13, 0.90), mats["iron_dark"]))
-    parts.append(add_box("plume", (0.05, 0.22, 0.05), (0, 0.02, 1.10), mats["cloth"]))
-    # Bouclier (cercle vertical côté gauche) + emblème.
+    parts.append(add_box("torso", (0.38, 0.24, 0.36), (0, 0, 0.60), mats["metal"]))
+    parts.append(add_box("tabard", (0.24, 0.04, 0.34), (0, -0.14, 0.58), mats["cloth"]))
+    parts.append(add_box("belt", (0.40, 0.26, 0.06), (0, 0, 0.43), mats["wood_dark"]))
+    for x in (-0.26, 0.26):
+        parts.append(add_box("pauldron", (0.16, 0.20, 0.10), (x, 0, 0.76), mats["metal"]))
+        parts.append(add_box("arm", (0.11, 0.14, 0.28), (x, 0, 0.58), mats["metal"]))
+        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.42), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.94), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("helmet", 0.15, (0, 0, 1.02), mats["metal"], subdivisions=1, scale=(1.05, 0.95, 0.78)))
+    parts.append(add_box("nasal", (0.035, 0.05, 0.14), (0, -0.135, 0.94), mats["iron_dark"]))
+    parts.append(add_box("plume", (0.05, 0.22, 0.06), (0, 0.02, 1.12), mats["cloth"]))
+    _npc_face(parts, mats, 0.94)
+    # Hallebarde : hampe, fer, hache et pointe.
+    parts.append(add_cylinder("halberd_shaft", 0.026, 1.75, (0.30, -0.02, 0.92), mats["wood"], vertices=6))
+    parts.append(add_box("halberd_head", (0.22, 0.05, 0.18), (0.38, -0.02, 1.62), mats["metal"], rotation=(0.0, 0.0, 0.10)))
+    parts.append(add_cone("halberd_spike", 0.055, 0.22, (0.30, -0.02, 1.88), mats["metal"], vertices=6))
+    parts.append(add_box("halberd_butt", (0.05, 0.05, 0.08), (0.30, -0.02, 0.12), mats["iron_dark"]))
+    return parts
+
+
+def build_pnj_marchand(mats: Mats) -> list[bpy.types.Object]:
+    """Marchand (classe) : chapeau large, sac de marchandises, bâton."""
+    parts = _npc_base(mats, seed=212)
+    for x in (-0.11, 0.11):
+        parts.append(add_box("leg", (0.13, 0.15, 0.28), (x, 0, 0.22), mats["wood"]))
+        parts.append(add_box("boot", (0.14, 0.21, 0.10), (x, -0.03, 0.09), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.42, 0.28, 0.40), (0, 0, 0.55), mats["plaster_light"]))
+    parts.append(add_box("vest", (0.44, 0.30, 0.26), (0, 0, 0.64), mats["cloth"]))
+    parts.append(add_box("belt", (0.44, 0.30, 0.07), (0, 0, 0.40), mats["wood_dark"]))
+    parts.append(add_box("strap", (0.07, 0.30, 0.05), (0.10, 0.01, 0.66), mats["wood_dark"], rotation=(0.0, 0.0, 0.55)))
+    for x in (-0.26, 0.26):
+        parts.append(add_box("arm", (0.11, 0.14, 0.28), (x, 0, 0.58), mats["plaster_light"]))
+        parts.append(add_ico_sphere("hand", 0.055, (x, -0.01, 0.42), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.14, (0, 0, 0.88), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("beard", 0.11, (0, -0.08, 0.82), mats["hair"], subdivisions=1, scale=(0.9, 0.75, 0.8)))
+    _npc_face(parts, mats, 0.88)
+    parts.append(add_cylinder("hat_brim", 0.22, 0.035, (0, 0, 1.07), mats["wood"], vertices=12))
+    parts.append(add_cylinder("hat_crown", 0.13, 0.13, (0, 0, 1.15), mats["wood_dark"], vertices=10))
+    parts.append(add_cylinder("hat_band", 0.135, 0.03, (0, 0, 1.09), mats["roof_dark"], vertices=10))
+    # Bâton de marche et sac de marchandises.
+    parts.append(add_cylinder("staff", 0.026, 1.45, (-0.32, -0.02, 0.80), mats["wood"], vertices=6))
+    parts.append(add_ico_sphere("staff_knob", 0.05, (-0.32, -0.02, 1.53), mats["wood_dark"], subdivisions=1))
+    parts.append(add_box("sack", (0.30, 0.24, 0.30), (0.30, 0.10, 0.43), mats["cloth"]))
+    parts.append(add_box("sack_tie", (0.10, 0.10, 0.06), (0.30, 0.10, 0.58), mats["wood_dark"]))
+    parts.append(add_ico_sphere("purse", 0.085, (0.16, -0.14, 0.37), mats["glow"], subdivisions=1, scale=(1.0, 0.9, 0.9)))
+    return parts
+
+
+def build_pnj_villageois(mats: Mats) -> list[bpy.types.Object]:
+    """Villageois (classe) : tunique, tablier, seau."""
+    parts = _npc_base(mats, seed=218)
+    for x in (-0.10, 0.10):
+        parts.append(add_box("leg", (0.12, 0.14, 0.28), (x, 0, 0.23), mats["wood"]))
+        parts.append(add_box("boot", (0.13, 0.21, 0.10), (x, -0.03, 0.10), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.36, 0.24, 0.34), (0, 0, 0.55), mats["plaster_light"]))
+    parts.append(add_box("apron", (0.28, 0.04, 0.34), (0, -0.13, 0.50), mats["wood_light"]))
+    parts.append(add_box("belt", (0.38, 0.26, 0.06), (0, 0, 0.39), mats["wood_dark"]))
+    for x in (-0.23, 0.23):
+        parts.append(add_box("arm", (0.10, 0.13, 0.28), (x, 0, 0.55), mats["plaster_light"]))
+        parts.append(add_ico_sphere("hand", 0.052, (x, -0.01, 0.40), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("head", 0.135, (0, 0, 0.86), mats["skin"], subdivisions=1))
+    parts.append(add_ico_sphere("hair", 0.14, (0, 0.02, 0.895), mats["hair"], subdivisions=1, scale=(1.0, 0.95, 0.6)))
+    _npc_face(parts, mats, 0.86)
+    # Bonnet de paysan.
+    parts.append(add_cylinder("cap", 0.15, 0.08, (0, 0, 0.99), mats["wood_dark"], vertices=10))
+    parts.append(add_box("cap_brim", (0.20, 0.12, 0.03), (0, -0.14, 0.96), mats["wood"]))
+    # Seau.
+    parts.append(add_cylinder("bucket", 0.11, 0.18, (0.32, -0.10, 0.30), mats["wood"], vertices=8))
+    parts.append(add_cylinder("bucket_rim", 0.115, 0.03, (0.32, -0.10, 0.385), mats["metal"], vertices=8))
     parts.append(
-        add_cylinder(
-            "shield", 0.19, 0.05, (-0.31, -0.16, 0.56), mats["metal"], vertices=10,
-            rotation=(math.pi * 0.5, 0.0, 0.0),
+        add_torus("bucket_handle", 0.11, 0.012, (0.32, -0.10, 0.40), mats["metal"], major_segments=8,
+                  minor_segments=4, rotation=(math.pi * 0.5, 0.0, 0.0))
+    )
+    parts.append(add_cylinder("bucket_water", 0.095, 0.03, (0.32, -0.10, 0.37), mats["water"], vertices=8))
+    return parts
+
+
+def build_pnj_gobelin(mats: Mats) -> list[bpy.types.Object]:
+    """Gobelin (créature) : petit, vert, grandes oreilles, dague."""
+    parts = _npc_base(mats, seed=219, radius=0.30)
+    for x in (-0.09, 0.09):
+        parts.append(add_box("leg", (0.10, 0.12, 0.20), (x, 0, 0.18), mats["goblin_skin_dark"]))
+        parts.append(add_box("foot", (0.11, 0.18, 0.08), (x, -0.03, 0.10), mats["wood_dark"]))
+    parts.append(add_box("torso", (0.28, 0.20, 0.28), (0, 0, 0.42), mats["goblin_skin"], rotation=(0.12, 0.0, 0.0)))
+    parts.append(add_box("loincloth", (0.24, 0.20, 0.10), (0, 0, 0.31), mats["cloth"]))
+    for x in (-0.19, 0.19):
+        parts.append(add_box("arm", (0.09, 0.12, 0.26), (x, 0, 0.46), mats["goblin_skin"]))
+        parts.append(add_ico_sphere("hand", 0.05, (x, -0.01, 0.32), mats["goblin_skin_dark"], subdivisions=1))
+    parts.append(
+        add_ico_sphere("head", 0.16, (0, 0, 0.68), mats["goblin_skin"], subdivisions=1,
+                       scale=(1.05, 1.0, 0.95))
+    )
+    # Grandes oreilles pointues.
+    for side in (-1, 1):
+        parts.append(
+            add_cone("ear", 0.055, 0.20, (side * 0.17, 0.02, 0.72), mats["goblin_skin"], vertices=5,
+                     rotation=(0.0, side * math.pi * 0.5, 0.0))
         )
-    )
+    # Yeux jaunes, nez crochu, bouche.
+    for x in (-0.055, 0.055):
+        parts.append(add_ico_sphere("eye", 0.028, (x, -0.145, 0.70), mats["glow"], subdivisions=1))
+    parts.append(add_cone("nose", 0.035, 0.10, (0, -0.18, 0.67), mats["goblin_skin_dark"], vertices=4,
+                          rotation=(math.pi * 0.5, 0.0, 0.0)))
+    parts.append(add_box("mouth", (0.09, 0.02, 0.02), (0, -0.155, 0.60), mats["iron_dark"]))
+    # Dague rudimentaire.
+    parts.append(add_box("dagger_blade", (0.04, 0.015, 0.22), (0.25, -0.08, 0.50), mats["metal"],
+                         rotation=(0.0, 0.25, 0.0)))
+    parts.append(add_box("dagger_hilt", (0.05, 0.03, 0.06), (0.23, -0.06, 0.36), mats["wood_dark"]))
+    # Trophée en os à la ceinture.
+    parts.append(add_cylinder("bone_trophy", 0.02, 0.18, (-0.15, -0.10, 0.33), mats["bone"], vertices=5,
+                              rotation=(0.0, 0.0, 0.7)))
+    return parts
+
+
+def build_pnj_squelette(mats: Mats) -> list[bpy.types.Object]:
+    """Squelette (créature) : ossature, crâne, épée rouillée."""
+    parts = _npc_base(mats, seed=220, radius=0.32)
+    for x in (-0.09, 0.09):
+        parts.append(add_cylinder("leg_bone", 0.035, 0.36, (x, 0, 0.27), mats["bone"], vertices=6))
+        parts.append(add_ico_sphere("knee", 0.045, (x, 0, 0.45), mats["bone_dark"], subdivisions=1))
+        parts.append(add_box("foot", (0.11, 0.18, 0.06), (x, -0.03, 0.10), mats["bone_dark"]))
+    parts.append(add_box("pelvis", (0.24, 0.16, 0.10), (0, 0, 0.53), mats["bone_dark"]))
+    parts.append(add_cylinder("spine", 0.03, 0.30, (0, 0, 0.72), mats["bone"], vertices=6))
+    for index in range(4):
+        width = 0.28 - index * 0.02
+        parts.append(add_box("rib", (width, 0.15, 0.025), (0, 0, 0.62 + index * 0.06), mats["bone"]))
+    parts.append(add_cylinder("shoulders", 0.03, 0.30, (0, 0, 0.90), mats["bone"], vertices=6,
+                              rotation=(0.0, math.pi * 0.5, 0.0)))
+    for side in (-1, 1):
+        x = side * 0.20
+        parts.append(add_cylinder("arm_bone", 0.028, 0.28, (x, 0, 0.78), mats["bone"], vertices=6,
+                                  rotation=(0.0, side * 0.15, 0.0)))
+        parts.append(add_ico_sphere("elbow", 0.035, (x, 0, 0.64), mats["bone_dark"], subdivisions=1))
+        parts.append(add_cylinder("forearm", 0.024, 0.24, (x, -0.02, 0.53), mats["bone"], vertices=6))
+    # Crâne avec orbites sombres et mâchoire.
     parts.append(
-        add_cylinder(
-            "shield_boss", 0.06, 0.07, (-0.31, -0.20, 0.56), mats["glow"], vertices=8,
-            rotation=(math.pi * 0.5, 0.0, 0.0),
-        )
+        add_ico_sphere("skull", 0.135, (0, 0, 1.02), mats["bone"], subdivisions=1, scale=(0.95, 0.95, 1.05))
     )
-    # Lance.
-    parts.append(add_cylinder("spear_shaft", 0.022, 1.45, (0.25, -0.02, 0.85), mats["wood"], vertices=6))
-    parts.append(
-        add_cone("spear_tip", 0.055, 0.20, (0.25, -0.02, 1.66), mats["metal"], vertices=6)
-    )
-    parts.append(add_box("spear_grip", (0.04, 0.04, 0.10), (0.25, -0.02, 0.95), mats["cloth"]))
+    for x in (-0.05, 0.05):
+        parts.append(add_box("eye_socket", (0.045, 0.03, 0.04), (x, -0.115, 1.02), mats["iron_dark"]))
+    parts.append(add_box("jaw", (0.14, 0.10, 0.05), (0, -0.06, 0.91), mats["bone_dark"]))
+    for x in (-0.035, 0.035):
+        parts.append(add_box("tooth", (0.02, 0.02, 0.03), (x, -0.12, 0.93), mats["bone"]))
+    # Épée rouillée + fourreau vide à la ceinture.
+    parts.append(add_box("sword_blade", (0.05, 0.02, 0.48), (0.29, -0.06, 0.68), mats["roof_dark"],
+                         rotation=(0.05, 0.10, 0.12)))
+    parts.append(add_box("sword_guard", (0.13, 0.04, 0.05), (0.26, -0.04, 0.44), mats["iron_dark"]))
+    parts.append(add_ico_sphere("sword_pommel", 0.03, (0.25, -0.03, 0.40), mats["wood_dark"], subdivisions=1))
+    parts.append(add_box("shoulder_pad", (0.12, 0.14, 0.08), (0.20, 0, 0.96), mats["iron_dark"]))
     return parts
 
 
@@ -2732,22 +3009,71 @@ ASSETS: list[AssetSpec] = [
         "pnj_aventurier",
         "props",
         build_pnj_aventurier,
-        "Figurine PNJ aventurier (~1 case) : cape, epee dans le dos, sacoche.",
-        ("pnj", "figurine", "token"),
+        "Aventurier (classe) : epee, bouclier, cape et sac a dos (~1 case).",
+        ("figurine", "token", "class:aventurier"),
     ),
     AssetSpec(
         "pnj_marchand",
         "props",
         build_pnj_marchand,
-        "Figurine PNJ marchand (~1 case) : chapeau large, bourse et ballot.",
-        ("pnj", "figurine", "token"),
+        "Marchand (classe) : chapeau large, sac de marchandises et baton (~1 case).",
+        ("figurine", "token", "class:marchand"),
     ),
     AssetSpec(
         "pnj_garde",
         "props",
         build_pnj_garde,
-        "Figurine PNJ garde (~1 case) : casque, lance, bouclier et tabard.",
-        ("pnj", "figurine", "token"),
+        "Garde (classe) : armure, casque a plumet et hallebarde (~1,8 case de haut).",
+        ("figurine", "token", "class:garde"),
+    ),
+    AssetSpec(
+        "pnj_archere",
+        "props",
+        build_pnj_archere,
+        "Archere (classe) : arc, carquois et fleches, capuche (~1 case).",
+        ("figurine", "token", "class:archere"),
+    ),
+    AssetSpec(
+        "pnj_mage",
+        "props",
+        build_pnj_mage,
+        "Mage (classe) : robe, chapeau pointu, baton a orbe et barbe (~1,7 case de haut).",
+        ("figurine", "token", "class:mage"),
+    ),
+    AssetSpec(
+        "pnj_voleuse",
+        "props",
+        build_pnj_voleuse,
+        "Voleuse (classe) : capuche, echappe et deux dagues (~1 case).",
+        ("figurine", "token", "class:voleuse"),
+    ),
+    AssetSpec(
+        "pnj_pretresse",
+        "props",
+        build_pnj_pretresse,
+        "Pretresse (classe) : robe longue, cape, symbole sacre et diademe (~1,3 case).",
+        ("figurine", "token", "class:pretresse"),
+    ),
+    AssetSpec(
+        "pnj_villageois",
+        "props",
+        build_pnj_villageois,
+        "Villageois (classe) : tunique, tablier et seau (~1 case).",
+        ("figurine", "token", "class:villageois"),
+    ),
+    AssetSpec(
+        "pnj_gobelin",
+        "props",
+        build_pnj_gobelin,
+        "Gobelin (creature) : petit, vert, grandes oreilles et dague (~0,9 case).",
+        ("figurine", "token", "creature:gobelin"),
+    ),
+    AssetSpec(
+        "pnj_squelette",
+        "props",
+        build_pnj_squelette,
+        "Squelette (creature) : ossature, crane et epee rouillee (~1,2 case).",
+        ("figurine", "token", "creature:squelette"),
     ),
     AssetSpec(
         "falaise",

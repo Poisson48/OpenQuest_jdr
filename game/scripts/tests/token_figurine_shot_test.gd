@@ -23,9 +23,9 @@ func _run() -> void:
 	engine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	await process_frame
 	var party := [
-		{"id": "hero-1", "name": "Aria"},
-		{"id": "hero-2", "name": "Bran"},
-		{"id": "hero-3", "name": "Célia"},
+		{"id": "hero-1", "name": "Aria", "class": "Archère"},
+		{"id": "hero-2", "name": "Bran", "class": "Mage"},
+		{"id": "hero-3", "name": "Célia", "class": "Garde"},
 	]
 	var tokens := [
 		{"id": "tok-aria", "kind": "member", "memberId": "hero-1", "label": "Aria", "x": 9.0, "y": 7.0, "hp": 12, "maxHp": 12},

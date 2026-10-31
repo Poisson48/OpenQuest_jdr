@@ -947,17 +947,13 @@ func _rebuild_layers() -> void:
 		node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
 		if table_view and node.has_method("set_pawn_mode"):
 			node.set_pawn_mode(true)
-		# En carte 2.5D, les membres sans portrait deviennent des figurines 3D.
-		if not table_view and not has_image and str(tok.get("kind", "")) == "member" \
-				and MapRenderStyleScript.is_map_25d(map_data) and node.has_method("set_figurine_asset"):
-			var figurines := [
-				"res://assets/objects3d/props/pnj_aventurier.glb",
-				"res://assets/objects3d/props/pnj_marchand.glb",
-				"res://assets/objects3d/props/pnj_garde.glb",
-			]
-			var key := str(tok.get("memberId", tok.get("label", "héros")))
-			var fig_index: int = abs(int(key.hash())) % figurines.size()
-			node.set_figurine_asset(figurines[fig_index])
+		# En carte 2.5D, les membres sans portrait deviennent des figurines 3D
+		# choisies d'après leur classe / nom (kit v6), avec repli par hash.
+		if not table_view and not has_image and MapRenderStyleScript.is_map_25d(map_data) \
+				and node.has_method("set_figurine_asset"):
+			var figurine := _figurine_asset_for_token(tok)
+			if not figurine.is_empty():
+				node.set_figurine_asset(figurine)
 		if use_cutout and node.has_method("set_overlay_height"):
 			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
 			# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
@@ -1654,6 +1650,53 @@ func _sync_token_overlay_positions() -> void:
 			var nsz := name_lbl.get_combined_minimum_size()
 			name_lbl.size = Vector2(maxf(nsz.x, px_w), nsz.y)
 			name_lbl.position = Vector2(feet_px.x - name_lbl.size.x * 0.5, pos.y + px_h + 2.0)
+
+## Choix de la figurine 3D d'un token en carte 2.5D (kit v6) :
+## classe du personnage, nom/label (créatures), puis repli par hash.
+func _figurine_asset_for_token(tok: Dictionary) -> String:
+	var kind := str(tok.get("kind", "token"))
+	if kind in ["marker", "object", "area", "light"]:
+		return ""
+	var member: Dictionary = {}
+	var member_id := str(tok.get("memberId", ""))
+	if not member_id.is_empty():
+		for member_variant in _party:
+			if str((member_variant as Dictionary).get("id", "")) == member_id:
+				member = member_variant
+				break
+	var text := "%s %s %s" % [
+		str(member.get("class", "")), str(tok.get("label", "")), str(tok.get("name", ""))
+	]
+	text = text.to_lower()
+	var root := "res://assets/objects3d/props/"
+	# Créatures d'abord (nom explicite).
+	var creature_keywords := [
+		["gobelin", "pnj_gobelin"], ["squelet", "pnj_squelette"],
+	]
+	for pair in creature_keywords:
+		if text.find(str(pair[0])) >= 0:
+			return root + str(pair[1]) + ".glb"
+	# Classes / rôles.
+	var class_keywords := [
+		["arch", "pnj_archere"], ["archer", "pnj_archere"],
+		["mage", "pnj_mage"], ["magicien", "pnj_mage"], ["sorcier", "pnj_mage"],
+		["voleu", "pnj_voleuse"], ["roubl", "pnj_voleuse"], ["assassin", "pnj_voleuse"],
+		["pretr", "pnj_pretresse"], ["clerc", "pnj_pretresse"], ["prêtre", "pnj_pretresse"],
+		["garde", "pnj_garde"], ["guerrier", "pnj_garde"], ["paladin", "pnj_garde"],
+		["march", "pnj_marchand"], ["village", "pnj_villageois"], ["paysan", "pnj_villageois"],
+		["aventur", "pnj_aventurier"], ["héro", "pnj_aventurier"], ["hero", "pnj_aventurier"],
+	]
+	for pair in class_keywords:
+		if text.find(str(pair[0])) >= 0:
+			return root + str(pair[1]) + ".glb"
+	# Repli : variété déterministe parmi les humanoïdes.
+	var humans := [
+		"pnj_aventurier", "pnj_archere", "pnj_mage", "pnj_voleuse",
+		"pnj_pretresse", "pnj_garde", "pnj_marchand", "pnj_villageois",
+	]
+	var key := str(tok.get("memberId", tok.get("label", "héros")))
+	var idx: int = abs(int(key.hash())) % humans.size()
+	return root + humans[idx] + ".glb"
 
 func _on_token_drag_finished(token_id: String, gx: float, gy: float) -> void:
 	token_moved.emit(token_id, gx, gy)

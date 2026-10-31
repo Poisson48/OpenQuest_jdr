@@ -941,28 +941,54 @@
       "outline": true
     },
     {
+      "name": "pnj_archere",
+      "base": "pnj_archere",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_archere.glb",
+      "thumb": "props/pnj_archere_thumb.png",
+      "description": "Archere (classe) : arc, carquois et fleches, capuche (~1 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "class:archere"
+      ],
+      "dimensions_cells": [
+        0.701,
+        0.701,
+        1.243
+      ],
+      "height_above_floor": 1.243,
+      "anchor": "base",
+      "triangles": 1072,
+      "triangles_base": 536,
+      "vertices": 664,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
       "name": "pnj_aventurier",
       "base": "pnj_aventurier",
       "variant": "base",
       "category": "props",
       "glb": "props/pnj_aventurier.glb",
       "thumb": "props/pnj_aventurier_thumb.png",
-      "description": "Figurine PNJ aventurier (~1 case) : cape, epee dans le dos, sacoche.",
+      "description": "Aventurier (classe) : epee, bouclier, cape et sac a dos (~1 case).",
       "tags": [
-        "pnj",
         "figurine",
-        "token"
+        "token",
+        "class:aventurier"
       ],
       "dimensions_cells": [
+        0.86,
         0.701,
-        0.701,
-        1.083
+        1.138
       ],
-      "height_above_floor": 1.083,
+      "height_above_floor": 1.138,
       "anchor": "base",
-      "triangles": 776,
-      "triangles_base": 388,
-      "vertices": 480,
+      "triangles": 1016,
+      "triangles_base": 508,
+      "vertices": 616,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -973,22 +999,74 @@
       "category": "props",
       "glb": "props/pnj_garde.glb",
       "thumb": "props/pnj_garde_thumb.png",
-      "description": "Figurine PNJ garde (~1 case) : casque, lance, bouclier et tabard.",
+      "description": "Garde (classe) : armure, casque a plumet et hallebarde (~1,8 case de haut).",
       "tags": [
-        "pnj",
         "figurine",
-        "token"
+        "token",
+        "class:garde"
       ],
       "dimensions_cells": [
         0.851,
         0.701,
-        1.783
+        2.013
       ],
-      "height_above_floor": 1.783,
+      "height_above_floor": 2.013,
       "anchor": "base",
-      "triangles": 956,
-      "triangles_base": 478,
-      "vertices": 578,
+      "triangles": 900,
+      "triangles_base": 450,
+      "vertices": 554,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_gobelin",
+      "base": "pnj_gobelin",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_gobelin.glb",
+      "thumb": "props/pnj_gobelin_thumb.png",
+      "description": "Gobelin (creature) : petit, vert, grandes oreilles et dague (~0,9 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "creature:gobelin"
+      ],
+      "dimensions_cells": [
+        0.621,
+        0.621,
+        0.855
+      ],
+      "height_above_floor": 0.855,
+      "anchor": "base",
+      "triangles": 716,
+      "triangles_base": 358,
+      "vertices": 446,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_mage",
+      "base": "pnj_mage",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_mage.glb",
+      "thumb": "props/pnj_mage_thumb.png",
+      "description": "Mage (classe) : robe, chapeau pointu, baton a orbe et barbe (~1,7 case de haut).",
+      "tags": [
+        "figurine",
+        "token",
+        "class:mage"
+      ],
+      "dimensions_cells": [
+        0.83,
+        0.703,
+        1.803
+      ],
+      "height_above_floor": 1.803,
+      "anchor": "base",
+      "triangles": 1284,
+      "triangles_base": 642,
+      "vertices": 722,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },
@@ -999,22 +1077,126 @@
       "category": "props",
       "glb": "props/pnj_marchand.glb",
       "thumb": "props/pnj_marchand_thumb.png",
-      "description": "Figurine PNJ marchand (~1 case) : chapeau large, bourse et ballot.",
+      "description": "Marchand (classe) : chapeau large, sac de marchandises et baton (~1 case).",
       "tags": [
-        "pnj",
         "figurine",
-        "token"
+        "token",
+        "class:marchand"
       ],
       "dimensions_cells": [
-        0.739,
+        0.835,
         0.701,
-        1.213
+        1.603
       ],
-      "height_above_floor": 1.213,
+      "height_above_floor": 1.603,
       "anchor": "base",
-      "triangles": 944,
-      "triangles_base": 472,
-      "vertices": 568,
+      "triangles": 1120,
+      "triangles_base": 560,
+      "vertices": 668,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_pretresse",
+      "base": "pnj_pretresse",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_pretresse.glb",
+      "thumb": "props/pnj_pretresse_thumb.png",
+      "description": "Pretresse (classe) : robe longue, cape, symbole sacre et diademe (~1,3 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "class:pretresse"
+      ],
+      "dimensions_cells": [
+        0.701,
+        0.701,
+        1.393
+      ],
+      "height_above_floor": 1.393,
+      "anchor": "base",
+      "triangles": 1232,
+      "triangles_base": 616,
+      "vertices": 708,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_squelette",
+      "base": "pnj_squelette",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_squelette.glb",
+      "thumb": "props/pnj_squelette_thumb.png",
+      "description": "Squelette (creature) : ossature, crane et epee rouillee (~1,2 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "creature:squelette"
+      ],
+      "dimensions_cells": [
+        0.681,
+        0.661,
+        1.185
+      ],
+      "height_above_floor": 1.185,
+      "anchor": "base",
+      "triangles": 1096,
+      "triangles_base": 548,
+      "vertices": 672,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_villageois",
+      "base": "pnj_villageois",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_villageois.glb",
+      "thumb": "props/pnj_villageois_thumb.png",
+      "description": "Villageois (classe) : tunique, tablier et seau (~1 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "class:villageois"
+      ],
+      "dimensions_cells": [
+        0.807,
+        0.701,
+        1.048
+      ],
+      "height_above_floor": 1.048,
+      "anchor": "base",
+      "triangles": 1016,
+      "triangles_base": 508,
+      "vertices": 600,
+      "vertex_colors": "AO + mottling (COLOR_0)",
+      "outline": true
+    },
+    {
+      "name": "pnj_voleuse",
+      "base": "pnj_voleuse",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/pnj_voleuse.glb",
+      "thumb": "props/pnj_voleuse_thumb.png",
+      "description": "Voleuse (classe) : capuche, echappe et deux dagues (~1 case).",
+      "tags": [
+        "figurine",
+        "token",
+        "class:voleuse"
+      ],
+      "dimensions_cells": [
+        0.701,
+        0.701,
+        0.995
+      ],
+      "height_above_floor": 0.995,
+      "anchor": "base",
+      "triangles": 792,
+      "triangles_base": 396,
+      "vertices": 496,
       "vertex_colors": "AO + mottling (COLOR_0)",
       "outline": true
     },

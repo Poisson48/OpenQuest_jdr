@@ -112,6 +112,11 @@ DEFAULT_PALETTE: dict[str, str] = {
     # Kit v5 : fleurs de nenuphar / roseaux.
     "blossom": "#c08a86",
     "reed": "#8f9a5e",
+    # Kit v6 : figurines de personnages.
+    "goblin_skin": "#6f8a4f",
+    "goblin_skin_dark": "#556b3c",
+    "robe_purple": "#574a63",
+    "robe_blue": "#465a6b",
 }
 
 # Epaisseur (en case) des jupes de raccord au sol posees sous les objets.

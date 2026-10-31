@@ -18,6 +18,11 @@ Le kit v5 apporte l'**environnement** : falaise 2×2, gros rocher, arbre
 majestueux, haie, bosquet, roseaux, ponton, barque, nénuphars, bannière,
 clôture basse et tas de bois.
 
+Le kit v6 apporte **10 figurines de personnages** (~1 case, socle rond, visages
+peints) : 8 classes (aventurier, archère, mage, voleuse, prêtresse, garde,
+marchand, villageois) et 2 créatures (gobelin, squelette), avec des tags
+`class:...` / `creature:...` dans le manifeste pour les tokens de session.
+
 > Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
 > `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
 > modifier les scripts puis régénérer.
@@ -54,7 +59,7 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-61 assets (56 modèles + 5 variantes de taille/teinte), **70 120 triangles** au
+68 assets (63 modèles + 5 variantes de taille/teinte), **77 688 triangles** au
 total, 2 536 au maximum. Dimension = AABB réelle du GLB (contour inclus).
 Pour les objets muraux, la hauteur indiquée `h sol` est la distance depuis le
 pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
@@ -141,6 +146,30 @@ pied du mur (l'AABB seule ne mesure que la géométrie suspendue).
 | `cloture_basse` | props | 2.21 × 0.41 × 0.68 | 624 | Clôture basse (module 2 cases) |
 | `tas_de_bois` | props | 1.38 × 1.00 × 1.04 | 1 360 | Bûches empilées et hache plantée |
 
+### Kit personnages v6 — figurines & créatures — `props/`
+
+Toutes : socle rond discret (sans jupe), origine au pied, ~1 case de large,
+visage peint, couleurs distinctes lisibles de dessus, tags `class:...` ou
+`creature:...` dans `manifest.json`.
+
+| Asset | Tags | Dimensions (cases) | Tris (mesh+contour) | Description |
+|---|---|---|---|---|
+| `pnj_aventurier` | class:aventurier | 0.86 × 0.70 × 1.14 | 1 016 | Épée, bouclier, cape, sac à dos |
+| `pnj_archere` | class:archere | 0.70 × 0.70 × 1.24 | 1 072 | Arc, carquois et flèches, capuche |
+| `pnj_mage` | class:mage | 0.83 × 0.70 × 1.80 | 1 284 | Robe, chapeau pointu, bâton à orbe, barbe |
+| `pnj_voleuse` | class:voleuse | 0.70 × 0.70 × 1.00 | 792 | Capuche, écharpe, deux dagues |
+| `pnj_pretresse` | class:pretresse | 0.70 × 0.70 × 1.39 | 1 232 | Robe longue, cape, symbole sacré, diadème |
+| `pnj_garde` | class:garde | 0.85 × 0.70 × 2.01 | 900 | Armure, casque à plumet, hallebarde |
+| `pnj_marchand` | class:marchand | 0.84 × 0.70 × 1.60 | 1 120 | Chapeau large, sac de marchandises, bâton |
+| `pnj_villageois` | class:villageois | 0.81 × 0.70 × 1.05 | 1 016 | Tunique, tablier, seau |
+| `pnj_gobelin` | creature:gobelin | 0.62 × 0.62 × 0.86 | 716 | Petit, vert, grandes oreilles, dague |
+| `pnj_squelette` | creature:squelette | 0.68 × 0.66 × 1.19 | 1 096 | Ossature, crâne, épée rouillée |
+
+Les 3 noms historiques (`pnj_aventurier`, `pnj_marchand`, `pnj_garde`) sont
+conservés pour ne pas casser le code de démo : ils ont simplement été enrichis
+et re-taggés. Le choix par hash peut désormais piocher dans les 10 (filtrer
+`tags` sur `class:` / `creature:`).
+
 ### Végétation — `vegetation/`
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
@@ -159,9 +188,9 @@ Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
 pied du mur éventuelle, ancre, triangles, description) — il est **informatif** :
 l'éditeur peut scanner les dossiers.
-`_planche_assets5.png` est la planche de contrôle courante (textures de sol +
-61 objets). `_planche_assets.png` à `_planche_assets4.png` sont les planches
-historiques des kits v1 à v4.
+`_planche_assets6.png` est la planche de contrôle courante (textures de sol +
+68 objets). `_planche_assets.png` à `_planche_assets5.png` sont les planches
+historiques des kits v1 à v5.
 
 ---
 
@@ -201,8 +230,9 @@ Points d'intégration importants :
   pour que son côté `+Y` (le mur) soit contre le mur de la scène.
 - **Élément de toit** (`toit_lucarne`) : à poser au sommet d'un bâtiment, origine
   à la base du toit ; pas de dalle de sol.
-- **Figurines PNJ** : socle rond, origine au pied ; elles peuvent servir de
-  props ou de tokens (échelle ~1 case, hauteurs 1,1 à 1,8).
+- **Figurines** : socle rond, origine au pied ; utilisables comme props ou
+  tokens. 10 figurines v6 taguées `class:...` / `creature:...` dans le manifeste
+  (échelle ~1 case, hauteurs 0,86 à 2,01).
 - **Objets d'eau** (`ponton`, `barque`, `nenuphars`) : pas de jupe ; poser à la
   surface de l'eau (origine z=0 = niveau de l'eau), le moteur anime le plan d'eau.
 - **Falaise** : module 2×2 à poser en bord de relief ; le plateau herbeux est
@@ -241,7 +271,7 @@ Points d'intégration importants :
 
 # Textures de sol seules + planche de contrôle
 python tools/blender/make_terrain_textures.py
-python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets5.png --terrain
+python tools/blender/make_contact_sheet.py --out game/assets/objects3d/_planche_assets6.png --terrain
 ```
 
 Appel direct sans le wrapper :
