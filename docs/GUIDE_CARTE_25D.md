@@ -94,6 +94,8 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
   (aventurier, archère, mage, voleuse, prêtresse, garde, marchand, villageoise),
   avec leur **nom flottant** au-dessus et une **respiration discrète** ; les
   créatures (gobelin, squelette) par leur nom.
+- La démo de session place aussi des **PNJ** (marchand, garde, villageois) et des
+  **créatures** (gobelin en forêt, squelette au donjon) en figurines 3D nommées.
 
 ## 6. Sauvegarde et limites
 
