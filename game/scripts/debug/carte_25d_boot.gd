@@ -60,7 +60,7 @@ static func build_demo(md: Node) -> Dictionary:
 		return {}
 	var map_id := str(map.get("id", ""))
 	map["backgroundImage"] = MAP_BACKGROUND
-	map["renderStyle"] = "dd2_hybrid"
+	map["renderStyle"] = "2.5d"
 	map["fogEnabled"] = false
 	md.update_map(map)
 	map = md.get_by_id(map_id)

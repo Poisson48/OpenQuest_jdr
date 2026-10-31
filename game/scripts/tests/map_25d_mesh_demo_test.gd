@@ -30,7 +30,7 @@ func _run() -> void:
 
 	var base: Dictionary = md.create_complex_map("Démo carte 2.5D", "general", "local", 24, 16)
 	base["backgroundImage"] = "res://assets/maps/valbois_village.png"
-	base["renderStyle"] = "dd2_hybrid"
+	base["renderStyle"] = "2.5d"
 	base["fogEnabled"] = false
 	md.update_map(base)
 	base = md.get_by_id(str(base.get("id", "")))

@@ -40,12 +40,26 @@ func _cleanup() -> void:
 		DirAccess.remove_absolute(path)
 
 func _test_resolution() -> void:
-	_assert("default_diorama", StyleScript.style_of({}) == StyleScript.DIORAMA)
-	_assert("missing_is_diorama", StyleScript.is_diorama({}))
+	_assert("default_25d", StyleScript.style_of({}) == StyleScript.MAP_25D)
+	_assert("missing_is_diorama_family", StyleScript.is_diorama({}))
 	_assert("explicit_vtt", StyleScript.style_of({"renderStyle": "vtt"}) == StyleScript.VTT)
 	_assert("unknown_falls_back", StyleScript.style_of({"renderStyle": "xyz"}) == StyleScript.DIORAMA)
 	_assert("label_diorama", not StyleScript.style_label(StyleScript.DIORAMA).is_empty())
 	_assert("label_vtt", not StyleScript.style_label(StyleScript.VTT).is_empty())
+
+	_assert("explicit_25d", StyleScript.style_of({"renderStyle": "2.5d"}) == StyleScript.MAP_25D)
+	_assert("25d_is_diorama_family", StyleScript.is_diorama({"renderStyle": "2.5d"}))
+	_assert("25d_flag", StyleScript.is_map_25d({"renderStyle": "2.5d"}))
+	_assert("label_25d", not StyleScript.style_label(StyleScript.MAP_25D).is_empty())
+	var map25: Dictionary = StyleScript.config({
+		"renderStyle": "2.5d",
+		"backgroundImage": "user://map_assets/fake.png",
+	})
+	_assert("25d_keeps_perspective", bool(map25.get("perspective", false)))
+	_assert("25d_tilted", float(map25.get("tilt", 0.0)) > -90.0 and float(map25.get("tilt", 0.0)) < -30.0)
+	_assert("25d_standing_props", not bool(map25.get("preferFlatProps", true)))
+	_assert("25d_parallax", float(map25.get("parallax", 0.0)) > 0.0)
+	_assert("25d_no_shadows", not bool(map25.get("shadows", true)))
 
 	var dio: Dictionary = StyleScript.config({})
 	_assert("cfg_parallax", float(dio.get("parallax", 0.0)) > 0.0)

@@ -406,11 +406,19 @@ static func clear_caches() -> void:
 	_thumbnail_cache.clear()
 
 # ===========================================================================
-# Objets 3D (carte 2.5D) — meshes livrés dans res://assets/objects3d/
+# Objets 3D (carte 2.5D) — meshes livrés dans res://assets/objects3d/ et
+# meshes utilisateur dans user://map_assets/objects3d/ (non importés par Godot,
+# donc chargés au runtime via GLTFDocument / GLTFState).
 # ===========================================================================
 
 const OBJECTS3D_DIR := "res://assets/objects3d/"
+## Objets 3D ajoutés par l'utilisateur (bouton « Importer un GLB »).
+## Pas d'index JSON ici : le contenu des dossiers fait foi, comme pour les
+## fichiers posés à la main dans la bibliothèque de props.
+const OBJECTS3D_USER_DIR := "user://map_assets/objects3d/"
 const OBJECT3D_EXTENSIONS := ["glb", "gltf"]
+## Catégorie par défaut d'un import GLB utilisateur.
+const OBJECT3D_IMPORT_CATEGORY := "imports"
 
 static func object3d_thumb_path(path: String) -> String:
 	return path.get_basename() + "_thumb.png"
@@ -418,21 +426,43 @@ static func object3d_thumb_path(path: String) -> String:
 static func _object3d_path_exists(path: String) -> bool:
 	if path.strip_edges().is_empty():
 		return false
+	# user:// (fichier déposé à la main / importé) : FileAccess suffit.
+	if path.begins_with("user://"):
+		return FileAccess.file_exists(path)
 	return ResourceLoader.exists(path) or FileAccess.file_exists(path) \
 		or FileAccess.file_exists(ProjectSettings.globalize_path(path))
 
-## Tous les objets 3D livrés, par catégorie (buildings, props, vegetation…).
-## Chaque entrée : { id, name, category, path, thumb, kind: "mesh" }.
-static func list_object3d_assets() -> Array:
-	var out: Array = []
-	var root := DirAccess.open(OBJECTS3D_DIR)
+## Fabrique l'entrée d'un objet 3D. `user_asset` distingue les GLB livrés des
+## GLB utilisateur (dossier user://), pour l'UI et la suppression.
+static func _make_object3d_entry(path: String, category_id: String, user_asset: bool) -> Dictionary:
+	var base := path.get_file().get_basename()
+	var thumb := object3d_thumb_path(path)
+	return {
+		"id": "mesh3d-%s%s-%s" % [
+			"user-" if user_asset else "", category_id, base.to_lower(),
+		],
+		"name": base.replace("_", " ").replace("-", " ").capitalize(),
+		"category": category_id,
+		"path": path,
+		"thumb": thumb if _object3d_path_exists(thumb) else "",
+		"kind": "mesh",
+		"user": user_asset,
+	}
+
+## Scanne un dossier racine d'objets 3D (`<racine>/<catégorie>/*.glb|gltf`).
+## Les doublons de nom de fichier sont ignorés (le premier scanné gagne : les
+## assets livrés masquent donc un fichier utilisateur de même nom — les imports
+## réels sont horodatés et ne peuvent pas entrer en collision).
+static func _scan_object3d_root(root_path: String, user_asset: bool, out: Array, seen: Dictionary) -> void:
+	var root := DirAccess.open(root_path)
 	if root == null:
-		return out
+		return
+	var root_dir := root_path if root_path.ends_with("/") else root_path + "/"
 	var categories: PackedStringArray = root.get_directories()
 	categories.sort()
 	for category_variant in categories:
 		var category_id := str(category_variant)
-		var cat_dir := OBJECTS3D_DIR + category_id + "/"
+		var cat_dir := root_dir + category_id + "/"
 		var dir := DirAccess.open(cat_dir)
 		if dir == null:
 			continue
@@ -442,16 +472,28 @@ static func list_object3d_assets() -> Array:
 			var file_name := str(file_variant)
 			if not OBJECT3D_EXTENSIONS.has(file_name.get_extension().to_lower()):
 				continue
-			var path := cat_dir + file_name
-			var thumb := object3d_thumb_path(path)
-			out.append({
-				"id": "mesh3d-%s-%s" % [category_id, file_name.get_basename().to_lower()],
-				"name": file_name.get_basename().replace("_", " ").replace("-", " ").capitalize(),
-				"category": category_id,
-				"path": path,
-				"thumb": thumb if _object3d_path_exists(thumb) else "",
-				"kind": "mesh",
-			})
+			var dedupe_key := file_name.to_lower()
+			if seen.has(dedupe_key):
+				continue
+			seen[dedupe_key] = true
+			out.append(_make_object3d_entry(cat_dir + file_name, category_id, user_asset))
+
+## Tous les objets 3D connus (livrés + utilisateur), par catégorie puis nom.
+## Chaque entrée : { id, name, category, path, thumb, kind: "mesh", user: bool }.
+static func list_object3d_assets() -> Array:
+	var out: Array = []
+	var seen: Dictionary = {}
+	_scan_object3d_root(OBJECTS3D_DIR, false, out, seen)
+	_scan_object3d_root(OBJECTS3D_USER_DIR, true, out, seen)
+	out.sort_custom(func(a, b):
+		var cat_a := str((a as Dictionary).get("category", ""))
+		var cat_b := str((b as Dictionary).get("category", ""))
+		if cat_a != cat_b:
+			return cat_a.naturalnocasecmp_to(cat_b) < 0
+		var name_a := str((a as Dictionary).get("name", ""))
+		var name_b := str((b as Dictionary).get("name", ""))
+		return name_a.naturalnocasecmp_to(name_b) < 0
+	)
 	return out
 
 static func get_object3d_asset(asset_path: String) -> Dictionary:
@@ -459,6 +501,97 @@ static func get_object3d_asset(asset_path: String) -> Dictionary:
 		if str((entry_variant as Dictionary).get("path", "")) == asset_path:
 			return entry_variant
 	return {}
+
+## Copie un GLB/GLTF dans user://map_assets/objects3d/<catégorie>/ et renvoie
+## l'entrée créée (`{}` en cas d'échec). `source_path` peut être un chemin
+## res://, user:// ou un chemin absolu choisi via FileDialog. Le nom de
+## destination est sécurisé et horodaté pour ne pas écraser un import existant.
+static func import_object3d(source_path: String, category_id: String = OBJECT3D_IMPORT_CATEGORY) -> Dictionary:
+	var source := source_path.strip_edges()
+	if source.is_empty() or not _object3d_path_exists(source):
+		push_warning("Import 3D impossible : fichier introuvable (%s)." % source)
+		return {}
+	var ext := source.get_extension().to_lower()
+	if not OBJECT3D_EXTENSIONS.has(ext):
+		push_warning("Import 3D refusé : extension « %s » (attendu : glb ou gltf)." % ext)
+		return {}
+	var category := _safe_name(category_id if not category_id.strip_edges().is_empty() else OBJECT3D_IMPORT_CATEGORY)
+	var dest_dir := OBJECTS3D_USER_DIR + category + "/"
+	DirAccess.make_dir_recursive_absolute(dest_dir)
+	var safe := _safe_name(source.get_file().get_basename())
+	var dest := "%s%s-%d.%s" % [dest_dir, safe, int(Time.get_unix_time_from_system()), ext]
+	# FileAccess gère les chemins res:// (fichier brut), user:// et absolus.
+	var src := FileAccess.open(source, FileAccess.READ)
+	if src == null:
+		push_warning("Import 3D impossible : lecture refusée (%s)." % source)
+		return {}
+	var dst := FileAccess.open(dest, FileAccess.WRITE)
+	if dst == null:
+		src = null
+		push_warning("Import 3D impossible : écriture refusée (%s)." % dest)
+		return {}
+	dst.store_buffer(src.get_buffer(src.get_length()))
+	dst = null
+	src = null
+	return _make_object3d_entry(dest, category, true)
+
+## Instancie un objet 3D prêt pour la carte 2.5D, quel que soit son origine :
+##   • GLB livré et importé par Godot (res://) → ResourceLoader.load + PackedScene ;
+##   • GLB/GLTF utilisateur ou fichier brut non importé (user://, res:// non
+##     importé) → GLTFDocument + GLTFState, qui lisent le fichier au runtime.
+## Renvoie null si le fichier est introuvable, illisible ou ne produit aucune
+## scène 3D (l'appelant retombe alors sur son volume de substitution).
+static func instantiate_object3d_scene(path: String) -> Node3D:
+	var clean := path.strip_edges()
+	if clean.is_empty():
+		return null
+	if ResourceLoader.exists(clean):
+		var resource := load(clean)
+		if resource is PackedScene:
+			var packed_instance := (resource as PackedScene).instantiate()
+			if packed_instance is Node3D:
+				return packed_instance as Node3D
+			if packed_instance != null:
+				packed_instance.free()
+			return null
+	# Fichier non importé par Godot : parsing glTF direct.
+	var abs_path := clean
+	if clean.begins_with("res://") or clean.begins_with("user://"):
+		abs_path = ProjectSettings.globalize_path(clean)
+	if not FileAccess.file_exists(abs_path):
+		return null
+	var document := GLTFDocument.new()
+	var state := GLTFState.new()
+	var err := document.append_from_file(abs_path, state)
+	if err != OK:
+		push_warning("Objet 3D illisible : %s (erreur glTF %d)." % [clean, err])
+		return null
+	var scene := document.generate_scene(state)
+	if scene == null:
+		return null
+	var root := scene as Node3D
+	if root == null:
+		scene.free()
+		return null
+	return root
+
+## Supprime un objet 3D utilisateur : fichier + vignette + entrées de cache.
+## Refuse tout asset livré (`res://`) et renvoie false si rien n'a été supprimé.
+static func remove_object3d(path: String) -> bool:
+	var clean := path.strip_edges()
+	if clean.is_empty() or clean.begins_with("res://") or not clean.begins_with("user://"):
+		return false
+	if not FileAccess.file_exists(clean):
+		return false
+	var thumb := object3d_thumb_path(clean)
+	var removed := DirAccess.remove_absolute(clean) == OK
+	if FileAccess.file_exists(thumb):
+		DirAccess.remove_absolute(thumb)
+	# La vignette est mise en cache sous la clé « 3d:<glb> » et sous son chemin.
+	_thumbnail_cache.erase("3d:" + clean)
+	_thumbnail_cache.erase(thumb)
+	_texture_cache.erase(thumb)
+	return removed
 
 ## Vignette rendue par Blender (`<nom>_thumb.png`) ; retombe sur null si absente
 ## (le bouton affiche alors l'icône de l'outil).

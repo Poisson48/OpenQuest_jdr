@@ -57,7 +57,8 @@ func _ready() -> void:
 	widgets["night_ambient"] = %SpinNightAmbient
 
 	_fill_option(%OptRenderStyle, [
-		["diorama", "Diorama 2.5D"],
+		["2.5d", "Carte 2.5D (défaut)"],
+		["diorama", "Diorama (vue de dessus)"],
 		["vtt", "VTT 3D (tactique)"],
 		["dd2_hybrid", "Hybride DD2 (2D+3D)"],
 	])

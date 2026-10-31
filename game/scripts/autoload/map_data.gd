@@ -691,11 +691,11 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 		map_data["status"] = "published" if is_demo_map_id(mid) else "draft"
 	if not map_data.has("layers") or typeof(map_data["layers"]) != TYPE_ARRAY:
 		map_data["layers"] = DEFAULT_LAYERS.duplicate(true)
-	# Schéma 5 — style diorama 2.5D (défaut) ou VTT tactique.
+	# Schéma 5 — style de rendu : carte 2.5D (défaut), VTT tactique ou diorama.
 	if not map_data.has("renderStyle"):
-		map_data["renderStyle"] = "diorama"
-	if str(map_data.get("renderStyle", "diorama")) == "diorama":
-		# Grille masquée par défaut sur un village illustré.
+		map_data["renderStyle"] = "2.5d"
+	if str(map_data.get("renderStyle", "2.5d")) in ["2.5d", "diorama", "dd2_hybrid"]:
+		# Grille masquée par défaut sur un décor peint.
 		var grid: Dictionary = map_data.get("grid", {})
 		if grid is Dictionary and not grid.has("show"):
 			grid = grid.duplicate(true)
@@ -735,7 +735,7 @@ func create_complex_map(title: String, roster: String, map_kind: String = "local
 		"roster": roster,
 		"mapKind": map_kind,
 		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "diorama",
+		"renderStyle": "2.5d",
 		"scenarioId": "",
 		"status": "draft",
 		"width": grid_cells_w,
@@ -1385,7 +1385,7 @@ func _build_demo_catalog() -> Array:
 		"roster": "general",
 		"mapKind": "local",
 		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "dd2_hybrid",
+		"renderStyle": "2.5d",
 		"scenarioId": "demo-valbois",
 		"width": cells_v.x,
 		"height": cells_v.y,
@@ -1435,7 +1435,7 @@ func _build_demo_catalog() -> Array:
 		"roster": "general",
 		"mapKind": "local",
 		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "dd2_hybrid",
+		"renderStyle": "2.5d",
 		"scenarioId": "demo-valbois",
 		"width": cells_p.x,
 		"height": cells_p.y,

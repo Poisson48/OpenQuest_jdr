@@ -32,6 +32,9 @@ class_name MapMeshes3D
 ## purement décoratif.
 
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
+## Chargement des objets 3D : GLB livrés (importés par Godot, via ResourceLoader)
+## ET GLB utilisateur déposés dans user:// (non importés, via GLTFDocument).
+const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -106,25 +109,14 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	root.set_meta("fallback", fallback)
 	return root
 
-## Instancie l'asset comme scène 3D. Renvoie null si vide / introuvable /
-## illisible / non-PackedScene (fallback).
+## Instancie l'asset comme scène 3D, qu'il soit livré et importé par Godot
+## (res://) ou importé par l'utilisateur dans user:// (GLTFDocument/GLTFState).
+## Renvoie null si vide / introuvable / illisible / non-3D (fallback).
 func _instantiate_asset(asset_path: String) -> Node3D:
 	var path := asset_path.strip_edges()
 	if path.is_empty():
 		return null
-	if not ResourceLoader.exists(path):
-		return null
-	var resource: Resource = load(path)
-	if resource == null or not resource is PackedScene:
-		return null
-	var instance: Node = (resource as PackedScene).instantiate()
-	if instance == null:
-		return null
-	var visual := instance as Node3D
-	if visual == null:
-		instance.free()
-		return null
-	return visual
+	return MapAssetLibraryScript.instantiate_object3d_scene(path)
 
 ## Volume de substitution : boîte neutre non éclairée, pied au sol, dimensionnée
 ## en unités locales (donc mise à l'échelle par la racine comme un vrai asset).

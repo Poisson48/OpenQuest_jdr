@@ -118,6 +118,9 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
 
 - Les modèles vivent dans `game/assets/objects3d/<catégorie>/` (bâtiments,
   props, végétation, terrain) ; ils sont listés dans **Biblio → 🧊 Objets 3D**.
+- **＋ Importer un GLB…** ajoute un modèle `.glb`/`.gltf` à la bibliothèque de
+  l'utilisateur (`user://map_assets/objects3d/imports/`), avec vignette générée
+  automatiquement. Aucun outil externe requis pour ajouter ses propres bâtiments.
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
@@ -125,15 +128,16 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   rapide dans l'inspecteur. Un objet 3D est **opaque** : il masque correctement
   les découpes situées derrière lui.
 
-## 1 quater. Style de rendu : diorama (défaut) ou VTT
+## 1 quater. Style de rendu : carte 2.5D (défaut), diorama ou VTT
 
 Chaque carte complexe a un **`renderStyle`** :
 
-| Style | Usage | Caméra | Ombres | Murs | Grille | Props |
+| Style | Usage | Caméra | Ombres | Murs | Grille | Props / objets 3D |
 |-------|--------|--------|--------|------|--------|-------|
-| **Diorama 2.5D** (défaut) | Village illustré, exploration | Sans fond : perspective ~52° · **Avec fond illustré** : ortho top + props **à plat** | Non | Invisibles (LOS seulement) | Masquée par défaut | Plat si fond illustré (sinon dressés) |
-| **VTT 3D** | Combat tactique | Ortho légèrement inclinée (~72°) / iso | Oui | Volumes | Visible | Dressés face caméra |
-| **DD2 hybrid** (roadmap) | Look Darkest Dungeon 2 | Inclinée + fond illustré + découpes | Non | LOS | Optionnel | Dressés — *non sélectionnable encore* |
+| **Carte 2.5D** (défaut) | Le style de jeu : village, donjon, extérieur | Perspective inclinée ~50° | Non | Invisibles (LOS seulement) | Masquée par défaut | Découpes dressées + meshes 3D non éclairés |
+| **Diorama** | Plan illustré à plat | Avec fond illustré : ortho top, props à plat | Non | Invisibles (LOS seulement) | Masquée par défaut | Plats |
+| **VTT 3D** | Combat tactique | Ortho inclinée (~72°) / iso | Oui | Volumes | Visible | Dressés face caméra |
+| **DD2 hybrid** (hérité) | Look Darkest Dungeon 2 | Inclinée + fond illustré | Non | LOS | Optionnel | Dressés |
 
 Réglage : onglet **Carte → Style de rendu**. Les données (décors, lieux, murs)
 sont communes ; seul le rendu change. En session, cliquer un **lieu** lié

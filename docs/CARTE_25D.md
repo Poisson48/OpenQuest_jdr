@@ -63,15 +63,17 @@ Le socle est donc **déjà à 70 %** de la cible : il manque principalement le *
 | **M2** | Outil éditeur + inspecteur | outil « Objet 3D » dans la palette, ghost, pose, rotation/échelle, champs inspecteur, suppression/undo | test `map_editor_test` étendu |
 | **M3** | Bibliothèque 3D | import GLB/OBJ dans `user://map_assets/objects3d/`, vignettes, catégories, biblio mixte | test biblio |
 | **M4** | Preset caméra **2.5D** | style par défaut des nouvelles cartes, réglages tilt/FOV/parallaxe dans l'onglet Carte, vérrouillage de l'orbite en session | test `map_render_style_test` |
-| **M5** | Démo | une carte village 2.5D mêlant sol peint, props 2D et 3 objets 3D, livrée comme carte de démo | capture + smoke |
+| **M5** | Démo | une carte village 2.5D mêlant sol peint, props 2D et objets 3D, livrée comme carte de démo et scène de test éditeur | capture + smoke |
+| **M6** | **Adaptation au terrain** | relief peint par cases (hauteur), objets 3D posés au sol réel : base sur la hauteur du terrain et inclinaison selon la pente (façon Rust / Fallout 76), ombre de contact qui suit | test relief + capture |
 
-**État au 30 octobre** : **M1 livré** — type `mesh`, outil éditeur, biblio GLB, calque de rendu (ombre de contact, matériaux non éclairés), pipeline Blender et 13 assets prototypes. M2/M3 partiellement couverts (pose + biblio livrées ; import GLB utilisateur à faire). Captures : [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) (parcours de pose), [`carte_25d_mesh_demo.png`](./screenshots/carte_25d_mesh_demo.png) et [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) (rendu intégré).
+**État au 31 octobre** : **M1→M4 livrés** — type `mesh`, outil éditeur, import GLB utilisateur (copie `user://` + vignette auto), style **Carte 2.5D par défaut**, pipeline Blender et 13 assets. **M6 (terrain) en cours.** Captures : [`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) (parcours de pose), [`carte_25d_mesh_demo.png`](./screenshots/carte_25d_mesh_demo.png) et [`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) (rendu intégré).
 
 Tester dans l'éditeur :
 
 ```powershell
 .\scripts\play-godot.ps1 res://scenes/debug/carte_25d_boot.tscn
 # puis : onglet Biblio → 🧊 Objets 3D → clic sur un objet → clic sur la carte
+# ou : ＋ Importer un GLB… pour ajouter son propre bâtiment
 ```
 
 ---
@@ -91,6 +93,21 @@ La cible n'est pas un outil d'artiste 3D. **Un MJ doit pouvoir poser ses propres
 | Cohérence 2D/3D | Un objet 3D et une découpe 2D à la même place doivent avoir la même échelle visuelle (1 case = 1 unité GLB) et la même lumière/teinte. |
 
 **Guide de style Blender (imposé aux assets livrés)** : low-poly lisible de dessus, palette terre/pierre/bois cohérente avec les fonds Valbois, matériaux mats sans reflets, base large et « jupe » de raccord au sol (pierre/herbe) pour éviter la coupure nette avec l'illustration, pas de transparence, budget < 5 000 tris, une seule texture d'atlas ou couleurs de matériaux, ombre de contact gérée côté moteur.
+
+---
+
+## 4 ter. Adaptation au terrain (M6)
+
+Exigence : comme dans Rust ou Fallout 76, **une construction posée sur un terrain irrégulier s'y adapte** au lieu de flotter ou de s'enterrer. Cible :
+
+| Aspect | Implémentation |
+|---|---|
+| Relief | `terrainHeights` : une hauteur par case (en cases), peinte à l'outil **Relief** (monter/baisser) avec pinceau ; stockée dans la carte et sérialisée. |
+| Rendu | Le sol peint est déformé (grille tessellée + UV du fond), avec un ombrage doux par sommet pour lire les pentes ; terrain plat si aucune hauteur. |
+| Pose d'objet | Un mesh échantillonne la hauteur sous son empreinte (centre + coins) ; sa base se pose sur la hauteur **maximale** (pas d'enfoncement) et il **s'incline** selon la normale du terrain au-delà d'un seuil. |
+| Découpes 2D / tokens | Même règle de hauteur pour le pied (éviter qu'ils flottent sur une butte). |
+| Contact | L'ombre de contact suit la hauteur locale ; les objets restent sélectionnables au bon endroit à l'écran (projection avec hauteur). |
+| Réglage | Option par objet « Suivre le terrain » (activée par défaut) + seuil d'inclinaison dans les réglages de carte. |
 
 **Règle de branche** : on ne merge pas le chantier table 3D/dés ici ; chaque milestone arrive avec son test headless (sans `--quit`) et ses captures quand c'est pertinent.
 

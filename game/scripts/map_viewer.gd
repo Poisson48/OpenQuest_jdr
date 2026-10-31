@@ -83,13 +83,15 @@ func _sync_render_mode_ui() -> void:
 	_btn_mode_complex.disabled = not editable
 	if editable:
 		if mode == MapModeScript.COMPLEX:
-			var style := str(_map_data.get("renderStyle", "diorama"))
+			var style := str(_map_data.get("renderStyle", "2.5d"))
 			if style == "vtt":
 				_mode_hint_lbl.text = "VTT 3D : grille, murs volumétriques, ombres, fog et tokens."
+			elif style == "2.5d":
+				_mode_hint_lbl.text = "Carte 2.5D : décor peint, découpes 2D et objets 3D mélangés."
 			elif style == "dd2_hybrid":
 				_mode_hint_lbl.text = "Hybride DD2 : fond illustré + caméra inclinée + personnages dressés."
 			else:
-				_mode_hint_lbl.text = "Diorama 2.5D : fond illustré, lieux cliquables, décors et tokens."
+				_mode_hint_lbl.text = "Diorama : fond illustré, lieux cliquables, décors et tokens."
 		else:
 			_mode_hint_lbl.text = "Éditeur 2D — tuiles, marqueurs, lieux, notes, brouillard et undo."
 	else:

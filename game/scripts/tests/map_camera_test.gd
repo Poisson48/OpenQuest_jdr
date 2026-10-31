@@ -151,7 +151,7 @@ func _test_vtt_is_orthographic(Engine3DScript: GDScript, md) -> void:
 
 func _test_create_defaults(md) -> void:
 	var map: Dictionary = md.create_complex_map("Defaults cam", "general", "local", 16, 12)
-	_assert("default_diorama", str(map.get("renderStyle", "")) == "diorama")
+	_assert("default_25d", str(map.get("renderStyle", "")) == "2.5d")
 	_assert("default_topdown", str(map.get("perspective", "")) == "topdown")
 
 func _assert(name: String, cond: bool) -> void:

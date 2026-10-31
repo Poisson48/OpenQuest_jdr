@@ -663,6 +663,7 @@ func _rebuild_layers() -> void:
 					break
 		var use_cutout := has_image \
 			or MapRenderStyleScript.is_dd2(map_data) \
+			or MapRenderStyleScript.is_map_25d(map_data) \
 			or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
 		# Vue table : des **pions** 3D posés sur le plateau, pas des découpes.
 		if table_view:

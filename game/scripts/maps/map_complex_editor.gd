@@ -66,6 +66,8 @@ var _mesh_asset: String = ""
 var _mesh_scale: float = 1.0
 var _mesh_rotation: float = 0.0
 var _mesh_footprint_cache: Dictionary = {}
+## Dialogue d'import de modèles 3D (GLB/glTF) pour la bibliothèque d'objets.
+var _mesh_import_dialog: FileDialog
 var _last_saved_at: float = 0.0
 var _status_badges: HBoxContainer
 var _policy_chip: Label
@@ -1286,24 +1288,22 @@ func _mesh_footprint_cells(asset_path: String, scale_factor: float = -1.0) -> Ve
 	if _mesh_footprint_cache.has(cache_key):
 		return _mesh_footprint_cache[cache_key]
 	var out := Vector2.ONE
-	if ResourceLoader.exists(asset_path):
-		var packed = load(asset_path)
-		if packed is PackedScene:
-			var inst: Node = (packed as PackedScene).instantiate()
-			var bounds: Array = []
-			_collect_mesh_aabbs(inst, Transform3D.IDENTITY, bounds)
-			var first := true
-			var merged := AABB()
-			for aabb_variant in bounds:
-				var aabb: AABB = aabb_variant
-				merged = aabb if first else merged.merge(aabb)
-				first = false
-			if not first and merged.size.x > 0.0 and merged.size.z > 0.0:
-				out = Vector2(
-					maxf(0.5, merged.size.x * factor),
-					maxf(0.5, merged.size.z * factor)
-				)
-			inst.free()
+	var inst: Node3D = AssetLibraryScript.instantiate_object3d_scene(asset_path)
+	if inst != null:
+		var bounds: Array = []
+		_collect_mesh_aabbs(inst, Transform3D.IDENTITY, bounds)
+		var first := true
+		var merged := AABB()
+		for aabb_variant in bounds:
+			var aabb: AABB = aabb_variant
+			merged = aabb if first else merged.merge(aabb)
+			first = false
+		if not first and merged.size.x > 0.0 and merged.size.z > 0.0:
+			out = Vector2(
+				maxf(0.5, merged.size.x * factor),
+				maxf(0.5, merged.size.z * factor)
+			)
+		inst.free()
 	_mesh_footprint_cache[cache_key] = out
 	return out
 
@@ -1537,13 +1537,30 @@ func _refresh_asset_library() -> void:
 		)
 		btn.add_child(remove)
 
-## Liste les meshes 3D livrés (res://assets/objects3d/<catégorie>/*.glb).
+## Liste les meshes 3D livrés et importés par l'utilisateur
+## (res://assets/objects3d/<catégorie>/*.glb + user://map_assets/objects3d/...).
 func _refresh_object3d_library() -> void:
+	if _mesh_import_dialog == null:
+		_mesh_import_dialog = FileDialog.new()
+		_mesh_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_mesh_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+		_mesh_import_dialog.filters = PackedStringArray(["*.glb, *.gltf ; Modèles 3D"])
+		_mesh_import_dialog.title = "Importer un modèle 3D (GLB / glTF)"
+		_mesh_import_dialog.file_selected.connect(_on_object3d_import_selected)
+		add_child(_mesh_import_dialog)
+
 	var assets: Array = AssetLibraryScript.list_object3d_assets()
-	if assets.is_empty():
-		_asset_hint.text = "Aucun objet 3D. Placez des .glb générés avec Blender dans game/assets/objects3d/<catégorie>/ (voir docs/BLENDER_PIPELINE.md)."
-		return
-	_asset_hint.text = "%d objet(s) 3D — cliquez pour armer l'outil, puis cliquez la carte." % assets.size()
+	_asset_hint.text = "%d objet(s) 3D — cliquez pour armer l'outil, puis cliquez la carte." % assets.size() if not assets.is_empty() \
+		else "Aucun objet 3D. Cliquez « Importer un GLB… » ou déposez des .glb dans game/assets/objects3d/."
+
+	var import_btn := Button.new()
+	import_btn.text = "＋ Importer un GLB…"
+	import_btn.custom_minimum_size = Vector2(84, 40)
+	import_btn.tooltip_text = "Ajoute un modèle .glb/.gltf à VOTRE bibliothèque (user://map_assets/objects3d/). Une vignette est générée automatiquement."
+	import_btn.add_theme_font_size_override("font_size", 10)
+	import_btn.pressed.connect(func(): _mesh_import_dialog.popup_centered(Vector2i(900, 620)))
+	_asset_grid.add_child(import_btn)
+
 	for asset_variant in assets:
 		var asset: Dictionary = asset_variant
 		var path := str(asset.get("path", ""))
@@ -1563,6 +1580,96 @@ func _refresh_object3d_library() -> void:
 		btn.add_theme_font_size_override("font_size", 10)
 		btn.pressed.connect(func(): _select_mesh_asset(asset))
 		_asset_grid.add_child(btn)
+
+		# Les assets importés par l'utilisateur peuvent être retirés.
+		if bool(asset.get("user", false)):
+			var remove := Button.new()
+			remove.text = "✕"
+			remove.flat = true
+			remove.custom_minimum_size = Vector2(18, 18)
+			remove.tooltip_text = "Retirer cet objet 3D importé"
+			remove.pressed.connect(func():
+				AssetLibraryScript.remove_object3d(path)
+				if _mesh_asset == path:
+					_mesh_asset = ""
+				_refresh_asset_library()
+			)
+			btn.add_child(remove)
+
+## Import d'un GLB choisi par le MJ : copie dans user://, vignette auto, outil armé.
+func _on_object3d_import_selected(source_path: String) -> void:
+	var entry: Dictionary = AssetLibraryScript.import_object3d(source_path, "imports")
+	if entry.is_empty():
+		_set_status("Import 3D impossible : fichier .glb/.gltf invalide ou illisible.")
+		return
+	var asset_path := str(entry.get("path", ""))
+	await _generate_object3d_thumbnail(asset_path)
+	_prop_category = "objects3d"
+	_mesh_asset = asset_path
+	_mesh_scale = 1.0
+	_mesh_rotation = 0.0
+	_set_tool(ToolsScript.MESH)
+	_refresh_asset_library()
+	_set_status("Objet 3D « %s » importé — cliquez la carte." % entry.get("name", ""))
+
+## Génère une vignette 256×256 du GLB (rendu hors écran) pour la bibliothèque.
+## Silencieux en cas d'échec : la bibliothèque affiche alors l'icône 🧊.
+func _generate_object3d_thumbnail(asset_path: String) -> void:
+	var thumb_path := AssetLibraryScript.object3d_thumb_path(asset_path)
+	if thumb_path.is_empty():
+		return
+	if FileAccess.file_exists(ProjectSettings.globalize_path(thumb_path)):
+		return
+	var scene: Node3D = AssetLibraryScript.instantiate_object3d_scene(asset_path)
+	if scene == null:
+		return
+	var boxes: Array = []
+	_collect_mesh_aabbs(scene, Transform3D.IDENTITY, boxes)
+	if boxes.is_empty():
+		scene.free()
+		return
+	var merged: AABB = boxes[0]
+	for i in range(1, boxes.size()):
+		merged = merged.merge(boxes[i])
+	var max_dim := maxf(merged.size.x, maxf(merged.size.y, merged.size.z))
+	if max_dim <= 0.0001:
+		scene.free()
+		return
+	var fit := 1.8 / max_dim
+	scene.scale = Vector3.ONE * fit
+	scene.position = Vector3(
+		-(merged.position.x + merged.size.x * 0.5) * fit,
+		-merged.position.y * fit,
+		-(merged.position.z + merged.size.z * 0.5) * fit
+	)
+
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(256, 256)
+	viewport.transparent_bg = true
+	viewport.own_world_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	viewport.add_child(scene)
+	var camera := Camera3D.new()
+	camera.fov = 35.0
+	viewport.add_child(camera)
+	camera.look_at_from_position(Vector3(1.55, 1.25, 2.1), Vector3(0.0, 0.55, 0.0))
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-52.0, -38.0, 0.0)
+	sun.light_energy = 1.15
+	viewport.add_child(sun)
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-30.0, 140.0, 0.0)
+	fill.light_energy = 0.35
+	viewport.add_child(fill)
+	add_child(viewport)
+	for _i in range(5):
+		await get_tree().process_frame
+	var image: Image = viewport.get_texture().get_image()
+	if image != null:
+		image.convert(Image.FORMAT_RGBA8)
+		image.save_png(ProjectSettings.globalize_path(thumb_path))
+		AssetLibraryScript.clear_caches()
+	viewport.queue_free()
 
 func _select_mesh_asset(asset: Dictionary) -> void:
 	_mesh_asset = str(asset.get("path", ""))
@@ -1994,7 +2101,7 @@ func _refresh_ghost() -> void:
 			ghost["h"] = mesh_footprint.y
 			ghost["icon"] = "🧊"
 			ghost["rotation"] = _mesh_rotation
-			ghost["texture"] = null
+			ghost["texture"] = AssetLibraryScript.load_object3d_thumbnail(_mesh_asset)
 			ghost["standing"] = true
 		if _tool == ToolsScript.TOKEN:
 			ghost["color"] = MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]
@@ -2193,7 +2300,7 @@ func _sync_settings_ui() -> void:
 	_set_spin("night_ambient", float(light.get("nightAmbient", 0.22)))
 	_select_metadata("light_dir", str(light.get("direction", "nw")))
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
-	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "diorama")))
+	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -2242,7 +2349,7 @@ func _on_render_style_changed() -> void:
 	var grid: Dictionary = MapData.get_grid_config(doc.map_data).duplicate(true)
 	grid["show"] = style == "vtt"
 	patch["grid"] = grid
-	if style == "diorama" or style == "dd2_hybrid":
+	if style == "diorama" or style == "dd2_hybrid" or style == "2.5d":
 		patch["perspective"] = MapData.PERSPECTIVE_TILT
 	doc.set_meta_values(patch, "Style de rendu")
 	_sync_settings_ui()

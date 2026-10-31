@@ -14,8 +14,19 @@ class_name MapRenderStyle
 const DIORAMA := "diorama"
 const VTT := "vtt"
 const DD2_HYBRID := "dd2_hybrid"
+## Carte 2.5D par défaut : décor peint, caméra en perspective, objets 2D/3D
+## mélangés (type League of Legends / Warhammer).
+const MAP_25D := "2.5d"
+
+## Style par défaut des nouvelles cartes.
+const DEFAULT_STYLE := MAP_25D
 
 const STYLES := [
+	{
+		"id": MAP_25D,
+		"label": "Carte 2.5D (défaut)",
+		"hint": "Décor peint en perspective, découpes 2D et objets 3D mélangés. Le style des cartes de jeu.",
+	},
 	{
 		"id": DIORAMA,
 		"label": "Diorama 2.5D",
@@ -35,6 +46,19 @@ const STYLES := [
 
 ## Réglages par style. Ils pilotent la caméra, l'éclairage et la profondeur.
 const CONFIGS := {
+	MAP_25D: {
+		"perspective": true,
+		"fov": 38.0,
+		"tilt": -50.0,
+		"shadows": false,
+		"litProps": false,
+		"volumetricWalls": false,
+		"parallax": 0.5,
+		"depthFade": 0.3,
+		"groundTint": 1.0,
+		# Découpes dressées et meshes 3D sur le fond peint.
+		"preferFlatProps": false,
+	},
 	DIORAMA: {
 		"perspective": true,
 		"fov": 34.0,
@@ -80,17 +104,23 @@ const CONFIGS := {
 # ===========================================================================
 
 static func style_of(map_data: Dictionary) -> String:
-	var style := str(map_data.get("renderStyle", DIORAMA))
+	var style := str(map_data.get("renderStyle", DEFAULT_STYLE))
 	if style == VTT:
 		return VTT
 	if style == DD2_HYBRID:
 		return DD2_HYBRID
+	if style == MAP_25D:
+		return MAP_25D
 	return DIORAMA
 
-## Famille « soft » (diorama + DD2) : pas de murs volumétriques durs, fog doux.
+## Famille « soft » (2.5D + diorama + DD2) : pas de murs volumétriques durs,
+## fog doux, objets non éclairés.
 static func is_diorama(map_data: Dictionary) -> bool:
 	var style := style_of(map_data)
-	return style == DIORAMA or style == DD2_HYBRID
+	return style == DIORAMA or style == DD2_HYBRID or style == MAP_25D
+
+static func is_map_25d(map_data: Dictionary) -> bool:
+	return style_of(map_data) == MAP_25D
 
 static func is_dd2(map_data: Dictionary) -> bool:
 	return style_of(map_data) == DD2_HYBRID
