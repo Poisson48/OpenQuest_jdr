@@ -50,13 +50,23 @@ func _ready() -> void:
 		},
 	]
 
-	gd.create_new_game("demo-valbois", "solo", "human", "oneshot", party, ids)
+	# Copies de sécurité : create_new_game peut compléter ces tableaux avec le
+	# scénario Valbois (personnage + cartes), on veut garder notre monde seul.
+	var clean_ids: Array = ids.duplicate()
+	var keep_names: Dictionary = {}
+	for member_variant in party:
+		keep_names[str((member_variant as Dictionary).get("name", ""))] = true
+	gd.create_new_game("demo-valbois", "solo", "human", "oneshot", party.duplicate(true), ids.duplicate())
 	gd.ensure_map_play_state()
 	gd.active_game["currentMapId"] = village_id
 	gd.active_game["mapNavigation"] = {
 		"view": "local", "worldMapId": null, "localMapId": village_id, "worldCell": null,
 	}
 	gd.active_game["gmName"] = "MJ"
+	gd.active_game["party"] = (gd.active_game.get("party", []) as Array).filter(
+		func(member): return keep_names.has(str((member as Dictionary).get("name", "")))
+	)
+	gd.active_game["mapIds"] = clean_ids
 	gd.save_active_game()
 	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
 	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
