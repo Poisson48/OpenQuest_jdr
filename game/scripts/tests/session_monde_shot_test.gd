@@ -108,6 +108,22 @@ func _run() -> void:
 				var pas_out := copy_dir.path_join("session_pas.png")
 				pas_img.save_png(pas_out)
 				print("  capture: ", pas_out)
+		# Dialogue de PNJ au clic (Marchand).
+		var npc_token := ""
+		for token_variant in gd.get_map_play_tokens(village_id):
+			if str((token_variant as Dictionary).get("label", "")) == "Marchand":
+				npc_token = str((token_variant as Dictionary).get("id", ""))
+				break
+		if not npc_token.is_empty():
+			workspace._on_token_selected(npc_token)
+			for _i in range(10):
+				await process_frame
+			var npc_img: Image = get_root().get_texture().get_image()
+			if npc_img != null:
+				npc_img.convert(Image.FORMAT_RGBA8)
+				var npc_out := copy_dir.path_join("session_npc.png")
+				npc_img.save_png(npc_out)
+				print("  capture: ", npc_out)
 	session.queue_free()
 	await process_frame
 	print("session_monde_shot_test:PASS")

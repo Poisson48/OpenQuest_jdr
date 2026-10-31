@@ -945,6 +945,11 @@ func _on_token_selected(token_id: String) -> void:
 	var tok := GameData.find_map_token(map_id, token_id)
 	if tok.is_empty():
 		return
+	if str(tok.get("kind", "")) == "npc":
+		var npc_label := str(tok.get("label", "")).strip_edges()
+		if not npc_label.is_empty():
+			stage.show_speech(npc_label, _npc_line(npc_label),
+				Vector2(float(tok.get("x", 0.0)), float(tok.get("y", 0.0))))
 	_on_inspect_requested({
 		"kind": str(tok.get("kind", "token")),
 		"token_id": token_id,
@@ -953,6 +958,21 @@ func _on_token_selected(token_id: String) -> void:
 		"marker_type": str(tok.get("markerType", "")),
 		"role": str(tok.get("role", "")),
 	})
+
+## Petite réplique de PNJ au clic (façon Dofus) selon son rôle.
+func _npc_line(label: String) -> String:
+	var low := label.to_lower()
+	if low.contains("marchand"):
+		return "Des marchandises fraîches de Valbois ! Regardez, goûtez."
+	if low.contains("garde"):
+		return "Circulez, la place est sûre… pour l'instant."
+	if low.contains("tavern") or low.contains("auberge"):
+		return "Bienvenue à la Taverne du Corbeau, l'auberge est ouverte !"
+	if low.contains("village"):
+		return "On dit qu'une charrette bloque l'entrée nord. Méfiez-vous."
+	if low.contains("forgeron"):
+		return "Le fer chante encore sous le marteau, approchez !"
+	return "Bienvenue à Valbois, voyageur."
 
 func _on_effect_triggered(effect_id: String) -> void:
 	GameData.trigger_map_effect(_current_map_id(), effect_id)

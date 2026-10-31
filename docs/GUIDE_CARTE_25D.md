@@ -95,7 +95,8 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
   avec leur **nom flottant** au-dessus et une **respiration discrète** ; les
   créatures (gobelin, squelette) par leur nom.
 - La démo de session place aussi des **PNJ** (marchand, garde, villageois) et des
-  **créatures** (gobelin en forêt, squelette au donjon) en figurines 3D nommées.
+  **créatures** (gobelin en forêt, squelette au donjon) en figurines 3D nommées ;
+  **cliquer un PNJ** affiche sa réplique dans une bulle.
 
 ## 6. Sauvegarde et limites
 
