@@ -67,7 +67,8 @@ Outils terrain :
   sans Blender ni ligne de commande.
 - **Aimantation aux bâtiments** (cochée par défaut) : un **toit** se pose sur le
   bâtiment le plus proche, une **façade** (porte, fenêtre, balcon, auvent) se
-  place contre son côté sud. Le fantôme sous le curseur montre la pose réelle.
+  place contre le **mur le plus proche du clic** (avant, arrière ou côté), le dos
+  du module collé au nu du mur. Le fantôme sous le curseur montre la pose réelle.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

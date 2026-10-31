@@ -76,6 +76,7 @@ var _mesh_scale: float = 1.0
 var _mesh_rotation: float = 0.0
 var _mesh_snap_modules: bool = true
 var _mesh_footprint_cache: Dictionary = {}
+var _mesh_aabb_cache: Dictionary = {}
 ## Dialogue d'import de modèles 3D (GLB/glTF) pour la bibliothèque d'objets.
 var _mesh_import_dialog: FileDialog
 var _help_dialog: AcceptDialog
@@ -1492,17 +1493,71 @@ func _snap_module_placement(asset_path: String, grid: Vector2) -> Dictionary:
 			"rotation": building_rotation,
 			"snapped_to": label,
 		}
-	# Façade : sur l'avant du bâtiment (côté +Z local, donc suit sa rotation).
-	var front_rad := deg_to_rad(building_rotation)
-	var front_dir := Vector2(-sin(front_rad), cos(front_rad))
-	var facade_offset := building_h_foot * 0.5 + mod_depth * 0.5
+	# Façade : sur le mur du bâtiment le plus proche du clic, en héritant de sa
+	# rotation. On choisit le côté (avant/arrière/gauche/droite) dont la normale
+	# est la plus proche du point cliqué, et on colle le dos du module au mur.
+	var building_w_foot := float(best.get("w", 1.0))
+	var offset := grid - Vector2(float(best.get("x", grid.x)), float(best.get("y", grid.y)))
+	var rotation_rad := deg_to_rad(building_rotation)
+	var sides: Array = [
+		{"base_dir": Vector2(0, 1), "base_angle": 0.0, "half": building_h_foot * 0.5},
+		{"base_dir": Vector2(1, 0), "base_angle": -90.0, "half": building_w_foot * 0.5},
+		{"base_dir": Vector2(0, -1), "base_angle": 180.0, "half": building_h_foot * 0.5},
+		{"base_dir": Vector2(-1, 0), "base_angle": 90.0, "half": building_w_foot * 0.5},
+	]
+	var side_dir := Vector2(0, 1).rotated(rotation_rad)
+	var side_angle := building_rotation
+	var side_half := building_h_foot * 0.5
+	var best_projection := 0.01
+	for side_variant in sides:
+		var side: Dictionary = side_variant
+		var world_dir: Vector2 = (side["base_dir"] as Vector2).rotated(rotation_rad)
+		var projection := offset.dot(world_dir)
+		if projection > best_projection:
+			best_projection = projection
+			side_dir = world_dir
+			side_angle = float(side["base_angle"]) + building_rotation
+			side_half = float(side["half"])
+	# Dos du module : position du point le plus en arrière dans son repère local
+	# (les GLB de façade n'ont pas forcément leur pivot au nu du mur).
+	var module_aabb := _mesh_aabb_cells(asset_path, _mesh_scale)
+	var back_offset := maxf(0.0, -module_aabb.position.z)
+	if back_offset <= 0.001:
+		back_offset = mod_depth * 0.5
+	var wall_face := Vector2(float(best.get("x", grid.x)), float(best.get("y", grid.y))) \
+		+ side_dir * side_half
 	return {
-		"x": float(best.get("x", grid.x)) + front_dir.x * facade_offset,
-		"y": float(best.get("y", grid.y)) + front_dir.y * facade_offset,
+		"x": wall_face.x + side_dir.x * back_offset,
+		"y": wall_face.y + side_dir.y * back_offset,
 		"elevation": 0.0,
-		"rotation": building_rotation,
+		"rotation": side_angle,
 		"snapped_to": label,
 	}
+
+## Boîte englobante (en cases) d'un GLB, positions et taille, échelle incluse.
+func _mesh_aabb_cells(asset_path: String, scale_factor: float = -1.0) -> AABB:
+	if asset_path.is_empty():
+		return AABB()
+	var factor := _mesh_scale if scale_factor < 0.0 else scale_factor
+	var cache_key := "a:%s|%.3f" % [asset_path, factor]
+	if _mesh_aabb_cache.has(cache_key):
+		return _mesh_aabb_cache[cache_key]
+	var out := AABB()
+	var inst: Node3D = AssetLibraryScript.instantiate_object3d_scene(asset_path)
+	if inst != null:
+		var bounds: Array = []
+		_collect_mesh_aabbs(inst, Transform3D.IDENTITY, bounds)
+		var first := true
+		var merged := AABB()
+		for aabb_variant in bounds:
+			var aabb: AABB = aabb_variant
+			merged = aabb if first else merged.merge(aabb)
+			first = false
+		if not first:
+			out = AABB(merged.position * factor, merged.size * factor)
+		inst.free()
+	_mesh_aabb_cache[cache_key] = out
+	return out
 
 ## Dimensions (en cases) de la boîte englobante du GLB, échelle de pose incluse.
 func _mesh_bounds_cells(asset_path: String, scale_factor: float = -1.0) -> Vector3:

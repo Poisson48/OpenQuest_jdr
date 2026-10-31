@@ -21,6 +21,7 @@ func _run() -> void:
 	var AssetLibraryScript: GDScript = load("res://scripts/maps/map_asset_library.gd")
 	var roof_path := "res://assets/objects3d/buildings/toit_2pentes.glb"
 	var door_path := "res://assets/objects3d/buildings/porte_auvent.glb"
+	var awning_path := "res://assets/objects3d/buildings/auvent_etal.glb"
 	_assert("meta_roof", str(AssetLibraryScript.get_object3d_meta(roof_path).get("anchor", "")) == "roof")
 	_assert("meta_wall", str(AssetLibraryScript.get_object3d_meta(door_path).get("anchor", "")) == "wall")
 
@@ -101,6 +102,39 @@ func _run() -> void:
 		var door_display: Dictionary = rotated_doors[rotated_doors.size() - 1].get("display", {})
 		_assert("rotated_door_rotation", is_equal_approx(float(door_display.get("rotation", 0.0)), 90.0))
 		_assert("rotated_door_front", float(rotated_doors[rotated_doors.size() - 1].get("x", 14.0)) < 13.9)
+
+	# Auvent contre un mur latéral puis contre le mur avant.
+	editor.doc.add_element({
+		"x": 20.0, "y": 20.0, "w": 2.0, "h": 2.0,
+		"sizeX": 1.95, "sizeY": 1.88, "sizeZ": 1.81,
+		"asset": "res://assets/objects3d/buildings/maison.glb",
+		"elevation": 0.0, "followTerrain": true,
+		"label": "Maison auvent", "layer": 1,
+		"display": {"rotation": 0.0},
+	}, "mesh", "Objet 3D")
+	var awnings_before := _meshes_with_asset(editor, awning_path).size()
+	editor._mesh_snap_modules = true
+	editor._mesh_asset = awning_path
+	editor._create_mesh(Vector2(21.2, 20.0))
+	await process_frame
+	var side_awnings := _meshes_with_asset(editor, awning_path)
+	_assert("awning_side_created", side_awnings.size() == awnings_before + 1)
+	if side_awnings.size() == awnings_before + 1:
+		var side_awning: Dictionary = side_awnings[side_awnings.size() - 1]
+		var side_display: Dictionary = side_awning.get("display", {})
+		_assert("awning_side_rotation", is_equal_approx(float(side_display.get("rotation", 0.0)), -90.0))
+		_assert("awning_side_against_wall", float(side_awning.get("x", 0.0)) > 20.9
+			and absf(float(side_awning.get("y", 0.0)) - 20.0) < 0.1)
+	editor._create_mesh(Vector2(20.0, 21.2))
+	await process_frame
+	var front_awnings := _meshes_with_asset(editor, awning_path)
+	_assert("awning_front_created", front_awnings.size() == awnings_before + 2)
+	if front_awnings.size() == awnings_before + 2:
+		var front_awning: Dictionary = front_awnings[front_awnings.size() - 1]
+		var front_display: Dictionary = front_awning.get("display", {})
+		_assert("awning_front_rotation", is_equal_approx(float(front_display.get("rotation", 0.0)), 0.0))
+		_assert("awning_front_against_wall", float(front_awning.get("y", 0.0)) > 20.9
+			and absf(float(front_awning.get("x", 0.0)) - 20.0) < 0.1)
 
 	editor.queue_free()
 	await process_frame

@@ -131,7 +131,8 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   (`anchor="wall"`) se posent automatiquement sur le **bâtiment le plus proche**
   (élévation/hauteur déduites du manifeste Blender, **rotation du bâtiment
   héritée**), via la case « Aimantation aux bâtiments » des options de l'outil
-  Objet 3D.
+  Objet 3D. Une façade choisit le **mur le plus proche du clic** (avant, arrière,
+  gauche ou droite) et cale son dos contre le nu du mur.
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
