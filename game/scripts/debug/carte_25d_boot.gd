@@ -79,6 +79,7 @@ static func build_demo(md: Node) -> Dictionary:
 	map["backgroundImage"] = ""
 	map["groundMode"] = "terrain3d"
 	map["renderStyle"] = "2.5d"
+	map["ambientFx"] = "leaves"
 	map["fogEnabled"] = false
 	map["worldId"] = "demo-valbois"
 	md.update_map(map)
@@ -137,9 +138,8 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "haie", "x": 6.2, "y": 13.2, "rotation": 0.0, "w": 2.5, "h": 0.9},
 		{"name": "tas_de_bois", "x": 16.6, "y": 10.8, "rotation": 0.0, "w": 1.4, "h": 1.0},
 		{"name": "cloture_basse", "x": 20.4, "y": 8.8, "rotation": 0.0, "w": 2.2, "h": 0.4},
-		# Kit 7 : accents de toiture posés sur les bâtiments.
+		# Kit 7 : accent de toiture posé sur la chapelle.
 		{"name": "toit_clocheton", "x": 3.0, "y": 3.0, "rotation": 0.0, "w": 0.7, "h": 0.7, "elevation": 3.0},
-		{"name": "cheminee_fumante", "x": 18.6, "y": 12.6, "rotation": 0.0, "w": 0.8, "h": 0.7, "elevation": 2.1},
 	]
 	var meshes: Array = []
 	for entry in placements:
@@ -284,6 +284,13 @@ static func build_demo(md: Node) -> Dictionary:
 		elif str(spec["title"]).contains("Donjon"):
 			style = "dungeon"
 		sub["terrainMaterials"] = _demo_materials(int(spec["w"]), int(spec["h"]), style)
+		# Ambiances animées par type de zone.
+		if style == "forest":
+			sub["ambientFx"] = "fireflies"
+		elif style == "tavern" or style == "dungeon":
+			sub["ambientFx"] = "dust"
+		elif style == "place":
+			sub["ambientFx"] = "leaves"
 		# Étang en forêt : dépression douce + plan d'eau.
 		if style == "forest":
 			var w_sub := int(spec["w"])

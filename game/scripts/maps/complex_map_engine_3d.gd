@@ -29,6 +29,7 @@ signal table_dice_result(faces: Array, total: int, valid: bool)
 
 const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.gd")
 const MapWater3DScript := preload("res://scripts/maps/map_layers/map_water_3d.gd")
+const MapAmbientFx3DScript := preload("res://scripts/maps/map_layers/map_ambient_fx_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
 const MapToken3DScript := preload("res://scripts/maps/map_layers/map_token_3d.gd")
 const MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.gd")
@@ -128,6 +129,10 @@ var _ground: Node3D
 var _water_layer: Node3D
 ## Niveau d'eau courant, en cases (même repère que terrainHeights) ; -1 = aucune.
 var _water_level: float = -1.0
+## Calque d'ambiance animée (lucioles / poussière / feuilles), après l'eau.
+var _ambient_fx_layer: Node3D
+## Effet d'ambiance courant (`map_data["ambientFx"]`) ; "" = aucun.
+var _ambient_fx: String = ""
 var _elevations_layer: Node3D
 var _grid_layer: Node3D
 var _zones_layer: Node3D
@@ -196,6 +201,7 @@ func _build_viewport_tree() -> void:
 		_viewport = null
 		_ground = null
 		_water_layer = null
+		_ambient_fx_layer = null
 		_world = null
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -269,6 +275,10 @@ func _build_viewport_tree() -> void:
 	_water_layer = MapWater3DScript.new()
 	_water_layer.name = "Water"
 	_world.add_child(_water_layer)
+
+	_ambient_fx_layer = MapAmbientFx3DScript.new()
+	_ambient_fx_layer.name = "AmbientFx"
+	_world.add_child(_ambient_fx_layer)
 
 	_elevations_layer = MapElevations3DScript.new()
 	_elevations_layer.name = "Elevations"
@@ -383,6 +393,7 @@ func configure(
 
 	_load_ground()
 	_load_water()
+	_load_ambient_fx()
 	_load_elevations()
 	_sync_table_environment()
 	_apply_camera_perspective()
@@ -563,6 +574,55 @@ func is_water_active() -> bool:
 	return _water_layer.has_method("is_active") and _water_layer.is_active()
 
 # ===========================================================================
+# Ambiances animées — `map_data["ambientFx"]`
+# ===========================================================================
+#
+# Contrat de données : `map_data["ambientFx"]` = String, "" par défaut (aucune).
+# Valeurs supportées : "fireflies", "dust", "leaves" ; toute autre valeur est
+# ignorée. Le calque n'est rendu qu'en mode `terrain3d` (retiré en illustrated).
+
+## Lit `ambientFx` et configure (ou retire) le calque d'ambiance.
+func _load_ambient_fx() -> void:
+	_ambient_fx = str(map_data.get("ambientFx", "")).strip_edges().to_lower()
+	if _ambient_fx_layer == null or not is_instance_valid(_ambient_fx_layer):
+		return
+	if _ground_mode != MapData.GROUND_TERRAIN3D:
+		# Mode illustré : pas d'ambiance 3D.
+		_ambient_fx_layer.clear()
+		return
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	var night_mode := MapData.is_night_mode(map_data)
+	if _ambient_fx_layer.has_method("configure"):
+		_ambient_fx_layer.configure(w, h, _cell_size, _ambient_fx, night_mode)
+
+## Change l'effet d'ambiance **sans toucher au document** (outils/tests ;
+## l'éditeur passera par `refresh_terrain(map_data)`). Nom vide/inconnu → aucun.
+func set_ambient_fx(name: String) -> void:
+	_ambient_fx = name.strip_edges().to_lower()
+	if _ambient_fx_layer == null or not is_instance_valid(_ambient_fx_layer):
+		return
+	if map_data.is_empty() or _ground_mode != MapData.GROUND_TERRAIN3D:
+		_ambient_fx_layer.clear()
+		return
+	if _ambient_fx_layer.has_method("configure"):
+		var w: int = int(map_data.get("width", 16))
+		var h: int = int(map_data.get("height", 12))
+		_ambient_fx_layer.configure(
+			w, h, _cell_size, _ambient_fx, MapData.is_night_mode(map_data)
+		)
+
+## Effet d'ambiance courant ("" = aucun).
+func get_ambient_fx() -> String:
+	return _ambient_fx
+
+## Vrai si une ambiance animée est effectivement rendue.
+func is_ambient_fx_active() -> bool:
+	if _ambient_fx_layer == null or not is_instance_valid(_ambient_fx_layer):
+		return false
+	return _ambient_fx_layer.has_method("is_active") and _ambient_fx_layer.is_active()
+
+# ===========================================================================
 # Relief de terrain (M6) — adaptation des constructions au sol
 # ===========================================================================
 #
@@ -720,6 +780,8 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		_load_ground()
 	# Eau : dépend du niveau (`waterLevel`), des hauteurs et du mode de sol.
 	_load_water()
+	# Ambiance animée : dépend de `ambientFx`, du mode de sol et de la nuit.
+	_load_ambient_fx()
 	var w: int = int(map_data.get("width", 16))
 	var h: int = int(map_data.get("height", 12))
 	var map_size := Vector2i(w, h)
@@ -1001,6 +1063,8 @@ func _rebuild_layers() -> void:
 		_ground.set_terrain_materials(_terrain_materials)
 	# Eau : même logique (niveau/hauteurs lus dans map_data, no-op si inchangés).
 	_load_water()
+	# Ambiance : même logique (clé `ambientFx`).
+	_load_ambient_fx()
 
 func _clear_children(layer: Node, registry: Dictionary) -> void:
 	for child in layer.get_children():

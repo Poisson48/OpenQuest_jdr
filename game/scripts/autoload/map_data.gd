@@ -712,6 +712,9 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	# Eau : niveau du plan d'eau en cases (-1 = aucune eau).
 	if not map_data.has("waterLevel"):
 		map_data["waterLevel"] = -1.0
+	# Ambiance animée : "" (aucune), fireflies, dust, leaves.
+	if not map_data.has("ambientFx"):
+		map_data["ambientFx"] = ""
 	# Monde (gestion de cartes façon Dofus) : identifiant du monde de zones.
 	if not map_data.has("worldId"):
 		map_data["worldId"] = ""

@@ -16,6 +16,7 @@ signal fog_reveal_all_pressed
 signal render_style_changed
 signal ground_mode_changed
 signal water_changed
+signal ambient_fx_changed
 signal perspective_changed
 signal atmosphere_changed
 signal lighting_changed
@@ -106,6 +107,20 @@ func _ready() -> void:
 	add_child(water_spin)
 	widgets["water_level"] = water_spin
 	water_spin.value_changed.connect(func(_v): water_changed.emit())
+	# Ambiance animée : lucioles, poussière ou feuilles.
+	var fx_lbl := Label.new()
+	fx_lbl.text = "Ambiance"
+	add_child(fx_lbl)
+	var fx_opt := OptionButton.new()
+	add_child(fx_opt)
+	_fill_option(fx_opt, [
+		["", "Aucune"],
+		["fireflies", "Lucioles (étang / forêt)"],
+		["dust", "Poussière (intérieur / donjon)"],
+		["leaves", "Feuilles qui tombent (forêt)"],
+	])
+	widgets["ambient_fx"] = fx_opt
+	fx_opt.item_selected.connect(func(_i): ambient_fx_changed.emit())
 	var style_node := find_child("LblStyle", true, false)
 	if style_node is Node:
 		var style_index := style_node.get_index()
@@ -113,6 +128,8 @@ func _ready() -> void:
 		move_child(ground_opt, style_index + 1)
 		move_child(water_lbl, style_index + 2)
 		move_child(water_spin, style_index + 3)
+		move_child(fx_lbl, style_index + 4)
+		move_child(fx_opt, style_index + 5)
 
 	%BtnImportBg.pressed.connect(func(): import_background_pressed.emit())
 	%BtnImportOverlay.pressed.connect(func(): import_overlay_pressed.emit())

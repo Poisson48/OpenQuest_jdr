@@ -609,6 +609,7 @@ func _bind_settings_tab() -> void:
 	_settings_panel.render_style_changed.connect(_on_render_style_changed)
 	_settings_panel.ground_mode_changed.connect(_on_ground_mode_changed)
 	_settings_panel.water_changed.connect(_on_water_changed)
+	_settings_panel.ambient_fx_changed.connect(_on_ambient_fx_changed)
 	_settings_panel.perspective_changed.connect(_on_perspective_changed)
 	_settings_panel.atmosphere_changed.connect(_on_atmosphere_changed)
 	_settings_panel.lighting_changed.connect(_on_lighting_changed)
@@ -2416,6 +2417,7 @@ func _sync_settings_ui() -> void:
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
 	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
 	_set_spin("water_level", float(doc.map_data.get("waterLevel", -1.0)))
+	_select_metadata("ambient_fx", str(doc.map_data.get("ambientFx", "")))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -2492,6 +2494,20 @@ func _on_water_changed() -> void:
 		_set_status("Eau : niveau %.1f case(s) — les creux du relief sont immergés." % level)
 	else:
 		_set_status("Eau désactivée.")
+
+func _on_ambient_fx_changed() -> void:
+	if _syncing:
+		return
+	var option: OptionButton = _settings_widgets.get("ambient_fx")
+	if option == null or option.selected < 0:
+		return
+	var fx := str(option.get_item_metadata(option.selected))
+	doc.set_meta_values({"ambientFx": fx}, "Ambiance")
+	_sync_engine()
+	if fx.is_empty():
+		_set_status("Ambiance animée désactivée.")
+	else:
+		_set_status("Ambiance animée : %s." % option.get_item_text(option.selected))
 
 func _on_atmosphere_changed() -> void:
 	if _syncing:
