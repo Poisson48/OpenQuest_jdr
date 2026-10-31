@@ -1166,6 +1166,43 @@ func paint_terrain_brush(center: Vector2, radius: float, strength: float,
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
 
+## Nivelle tout le relief à zéro (une seule étape d'undo).
+func clear_all_terrain(note: String = "Nivellement") -> void:
+	var heights := _terrain_buffer()
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for i in range(heights.size()):
+		var current := float(heights[i])
+		if absf(current) < 0.001:
+			continue
+		before[str(i)] = current
+		after[str(i)] = 0.0
+		heights[i] = 0.0
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+
+## Remplit toute la carte avec une matière (une seule étape d'undo).
+func fill_all_material(value: int, note: String = "Remplissage du sol") -> void:
+	var materials := _material_buffer()
+	var target := clampi(value, MATERIAL_GRASS, MATERIAL_SAND)
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for i in range(materials.size()):
+		var current := int(materials[i])
+		if current == target:
+			continue
+		before[str(i)] = current
+		after[str(i)] = target
+		materials[i] = target
+	if after.is_empty():
+		return
+	map_data["terrainMaterials"] = materials
+	_push_delta({"type": D_TERRAIN_MATERIAL, "before": before, "after": after, "note": note})
+	changed.emit("terrain_material")
+
 func _terrain_neighbor_average(heights: Array, size: Vector2i, cx: int, cy: int) -> float:
 	var total := 0.0
 	var count := 0

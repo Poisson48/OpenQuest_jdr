@@ -3184,6 +3184,16 @@ func _rebuild_tool_options() -> void:
 		_spin(_hbox(_tool_options), "Force (cases)", 0.05, 2.0, _relief_strength, 0.05, func(v):
 			_relief_strength = v
 		)
+		var flatten_btn := Button.new()
+		flatten_btn.text = "Niveler tout"
+		flatten_btn.tooltip_text = "Remet toutes les hauteurs à zéro (annulable)."
+		flatten_btn.add_theme_font_size_override("font_size", 10)
+		flatten_btn.pressed.connect(func():
+			doc.clear_all_terrain()
+			_sync_engine()
+			_set_status("Relief nivelé à zéro.")
+		)
+		_tool_options.add_child(flatten_btn)
 		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _tool == ToolsScript.GROUND_MATERIAL:
 		var mat_opt := OptionButton.new()
@@ -3207,6 +3217,16 @@ func _rebuild_tool_options() -> void:
 			_material_radius = v
 			_refresh_ghost()
 		)
+		var fill_mat_btn := Button.new()
+		fill_mat_btn.text = "Remplir tout"
+		fill_mat_btn.tooltip_text = "Applique la matière choisie à toute la carte (annulable)."
+		fill_mat_btn.add_theme_font_size_override("font_size", 10)
+		fill_mat_btn.pressed.connect(func():
+			doc.fill_all_material(_material_id)
+			_sync_engine()
+			_set_status("Sol entièrement repeint.")
+		)
+		_tool_options.add_child(fill_mat_btn)
 		_option_note("Peint la matière du sol. La carte doit être en mode sol 3D (terrain3d). Matière enregistrée avec la carte.")
 	elif _tool == ToolsScript.FOG_REVEAL or _tool == ToolsScript.FOG_HIDE:
 		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_fog_brush), 1, func(v): _fog_brush = int(v))

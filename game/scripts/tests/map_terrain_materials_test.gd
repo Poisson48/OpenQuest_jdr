@@ -474,6 +474,19 @@ func _test_document_materials() -> void:
 	doc.paint_terrain_material_brush(Vector2(10.5, 7.5), 1.0, MATERIAL_SAND, "Sable")
 	_assert("doc_resize_paint_sand", int(doc.terrain_material(10, 7)) == MATERIAL_SAND)
 
+	# Remplissage global (annulable).
+	doc.fill_all_material(MATERIAL_SNOW)
+	_assert("doc_fill_all", int(doc.terrain_material(0, 0)) == MATERIAL_SNOW
+		and int(doc.terrain_material(11, 8)) == MATERIAL_SNOW)
+	doc.undo()
+	_assert("doc_fill_all_undo", int(doc.terrain_material(0, 0)) == MATERIAL_GRASS)
+	# Nivellement global du relief (annulable).
+	doc.set_terrain_height(5, 5, 2.0)
+	doc.clear_all_terrain()
+	_assert("doc_flatten_all", is_equal_approx(doc.terrain_height(5, 5), 0.0))
+	doc.undo()
+	_assert("doc_flatten_all_undo", is_equal_approx(doc.terrain_height(5, 5), 2.0))
+
 func _test_editor_material_options() -> void:
 	var md = get_root().get_node("MapData")
 	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()

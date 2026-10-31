@@ -220,6 +220,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Terrain | 🪣 Remplir | `G` | Remplit la zone contiguë de même tuile |
 | Terrain | ⛰ Relief | `U` | Monte / baisse / aplatit / lisse la hauteur du terrain (cercle de pinceau affiché). Les objets 3D posés s'adaptent à la pente. |
 | Terrain | 🟫 Sol | `Y` | Peint la **matière du sol** : herbe, terre/chemin, pierre/pavé, **neige** ou **sable** (mélange doux, pinceau réglable ; cercle de prévisualisation à la couleur du sol). Seulement en mode Terrain 3D. |
+| Terrain | Actions | | Options **Niveler tout** (relief à zéro) et **Remplir tout** (matière choisie sur toute la carte), annulables par Ctrl+Z. |
 | Brouillard | 🌫 Révéler | `R` | Révèle le brouillard autour du curseur |
 | Brouillard | 🚫 Masquer | `T` | Remasque des cases déjà révélées |
 | Outils | 🔗 Lier | `L` | Clic source puis clic cible : crée un lien orienté |
