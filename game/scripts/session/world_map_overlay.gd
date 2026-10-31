@@ -75,6 +75,7 @@ func refresh() -> void:
 			"y": int(map.get("zoneY", 0)),
 			"w": w,
 			"h": h,
+			"edges": map.get("edges", {}) if map.get("edges") is Dictionary else {},
 		})
 	zones.sort_custom(func(a, b):
 		if int(a.get("y", 0)) != int(b.get("y", 0)):
@@ -176,6 +177,9 @@ func _draw() -> void:
 			draw_circle(rect.get_center(), 7.0, Color(1.0, 0.9, 0.5))
 			draw_circle(rect.get_center(), 3.0, Color(0.15, 0.12, 0.08))
 
+	# Liens entre zones (ligne + flèche), comme dans l'éditeur.
+	_draw_world_connections()
+
 	# Pied de page : zone courante + légende.
 	var footer_top := size.y - 52.0
 	draw_rect(Rect2(0, footer_top, size.x, 52.0), Color(0.0, 0.0, 0.0, 0.45), true)
@@ -208,6 +212,64 @@ func _draw() -> void:
 	draw_rect(Rect2(legend_x + 110, footer_top + 16.0, 14, 14), Color(0.12, 0.12, 0.14), true)
 	draw_string(font, Vector2(legend_x + 130, footer_top + 28.0), "Inconnue",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.68, 0.62))
+
+## Trace les liens de bords entre zones (ligne dorée + flèche).
+func _draw_world_connections() -> void:
+	var seen: Dictionary = {}
+	var line_color := Color(0.98, 0.82, 0.35, 0.4)
+	var arrow_color := Color(0.98, 0.82, 0.35, 0.8)
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		var edges: Dictionary = zone.get("edges", {}) if zone.get("edges") is Dictionary else {}
+		for side in ["north", "south", "east", "west"]:
+			var edge: Dictionary = edges.get(side, {}) if edges.get(side) is Dictionary else {}
+			var target_id := str(edge.get("target", ""))
+			if target_id.is_empty():
+				continue
+			var reverse_key := "%s|%s" % [target_id, _opposite_side(side)]
+			if seen.has(reverse_key):
+				continue
+			seen["%s|%s" % [str(zone.get("id", "")), side]] = true
+			var target := _zone_by_id(target_id)
+			if target.is_empty():
+				continue
+			var from := _side_point(zone, side)
+			var to := _side_point(target, _opposite_side(side))
+			if from.distance_to(to) < 2.0:
+				continue
+			draw_line(from, to, line_color, 2.0)
+			var dir := (to - from).normalized()
+			var normal := Vector2(-dir.y, dir.x)
+			draw_colored_polygon(PackedVector2Array([
+				to, to - dir * 8.0 + normal * 4.0, to - dir * 8.0 - normal * 4.0,
+			]), arrow_color)
+
+func _zone_by_id(zone_id: String) -> Dictionary:
+	for zone_variant in zones:
+		if str((zone_variant as Dictionary).get("id", "")) == zone_id:
+			return zone_variant
+	return {}
+
+func _side_point(zone: Dictionary, side: String) -> Vector2:
+	var rect := _zone_rect(zone)
+	match side:
+		"north":
+			return rect.position + Vector2(rect.size.x * 0.5, -8)
+		"south":
+			return rect.position + Vector2(rect.size.x * 0.5, rect.size.y + 8)
+		"east":
+			return rect.position + Vector2(rect.size.x + 8, rect.size.y * 0.5)
+		"west":
+			return rect.position + Vector2(-8, rect.size.y * 0.5)
+	return rect.get_center()
+
+func _opposite_side(side: String) -> String:
+	match side:
+		"north": return "south"
+		"south": return "north"
+		"east": return "west"
+		"west": return "east"
+	return ""
 
 ## Mini-aperçu d'une zone : sols peints (matières) + points des bâtiments.
 func _draw_zone_content(zone: Dictionary, rect: Rect2, is_known: bool) -> void:
@@ -295,8 +357,13 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 			var hit := _zone_at_screen(mb.position)
-			if not hit.is_empty() and discovered.has(str(hit.get("id", ""))):
-				zone_selected.emit(str(hit.get("id", "")))
+			if not hit.is_empty():
+				var hit_id := str(hit.get("id", ""))
+				if hit_id == current_id:
+					# Cliquer sa propre zone referme la carte du monde.
+					visible = false
+				elif discovered.has(hit_id):
+					zone_selected.emit(hit_id)
 			accept_event()
 	elif event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
