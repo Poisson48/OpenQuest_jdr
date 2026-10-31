@@ -164,7 +164,7 @@ peuvent avoir des **tailles différentes**). Voir
 - **＋ Zone** : crée une carte 2.5D (terrain 3D) et la pose sous le monde, avec
   un **nom libre**, une **taille** largeur × hauteur et un **thème de départ**
   (Vide, Village, Forêt, Ruines, Camp enneigé, Bord de mer, **Lac**) qui pré-peint
-  les sols, un peu de relief et l'ambiance.
+  les sols, un peu de relief, l'ambiance et **quelques décors de départ**.
 - **Glisser** une zone : change sa position `zoneX/zoneY` sur le plan.
 - **Relier les bords** : détecte automatiquement les voisins qui partagent un
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.

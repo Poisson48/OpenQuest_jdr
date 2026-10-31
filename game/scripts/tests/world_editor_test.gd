@@ -176,6 +176,8 @@ func _run() -> void:
 			(lake_sample.get("terrainHeights", []) as Array).any(func(v): return float(v) < -0.1))
 		_assert("world_theme_lake_sand",
 			(lake_sample.get("terrainMaterials", []) as Array).has(4))
+		_assert("world_theme_lake_starters",
+			not (lake_sample.get("meshes", []) as Array).is_empty())
 
 		# Assigner une carte existante (hors monde) comme nouvelle zone.
 		var free_map: Dictionary = md.create_complex_map("Carte libre", "general", "local", 11, 7)

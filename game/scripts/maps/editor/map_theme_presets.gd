@@ -117,3 +117,67 @@ static func apply(map: Dictionary, theme_id: String) -> void:
 	map["terrainMaterials"] = materials
 	map["terrainHeights"] = heights
 	map["ambientFx"] = ambient
+	# Quelques décors de départ pour que la zone ne soit pas vide.
+	var starters := _starter_meshes(theme_id, w, h)
+	if not starters.is_empty():
+		var existing = map.get("meshes", [])
+		if not existing is Array:
+			existing = []
+		(existing as Array).append_array(starters)
+		map["meshes"] = existing
+
+static func _starter_meshes(theme_id: String, w: int, h: int) -> Array:
+	var out: Array = []
+	var arbre := "res://assets/objects3d/vegetation/arbre.glb"
+	var arbre_auto := "res://assets/objects3d/vegetation/arbre_automne.glb"
+	var rocher := "res://assets/objects3d/terrain/rocher.glb"
+	var mur := "res://assets/objects3d/buildings/mur.glb"
+	var puits := "res://assets/objects3d/props/puits.glb"
+	var specs: Array = []
+	match theme_id:
+		"village":
+			specs = [[puits, w * 0.5, h * 0.5, 1.2, 1.0, 0.0, false]]
+		"forest":
+			specs = [
+				[arbre, 2.0, 2.0, 1.0, 1.0, 20.0, true],
+				[arbre_auto, w - 3.0, 2.5, 1.0, 1.0, 140.0, true],
+				[arbre, 2.5, h - 3.0, 1.0, 1.0, 70.0, true],
+				[arbre_auto, w - 2.5, h - 2.5, 1.0, 1.0, 200.0, true],
+				[rocher, w * 0.5, h - 2.0, 1.0, 1.0, 0.0, true],
+			]
+		"ruins":
+			specs = [
+				[mur, 2.0, h * 0.5 - 1.0, 1.5, 1.0, 0.0, false],
+				[mur, 4.5, h * 0.5 - 1.0, 1.5, 1.0, 0.0, false],
+				[mur, w - 3.0, h * 0.5, 1.5, 1.0, 90.0, false],
+				[rocher, w - 2.5, 2.5, 1.0, 1.0, 0.0, true],
+			]
+		"snow":
+			specs = [
+				[rocher, 2.0, 2.0, 1.0, 1.0, 0.0, true],
+				[rocher, w - 2.5, h - 2.5, 1.0, 1.0, 0.0, true],
+			]
+		"beach":
+			specs = [[rocher, w - 2.5, h - 2.0, 1.0, 1.0, 0.0, true]]
+		"lake":
+			specs = [
+				[rocher, 2.2, h * 0.5, 1.0, 1.0, 0.0, true],
+				[arbre, w - 2.2, h * 0.5, 1.0, 1.0, 30.0, true],
+			]
+	for i in range(specs.size()):
+		var s: Array = specs[i]
+		out.append({
+			"id": "theme-%s-%d" % [theme_id, i],
+			"kind": "mesh",
+			"x": clampf(float(s[1]), 0.5, float(w) - 0.5),
+			"y": clampf(float(s[2]), 0.5, float(h) - 0.5),
+			"w": float(s[3]), "h": float(s[4]),
+			"asset": str(s[0]),
+			"elevation": 0.0,
+			"followTerrain": true,
+			"tiltToTerrain": bool(s[6]),
+			"label": str(s[0]).get_file().get_basename().capitalize(),
+			"layer": 1,
+			"display": {"rotation": float(s[5]), "scale": 1.0},
+		})
+	return out
