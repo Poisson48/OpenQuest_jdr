@@ -142,6 +142,7 @@ func _ready() -> void:
 
 [b]Déplacements[/b]
 • Outil [b]Pas[/b] (D) : clic sur une case = déplacer le personnage sélectionné.
+• [b]Flèches[/b] : déplacer le personnage sélectionné d'une case.
 • Glisser un pion vers un bord de carte change de zone.
 • Sorties cliquables en haut à gauche (fondu vers la zone voisine).
 • Boutons [b]Groupe[/b] (G) et [b]Monde[/b] (M) dans la barre.
@@ -272,6 +273,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		_tool = SessionToolRegistry.make(SessionToolRegistry.MOVE)
 		refresh()
 		get_viewport().set_input_as_handled()
+	elif key.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]:
+		if _help_overlay == null or not _help_overlay.visible:
+			var dir := Vector2i.ZERO
+			if key.keycode == KEY_LEFT:
+				dir = Vector2i(-1, 0)
+			elif key.keycode == KEY_RIGHT:
+				dir = Vector2i(1, 0)
+			elif key.keycode == KEY_UP:
+				dir = Vector2i(0, -1)
+			else:
+				dir = Vector2i(0, 1)
+			_tool = SessionToolRegistry.make(SessionToolRegistry.MOVE)
+			_move_selected_step(dir)
+			get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_H:
 		if _help_overlay != null:
 			_help_overlay.visible = not _help_overlay.visible
@@ -719,24 +734,46 @@ func _move_selected_token(gx: float, gy: float) -> void:
 	var map_id := _current_map_id()
 	if map_id.is_empty():
 		return
-	var token_id := GameData.get_selected_token_id(map_id)
-	if token_id.is_empty():
-		var active: Dictionary = GameData.get_active_member()
-		var member_id := str(active.get("id", ""))
-		if member_id.is_empty():
-			notice_requested.emit("Sélectionnez un personnage à déplacer.")
-			return
-		for tok_variant in GameData.get_map_play_tokens(map_id):
-			if not tok_variant is Dictionary:
-				continue
-			var tok: Dictionary = tok_variant
-			if str(tok.get("kind", "")) == "member" and str(tok.get("memberId", "")) == member_id:
-				token_id = str(tok.get("id", ""))
-				break
+	var token_id := _selected_token_for_move(map_id)
 	if token_id.is_empty():
 		notice_requested.emit("Sélectionnez un personnage à déplacer.")
 		return
 	_on_token_moved(token_id, gx, gy)
+
+func _selected_token_for_move(map_id: String) -> String:
+	var token_id := GameData.get_selected_token_id(map_id)
+	if not token_id.is_empty():
+		return token_id
+	var active: Dictionary = GameData.get_active_member()
+	var member_id := str(active.get("id", ""))
+	if member_id.is_empty():
+		return ""
+	for tok_variant in GameData.get_map_play_tokens(map_id):
+		if not tok_variant is Dictionary:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("kind", "")) == "member" and str(tok.get("memberId", "")) == member_id:
+			return str(tok.get("id", ""))
+	return ""
+
+## Déplacement au clavier (flèches) du personnage sélectionné, case par case.
+func _move_selected_step(direction: Vector2i) -> void:
+	var map_id := _current_map_id()
+	if map_id.is_empty() or direction == Vector2i.ZERO:
+		return
+	var token_id := _selected_token_for_move(map_id)
+	if token_id.is_empty():
+		notice_requested.emit("Sélectionnez un personnage à déplacer.")
+		return
+	var token: Dictionary = GameData.find_map_token(map_id, token_id)
+	var pos := Vector2i(roundi(float(token.get("x", 0.0))), roundi(float(token.get("y", 0.0))))
+	var map := MapData.get_by_id(map_id)
+	var target := Vector2i(
+		clampi(pos.x + direction.x, 0, maxi(0, int(map.get("width", 1)) - 1)),
+		clampi(pos.y + direction.y, 0, maxi(0, int(map.get("height", 1)) - 1)))
+	if target == pos:
+		return
+	_on_token_moved(token_id, float(target.x), float(target.y))
 
 func _on_inspect_requested(info: Dictionary) -> void:
 	var map_id := _current_map_id()

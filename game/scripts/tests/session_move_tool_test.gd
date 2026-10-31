@@ -53,6 +53,10 @@ func _run() -> void:
 		var after: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		_assert("move_tool_moved", after != before)
 		_assert("move_tool_target", after.x == 4 and after.y == 4)
+		workspace._move_selected_step(Vector2i(1, 0))
+		await process_frame
+		var stepped: Vector2i = gd.get_member_token_position(village_id, "move-aria")
+		_assert("move_arrow_step", stepped.x == 5 and stepped.y == 4)
 	session.queue_free()
 	await process_frame
 	if _failed:
