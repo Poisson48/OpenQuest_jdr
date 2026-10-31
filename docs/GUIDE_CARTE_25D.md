@@ -66,6 +66,8 @@ Outils terrain :
 - **Aimantation aux bâtiments** (cochée par défaut) : un **toit** se pose sur le
   bâtiment le plus proche, une **façade** (porte, fenêtre, balcon, auvent) se
   place contre son côté sud. Le fantôme sous le curseur montre la pose réelle.
+  La démo du village montre une porte à auvent et une fenêtre à volets posées
+  ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - Élévation réglable pour les modules posés librement.

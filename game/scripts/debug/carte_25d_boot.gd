@@ -140,6 +140,9 @@ static func build_demo(md: Node) -> Dictionary:
 		{"name": "cloture_basse", "x": 20.4, "y": 8.8, "rotation": 0.0, "w": 2.2, "h": 0.4},
 		# Kit 7 : accent de toiture posé sur la chapelle.
 		{"name": "toit_clocheton", "x": 3.0, "y": 3.0, "rotation": 0.0, "w": 0.7, "h": 0.7, "elevation": 3.0},
+		# Modules de façade accentués (aimantation reproduite à la main pour la démo).
+		{"name": "porte_auvent", "x": 7.0, "y": 7.27, "rotation": 0.0, "w": 1.37, "h": 0.74},
+		{"name": "fenetre_volets", "x": 9.83, "y": 5.0, "rotation": 90.0, "w": 1.58, "h": 0.24},
 	]
 	var meshes: Array = []
 	for entry in placements:
