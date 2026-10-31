@@ -433,6 +433,12 @@ func _test_editor_ui(base: Dictionary) -> void:
 	_assert("ui_right_min_w", editor._right_tabs != null and editor._right_tabs.custom_minimum_size.x >= 200.0)
 	_assert("ui_right_visible", editor._right_tabs.visible)
 
+	# Aide rapide disponible depuis la barre d'actions.
+	editor._open_help()
+	await process_frame
+	_assert("ui_help_visible", editor._help_dialog != null and editor._help_dialog.visible)
+	editor._help_dialog.hide()
+
 	# Ultrawide 21:9 — docks % de la largeur réelle, centre restant.
 	editor.size = Vector2(2560, 1080)
 	await process_frame

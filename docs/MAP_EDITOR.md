@@ -245,6 +245,9 @@ La barre d'action propose aligner à gauche/droite, centrer verticalement et
 distribuer horizontalement ; le document expose aussi `top`, `bottom`,
 `center_h` et la distribution verticale.
 
+Le bouton **?** de la barre d'action ouvre l'**aide rapide** : parcours en 4
+étapes (terrain, objets 3D, monde, session), astuces d'aimantation et raccourcis.
+
 ---
 
 ## 4. Historique undo/redo

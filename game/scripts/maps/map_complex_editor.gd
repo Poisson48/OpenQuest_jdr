@@ -76,6 +76,7 @@ var _mesh_snap_modules: bool = true
 var _mesh_footprint_cache: Dictionary = {}
 ## Dialogue d'import de modèles 3D (GLB/glTF) pour la bibliothèque d'objets.
 var _mesh_import_dialog: FileDialog
+var _help_dialog: AcceptDialog
 var _last_saved_at: float = 0.0
 var _status_badges: HBoxContainer
 var _policy_chip: Label
@@ -399,6 +400,7 @@ func _build_action_bar() -> void:
 	_player_view_btn.toggled.connect(_on_player_view_toggled)
 	bar.add_child(_player_view_btn)
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
+	_icon_button(bar, "?", "Aide rapide : parcours et raccourcis", func(): _open_help())
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
@@ -717,6 +719,37 @@ func _build_dialogs() -> void:
 	_asset_dialog = _make_file_dialog("Importer des décors", FileDialog.FILE_MODE_OPEN_FILES,
 		["*.png ; Images PNG (fond transparent)", "*.webp ; Images WebP", "*.jpg, *.jpeg ; Images JPEG"])
 	_asset_dialog.files_selected.connect(_on_assets_imported)
+
+	_help_dialog = AcceptDialog.new()
+	_help_dialog.title = "Aide — éditeur de carte 2.5D"
+	add_child(_help_dialog)
+	var help_box := VBoxContainer.new()
+	help_box.custom_minimum_size = Vector2(680, 540)
+	_help_dialog.add_child(help_box)
+	var help_text := RichTextLabel.new()
+	help_text.bbcode_enabled = true
+	help_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	help_text.text = """[b]Parcours rapide[/b]
+1. [b]Carte[/b] : choisis le [i]Type de sol[/i] « Terrain 3D ».
+2. Peins le relief (⛰ [b]U[/b]) puis les matières (🟫 [b]Y[/b]) ; règle l'eau et l'ambiance (onglet Carte).
+3. Onglet [b]Biblio → 🧊 Objets 3D[/b] : pose bâtiments, toits et façades (aimantation automatique).
+4. Onglet [b]Monde[/b] : ajoute des zones (＋ Zone), relie leurs bords, puis [b]▶ Tester[/b].
+
+[b]Astuces[/b]
+• Les toits/facades se posent sur le bâtiment le plus proche (case « Aimantation » dans les options de l'outil).
+• Un module peut être pivoté : sélection → rotation dans l'inspecteur, ou [b]R[/b] avant la pose.
+• Sur le plan Monde : clic sur un point d'accroche = éditer le lien, clic droit = le retirer.
+• Toits et façades héritent de la rotation du bâtiment.
+
+[b]Raccourcis[/b]
+[b]V[/b] sélection · [b]B[/b] brosse · [b]Y[/b] sol · [b]U[/b] relief · [b]P[/b] décor · [b]R[/b] pivoter
+[b]Ctrl+S[/b] enregistrer · [b]Ctrl+Z / Ctrl+Y[/b] annuler/rétablir · [b]Suppr[/b] supprimer
+[b]Molette[/b] zoom · [b]Espace+glisser[/b] déplacer la vue · [b]Échap[/b] menu / annuler un tracé
+[b]F[/b] cadrer la sélection · [b]M[/b] (session) carte du monde
+
+[b]Aide complète[/b] : docs/GUIDE_CARTE_25D.md et docs/MAP_EDITOR.md"""
+	help_box.add_child(help_text)
+	_help_dialog.confirmed.connect(func(): _help_dialog.hide())
 
 	_template_name_dialog = %TemplateNameDialog
 	_template_name_input = %TemplateNameInput
@@ -2172,6 +2205,11 @@ func _do_redo() -> void:
 		_set_status("Rétabli.")
 	else:
 		_set_status("Rien à rétablir.")
+
+func _open_help() -> void:
+	if _help_dialog == null:
+		_build_dialogs()
+	_help_dialog.popup_centered(Vector2i(720, 600))
 
 func _open_esc_menu() -> void:
 	if _esc_menu == null:
