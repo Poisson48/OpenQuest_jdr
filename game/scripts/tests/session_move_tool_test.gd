@@ -29,6 +29,12 @@ func _run() -> void:
 	gd.place_complex_member_token(village_id, 9.0, 7.0, "move-aria")
 	# Un token pour un autre membre, non sélectionné.
 	gd.place_complex_member_token(village_id, 8.0, 8.0, "move-aria")
+	var village_entry: Dictionary = gd.get_map_play_entry(village_id)
+	(village_entry["tokens"] as Array).append({
+		"id": "tok-npc-test", "kind": "npc", "label": "Marchand",
+		"x": 12.0, "y": 7.0, "hp": 10, "maxHp": 10,
+	})
+	gd.save_map_play_and_sync()
 	var tokens: Array = gd.get_map_play_tokens(village_id)
 	var token_id := ""
 	for token_variant in tokens:
@@ -69,6 +75,11 @@ func _run() -> void:
 		await process_frame
 		var blocked: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		_assert("move_blocked_occupied", blocked.x == 5 and blocked.y == 4)
+		# Clic PNJ : bulle de dialogue.
+		_assert("npc_line_marchand", workspace._npc_line("Marchand").contains("marchandises"))
+		workspace._on_token_selected("tok-npc-test")
+		await process_frame
+		_assert("npc_speech_bubble", workspace.stage.speech_bubble_count() >= 1)
 	session.queue_free()
 	await process_frame
 	if _failed:
