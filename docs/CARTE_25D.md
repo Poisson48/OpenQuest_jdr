@@ -7,6 +7,8 @@
 > **Point de départ** : l'éditeur et le moteur **déjà commités sur `main`** (`MapComplexEditor`, `ComplexMapEngine3D`, styles `diorama` / `vtt` / `dd2_hybrid`). Le chantier table 3D/dés et la régression `map_editor.tscn` ne sont **pas** sur cette branche : ils sont parqués sur `wip/table-3d-dice-2026-10-30`.
 >
 > **Guide utilisateur** : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) — créer un monde, peindre, poser des bâtiments, tester en session.
+>
+> **Rapport de livraison** : [RAPPORT_CARTE_25D_LIVRAISON.md](./RAPPORT_CARTE_25D_LIVRAISON.md) — périmètre, architecture, tests, limites.
 
 ---
 
