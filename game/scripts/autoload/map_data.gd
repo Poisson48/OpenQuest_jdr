@@ -1465,6 +1465,42 @@ func assign_map_to_world(map_id: String, world_id: String, zone_x: int, zone_y: 
 	update_map(map)
 	return true
 
+## Nom lisible d'un monde (worldTitle porté par ses zones), sinon son id.
+func get_world_title(world_id: String) -> String:
+	if world_id.is_empty():
+		return ""
+	for map_variant in maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("worldId", "")) != world_id:
+			continue
+		var title := str(map.get("worldTitle", "")).strip_edges()
+		if not title.is_empty():
+			return title
+		return world_id
+	return world_id
+
+## Renomme un monde (écrit worldTitle sur toutes ses zones).
+func set_world_title(world_id: String, title: String) -> bool:
+	if world_id.is_empty():
+		return false
+	var clean := title.strip_edges()
+	if clean.is_empty():
+		return false
+	var touched := false
+	for map_variant in maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("worldId", "")) != world_id:
+			continue
+		map["worldTitle"] = clean
+		touched = true
+	if touched:
+		save_maps()
+	return touched
+
 ## Exporte toutes les zones d'un monde (cartes + liens) dans un bundle JSON-able.
 func export_world_bundle(world_id: String) -> Dictionary:
 	var zone_maps: Array = []

@@ -464,6 +464,8 @@ static func build_demo(md: Node) -> Dictionary:
 	if islands.size() == 2:
 		md.set_zone_edge(str((islands[0] as Dictionary).get("id", "")), "east",
 			str((islands[1] as Dictionary).get("id", "")))
+	md.set_world_title("demo-valbois", "Valbois")
+	md.set_world_title("demo-iles", "Îles de Brume")
 
 	return {
 		"map": map,

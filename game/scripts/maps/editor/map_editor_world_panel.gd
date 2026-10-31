@@ -30,6 +30,8 @@ var _error_lbl: Label
 var _bar: HFlowContainer
 var _world_opt: OptionButton
 var _view_world_id: String = ""
+var _world_title_dialog: AcceptDialog
+var _world_title_input: LineEdit
 var _drag_active := false
 var _drag_zone_id := ""
 var _drag_start_screen := Vector2.ZERO
@@ -98,6 +100,7 @@ func _build_ui() -> void:
 	_world_opt.tooltip_text = "Monde affiché (plusieurs mondes possibles)."
 	_world_opt.item_selected.connect(_on_world_selected)
 	bar.add_child(_world_opt)
+	_button(bar, "Nommer…", func(): _open_world_title())
 	_button(bar, "＋ Zone", func(): _open_create_zone())
 	_button(bar, "Relier les bords", func(): auto_link())
 	_button(bar, "Lier…", func(): _open_link())
@@ -219,7 +222,7 @@ func _sync_world_selector(md: Node) -> void:
 			for map_variant in md.maps:
 				if map_variant is Dictionary and str((map_variant as Dictionary).get("worldId", "")) == world_id:
 					count += 1
-			_world_opt.add_item("%s (%d)" % [world_id, count], i)
+			_world_opt.add_item("%s (%d)" % [md.get_world_title(world_id), count], i)
 			_world_opt.set_item_metadata(i, world_id)
 			if world_id == _view_world_id:
 				_world_opt.select(i)
@@ -227,6 +230,27 @@ func _sync_world_selector(md: Node) -> void:
 		_world_opt.add_item("＋ Nouveau monde")
 		_world_opt.set_item_metadata(_world_opt.item_count - 1, "__new__")
 	_world_opt.set_block_signals(false)
+
+func _open_world_title() -> void:
+	_ensure_dialogs()
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var world_id := _current_world_id()
+	if world_id.is_empty():
+		show_status("Aucun monde à renommer.")
+		return
+	_world_title_input.text = md.get_world_title(world_id)
+	_world_title_dialog.popup_centered(Vector2i(460, 180))
+
+func _apply_world_title() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var world_id := _current_world_id()
+	if md.set_world_title(world_id, _world_title_input.text):
+		refresh()
+		show_status("Monde renommé : %s." % md.get_world_title(world_id))
 
 func _on_world_selected(index: int) -> void:
 	if _world_opt == null or index < 0:
@@ -673,6 +697,18 @@ func _ensure_dialogs() -> void:
 	_world_import_dialog.cancel_button_text = "Annuler"
 	add_child(_world_import_dialog)
 	_world_import_dialog.file_selected.connect(_on_world_import_selected)
+
+	_world_title_dialog = AcceptDialog.new()
+	_world_title_dialog.title = "Nom du monde"
+	_world_title_dialog.ok_button_text = "Renommer"
+	add_child(_world_title_dialog)
+	var title_box := VBoxContainer.new()
+	title_box.custom_minimum_size = Vector2(360, 52)
+	_world_title_dialog.add_child(title_box)
+	_world_title_input = LineEdit.new()
+	_world_title_input.placeholder_text = "ex. Royaume de Valbois"
+	title_box.add_child(_world_title_input)
+	_world_title_dialog.confirmed.connect(_apply_world_title)
 
 func _open_create_zone() -> void:
 	_ensure_dialogs()

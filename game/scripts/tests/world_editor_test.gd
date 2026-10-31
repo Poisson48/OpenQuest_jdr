@@ -212,7 +212,15 @@ func _run() -> void:
 		var other_id := str(other_map.get("id", ""))
 		_created_maps.append(other_id)
 		md.assign_map_to_world(other_id, "other-world", 0, 0)
+		_assert("world_title_set", md.set_world_title("other-world", "Îles Perdues")
+			and md.get_world_title("other-world") == "Îles Perdues")
 		panel.refresh()
+		var titled_label := ""
+		for i in range(panel._world_opt.item_count):
+			if str(panel._world_opt.get_item_metadata(i)) == "other-world":
+				titled_label = panel._world_opt.get_item_text(i)
+				break
+		_assert("world_title_selector", titled_label.begins_with("Îles Perdues"))
 		_assert("world_selector_multi", panel._world_opt != null and panel._world_opt.item_count >= 2)
 		var other_index := -1
 		for i in range(panel._world_opt.item_count):
