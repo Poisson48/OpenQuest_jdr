@@ -83,7 +83,7 @@ func _run() -> void:
 
 		# Création d'une zone via le panneau.
 		var before: int = panel.zones.size()
-		panel.create_zone(10, 8)
+		panel.create_zone(10, 8, "Clairière test")
 		await process_frame
 		_assert("world_create_zone", panel.zones.size() == before + 1)
 		if panel.zones.size() == before + 1:
@@ -91,6 +91,7 @@ func _run() -> void:
 			_created_maps.append(created_id)
 			var created: Dictionary = md.get_by_id(created_id)
 			_assert("world_created_map", not created.is_empty())
+			_assert("world_created_title", str(created.get("title", "")) == "Clairière test")
 			_assert("world_created_terrain3d", str(created.get("groundMode", "")) == "terrain3d")
 			_assert("world_created_zoneW", int(created.get("zoneW", 0)) == 10)
 			# Redimensionnement de la zone (taille libre façon Dofus).

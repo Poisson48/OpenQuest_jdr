@@ -41,6 +41,7 @@ var _delete_dialog: ConfirmationDialog
 var _zone_dialog: ConfirmationDialog
 var _zone_w_spin: SpinBox
 var _zone_h_spin: SpinBox
+var _zone_name_input: LineEdit
 var _resize_dialog: ConfirmationDialog
 var _resize_w_spin: SpinBox
 var _resize_h_spin: SpinBox
@@ -214,7 +215,7 @@ func _update_status() -> void:
 # ===========================================================================
 
 ## Crée une nouvelle carte 2.5D de taille libre et la pose à droite du monde.
-func create_zone(width: int = 12, height: int = 9) -> void:
+func create_zone(width: int = 12, height: int = 9, title: String = "") -> void:
 	var md = get_node_or_null("/root/MapData")
 	if md == null:
 		return
@@ -223,8 +224,10 @@ func create_zone(width: int = 12, height: int = 9) -> void:
 	if bounds.size.x > 0 or bounds.size.y > 0:
 		# Sous le monde existant : emplacement garanti libre (pas de chevauchement).
 		pos = Vector2i(bounds.position.x, bounds.position.y + bounds.size.y + 1)
-	var title := "Zone %d" % (zones.size() + 1)
-	var map: Dictionary = md.create_complex_map(title, "general", "local", width, height)
+	var clean_title := title.strip_edges()
+	if clean_title.is_empty():
+		clean_title = "Zone %d" % (zones.size() + 1)
+	var map: Dictionary = md.create_complex_map(clean_title, "general", "local", width, height)
 	if map.is_empty():
 		return
 	var map_id := str(map.get("id", ""))
@@ -233,7 +236,7 @@ func create_zone(width: int = 12, height: int = 9) -> void:
 	map["backgroundImage"] = ""
 	map["worldId"] = _current_world_id() if not _current_world_id().is_empty() else "monde"
 	var zone: Dictionary = WorldZonesScript.map_to_zone_patch({
-		"id": map_id, "title": title, "x": pos.x, "y": pos.y,
+		"id": map_id, "title": clean_title, "x": pos.x, "y": pos.y,
 		"w": width, "h": height, "edges": {},
 	})
 	map.merge(zone, true)
@@ -241,7 +244,7 @@ func create_zone(width: int = 12, height: int = 9) -> void:
 	selected_id = map_id
 	refresh()
 	fit_view()
-	show_status("Zone créée : %s (%d×%d)." % [title, width, height])
+	show_status("Zone créée : %s (%d×%d)." % [clean_title, width, height])
 
 ## Détecte et écrit les liens de bords entre toutes les zones.
 func auto_link() -> void:
@@ -395,8 +398,17 @@ func _ensure_dialogs() -> void:
 	_zone_dialog.title = "Nouvelle zone"
 	add_child(_zone_dialog)
 	var zone_box := VBoxContainer.new()
-	zone_box.custom_minimum_size = Vector2(300, 90)
+	zone_box.custom_minimum_size = Vector2(300, 140)
 	_zone_dialog.add_child(zone_box)
+	var name_row := HBoxContainer.new()
+	zone_box.add_child(name_row)
+	var name_label := Label.new()
+	name_label.text = "Nom"
+	name_row.add_child(name_label)
+	_zone_name_input = LineEdit.new()
+	_zone_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_zone_name_input.placeholder_text = "ex. Clairière des Brumes"
+	name_row.add_child(_zone_name_input)
 	var size_row := HBoxContainer.new()
 	zone_box.add_child(size_row)
 	var w_label := Label.new()
@@ -507,10 +519,15 @@ func _ensure_dialogs() -> void:
 
 func _open_create_zone() -> void:
 	_ensure_dialogs()
-	_zone_dialog.popup_centered(Vector2i(360, 180))
+	if _zone_name_input != null:
+		_zone_name_input.text = ""
+	_zone_dialog.popup_centered(Vector2i(380, 230))
 
 func _apply_create_zone() -> void:
-	create_zone(int(_zone_w_spin.value), int(_zone_h_spin.value))
+	var custom_title := _zone_name_input.text if _zone_name_input != null else ""
+	create_zone(int(_zone_w_spin.value), int(_zone_h_spin.value), custom_title)
+	if _zone_name_input != null:
+		_zone_name_input.text = ""
 
 func _open_rename() -> void:
 	_ensure_dialogs()
