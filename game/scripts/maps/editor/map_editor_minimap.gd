@@ -73,6 +73,7 @@ func _draw() -> void:
 	draw_rect(rect, Color(0.45, 0.4, 0.35, 0.8), false, 1.0)
 	if doc == null:
 		return
+	_draw_ground_preview(rect)
 
 	for elem_variant in doc.elements_sorted():
 		var elem: Dictionary = elem_variant
@@ -102,6 +103,40 @@ func _draw() -> void:
 			var a := _grid_to_local(view.position.x, view.position.y)
 			var b := _grid_to_local(view.end.x, view.end.y)
 			draw_rect(Rect2(a, b - a), Color(1.0, 1.0, 1.0, 0.85), false, 1.5)
+
+## Aperçu du sol : matières peintes (herbe/terre/pierre) et relief.
+func _draw_ground_preview(rect: Rect2) -> void:
+	var size_cells: Vector2i = doc.terrain_size()
+	if size_cells.x <= 0 or size_cells.y <= 0:
+		return
+	var cell_px := rect.size.x / float(size_cells.x)
+	if cell_px < 1.0:
+		return
+	var mats: Array = doc.terrain_materials()
+	var has_mats := not mats.is_empty()
+	var has_relief: bool = doc.has_terrain_relief()
+	if not has_mats and not has_relief:
+		return
+	for cy in range(size_cells.y):
+		for cx in range(size_cells.x):
+			var color := Color(0.33, 0.45, 0.25)
+			if has_mats:
+				var idx: int = cy * size_cells.x + cx
+				if idx < mats.size():
+					match int(mats[idx]):
+						1:
+							color = Color(0.46, 0.36, 0.25)
+						2:
+							color = Color(0.55, 0.52, 0.46)
+			if has_relief:
+				var h: float = doc.terrain_height(cx, cy)
+				if h > 0.0:
+					color = color.lightened(clampf(h * 0.12, 0.0, 0.4))
+				elif h < 0.0:
+					color = color.darkened(clampf(-h * 0.12, 0.0, 0.4))
+			draw_rect(Rect2(
+				rect.position + Vector2(cx, cy) * cell_px,
+				Vector2(cell_px, cell_px) * 1.02), color, true)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:

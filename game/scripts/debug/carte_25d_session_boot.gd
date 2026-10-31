@@ -71,6 +71,32 @@ func _ready() -> void:
 	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
 	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
 	gd.place_complex_member_token(village_id, 10.2, 8.2, "hero-celia")
+	# Créatures : un gobelin en forêt, un squelette dans le donjon (figurines 3D).
+	var forest_id := ""
+	var dungeon_id := ""
+	for map_variant in demo.get("world_maps", []):
+		if not map_variant is Dictionary:
+			continue
+		var map_title := str((map_variant as Dictionary).get("title", ""))
+		if map_title.contains("Forêt"):
+			forest_id = str((map_variant as Dictionary).get("id", ""))
+		elif map_title.contains("Donjon"):
+			dungeon_id = str((map_variant as Dictionary).get("id", ""))
+	_add_creature_token(gd, forest_id, "Gobelin", 7.0, 6.0)
+	_add_creature_token(gd, dungeon_id, "Squelette", 5.0, 6.0)
 	gd.save_map_play_and_sync()
 	print("[MONDE 2.5D] Session monde prête : ", ids.size(), " zones, 3 héros dans le village.")
 	get_tree().call_deferred("change_scene_to_file", "res://scenes/session/session.tscn")
+
+## Ajoute un token de créature (figurine 3D via le label) sur une carte.
+func _add_creature_token(gd: Node, map_id: String, label: String, x: float, y: float) -> void:
+	if map_id.is_empty():
+		return
+	var entry: Dictionary = gd.get_map_play_entry(map_id)
+	(entry["tokens"] as Array).append({
+		"id": "tok-creature-%s" % label.to_lower(),
+		"kind": "monster",
+		"label": label,
+		"x": x, "y": y,
+		"hp": 7, "maxHp": 7,
+	})
