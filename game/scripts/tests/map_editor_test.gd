@@ -703,6 +703,24 @@ func _test_editor_ui(base: Dictionary) -> void:
 	await process_frame
 	_assert("ui_editable_panels", editor._left_scroll.visible)
 
+	# Token PNJ avec dialogue (outil Token → type PNJ).
+	var npc_tokens_before: int = editor.doc.count_of_kind(K_TOKEN)
+	editor._set_tool(ToolsScript.TOKEN)
+	editor._token_kind = "npc"
+	editor._token_label = "Marchand test"
+	editor._token_dialogue = "Bienvenue à l'étal."
+	editor._create_token(Vector2(2, 2))
+	_assert("ui_token_npc_count", editor.doc.count_of_kind(K_TOKEN) == npc_tokens_before + 1)
+	var npc_sel: Array = editor.doc.selection()
+	_assert("ui_token_npc_selected", npc_sel.size() == 1)
+	if not npc_sel.is_empty():
+		var npc_elem: Dictionary = editor.doc.get_element(str(npc_sel[0]))
+		_assert("ui_token_npc_kind", str(npc_elem.get("tokenKind", "")) == "npc")
+		_assert("ui_token_npc_dialogue", str(npc_elem.get("dialogue", "")).contains("Bienvenue"))
+	editor._token_kind = "member"
+	editor._token_label = ""
+	editor._token_dialogue = ""
+
 	editor.queue_free()
 
 # ===========================================================================
