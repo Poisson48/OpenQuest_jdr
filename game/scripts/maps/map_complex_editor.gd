@@ -142,6 +142,7 @@ var _autosave_timer: Timer
 var _file_dialog: FileDialog
 var _overlay_dialog: FileDialog
 var _export_dialog: FileDialog
+var _export_image_dialog: FileDialog
 var _import_dialog: FileDialog
 var _esc_menu
 var _settings_panel
@@ -410,6 +411,7 @@ func _build_action_bar() -> void:
 	_icon_button(bar, "☰", "Menu éditeur (Échap)", func(): _open_esc_menu())
 	_icon_button(bar, "?", "Aide rapide : parcours et raccourcis", func(): _open_help())
 	_icon_button(bar, "✓", "Vérifier la carte (tailles, objets, eau, liens)", func(): _validate_map())
+	_icon_button(bar, "📷", "Exporter une image PNG de la carte", func(): _open_export_image())
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
@@ -721,6 +723,8 @@ func _build_dialogs() -> void:
 
 	_export_dialog = _make_file_dialog("Exporter la carte", FileDialog.FILE_MODE_SAVE_FILE, ["*.json ; Carte JSON"])
 	_export_dialog.file_selected.connect(_on_export_selected)
+	_export_image_dialog = _make_file_dialog("Exporter une image de la carte", FileDialog.FILE_MODE_SAVE_FILE, ["*.png ; Image PNG"])
+	_export_image_dialog.file_selected.connect(_on_export_image_selected)
 
 	_import_dialog = _make_file_dialog("Importer une carte", FileDialog.FILE_MODE_OPEN_FILE, ["*.json ; Carte JSON"])
 	_import_dialog.file_selected.connect(_on_import_selected)
@@ -2324,6 +2328,38 @@ func _collect_map_issues() -> Array:
 			if MapData.get_by_id(target).is_empty():
 				issues.append("Lien %s vers une zone inexistante (%s)." % [side, target])
 	return issues
+
+func _open_export_image() -> void:
+	_export_image_dialog.current_file = "%s.png" % str(doc.map_data.get("title", "carte")).validate_filename()
+	_export_image_dialog.popup_centered_ratio(0.6)
+
+func _on_export_image_selected(path: String) -> void:
+	var save_path := path if path.to_lower().ends_with(".png") else path + ".png"
+	_export_map_image(save_path)
+
+## Capture le viewport 3D de la carte (sans l'UI) et l'écrit en PNG.
+func _export_map_image(path: String) -> void:
+	_do_export_map_image(path)
+
+func _do_export_map_image(path: String) -> void:
+	await get_tree().process_frame
+	if _engine == null or _engine._viewport == null:
+		_set_status("Capture impossible.")
+		return
+	var texture: Texture2D = _engine._viewport.get_texture()
+	if texture == null:
+		_set_status("Capture impossible (viewport vide).")
+		return
+	var image: Image = texture.get_image()
+	if image == null:
+		_set_status("Capture impossible (mode headless).")
+		return
+	image.convert(Image.FORMAT_RGBA8)
+	var err := image.save_png(path)
+	if err == OK:
+		_set_status("Image exportée : %s" % path)
+	else:
+		_set_status("Échec de l'écriture de l'image.")
 
 func _open_help() -> void:
 	if _help_dialog == null:

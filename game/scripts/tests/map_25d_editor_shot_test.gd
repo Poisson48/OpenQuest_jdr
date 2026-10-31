@@ -116,6 +116,17 @@ func _run() -> void:
 		printerr("map_25d_editor_shot_test:FAIL")
 		quit(1)
 		return
+	# Export PNG du viewport 3D (hors UI), sans passer par le dialogue.
+	var export_abs := copy_dir.path_join("carte_25d_vue3d.png")
+	editor._export_map_image(export_abs)
+	await _wait(20)
+	_assert("image_export_exists", FileAccess.file_exists(export_abs))
+	if FileAccess.file_exists(export_abs):
+		var f := FileAccess.open(export_abs, FileAccess.READ)
+		_assert("image_export_nonempty", f != null and f.get_length() > 1000)
+		if f != null:
+			f.close()
+		print("  capture: ", export_abs)
 	print("map_25d_editor_shot_test:PASS")
 	quit(0)
 
