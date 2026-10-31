@@ -1374,6 +1374,22 @@ func _clamp_elements_2d(elements, new_w: int, new_h: int) -> void:
 		if elem.has("h"):
 			elem["h"] = minf(float(elem.get("h", 1.0)), float(new_h) - y)
 
+## Duplique une carte complexe (zone façon Dofus) : contenu copié, nouvel id,
+## position décalée sur le plan monde, liens de bords réinitialisés.
+func duplicate_complex_map(map_id: String, new_title: String = "", offset_x: int = 0, offset_y: int = 1) -> Dictionary:
+	var src: Dictionary = get_by_id(map_id)
+	if src.is_empty():
+		return {}
+	var copy: Dictionary = src.duplicate(true)
+	copy["id"] = generate_id("map")
+	copy["title"] = new_title if not new_title.is_empty() else "%s (copie)" % str(src.get("title", "Zone"))
+	copy["zoneX"] = int(src.get("zoneX", 0)) + offset_x
+	copy["zoneY"] = int(src.get("zoneY", 0)) + offset_y
+	copy["edges"] = {}
+	maps.append(copy)
+	save_maps()
+	return copy
+
 func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():

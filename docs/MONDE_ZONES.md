@@ -104,7 +104,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 
 - Plan 2D des zones : rectangles à l'échelle (1 case = N px), nom + taille affichés, couleur par type (village, forêt, donjon…).
 - **Créer une zone** : rectangle à glisser sur le plan → nouvelle carte de la taille voulue (ou assigner une carte existante).
-- **Déplacer / redimensionner** une zone sur le plan (les tailles restent libres ; « Taille… » redimensionne la carte en conservant son contenu).
+- **Déplacer / redimensionner** une zone sur le plan (les tailles restent libres ; « Taille… » redimensionne la carte en conservant son contenu ; « Dupliquer » copie la zone sous elle-même).
 - **Relier** : auto-détection des bords qui se recouvrent + édition manuelle d'un lien (bord, carte cible, offset).
 - **Ouvrir** une zone (double-clic) → éditeur de carte classique ; retour au plan monde.
 - **Vérification** : zones qui se chevauchent, bords orphelins, tailles incohérentes, liens pointant vers une zone absente.

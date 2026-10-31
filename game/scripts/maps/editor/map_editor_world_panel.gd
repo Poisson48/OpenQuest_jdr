@@ -73,6 +73,7 @@ func _build_ui() -> void:
 	_button(bar, "Ouvrir", func(): open_selected())
 	_button(bar, "Renommer", func(): _open_rename())
 	_button(bar, "Taille…", func(): _open_resize())
+	_button(bar, "Dupliquer", func(): duplicate_selected())
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
@@ -421,6 +422,26 @@ func _open_delete() -> void:
 		return
 	_delete_dialog.dialog_text = "Supprimer la zone « %s » ?" % str(zone.get("title", ""))
 	_delete_dialog.popup_centered(Vector2i(420, 140))
+
+## Duplique la zone sélectionnée sous elle-même (contenu conservé).
+func duplicate_selected() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or selected_id.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	var zone := _zone_by_id(selected_id)
+	if zone.is_empty():
+		show_status("Sélectionnez d'abord une zone.")
+		return
+	var copy: Dictionary = md.duplicate_complex_map(selected_id, "",
+		0, int(zone.get("h", 9)) + 1)
+	if copy.is_empty():
+		show_status("Duplication impossible.")
+		return
+	selected_id = str(copy.get("id", ""))
+	refresh()
+	fit_view()
+	show_status("Zone dupliquée : %s" % str(copy.get("title", "")))
 
 func _apply_delete() -> void:
 	var md = get_node_or_null("/root/MapData")

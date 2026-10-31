@@ -34,6 +34,7 @@ var _world_map: Control
 var _exits_lbl: Label
 var _fade: ColorRect
 var _transitioning: bool = false
+var _zone_title_lbl: Label
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -97,11 +98,27 @@ func _ready() -> void:
 	_fade.visible = false
 	get_tree().root.add_child(_fade)
 	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Titre de zone affiché pendant le fondu (façon Dofus).
+	_zone_title_lbl = Label.new()
+	_zone_title_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zone_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_zone_title_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_zone_title_lbl.add_theme_font_size_override("font_size", 46)
+	_zone_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.65))
+	_zone_title_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	_zone_title_lbl.add_theme_constant_override("shadow_offset_x", 2)
+	_zone_title_lbl.add_theme_constant_override("shadow_offset_y", 2)
+	_zone_title_lbl.modulate.a = 0.0
+	_zone_title_lbl.visible = false
+	get_tree().root.add_child(_zone_title_lbl)
+	_zone_title_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tree_exiting.connect(func():
 		if _world_map != null and is_instance_valid(_world_map):
 			_world_map.queue_free()
 		if _fade != null and is_instance_valid(_fade):
 			_fade.queue_free()
+		if _zone_title_lbl != null and is_instance_valid(_zone_title_lbl):
+			_zone_title_lbl.queue_free()
 	)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -139,9 +156,27 @@ func _travel_to_zone(map_id: String) -> void:
 	if GameData.enter_world_zone(map_id):
 		_active_map_id = map_id
 		refresh()
-	notice_requested.emit("Voyage vers %s" % str(MapData.get_by_id(map_id).get("title", "la zone")))
+		var title := str(MapData.get_by_id(map_id).get("title", "Zone"))
+		notice_requested.emit("Voyage vers %s" % title)
+		await _flash_zone_title(title)
 	await _fade_to(0.0)
 	_transitioning = false
+
+## Affiche le nom de la zone au centre pendant le fondu (écran noir).
+func _flash_zone_title(title: String) -> void:
+	if _zone_title_lbl == null:
+		return
+	_zone_title_lbl.text = title
+	_zone_title_lbl.visible = true
+	_zone_title_lbl.modulate.a = 0.0
+	var tween_in := create_tween()
+	tween_in.tween_property(_zone_title_lbl, "modulate:a", 1.0, 0.18)
+	await tween_in.finished
+	await get_tree().create_timer(0.55).timeout
+	var tween_out := create_tween()
+	tween_out.tween_property(_zone_title_lbl, "modulate:a", 0.0, 0.25)
+	await tween_out.finished
+	_zone_title_lbl.visible = false
 
 ## Fond noir progressif entre deux zones.
 func _fade_to(alpha: float) -> void:
@@ -503,8 +538,10 @@ func _start_zone_transition(target_id: String, token_id: String, position: Vecto
 	if GameData.transition_map_edge(target_id, token_id, position):
 		_active_map_id = target_id
 		var target_map: Dictionary = MapData.get_by_id(target_id)
-		notice_requested.emit("Changement de zone : %s" % str(target_map.get("title", "carte")))
+		var title := str(target_map.get("title", "carte"))
+		notice_requested.emit("Changement de zone : %s" % title)
 		refresh()
+		await _flash_zone_title(title)
 	await _fade_to(0.0)
 	_transitioning = false
 

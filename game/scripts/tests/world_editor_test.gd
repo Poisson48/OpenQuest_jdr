@@ -105,6 +105,20 @@ func _run() -> void:
 			var resized_zone: Dictionary = panel._zone_by_id(created_id)
 			_assert("world_resize_panel", not resized_zone.is_empty()
 				and int(resized_zone.get("w", 0)) == 14 and int(resized_zone.get("h", 0)) == 11)
+			# Duplication de la zone (contenu conservé, position décalée).
+			var dup: Dictionary = md.duplicate_complex_map(created_id, "", 0, 12)
+			_assert("world_duplicate_ok", not dup.is_empty())
+			if not dup.is_empty():
+				var dup_id := str(dup.get("id", ""))
+				_created_maps.append(dup_id)
+				_assert("world_duplicate_new_id", dup_id != created_id)
+				_assert("world_duplicate_content",
+					(dup.get("terrainMaterials", []) as Array).size() == 14 * 11)
+				_assert("world_duplicate_zone_pos",
+					int(dup.get("zoneY", 0)) == int(resized.get("zoneY", 0)) + 12)
+				_assert("world_duplicate_edges", (dup.get("edges", {}) as Dictionary).is_empty())
+				panel.refresh()
+				_assert("world_duplicate_panel", panel.zones.size() >= before + 2)
 
 		# Ouvrir la zone sélectionnée émet open_map_requested.
 		var opened := {"map_id": ""}

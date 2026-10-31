@@ -160,7 +160,8 @@ peuvent avoir des **tailles différentes**). Voir
   bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
-  au coin haut-gauche) et **Supprimer**.
+  au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
+  **Supprimer**.
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
 - Chaque carte porte `worldId`, `zoneX/zoneY/zoneW/zoneH` et `edges`
   (nord/sud/est/ouest).
