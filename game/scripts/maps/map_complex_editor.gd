@@ -2352,6 +2352,14 @@ func _refresh_ghost() -> void:
 			ghost["rotation"] = _mesh_rotation
 			ghost["texture"] = AssetLibraryScript.load_object3d_thumbnail(_mesh_asset)
 			ghost["standing"] = true
+			# Aperçu de l'aimantation : montre où le module sera réellement posé.
+			if _mesh_snap_modules and not _mesh_asset.is_empty():
+				var snap_preview := _snap_module_placement(_mesh_asset, _overlay.hover_grid)
+				if not snap_preview.is_empty():
+					ghost["x"] = float(snap_preview.get("x", ghost["x"]))
+					ghost["y"] = float(snap_preview.get("y", ghost["y"]))
+					ghost["rotation"] = float(snap_preview.get("rotation", 0.0))
+					ghost["snapped"] = true
 		if _tool == ToolsScript.TOKEN:
 			ghost["color"] = MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]
 		elif _tool == ToolsScript.EFFECT:
