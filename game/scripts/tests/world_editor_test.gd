@@ -179,6 +179,20 @@ func _run() -> void:
 		_assert("world_theme_lake_starters",
 			not (lake_sample.get("meshes", []) as Array).is_empty())
 
+		# Tous les thèmes produisent une carte valide et cohérente.
+		_assert("world_theme_count", MapThemePresets.THEMES.size() >= 7)
+		for theme_variant in MapThemePresets.THEMES:
+			var theme: Dictionary = theme_variant
+			var theme_id := str(theme.get("id", ""))
+			var sample := {"width": 12, "height": 9}
+			MapThemePresets.apply(sample, theme_id)
+			_assert("world_theme_%s_materials" % theme_id,
+				(sample.get("terrainMaterials", []) as Array).size() == 12 * 9)
+			_assert("world_theme_%s_heights" % theme_id,
+				(sample.get("terrainHeights", []) as Array).size() == 12 * 9)
+			_assert("world_theme_%s_ambient" % theme_id,
+				str(sample.get("ambientFx", "")) in ["", "leaves", "fireflies", "rain", "snow", "dust"])
+
 		# Assigner une carte existante (hors monde) comme nouvelle zone.
 		var free_map: Dictionary = md.create_complex_map("Carte libre", "general", "local", 11, 7)
 		var free_id := str(free_map.get("id", ""))
