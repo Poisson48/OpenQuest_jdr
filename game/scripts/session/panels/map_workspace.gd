@@ -167,6 +167,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif key.keycode == KEY_F:
 		stage.fit()
 		get_viewport().set_input_as_handled()
+	elif key.keycode >= KEY_1 and key.keycode <= KEY_9:
+		# 1-9 : bascule rapide entre les cartes/onglets de zone.
+		if navigator != null and navigator.select_map_index(int(key.keycode - KEY_1)):
+			get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_ESCAPE and _world_map != null and _world_map.visible:
 		_world_map.visible = false
 		get_viewport().set_input_as_handled()

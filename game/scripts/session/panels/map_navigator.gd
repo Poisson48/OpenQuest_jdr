@@ -45,6 +45,16 @@ func set_tabs(maps: Array, active_id: String) -> void:
 		btn.pressed.connect(func(): map_selected.emit(map_id))
 		_tabs.add_child(btn)
 
+## Sélectionne un onglet de carte par index (raccourcis 1-9). Renvoie vrai si valide.
+func select_map_index(index: int) -> bool:
+	if index < 0 or index >= _tabs.get_child_count():
+		return false
+	var button := _tabs.get_child(index) as BaseButton
+	if button == null:
+		return false
+	button.pressed.emit()
+	return true
+
 ## `nav` provient de `GameData.get_session_display_map().navContext`.
 func set_breadcrumb(nav: Dictionary) -> void:
 	_back_action = str(nav.get("mode", ""))
