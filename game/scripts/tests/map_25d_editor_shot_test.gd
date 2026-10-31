@@ -112,6 +112,42 @@ func _run() -> void:
 			editor._world_panel.toggle_fullscreen()
 			await _wait(6)
 
+	# Second monde (thèmes Lac / plage) : capture en plein écran.
+	if editor._world_panel != null and editor._world_panel._world_opt != null:
+		var isles_index := -1
+		var valbois_index := -1
+		for i in range(editor._world_panel._world_opt.item_count):
+			var world_meta := str(editor._world_panel._world_opt.get_item_metadata(i))
+			if world_meta == "demo-iles":
+				isles_index = i
+			elif world_meta == "demo-valbois":
+				valbois_index = i
+		if isles_index >= 0:
+			editor._world_panel._on_world_selected(isles_index)
+			await _wait(8)
+			var monde_tab: int = editor._right_tabs.get_tab_idx_from_control(editor._world_panel)
+			if monde_tab >= 0:
+				editor._right_tabs.current_tab = monde_tab
+			if editor._world_panel._fullscreen:
+				editor._world_panel.toggle_fullscreen()
+				await _wait(6)
+			editor._world_panel.toggle_fullscreen()
+			await _wait(10)
+			editor._world_panel.fit_view()
+			await _wait(10)
+			var isles_img: Image = get_root().get_texture().get_image()
+			if isles_img != null:
+				isles_img.convert(Image.FORMAT_RGBA8)
+				var isles_out := copy_dir.path_join("carte_25d_monde_iles.png")
+				isles_img.save_png(isles_out)
+				print("  capture: ", isles_out)
+				_assert("world_second_world", editor._world_panel.zones.size() == 2)
+			editor._world_panel.toggle_fullscreen()
+			await _wait(6)
+		if valbois_index >= 0:
+			editor._world_panel._on_world_selected(valbois_index)
+			await _wait(6)
+
 	if _failed:
 		printerr("map_25d_editor_shot_test:FAIL")
 		quit(1)

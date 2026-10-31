@@ -69,7 +69,10 @@ static func build_demo(md: Node) -> Dictionary:
 	# Repart d'un monde de démo propre : les captures/tests ne doivent pas
 	# empiler des copies de zones à chaque exécution.
 	for existing_variant in md.maps.duplicate():
-		if existing_variant is Dictionary and str((existing_variant as Dictionary).get("worldId", "")) == "demo-valbois":
+		if not existing_variant is Dictionary:
+			continue
+		var existing_world := str((existing_variant as Dictionary).get("worldId", ""))
+		if existing_world == "demo-valbois" or existing_world == "demo-iles":
 			md.delete_map(str((existing_variant as Dictionary).get("id", "")))
 	var map: Dictionary = md.create_complex_map("Démo 2.5D — objets 3D", "general", "local", 24, 16)
 	if map.is_empty():
@@ -431,10 +434,42 @@ static func build_demo(md: Node) -> Dictionary:
 	map = md.get_by_id(map_id)
 	md.preview_map_id = map_id
 
+	# Second monde de démonstration (thèmes Lac et Bord de mer) pour montrer le
+	# sélecteur de mondes de la vue Monde.
+	var islands: Array = []
+	var isle_specs := [
+		{"title": "Île du Lac", "theme": "lake", "x": 0, "y": 0, "w": 10, "h": 8},
+		{"title": "Plage des Brumes", "theme": "beach", "x": 11, "y": 0, "w": 10, "h": 8},
+	]
+	for isle_spec_variant in isle_specs:
+		var isle_spec: Dictionary = isle_spec_variant
+		var isle: Dictionary = md.create_complex_map(str(isle_spec["title"]), "general", "local",
+			int(isle_spec["w"]), int(isle_spec["h"]))
+		if isle.is_empty():
+			continue
+		var isle_id := str(isle.get("id", ""))
+		isle["renderStyle"] = "2.5d"
+		isle["groundMode"] = "terrain3d"
+		isle["backgroundImage"] = ""
+		isle["fogEnabled"] = false
+		isle["worldId"] = "demo-iles"
+		isle["zoneX"] = int(isle_spec["x"])
+		isle["zoneY"] = int(isle_spec["y"])
+		isle["zoneW"] = int(isle_spec["w"])
+		isle["zoneH"] = int(isle_spec["h"])
+		isle["edges"] = {}
+		MapThemePresets.apply(isle, str(isle_spec["theme"]))
+		md.update_map(isle)
+		islands.append(md.get_by_id(isle_id))
+	if islands.size() == 2:
+		md.set_zone_edge(str((islands[0] as Dictionary).get("id", "")), "east",
+			str((islands[1] as Dictionary).get("id", "")))
+
 	return {
 		"map": map,
 		"assets": assets,
 		"world_maps": world_maps,
+		"second_world_maps": islands,
 		"cells": Vector2i(int(map.get("width", 24)), int(map.get("height", 16))),
 	} 
 

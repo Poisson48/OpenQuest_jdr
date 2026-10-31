@@ -16,7 +16,8 @@ session**. Il suppose la branche `feat/carte-2.5d-editeur`.
 
 La démo éditeur construit un monde de 7 zones (village, place, forêt avec
 étang, taverne, donjon nocturne, camp enneigé, ruines sous la pluie) et l'ouvre
-sur le village.
+sur le village. Un **second monde** de démonstration (Île du Lac, Plage des
+Brumes) est visible via le sélecteur de mondes de l'onglet Monde.
 
 ## 2. Créer et gérer un monde de zones
 
