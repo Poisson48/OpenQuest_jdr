@@ -717,6 +717,20 @@ func _test_editor_ui(base: Dictionary) -> void:
 		var npc_elem: Dictionary = editor.doc.get_element(str(npc_sel[0]))
 		_assert("ui_token_npc_kind", str(npc_elem.get("tokenKind", "")) == "npc")
 		_assert("ui_token_npc_dialogue", str(npc_elem.get("dialogue", "")).contains("Bienvenue"))
+	# Persistance du token PNJ et de son dialogue dans playDefaults.
+	editor.save_now()
+	var stored_npc_map: Dictionary = get_root().get_node("MapData").get_by_id(str(base.get("id", "")))
+	var stored_npc_tokens = (stored_npc_map.get("playDefaults", {}) as Dictionary).get("tokens", [])
+	var persisted_dialogue := false
+	for stored_token_variant in stored_npc_tokens:
+		if not stored_token_variant is Dictionary:
+			continue
+		var stored_token: Dictionary = stored_token_variant
+		if str(stored_token.get("label", "")) == "Marchand test" \
+				and str(stored_token.get("dialogue", "")).contains("Bienvenue"):
+			persisted_dialogue = true
+			break
+	_assert("ui_token_npc_persist", persisted_dialogue)
 	editor._token_kind = "member"
 	editor._token_label = ""
 	editor._token_dialogue = ""
