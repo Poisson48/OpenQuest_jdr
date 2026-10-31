@@ -180,6 +180,34 @@ func _run() -> void:
 		panel.refresh()
 		_assert("world_assign_panel", not panel._zone_by_id(free_id).is_empty())
 
+		# Export / import d'un monde complet (zones + liens remappés).
+		var bundle_a: Dictionary = md.create_complex_map("Bundle A", "general", "local", 10, 7)
+		var bundle_b: Dictionary = md.create_complex_map("Bundle B", "general", "local", 8, 6)
+		var bundle_a_id := str(bundle_a.get("id", ""))
+		var bundle_b_id := str(bundle_b.get("id", ""))
+		_created_maps.append(bundle_a_id)
+		_created_maps.append(bundle_b_id)
+		md.assign_map_to_world(bundle_a_id, "bundle-src", 0, 0)
+		md.assign_map_to_world(bundle_b_id, "bundle-src", 11, 0)
+		md.set_zone_edge(bundle_a_id, "east", bundle_b_id)
+		var bundle: Dictionary = md.export_world_bundle("bundle-src")
+		_assert("world_export_zones", (bundle.get("zones", []) as Array).size() == 2)
+		var imported: Dictionary = md.import_world_bundle(bundle, "bundle-dst")
+		var imported_ids: Array = imported.get("mapIds", [])
+		_assert("world_import_count", imported_ids.size() == 2)
+		if imported_ids.size() == 2:
+			for imported_id_variant in imported_ids:
+				_created_maps.append(str(imported_id_variant))
+			var first: Dictionary = md.get_by_id(str(imported_ids[0]))
+			var second: Dictionary = md.get_by_id(str(imported_ids[1]))
+			_assert("world_import_world", str(first.get("worldId", "")) == "bundle-dst"
+				and str(second.get("worldId", "")) == "bundle-dst")
+			_assert("world_import_new_ids", str(imported_ids[0]) != bundle_a_id
+				and str(imported_ids[1]) != bundle_b_id)
+			var first_edges: Dictionary = first.get("edges", {})
+			_assert("world_import_edges", str((first_edges.get("east", {}) as Dictionary).get("target", ""))
+				== str(imported_ids[1]))
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:

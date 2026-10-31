@@ -1425,6 +1425,76 @@ func assign_map_to_world(map_id: String, world_id: String, zone_x: int, zone_y: 
 	update_map(map)
 	return true
 
+## Exporte toutes les zones d'un monde (cartes + liens) dans un bundle JSON-able.
+func export_world_bundle(world_id: String) -> Dictionary:
+	var zone_maps: Array = []
+	for map_variant in maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("worldId", "")) != world_id:
+			continue
+		if str(map.get("renderMode", "")) != "complex":
+			continue
+		zone_maps.append(map.duplicate(true))
+	return {
+		"version": 1,
+		"worldId": world_id,
+		"exportsAt": Time.get_unix_time_from_system(),
+		"zones": zone_maps,
+	}
+
+## Importe un bundle de monde : recrée les zones avec de nouveaux ids et
+## re-cible les liens internes. `target_world_id` vide → nouveau monde.
+func import_world_bundle(bundle: Dictionary, target_world_id: String = "") -> Dictionary:
+	var source_zones = bundle.get("zones", [])
+	if typeof(source_zones) != TYPE_ARRAY or (source_zones as Array).is_empty():
+		return {}
+	var world_id := target_world_id.strip_edges()
+	if world_id.is_empty():
+		world_id = str(bundle.get("worldId", "")).strip_edges()
+	if world_id.is_empty():
+		world_id = generate_id("world")
+	var id_map: Dictionary = {}
+	var pending: Array = []
+	for zone_variant in source_zones:
+		if not zone_variant is Dictionary:
+			continue
+		var source: Dictionary = zone_variant
+		var old_id := str(source.get("id", ""))
+		var copy: Dictionary = source.duplicate(true)
+		var new_id: String = generate_id("map")
+		copy["id"] = new_id
+		copy["worldId"] = world_id
+		copy["edges"] = {}
+		if old_id.is_empty():
+			old_id = new_id
+		id_map[old_id] = new_id
+		pending.append({"copy": copy, "source": source})
+	# Second passage : liens remappés vers les nouvelles cartes.
+	var imported_ids: Array = []
+	for item_variant in pending:
+		var item: Dictionary = item_variant
+		var copy: Dictionary = item["copy"]
+		var source: Dictionary = item["source"]
+		var edges: Dictionary = {}
+		var source_edges = source.get("edges", {})
+		if source_edges is Dictionary:
+			for side in source_edges:
+				var edge_variant = (source_edges as Dictionary).get(side, {})
+				if not edge_variant is Dictionary:
+					continue
+				var edge: Dictionary = edge_variant
+				var target_old := str(edge.get("target", ""))
+				if target_old.is_empty() or not id_map.has(target_old):
+					continue
+				edges[str(side)] = {"target": str(id_map[target_old]), "offset": int(edge.get("offset", 0))}
+		copy["edges"] = edges
+		maps.append(ensure_map_schema(copy))
+		imported_ids.append(str(copy.get("id", "")))
+	save_maps()
+	return {"worldId": world_id, "mapIds": imported_ids}
+
 func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():

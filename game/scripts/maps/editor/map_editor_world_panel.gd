@@ -54,6 +54,8 @@ var _unlink_dialog: ConfirmationDialog
 var _pending_unlink_zone: String = ""
 var _pending_unlink_side: String = ""
 var _assign_dialog: ConfirmationDialog
+var _world_export_dialog: FileDialog
+var _world_import_dialog: FileDialog
 var _assign_opt: OptionButton
 var _editor_root: Control
 var _fullscreen: bool = false
@@ -93,6 +95,8 @@ func _build_ui() -> void:
 	_button(bar, "Taille…", func(): _open_resize())
 	_button(bar, "Dupliquer", func(): duplicate_selected())
 	_button(bar, "Assigner…", func(): _open_assign())
+	_button(bar, "Exporter…", func(): _open_world_export())
+	_button(bar, "Importer…", func(): _open_world_import())
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
@@ -517,6 +521,22 @@ func _ensure_dialogs() -> void:
 	add_child(_unlink_dialog)
 	_unlink_dialog.confirmed.connect(_apply_unlink)
 
+	_world_export_dialog = FileDialog.new()
+	_world_export_dialog.title = "Exporter le monde"
+	_world_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_world_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_world_export_dialog.filters = PackedStringArray(["*.json ; Monde JSON"])
+	add_child(_world_export_dialog)
+	_world_export_dialog.file_selected.connect(_on_world_export_selected)
+
+	_world_import_dialog = FileDialog.new()
+	_world_import_dialog.title = "Importer un monde"
+	_world_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_world_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_world_import_dialog.filters = PackedStringArray(["*.json ; Monde JSON"])
+	add_child(_world_import_dialog)
+	_world_import_dialog.file_selected.connect(_on_world_import_selected)
+
 func _open_create_zone() -> void:
 	_ensure_dialogs()
 	if _zone_name_input != null:
@@ -596,6 +616,66 @@ func _apply_assign() -> void:
 		show_status("Carte assignée au monde.")
 	else:
 		show_status("Assignation impossible.")
+
+## Exporte le monde courant (toutes ses zones + liens) en JSON.
+func _open_world_export() -> void:
+	_ensure_dialogs()
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var world_id := _current_world_id()
+	if world_id.is_empty() or zones.is_empty():
+		show_status("Aucune zone à exporter.")
+		return
+	_world_export_dialog.current_file = "%s_monde.json" % world_id.validate_filename()
+	_world_export_dialog.popup_centered_ratio(0.6)
+
+func _on_world_export_selected(path: String) -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var save_path := path if path.to_lower().ends_with(".json") else path + ".json"
+	var bundle: Dictionary = md.export_world_bundle(_current_world_id())
+	if (bundle.get("zones", []) as Array).is_empty():
+		show_status("Monde vide : rien à exporter.")
+		return
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	if file == null:
+		show_status("Écriture impossible : %s" % save_path)
+		return
+	file.store_string(JSON.stringify(bundle, "\t"))
+	file.close()
+	show_status("Monde exporté (%d zones) : %s" % [(bundle.get("zones", []) as Array).size(), save_path])
+
+## Importe un bundle de monde comme zones du monde courant.
+func _open_world_import() -> void:
+	_ensure_dialogs()
+	_world_import_dialog.popup_centered_ratio(0.6)
+
+func _on_world_import_selected(path: String) -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var text := FileAccess.get_file_as_string(path)
+	if text.is_empty():
+		show_status("Fichier illisible : %s" % path)
+		return
+	var parsed = JSON.parse_string(text)
+	if not parsed is Dictionary:
+		show_status("JSON invalide : monde attendu.")
+		return
+	var world_id := _current_world_id()
+	if world_id.is_empty():
+		world_id = "monde"
+	var imported: Dictionary = md.import_world_bundle(parsed, world_id)
+	var imported_ids: Array = imported.get("mapIds", [])
+	if imported_ids.is_empty():
+		show_status("Aucune zone importée.")
+		return
+	selected_id = str(imported_ids[0])
+	refresh()
+	fit_view()
+	show_status("Monde importé : %d zone(s)." % imported_ids.size())
 
 func _open_link(prefill_zone_id: String = "", prefill_side: String = "") -> void:
 	_ensure_dialogs()
