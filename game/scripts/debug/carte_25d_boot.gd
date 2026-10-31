@@ -371,7 +371,8 @@ static func build_demo(md: Node) -> Dictionary:
 				],
 			}
 		# Donjon en ambiance nocturne : lanternes et torches ressortent.
-		if style == "dungeon":			var w_dun := int(spec["w"])
+		if style == "dungeon":
+			var w_dun := int(spec["w"])
 			var h_dun := int(spec["h"])
 			sub["lighting"] = {
 				"enabled": true, "direction": "nw", "intensity": 0.15,

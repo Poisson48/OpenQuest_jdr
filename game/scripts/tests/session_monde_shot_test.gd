@@ -44,6 +44,17 @@ func _run() -> void:
 	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
 	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
 	gd.place_complex_member_token(village_id, 10.2, 8.2, "hero-celia")
+	# PNJ de vie (figurines 3D nommées), comme dans le boot de session.
+	var village_entry: Dictionary = gd.get_map_play_entry(village_id)
+	(village_entry["tokens"] as Array).append({
+		"id": "tok-npc-marchand", "kind": "npc", "label": "Marchand",
+		"x": 12.5, "y": 7.2, "hp": 10, "maxHp": 10,
+	})
+	(village_entry["tokens"] as Array).append({
+		"id": "tok-npc-garde", "kind": "npc", "label": "Garde",
+		"x": 5.5, "y": 6.0, "hp": 10, "maxHp": 10,
+	})
+	gd.save_map_play_and_sync()
 
 	var session: Node = (load("res://scenes/session/session.tscn") as PackedScene).instantiate()
 	get_root().add_child(session)
