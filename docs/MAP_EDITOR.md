@@ -256,8 +256,10 @@ distribuer horizontalement ; le document expose aussi `top`, `bottom`,
 
 Le bouton **?** de la barre d'action ouvre l'**aide rapide** : parcours en 4
 étapes (terrain, objets 3D, monde, session), astuces d'aimantation et raccourcis.
-Le bouton **✓** vérifie la carte (dimensions des tampons, objets hors limites,
-assets manquants, eau sans dépression, liens de zone cassés) et affiche un rapport.
+Le bouton **✓** vérifie la carte et affiche un **rapport chiffré** (taille, objets,
+relief min/max, eau, répartition des matières) puis les problèmes éventuels
+(dimensions des tampons, objets hors limites, assets manquants, eau sans
+dépression, liens de zone cassés).
 Le bouton **📷** exporte une image PNG du rendu 3D de la carte (sans l'interface).
 Les boutons **‹ / ›** ouvrent la zone précédente/suivante du même monde sans passer
 par l'onglet Monde.

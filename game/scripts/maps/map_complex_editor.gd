@@ -2271,15 +2271,55 @@ func _validate_map() -> void:
 	if _validate_dialog == null:
 		_build_dialogs()
 	var issues := _collect_map_issues()
+	var header := _map_report_header()
 	if issues.is_empty():
-		_validate_text.text = "[color=#9fe08a]✓ Aucun problème détecté.[/color]\n\nLa carte est cohérente."
+		_validate_text.text = "%s\n[color=#9fe08a]✓ Aucun problème détecté.[/color]" % header
 	else:
-		var lines: Array = ["[b]%d problème(s) détecté(s)[/b]" % issues.size(), ""]
+		var lines: Array = ["%s" % header, "[b]%d problème(s) détecté(s)[/b]" % issues.size(), ""]
 		for issue in issues:
 			lines.append("• %s" % str(issue))
 		_validate_text.text = "\n".join(lines)
 	_validate_dialog.popup_centered(Vector2i(620, 420))
 	_set_status("Vérification : %d problème(s)." % issues.size())
+
+## Résumé chiffré de la carte affiché en tête du rapport de vérification.
+func _map_report_header() -> String:
+	var map: Dictionary = doc.map_data
+	var w := int(map.get("width", 0))
+	var h := int(map.get("height", 0))
+	var counts := {"mesh": 0, "prop": 0, "marker": 0}
+	for key in [["meshes", "mesh"], ["props", "prop"], ["markers", "marker"]]:
+		var elements = map.get(key[0], [])
+		if elements is Array:
+			counts[key[1]] = (elements as Array).size()
+	var heights = map.get("terrainHeights", [])
+	var min_h := 0.0
+	var max_h := 0.0
+	if heights is Array and not (heights as Array).is_empty():
+		min_h = float((heights as Array)[0])
+		max_h = min_h
+		for value in heights:
+			min_h = minf(min_h, float(value))
+			max_h = maxf(max_h, float(value))
+	var mat_counts := [0, 0, 0, 0, 0]
+	var materials = map.get("terrainMaterials", [])
+	if materials is Array:
+		for value in materials:
+			var m := clampi(int(value), 0, 4)
+			mat_counts[m] += 1
+	var water := float(map.get("waterLevel", -1.0))
+	var world_id := str(map.get("worldId", ""))
+	return ("[b]Carte[/b] : %s — %d×%d cases · objets %d, décors %d, marqueurs %d\n" \
+		+ "Relief : %.2f à %.2f · eau : %s · monde : %s\n"
+		+ "Sols : herbe %d, terre %d, pierre %d, neige %d, sable %d") % [
+		str(map.get("title", "Carte")), w, h,
+		int(counts["mesh"]), int(counts["prop"]), int(counts["marker"]),
+		min_h, max_h,
+		("niveau %.2f" % water) if water > -1.0 else "aucune",
+		world_id if not world_id.is_empty() else "—",
+		int(mat_counts[0]), int(mat_counts[1]), int(mat_counts[2]),
+		int(mat_counts[3]), int(mat_counts[4]),
+	]
 
 ## Liste des problèmes détectés sur la carte courante (vide si tout est bon).
 func _collect_map_issues() -> Array:
