@@ -32,6 +32,8 @@ var _pending_nav: Dictionary = {}
 var _inspect_hint: String = ""
 var _world_map: Control
 var _exits_lbl: Label
+var _fade: ColorRect
+var _transitioning: bool = false
 
 func _ready() -> void:
 	navigator.map_selected.connect(_on_map_selected)
@@ -88,9 +90,18 @@ func _ready() -> void:
 	_world_map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_world_map.visible = false
 	_world_map.zone_selected.connect(_on_world_zone_selected)
+	# Fondu noir de transition entre zones (façon Dofus).
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade.visible = false
+	get_tree().root.add_child(_fade)
+	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tree_exiting.connect(func():
 		if _world_map != null and is_instance_valid(_world_map):
 			_world_map.queue_free()
+		if _fade != null and is_instance_valid(_fade):
+			_fade.queue_free()
 	)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -115,13 +126,33 @@ func _toggle_world_map() -> void:
 		_world_map.fit_view()
 
 func _on_world_zone_selected(map_id: String) -> void:
-	if map_id.is_empty():
+	if map_id.is_empty() or _transitioning:
 		return
+	if _world_map != null:
+		_world_map.visible = false
+	_travel_to_zone(map_id)
+
+## Voyage rapide depuis la carte du monde, avec fondu noir.
+func _travel_to_zone(map_id: String) -> void:
+	_transitioning = true
+	await _fade_to(1.0)
 	if GameData.enter_world_zone(map_id):
 		_active_map_id = map_id
-		if _world_map != null:
-			_world_map.visible = false
 		refresh()
+	notice_requested.emit("Voyage vers %s" % str(MapData.get_by_id(map_id).get("title", "la zone")))
+	await _fade_to(0.0)
+	_transitioning = false
+
+## Fond noir progressif entre deux zones.
+func _fade_to(alpha: float) -> void:
+	if _fade == null:
+		return
+	_fade.visible = true
+	var tween := create_tween()
+	tween.tween_property(_fade, "color:a", alpha, 0.22)
+	await tween.finished
+	if alpha <= 0.01:
+		_fade.visible = false
 
 # ---------------------------------------------------------------------------
 # API
@@ -443,6 +474,8 @@ func _on_token_moved(token_id: String, gx: float, gy: float) -> void:
 ## Tente une transition par le bord du monde (zones façon Dofus). Renvoie vrai
 ## si la carte active a changé (le token est déjà replacé par GameData).
 func _try_edge_transition(token_id: String, gx: float, gy: float) -> bool:
+	if _transitioning:
+		return false
 	var map_id := _current_map_id()
 	var current_map: Dictionary = MapData.get_by_id(map_id)
 	if current_map.is_empty():
@@ -458,13 +491,22 @@ func _try_edge_transition(token_id: String, gx: float, gy: float) -> bool:
 	if not bool(result.get("ok", false)):
 		return false
 	var target_id := str(result.get("target_map_id", ""))
-	if not GameData.transition_map_edge(target_id, token_id, result.get("position", Vector2.ZERO)):
-		return false
-	_active_map_id = target_id
-	var target_map: Dictionary = MapData.get_by_id(target_id)
-	notice_requested.emit("Changement de zone : %s" % str(target_map.get("title", "carte")))
-	refresh()
+	_start_zone_transition(target_id, token_id, result.get("position", Vector2.ZERO))
 	return true
+
+## Change de zone avec fondu : le token est transféré pendant l'écran noir.
+func _start_zone_transition(target_id: String, token_id: String, position: Vector2) -> void:
+	if _transitioning:
+		return
+	_transitioning = true
+	await _fade_to(1.0)
+	if GameData.transition_map_edge(target_id, token_id, position):
+		_active_map_id = target_id
+		var target_map: Dictionary = MapData.get_by_id(target_id)
+		notice_requested.emit("Changement de zone : %s" % str(target_map.get("title", "carte")))
+		refresh()
+	await _fade_to(0.0)
+	_transitioning = false
 
 ## Cartes du monde courant (celles de la session + toutes les zones du même monde).
 func _maps_for_world(current_map_id: String) -> Array:

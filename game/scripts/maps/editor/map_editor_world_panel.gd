@@ -426,6 +426,7 @@ func _draw() -> void:
 		if selected:
 			color = color.lightened(0.18)
 		draw_rect(rect, color, true)
+		_draw_zone_content(zone, rect)
 		draw_rect(rect, Color(0.95, 0.86, 0.55, 1.0) if selected else Color(0.10, 0.09, 0.07, 0.9),
 			false, 2.0 if selected else 1.0)
 		# Zone actuellement ouverte dans l'éditeur : liseré cyan + point.
@@ -434,6 +435,7 @@ func _draw() -> void:
 			draw_circle(rect.get_center(), 4.5, Color(0.55, 0.85, 1.0))
 		# Nom + taille (si assez de place).
 		if rect.size.x > 70.0 and rect.size.y > 32.0:
+			draw_rect(Rect2(rect.position, Vector2(rect.size.x, 32.0)), Color(0.02, 0.02, 0.02, 0.5), true)
 			var font := get_theme_default_font()
 			var title := str(zone.get("title", "Carte"))
 			var dims := "%d×%d" % [int(zone.get("w", 0)), int(zone.get("h", 0))]
@@ -450,6 +452,59 @@ func _draw() -> void:
 				Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
 			draw_rect(preview, Color(1.0, 0.9, 0.4, 0.18), true)
 			draw_rect(preview, Color(1.0, 0.9, 0.4, 0.9), false, 2.0)
+
+## Aperçu du contenu d'une zone : sols peints (matières) + points des objets 3D.
+func _draw_zone_content(zone: Dictionary, rect: Rect2) -> void:
+	var px := _px_per_cell()
+	if px < 1.5:
+		return
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var map: Dictionary = md.get_by_id(str(zone.get("id", "")))
+	if map.is_empty():
+		return
+	var w := int(map.get("width", 0))
+	var h := int(map.get("height", 0))
+	if w <= 0 or h <= 0:
+		return
+	var mats = map.get("terrainMaterials", [])
+	var heights = map.get("terrainHeights", [])
+	var step := maxi(1, int(ceil(2.0 / px)))
+	var cy := 0
+	while cy < h:
+		var cx := 0
+		while cx < w:
+			var idx: int = cy * w + cx
+			var material := 0
+			if mats is Array and idx < (mats as Array).size():
+				material = int((mats as Array)[idx])
+			var cell_color := _material_color(material)
+			if heights is Array and idx < (heights as Array).size():
+				var hgt := float((heights as Array)[idx])
+				if hgt > 0.0:
+					cell_color = cell_color.lightened(clampf(hgt * 0.09, 0.0, 0.35))
+			var block := Vector2(mini(step, w - cx), mini(step, h - cy))
+			draw_rect(Rect2(rect.position + Vector2(cx, cy) * px, block * px), cell_color, true)
+			cx += step
+		cy += step
+	var meshes = map.get("meshes", [])
+	if meshes is Array:
+		for mesh_variant in meshes:
+			if not mesh_variant is Dictionary:
+				continue
+			var mesh: Dictionary = mesh_variant
+			var mpos := rect.position + Vector2(float(mesh.get("x", 0.0)) + 0.5, float(mesh.get("y", 0.0)) + 0.5) * px
+			draw_circle(mpos, clampf(px * 0.55, 1.0, 3.5), Color(0.16, 0.12, 0.08, 0.95))
+
+func _material_color(material: int) -> Color:
+	match material:
+		1:
+			return Color(0.46, 0.36, 0.25)
+		2:
+			return Color(0.55, 0.52, 0.46)
+		_:
+			return Color(0.33, 0.45, 0.25)
 
 func _draw_grid(bounds: Rect2i) -> void:
 	var top_left := _world_to_screen(Vector2(bounds.position))
