@@ -5,6 +5,8 @@
 > **But** : recentrer le travail « carte 3D » sur **une carte 2.5D** — décor peint en perspective, objets mêlant **2D et 3D** — à la manière d'une carte de League of Legends ou d'un champ de bataille Warhammer. On ne vise ni le VTT tactique pur (murs volumétriques + ombres temps réel), ni la carte 2D plate.
 >
 > **Point de départ** : l'éditeur et le moteur **déjà commités sur `main`** (`MapComplexEditor`, `ComplexMapEngine3D`, styles `diorama` / `vtt` / `dd2_hybrid`). Le chantier table 3D/dés et la régression `map_editor.tscn` ne sont **pas** sur cette branche : ils sont parqués sur `wip/table-3d-dice-2026-10-30`.
+>
+> **Guide utilisateur** : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) — créer un monde, peindre, poser des bâtiments, tester en session.
 
 ---
 
