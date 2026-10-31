@@ -329,11 +329,14 @@ static func build_demo(md: Node) -> Dictionary:
 			sub["ambientFx"] = "leaves"
 		elif style == "ruins":
 			sub["ambientFx"] = "rain"
-		# Camp d'hiver : plaques de neige aux coins + chute de neige.
+		# Camp d'hiver : plaques de neige aux coins + congères douces + neige.
 		if style == "camp":
 			var w_camp := int(spec["w"])
 			var h_camp := int(spec["h"])
 			var camp_mats: Array = sub.get("terrainMaterials", [])
+			var camp_heights: Array = []
+			camp_heights.resize(w_camp * h_camp)
+			camp_heights.fill(0.0)
 			var snow_centers := [
 				Vector2(1.6, 1.6), Vector2(w_camp - 1.6, 1.6),
 				Vector2(1.6, h_camp - 1.6), Vector2(w_camp - 1.6, h_camp - 1.6),
@@ -344,10 +347,13 @@ static func build_demo(md: Node) -> Dictionary:
 					if idx_c >= camp_mats.size():
 						continue
 					for center_variant in snow_centers:
-						if Vector2(cx_c, cy_c).distance_to(center_variant) < 2.3:
+						var d_c := Vector2(cx_c, cy_c).distance_to(center_variant)
+						if d_c < 2.3:
 							camp_mats[idx_c] = MapData.MATERIAL_SNOW
+							camp_heights[idx_c] = 0.16 * (1.0 - d_c / 2.3)
 							break
 			sub["terrainMaterials"] = camp_mats
+			sub["terrainHeights"] = camp_heights
 			sub["ambientFx"] = "snow"
 		# Donjon en ambiance nocturne : lanternes et torches ressortent.
 		if style == "dungeon":
