@@ -398,6 +398,22 @@ func _draw_ghost() -> void:
 			])
 			draw_colored_polygon(pin, Color(accent.r, accent.g, accent.b, 0.35))
 			draw_polyline(_closed(pin), accent, 2.0, true)
+		"terrain_height":
+			# Pinceau de relief : cercle de rayon en cases.
+			var center := _p(cx, cy)
+			var edge := _p(cx + w * 0.5, cy)
+			var px_r := maxf(8.0, center.distance_to(edge))
+			draw_circle(center, px_r, Color(accent.r, accent.g, accent.b, 0.14))
+			draw_arc(center, px_r, 0.0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.9), 2.0, true)
+			draw_arc(center, px_r * 0.4, 0.0, TAU, 24, Color(accent.r, accent.g, accent.b, 0.45), 1.2, true)
+		"ground_material":
+			# Pinceau de matière : cercle de la couleur du sol choisi.
+			var center := _p(cx, cy)
+			var edge := _p(cx + w * 0.5, cy)
+			var px_r := maxf(8.0, center.distance_to(edge))
+			draw_circle(center, px_r, Color(accent.r, accent.g, accent.b, 0.2))
+			draw_arc(center, px_r, 0.0, TAU, 48, Color(accent.r, accent.g, accent.b, 0.95), 2.2, true)
+			draw_circle(center, 3.0, Color(accent.r, accent.g, accent.b, 0.9))
 		_:
 			draw_colored_polygon(pts, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.14))
 			draw_polyline(_closed(pts), COL_GHOST, 1.5, true)

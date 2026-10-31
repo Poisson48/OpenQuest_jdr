@@ -2397,12 +2397,18 @@ func _refresh_ghost() -> void:
 		}
 	elif _tool == ToolsScript.GROUND_MATERIAL:
 		var material_brush := _material_radius * 2.0
+		var mat_colors := {
+			MapData.MATERIAL_GRASS: Color(0.42, 0.66, 0.34),
+			MapData.MATERIAL_DIRT: Color(0.62, 0.48, 0.32),
+			MapData.MATERIAL_STONE: Color(0.66, 0.64, 0.60),
+		}
 		_overlay.ghost = {
 			"x": _overlay.hover_grid.x,
 			"y": _overlay.hover_grid.y,
 			"w": material_brush, "h": material_brush,
 			"icon": "🟫",
 			"kind": "ground_material",
+			"color": mat_colors.get(_material_id, Color(0.7, 0.7, 0.7)),
 		}
 	elif ToolsScript.is_paint_tool(_tool):
 		var brush := float(_brush_size if _tool == ToolsScript.PAINT else _fog_brush) * 2.0 + 1.0
