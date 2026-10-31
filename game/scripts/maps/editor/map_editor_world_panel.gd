@@ -577,6 +577,8 @@ func _ensure_dialogs() -> void:
 	_world_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	_world_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_world_export_dialog.filters = PackedStringArray(["*.json ; Monde JSON"])
+	_world_export_dialog.ok_button_text = "Enregistrer"
+	_world_export_dialog.cancel_button_text = "Annuler"
 	add_child(_world_export_dialog)
 	_world_export_dialog.file_selected.connect(_on_world_export_selected)
 
@@ -585,6 +587,8 @@ func _ensure_dialogs() -> void:
 	_world_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	_world_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	_world_import_dialog.filters = PackedStringArray(["*.json ; Monde JSON"])
+	_world_import_dialog.ok_button_text = "Importer"
+	_world_import_dialog.cancel_button_text = "Annuler"
 	add_child(_world_import_dialog)
 	_world_import_dialog.file_selected.connect(_on_world_import_selected)
 

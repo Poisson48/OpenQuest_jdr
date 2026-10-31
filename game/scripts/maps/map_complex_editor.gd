@@ -811,6 +811,8 @@ func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
 	dialog.file_mode = mode
 	dialog.access = FileDialog.ACCESS_FILESYSTEM
 	dialog.filters = PackedStringArray(filters)
+	dialog.ok_button_text = "Enregistrer" if mode == FileDialog.FILE_MODE_SAVE_FILE else "Ouvrir"
+	dialog.cancel_button_text = "Annuler"
 	add_child(dialog)
 	return dialog
 
@@ -1849,6 +1851,8 @@ func _refresh_object3d_library() -> void:
 		_mesh_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
 		_mesh_import_dialog.filters = PackedStringArray(["*.glb, *.gltf ; Modèles 3D"])
 		_mesh_import_dialog.title = "Importer un modèle 3D (GLB / glTF)"
+		_mesh_import_dialog.ok_button_text = "Importer"
+		_mesh_import_dialog.cancel_button_text = "Annuler"
 		_mesh_import_dialog.file_selected.connect(_on_object3d_import_selected)
 		add_child(_mesh_import_dialog)
 
