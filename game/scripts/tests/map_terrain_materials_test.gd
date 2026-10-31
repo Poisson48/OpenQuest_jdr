@@ -459,12 +459,18 @@ func _test_document_materials() -> void:
 	_assert("doc_reload_sand", int(doc2.terrain_material(2, 2)) == MATERIAL_SAND)
 	_assert("doc_reload_snow_extra", int(doc2.terrain_material(7, 7)) == MATERIAL_SNOW)
 
-	# Redimensionnement : le tampon de matières suit la nouvelle taille.
+	# Redimensionnement : relief et matières peintes conservés (coin haut-gauche).
+	doc.set_terrain_height(3, 3, 1.5)
 	doc.resize_grid(12, 9)
 	_assert("doc_resize_buffer", doc.terrain_materials().size() == 12 * 9,
 		"taille=%d" % doc.terrain_materials().size())
+	_assert("doc_resize_preserves_snow", int(doc.terrain_material(4, 4)) == MATERIAL_SNOW)
+	_assert("doc_resize_preserves_sand", int(doc.terrain_material(2, 2)) == MATERIAL_SAND)
+	_assert("doc_resize_preserves_snow_extra", int(doc.terrain_material(7, 7)) == MATERIAL_SNOW)
+	_assert("doc_resize_preserves_height", is_equal_approx(doc.terrain_height(3, 3), 1.5))
 	_assert("doc_resize_default_grass", int(doc.terrain_material(11, 8)) == MATERIAL_GRASS)
-	# Peindre à nouveau après redimensionnement fonctionne (buffer recréé).
+	_assert("doc_resize_default_height", is_equal_approx(doc.terrain_height(11, 8), 0.0))
+	# Peindre à nouveau après redimensionnement fonctionne.
 	doc.paint_terrain_material_brush(Vector2(10.5, 7.5), 1.0, MATERIAL_SAND, "Sable")
 	_assert("doc_resize_paint_sand", int(doc.terrain_material(10, 7)) == MATERIAL_SAND)
 

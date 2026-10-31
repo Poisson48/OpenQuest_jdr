@@ -1312,8 +1312,29 @@ func resize_grid(new_w: int, new_h: int) -> void:
 				if idx < old_tiles.size():
 					value = str(old_tiles[idx])
 			new_tiles[y * new_w + x] = value
+	# Le relief et les matières peintes suivent le redimensionnement (contenu
+	# conservé en haut à gauche, nouvelles cases en herbe / hauteur 0).
+	var old_heights: Array = map_data.get("terrainHeights", [])
+	var new_heights: Array = []
+	new_heights.resize(new_w * new_h)
+	new_heights.fill(0.0)
+	var old_materials: Array = map_data.get("terrainMaterials", [])
+	var new_materials: Array = []
+	new_materials.resize(new_w * new_h)
+	new_materials.fill(MATERIAL_GRASS)
+	for y in range(mini(new_h, old_h)):
+		for x in range(mini(new_w, old_w)):
+			var old_idx := y * old_w + x
+			var new_idx := y * new_w + x
+			if old_idx < old_heights.size():
+				new_heights[new_idx] = float(old_heights[old_idx])
+			if old_idx < old_materials.size():
+				new_materials[new_idx] = clampi(int(old_materials[old_idx]), MATERIAL_GRASS, MATERIAL_SAND)
 	begin_transaction()
-	set_meta_values({"width": new_w, "height": new_h, "tiles": new_tiles}, "Redimensionnement")
+	set_meta_values({
+		"width": new_w, "height": new_h, "tiles": new_tiles,
+		"terrainHeights": new_heights, "terrainMaterials": new_materials,
+	}, "Redimensionnement")
 	commit_transaction()
 
 # --- Brouillard -------------------------------------------------------------
