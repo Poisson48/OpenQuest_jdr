@@ -21,6 +21,18 @@ func _run() -> void:
 	var gd = get_root().get_node("GameData")
 	var Engine3DScript: GDScript = load("res://scripts/maps/complex_map_engine_3d.gd") as GDScript
 
+	# Les PNG de travail sont normalement staged dans user:// par l'import ;
+	# sur une machine fraîche on les recopie depuis les assets livrés.
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://import_staging"))
+	for pair in [
+		["res://assets/maps/valbois_village.png", VILLAGE_PNG],
+		["res://assets/maps/place_du_marche.png", PLACE_PNG],
+	]:
+		var src := ProjectSettings.globalize_path(str(pair[0]))
+		var dst := ProjectSettings.globalize_path(str(pair[1]))
+		if FileAccess.file_exists(src) and not FileAccess.file_exists(dst):
+			DirAccess.copy_absolute(src, dst)
+
 	_assert("png_village_exists", FileAccess.file_exists(VILLAGE_PNG))
 	_assert("png_place_exists", FileAccess.file_exists(PLACE_PNG))
 	_assert("engine_script", Engine3DScript != null)
@@ -55,6 +67,7 @@ func _run() -> void:
 	village["title"] = VILLAGE_TITLE
 	village["description"] = "Carte démo Valbois — vue de dessus, lieu Place du Marché cliquable."
 	village["fogEnabled"] = false
+	village["renderStyle"] = "diorama"
 	village["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
 	var grid_v: Dictionary = md.get_grid_config(village).duplicate(true)
 	grid_v["show"] = false
@@ -78,6 +91,7 @@ func _run() -> void:
 	place["title"] = PLACE_TITLE
 	place["description"] = "Détail Place du Marché."
 	place["fogEnabled"] = false
+	place["renderStyle"] = "diorama"
 	place["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
 	var grid_p: Dictionary = md.get_grid_config(place).duplicate(true)
 	grid_p["show"] = false
