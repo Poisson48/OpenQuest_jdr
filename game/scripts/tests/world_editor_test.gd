@@ -293,6 +293,24 @@ func _run() -> void:
 		var cleaned_edges: Dictionary = md.get_by_id(link_src_id).get("edges", {})
 		_assert("world_delete_cleans_links", cleaned_edges.is_empty())
 
+		# Import via l'UI comme nouveau monde indépendant (fichier JSON réel).
+		var tmp_bundle: String = ProjectSettings.globalize_path("user://test_import_new_world.json")
+		var bundle_file := FileAccess.open(tmp_bundle, FileAccess.WRITE)
+		if bundle_file != null:
+			bundle_file.store_string(JSON.stringify(bundle))
+			bundle_file.close()
+			panel._import_as_new_world = true
+			panel._on_world_import_selected(tmp_bundle)
+			var new_world: String = panel._view_world_id
+			var imported_first: Dictionary = md.get_by_id(panel.selected_id)
+			_assert("world_import_ui_new", not new_world.is_empty()
+				and new_world != "bundle-src" and new_world != "bundle-dst")
+			_assert("world_import_ui_world", str(imported_first.get("worldId", "")) == new_world)
+			for map_variant in md.maps.duplicate():
+				if map_variant is Dictionary and str((map_variant as Dictionary).get("worldId", "")) == new_world:
+					md.delete_map(str((map_variant as Dictionary).get("id", "")))
+			DirAccess.remove_absolute(tmp_bundle)
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:

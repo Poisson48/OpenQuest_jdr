@@ -920,9 +920,13 @@ func _on_world_import_selected(path: String) -> void:
 	if not parsed is Dictionary:
 		show_status("JSON invalide : monde attendu.")
 		return
-	var world_id := "" if _import_as_new_world else _current_world_id()
-	if world_id.is_empty() and not _import_as_new_world:
-		world_id = "monde"
+	var world_id := ""
+	if _import_as_new_world:
+		world_id = str(md.generate_id("world"))
+	else:
+		world_id = _current_world_id()
+		if world_id.is_empty():
+			world_id = "monde"
 	var imported: Dictionary = md.import_world_bundle(parsed, world_id)
 	var imported_ids: Array = imported.get("mapIds", [])
 	if imported_ids.is_empty():
