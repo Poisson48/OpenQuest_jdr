@@ -28,57 +28,15 @@ func _run() -> void:
 	_copy_dir = game_root.get_base_dir().path_join(COPY_DIR)
 	DirAccess.make_dir_recursive_absolute(_copy_dir)
 
-	var base: Dictionary = md.create_complex_map("Démo carte 2.5D", "general", "local", 24, 16)
-	base["backgroundImage"] = ""
-	base["groundMode"] = "terrain3d"
-	base["renderStyle"] = "2.5d"
-	base["fogEnabled"] = false
-	# Butte de démonstration : les objets posés doivent s'adapter au relief.
-	var w := int(base.get("width", 24))
-	var h := int(base.get("height", 16))
-	var heights: Array = []
-	heights.resize(w * h)
-	heights.fill(0.0)
-	for cy in range(h):
-		for cx in range(w):
-			var d := Vector2(cx, cy).distance_to(Vector2(9.5, 7.5))
-			heights[cy * w + cx] = maxf(0.0, 1.4 * (1.0 - d / 6.5))
-	base["terrainHeights"] = heights
-	md.update_map(base)
-	base = md.get_by_id(str(base.get("id", "")))
-
+	# Même carte de démonstration que la scène jouable (carte_25d_boot).
+	var BootScript: GDScript = load("res://scripts/debug/carte_25d_boot.gd")
+	var demo: Dictionary = BootScript.build_demo(md)
+	_assert("demo_built", not demo.is_empty())
+	var base: Dictionary = demo.get("map", {})
 	var doc: Variant = DocScript.new()
 	doc.load_map(base)
-
-	# Objets 3D livrés, choisis par nom (peu importe la catégorie).
-	var assets: Array = AssetLibraryScript.list_object3d_assets()
-	var by_name: Dictionary = {}
-	for asset_variant in assets:
-		var asset: Dictionary = asset_variant
-		by_name[str(asset.get("name", "")).to_lower()] = str(asset.get("path", ""))
-	var placements := [
-		{"name": "Maison", "x": 8.0, "y": 7.5, "scale": 1.0, "rot": 0.0},
-		{"name": "Tour", "x": 13.0, "y": 6.5, "scale": 1.0, "rot": 90.0},
-		{"name": "Arbre", "x": 5.5, "y": 10.0, "scale": 1.0, "rot": 0.0},
-		{"name": "Rocher", "x": 15.0, "y": 10.5, "scale": 1.0, "rot": 45.0},
-		{"name": "Puits", "x": 10.5, "y": 10.0, "scale": 1.0, "rot": 0.0},
-		{"name": "Caisse", "x": 7.0, "y": 6.0, "scale": 1.0, "rot": 30.0},
-	]
-	var placed := 0
-	for entry in placements:
-		var asset_path := str(by_name.get(str(entry["name"]).to_lower(), ""))
-		if asset_path.is_empty():
-			continue
-		doc.add_element({
-			"x": float(entry["x"]), "y": float(entry["y"]),
-			"w": 1.0, "h": 1.0,
-			"asset": asset_path,
-			"label": str(entry["name"]),
-			"layer": 1,
-			"display": {"rotation": float(entry["rot"]), "scale": float(entry["scale"])},
-		}, "mesh", "Démo 2.5D")
-		placed += 1
-	print("objets 3D posés = ", placed, " / ", placements.size())
+	var placed := (base.get("meshes", []) as Array).size()
+	print("objets 3D posés = ", placed)
 	_assert("meshes_placed", placed >= 3)
 
 	var snapshot: Dictionary = doc.to_map_data()

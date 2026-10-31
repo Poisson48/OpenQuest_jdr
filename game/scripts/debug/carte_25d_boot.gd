@@ -74,31 +74,44 @@ static func build_demo(md: Node) -> Dictionary:
 	var by_name: Dictionary = {}
 	for asset_variant in assets:
 		var asset: Dictionary = asset_variant
-		by_name[str(asset.get("name", "")).to_lower()] = str(asset.get("path", ""))
+		var key := str(asset.get("name", "")).to_lower().replace("_", " ").replace("-", " ")
+		by_name[key] = str(asset.get("path", ""))
 
 	var placements := [
-		{"name": "maison", "x": 8.0, "y": 7.0, "rotation": 0.0, "scale": 1.0},
-		{"name": "tour", "x": 13.0, "y": 6.0, "rotation": 90.0, "scale": 1.0},
-		{"name": "arbre", "x": 5.5, "y": 10.0, "rotation": 0.0, "scale": 1.0},
-		{"name": "rocher", "x": 15.0, "y": 10.0, "rotation": 45.0, "scale": 1.0},
-		{"name": "puits", "x": 10.5, "y": 9.5, "rotation": 0.0, "scale": 1.0},
-		{"name": "caisse", "x": 7.0, "y": 6.0, "rotation": 30.0, "scale": 1.0},
+		{"name": "maison", "x": 7.0, "y": 6.0, "rotation": 0.0, "w": 2.0, "h": 2.0},
+		{"name": "maison_petite", "x": 5.0, "y": 9.0, "rotation": 30.0, "w": 1.5, "h": 1.5},
+		{"name": "maison_grande", "x": 11.0, "y": 5.0, "rotation": 90.0, "w": 2.3, "h": 2.1},
+		{"name": "tour", "x": 14.5, "y": 6.5, "rotation": 0.0, "w": 1.5, "h": 1.5},
+		{"name": "tour_grande", "x": 17.0, "y": 9.0, "rotation": 45.0, "w": 1.7, "h": 1.7},
+		{"name": "puits", "x": 9.5, "y": 8.5, "rotation": 0.0, "w": 1.2, "h": 1.0},
+		{"name": "caisse", "x": 10.5, "y": 9.8, "rotation": 30.0, "w": 1.0, "h": 1.0},
+		{"name": "caisse_grande", "x": 7.5, "y": 10.5, "rotation": 0.0, "w": 1.3, "h": 1.3},
+		{"name": "palissade", "x": 12.0, "y": 10.5, "rotation": 0.0, "w": 2.2, "h": 0.6},
+		{"name": "pont", "x": 13.0, "y": 8.0, "rotation": 0.0, "w": 2.6, "h": 1.3},
+		{"name": "arbre", "x": 4.5, "y": 7.5, "rotation": 0.0, "w": 1.0, "h": 1.0},
+		{"name": "arbre_automne", "x": 15.5, "y": 11.0, "rotation": 0.0, "w": 1.0, "h": 1.0},
+		{"name": "rocher", "x": 16.5, "y": 6.0, "rotation": 45.0, "w": 1.4, "h": 1.2},
 	]
 	var meshes: Array = []
 	for entry in placements:
-		var asset_path := str(by_name.get(str(entry["name"]), ""))
+		var lookup := str(entry["name"]).to_lower().replace("_", " ").replace("-", " ")
+		var asset_path := str(by_name.get(lookup, ""))
 		if asset_path.is_empty():
 			continue
+		var asset_name := str(entry["name"])
+		var tilts := asset_name.begins_with("arbre") or asset_name == "rocher"
 		meshes.append({
-			"id": "mesh-demo-%s" % str(entry["name"]),
+			"id": "mesh-demo-%s" % asset_name,
 			"kind": "mesh",
 			"x": float(entry["x"]), "y": float(entry["y"]),
-			"w": 1.0, "h": 1.0,
+			"w": float(entry.get("w", 1.0)), "h": float(entry.get("h", 1.0)),
 			"asset": asset_path,
 			"elevation": 0.0,
-			"label": str(entry["name"]).capitalize(),
+			"followTerrain": true,
+			"tiltToTerrain": tilts,
+			"label": asset_name.capitalize(),
 			"layer": 1,
-			"display": {"rotation": float(entry["rotation"]), "scale": float(entry["scale"])},
+			"display": {"rotation": float(entry["rotation"]), "scale": 1.0},
 		})
 	map["meshes"] = meshes
 
