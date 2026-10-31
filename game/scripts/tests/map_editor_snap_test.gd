@@ -191,6 +191,14 @@ func _run() -> void:
 	await process_frame
 	_assert("mesh_door_opening", _meshes_with_asset(editor, wall_asset).size() == ui_wall_count + 1)
 	_assert("mesh_door_created", _meshes_with_asset(editor, door_path_ui).size() == ui_door_count + 1)
+
+	# Fenêtre 3D sur une façade.
+	var window_path_ui := "res://assets/objects3d/buildings/fenetre_volets.glb"
+	var window_count := _meshes_with_asset(editor, window_path_ui).size()
+	var window_wall: Dictionary = _meshes_with_asset(editor, wall_asset)[0]
+	editor._insert_window(Vector2(float(window_wall.get("x", 0.0)), float(window_wall.get("y", 0.0))))
+	await process_frame
+	_assert("mesh_window_created", _meshes_with_asset(editor, window_path_ui).size() == window_count + 1)
 	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame

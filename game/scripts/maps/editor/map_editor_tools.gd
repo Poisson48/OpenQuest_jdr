@@ -22,6 +22,7 @@ const ROOF_3D := "roof_3d"
 const FLOOR_3D := "floor_3d"
 const DOOR_3D := "door_3d"
 const HOUSE_3D := "house_3d"
+const WINDOW_3D := "window_3d"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -39,7 +40,7 @@ const PROP := "prop"
 const MESH := "mesh"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
-const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D]
+const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
 const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, FLOOR_3D, HOUSE_3D, MEASURE, PLATFORM, AREA]
@@ -113,6 +114,10 @@ const DEFS := [
 	{
 		"id": HOUSE_3D, "icon": "🏡", "label": "Maison rapide", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser un rectangle : construit murs + dallage + toit + porte en une passe.",
+	},
+	{
+		"id": WINDOW_3D, "icon": "🪟", "label": "Fenêtre 3D", "shortcut": "", "group": "place",
+		"hint": "Clic sur un mur 3D : pose une fenêtre à volets sur la façade extérieure.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",

@@ -87,6 +87,8 @@ Outils terrain :
   montants laissant une ouverture, et une porte à auvent est insérée.
 - **Outil 🏡 Maison rapide** : glisse un rectangle ; construit d'un coup murs,
   dallage, toit et porte au centre du mur avant.
+- **Outil 🪟 Fenêtre 3D** : clique sur un mur ; pose une fenêtre à volets sur la
+  façade extérieure (murs hauts recommandés).
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

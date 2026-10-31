@@ -1263,6 +1263,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_create_token(grid)
 	elif _tool == ToolsScript.DOOR_3D:
 		_insert_door(grid)
+	elif _tool == ToolsScript.WINDOW_3D:
+		_insert_window(grid)
 	elif _tool == ToolsScript.MARKER:
 		_create_marker(grid)
 	elif _tool == ToolsScript.EFFECT:
@@ -1499,6 +1501,50 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_roof_height = previous_roof
 	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
 ## qui laissent une ouverture, puis la porte est posée dans le passage.
+## Pose une fenêtre à volets sur le mur 3D le plus proche (façade extérieure).
+func _insert_window(grid: Vector2) -> void:
+	var wall: Dictionary = {}
+	var best := 2.5
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var distance := center.distance_to(grid)
+		if distance < best:
+			best = distance
+			wall = elem
+	if wall.is_empty():
+		_set_status("Fenêtre 3D : cliquez près d'un mur 3D.")
+		return
+	var display: Dictionary = wall.get("display", {}) if wall.get("display") is Dictionary else {}
+	var rotation := float(display.get("rotation", 0.0))
+	var natural := _mesh_bounds_cells(str(wall.get("asset", "")), 1.0)
+	var depth := float(wall.get("sizeZ", 0.0))
+	if depth <= 0.0:
+		depth = natural.z
+	var rad := deg_to_rad(rotation)
+	var front := Vector2(-sin(rad), cos(rad))
+	var window_asset := "res://assets/objects3d/buildings/fenetre_volets.glb"
+	var win_bounds := _mesh_aabb_cells(window_asset, 1.0)
+	var back_offset := maxf(0.0, -win_bounds.position.z)
+	if back_offset <= 0.001:
+		back_offset = maxf(0.0, win_bounds.size.z * 0.5)
+	var center := Vector2(float(wall.get("x", grid.x)), float(wall.get("y", grid.y)))
+	var offset := depth * 0.5 + back_offset
+	var id: String = doc.add_element({
+		"x": center.x + front.x * offset, "y": center.y + front.y * offset,
+		"w": win_bounds.size.x, "h": win_bounds.size.z,
+		"asset": window_asset, "elevation": 0.0,
+		"followTerrain": bool(wall.get("followTerrain", true)), "tiltToTerrain": false,
+		"label": "Fenêtre à volets", "layer": int(wall.get("layer", 1)),
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Fenêtre")
+	doc.select_only(id)
+	_set_status("Fenêtre 3D posée sur la façade.")
+
 func _insert_door(grid: Vector2) -> void:
 	var wall: Dictionary = {}
 	var best := 2.5
@@ -3706,6 +3752,8 @@ func _rebuild_tool_options() -> void:
 	elif _tool == ToolsScript.HOUSE_3D:
 		_spin(_hbox(_tool_options), "Hauteur murs", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, en une seule action.")
+	elif _tool == ToolsScript.WINDOW_3D:
+		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
