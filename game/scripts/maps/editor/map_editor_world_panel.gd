@@ -309,6 +309,20 @@ func _current_map_id() -> String:
 		return ""
 	return str(md.preview_map_id)
 
+## Vrai si la zone chevauche une autre zone du monde.
+func _zone_overlaps(zone: Dictionary) -> bool:
+	var rect := Rect2(Vector2(float(zone.get("x", 0)), float(zone.get("y", 0))),
+		Vector2(float(zone.get("w", 1)), float(zone.get("h", 1))))
+	for other_variant in zones:
+		var other: Dictionary = other_variant
+		if str(other.get("id", "")) == str(zone.get("id", "")):
+			continue
+		var other_rect := Rect2(Vector2(float(other.get("x", 0)), float(other.get("y", 0))),
+			Vector2(float(other.get("w", 1)), float(other.get("h", 1))))
+		if rect.intersects(other_rect):
+			return true
+	return false
+
 ## Recalcule la hauteur réelle de la barre (elle passe sur plusieurs lignes
 ## quand le panneau Monde est étroit) et décale la grille + le statut.
 func _update_bar_height() -> void:
@@ -341,6 +355,8 @@ func _update_status() -> void:
 	var world_id := _current_world_id()
 	if md != null and not world_id.is_empty():
 		world_prefix = "Monde : %s · " % str(md.get_world_title(world_id))
+	if not sel.is_empty() and _zone_overlaps(sel):
+		extra += " · ⚠ chevauche une autre zone"
 	_status_lbl.text = "%s%d zone(s) · molette = zoom · glisser = déplacer une zone · double-clic = ouvrir%s" % [world_prefix, zones.size(), extra]
 
 # ===========================================================================
@@ -1085,6 +1101,15 @@ func _draw() -> void:
 			draw_rect(rect, Color(0.85, 0.93, 1.0, 0.9), false, 1.5)
 	# 2) Liens entre zones (au-dessus des fonds, sous les libellés).
 	_draw_connections()
+	# 2b) Avertissement visuel des chevauchements de zones.
+	for zone_variant in zones:
+		var zone: Dictionary = zone_variant
+		if not _zone_overlaps(zone):
+			continue
+		var rect := Rect2(_world_to_screen(Vector2(zone.get("x", 0), zone.get("y", 0))),
+			Vector2(zone.get("w", 1), zone.get("h", 1)) * _px_per_cell())
+		draw_rect(rect, Color(0.95, 0.25, 0.2, 0.16), true)
+		draw_rect(rect, Color(0.95, 0.3, 0.22, 0.9), false, 2.0)
 	# 3) Libellés + points d'accroche.
 	for zone_variant in zones:
 		var zone: Dictionary = zone_variant

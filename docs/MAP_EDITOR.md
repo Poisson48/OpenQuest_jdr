@@ -177,6 +177,8 @@ peuvent avoir des **tailles différentes**). Voir
   zones sont cliquables : un clic ouvre l'édition du lien de ce bord, un
   **clic droit** sur un bord déjà lié propose de retirer le lien.
 - **Survol** d'une zone : liseré clair + détail dans la ligne d'état.
+- Les zones qui se **chevauchent** sont signalées en rouge sur le plan et dans la
+  ligne d'état (en plus du bouton **Valider**).
 - Les **liens entre zones** sont tracés sur le plan (ligne dorée + flèche vers la
   zone voisine).
 - Les aperçus des zones montrent **sols peints, relief, plans d'eau** et points
