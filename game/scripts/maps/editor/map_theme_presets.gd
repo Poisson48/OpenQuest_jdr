@@ -144,16 +144,29 @@ static func _starter_meshes(theme_id: String, w: int, h: int) -> Array:
 	var rocher := "res://assets/objects3d/terrain/rocher.glb"
 	var mur := "res://assets/objects3d/buildings/mur.glb"
 	var puits := "res://assets/objects3d/props/puits.glb"
+	var banc := "res://assets/objects3d/props/banc.glb"
+	var caisse := "res://assets/objects3d/props/caisse.glb"
+	var barque := "res://assets/objects3d/props/barque.glb"
+	var buisson := "res://assets/objects3d/vegetation/buisson.glb"
 	var specs: Array = []
 	match theme_id:
 		"village":
-			specs = [[puits, w * 0.5, h * 0.5, 1.2, 1.0, 0.0, false]]
+			specs = [
+				[puits, w * 0.5, h * 0.5, 1.2, 1.0, 0.0, false],
+				[banc, w * 0.5 - 2.0, h * 0.5 + 1.5, 1.0, 1.0, 0.0, false],
+				[banc, w * 0.5 + 2.0, h * 0.5 - 1.5, 1.0, 1.0, 180.0, false],
+				[caisse, w * 0.5 + 1.8, h * 0.5 + 1.8, 1.0, 1.0, 0.0, true],
+			]
 		"forest":
 			specs = [
 				[arbre, 2.0, 2.0, 1.0, 1.0, 20.0, true],
 				[arbre_auto, w - 3.0, 2.5, 1.0, 1.0, 140.0, true],
 				[arbre, 2.5, h - 3.0, 1.0, 1.0, 70.0, true],
 				[arbre_auto, w - 2.5, h - 2.5, 1.0, 1.0, 200.0, true],
+				[arbre, w * 0.5 - 1.5, 2.0, 1.0, 1.0, 110.0, true],
+				[arbre_auto, w * 0.5 + 1.5, h - 2.0, 1.0, 1.0, 30.0, true],
+				[buisson, 3.0, h * 0.5, 0.9, 0.9, 0.0, true],
+				[buisson, w - 3.0, h * 0.5, 0.9, 0.9, 0.0, true],
 				[rocher, w * 0.5, h - 2.0, 1.0, 1.0, 0.0, true],
 			]
 		"ruins":
@@ -161,19 +174,28 @@ static func _starter_meshes(theme_id: String, w: int, h: int) -> Array:
 				[mur, 2.0, h * 0.5 - 1.0, 1.5, 1.0, 0.0, false],
 				[mur, 4.5, h * 0.5 - 1.0, 1.5, 1.0, 0.0, false],
 				[mur, w - 3.0, h * 0.5, 1.5, 1.0, 90.0, false],
+				[mur, w - 3.0, h * 0.5 - 2.5, 1.5, 1.0, 90.0, false],
 				[rocher, w - 2.5, 2.5, 1.0, 1.0, 0.0, true],
+				[rocher, 2.5, h - 2.5, 1.0, 1.0, 0.0, true],
 			]
 		"snow":
 			specs = [
 				[rocher, 2.0, 2.0, 1.0, 1.0, 0.0, true],
 				[rocher, w - 2.5, h - 2.5, 1.0, 1.0, 0.0, true],
+				[rocher, w - 2.5, 2.2, 1.0, 1.0, 0.0, true],
 			]
 		"beach":
-			specs = [[rocher, w - 2.5, h - 2.0, 1.0, 1.0, 0.0, true]]
+			specs = [
+				[rocher, w - 2.5, h - 2.0, 1.0, 1.0, 0.0, true],
+				[barque, w * 0.5, h - 1.5, 1.0, 1.0, 15.0, true],
+				[rocher, 2.5, h - 2.5, 1.0, 1.0, 0.0, true],
+			]
 		"lake":
 			specs = [
 				[rocher, 2.2, h * 0.5, 1.0, 1.0, 0.0, true],
 				[arbre, w - 2.2, h * 0.5, 1.0, 1.0, 30.0, true],
+				[barque, w * 0.5, h * 0.5, 1.0, 1.0, 80.0, true],
+				[buisson, 3.2, 2.5, 0.9, 0.9, 0.0, true],
 			]
 	for i in range(specs.size()):
 		var s: Array = specs[i]
