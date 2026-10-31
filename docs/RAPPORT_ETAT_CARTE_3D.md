@@ -22,7 +22,7 @@
 2. **La régression `map_editor.tscn` casse le chrome de l'éditeur** : la barre d'action (~25 contrôles) n'est plus dans un `ScrollContainer`, les `autowrap` des hints ont disparu, les `clip_contents` et le thème local aussi. C'est le point à arbitrer **avant** toute nouvelle fonctionnalité d'interface.
 3. **La « vue table 3D » n'est pas un produit** : elle n'est branchée nulle part dans le jeu. Seule la scène de debug `res://scenes/debug/table_poc_boot.tscn` l'ouvre. C'est un POC convaincant (28 dés, 4 places, POV, physique, sélection, lancer) mais hors parcours utilisateur, non documenté, et couplé aux membres privés du moteur.
 
-**Le rapport 3D le plus complet déjà sur git** ([`AUDIT_EDITEUR_CARTE_3D_MEOWNOPOLY.md`](./AUDIT_EDITEUR_CARTE_3D_MEOWNOPOLY.md), 6 sept. 2026, branche `editeur-carte-3d`, depuis fusionnée dans `main`) reste globalement valable sur son verdict « ~7/10 en mono vs 7,5 Meownopoly » et sur les P0/P1 marqués faits — **sauf** une preuve devenue fausse : `map_props_test` (`foot_snap`) ne passe plus aujourd'hui. `map_camera_test` a été corrigé le 31 oct. 2026 (style VTT top-down).
+**Le rapport 3D le plus complet déjà sur git** ([`AUDIT_EDITEUR_CARTE_3D_MEOWNOPOLY.md`](./AUDIT_EDITEUR_CARTE_3D_MEOWNOPOLY.md), 6 sept. 2026, branche `editeur-carte-3d`, depuis fusionnée dans `main`) reste globalement valable sur son verdict « ~7/10 en mono vs 7,5 Meownopoly » et sur les P0/P1 marqués faits. Les deux preuves signalées comme devenues fausses ont été corrigées le 31 oct. 2026 : `map_camera_test` (style VTT top-down) et `map_props_test` (le test utilisait un diorama sans fond, dont les props sont volontairement à plat ; il teste désormais le style DD2 où les découpes sont dressées).
 
 **Top 5 des choses à traiter d'abord :**
 
@@ -107,7 +107,7 @@ Commande type : `godot --headless --path game --script res://scripts/tests/<suit
 | `map_editor_test` | 0 | **PASS** | document + UI éditeur |
 | `map_camera_test` | 0 | **PASS** | `vtt_topdown` corrigé le 31 oct. : le style VTT est désormais top-down (`tilt = -90°`) |
 | `map_render_style_test` | 0 | **PASS** | styles/parallaxe/priorité |
-| `map_props_test` | 1 | **FAIL** | `foot_snap` : décor diorama sans fond attendu dressé, code le pose à plat (`preferFlatProps` forcé) |
+| `map_props_test` | 0 | **PASS** | `foot_snap` : test aligné sur le comportement voulu (diorama sans fond = props à plat ; le cas dressé est testé en style DD2) |
 | `map_areas_test` | 0 | **PASS** | lieux / navigation |
 | `map_night_reveal_test` | 0 | **PASS** | nuit |
 | `map_vision_test` | 0 | **PASS** | LOS/portes/fog |

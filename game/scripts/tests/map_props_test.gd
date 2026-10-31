@@ -234,7 +234,7 @@ func _test_diorama_depth_sort() -> void:
 		return
 	var layer: Node3D = Props3DScript.new()
 	get_root().add_child(layer)
-	var map_data := {"height": 20, "renderStyle": "diorama", "atmosphere": {"tint": "#101018"}}
+	var map_data := {"height": 20, "renderStyle": "dd2_hybrid", "atmosphere": {"tint": "#101018"}}
 	layer.configure([
 		{"id": "far", "x": 4.0, "y": 2.0, "w": 3.0, "h": 4.0, "asset": asset_path, "standing": true, "layer": 1},
 		{"id": "near", "x": 4.0, "y": 16.0, "w": 3.0, "h": 4.0, "asset": asset_path, "standing": true, "layer": 1},
