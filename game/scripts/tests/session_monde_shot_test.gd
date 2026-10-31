@@ -44,6 +44,10 @@ func _run() -> void:
 	gd.place_complex_member_token(village_id, 9.0, 7.5, "hero-aria")
 	gd.place_complex_member_token(village_id, 8.2, 8.6, "hero-bran")
 	gd.place_complex_member_token(village_id, 10.2, 8.2, "hero-celia")
+	for marker_variant in village.get("markers", []):
+		if marker_variant is Dictionary:
+			gd.reveal_map_marker(village_id, int(round(float((marker_variant as Dictionary).get("x", 0.0)))),
+				int(round(float((marker_variant as Dictionary).get("y", 0.0)))))
 	# PNJ de vie (figurines 3D nommées), comme dans le boot de session.
 	var village_entry: Dictionary = gd.get_map_play_entry(village_id)
 	(village_entry["tokens"] as Array).append({

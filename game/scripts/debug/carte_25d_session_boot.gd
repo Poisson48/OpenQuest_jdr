@@ -94,6 +94,7 @@ func _ready() -> void:
 		"Circulez, la place est sûre… pour l'instant.")
 	_add_npc_token(gd, tavern_id, "Taverner", 4.8, 4.2,
 		"Bienvenue à la Taverne du Corbeau, l'auberge est ouverte !")
+	_reveal_demo_markers(gd, demo.get("world_maps", []))
 	gd.save_map_play_and_sync()
 	print("[MONDE 2.5D] Session monde prête : ", ids.size(), " zones, 3 héros dans le village.")
 	get_tree().call_deferred("change_scene_to_file", "res://scenes/session/session.tscn")
@@ -111,8 +112,21 @@ func _add_creature_token(gd: Node, map_id: String, label: String, x: float, y: f
 		"hp": 7, "maxHp": 7,
 	})
 
-## Ajoute un PNJ pacifique (figurine 3D choisie d'après le label).
-func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float,
+## Révèle les marqueurs narratifs des cartes de démo (points d'intérêt).
+func _reveal_demo_markers(gd: Node, world_maps: Array) -> void:
+	for map_variant in world_maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		var map_id := str(map.get("id", ""))
+		for marker_variant in map.get("markers", []):
+			if not marker_variant is Dictionary:
+				continue
+			var marker: Dictionary = marker_variant
+			gd.reveal_map_marker(map_id, int(round(float(marker.get("x", 0.0)))),
+				int(round(float(marker.get("y", 0.0)))))
+
+## Ajoute un PNJ pacifique (figurine 3D choisie d'après le label).func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float,
 		dialogue: String = "") -> void:
 	if map_id.is_empty():
 		return
