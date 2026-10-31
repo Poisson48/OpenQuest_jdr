@@ -101,14 +101,12 @@ Schéma de carte v5 : `renderStyle`, `groundMode` (`terrain3d`/`illustrated`),
 Runner : `scripts/run_tests.ps1` (timeout par test, détection `PASS`/JSON,
 captures ignorées par défaut, pas de `--quit` trompeur).
 
-**Dernier run complet : 40 tests, 37 PASS.**
+**Dernier run complet : 40 tests, 39 PASS.**
 
 - PASS : toute la suite carte 2.5D, monde/zones, éditeur, session, scénarios,
-  personnages, table, chargement de scènes.
-- Échecs connus, hors parcours carte :
-  - `webrtc_pooling_e2e_test` (serveur LAN requis),
-  - `valbois_diorama_setup` (assets Valbois absents de la branche),
-  - `semantic_move_test` (scénario `demo-couronne-fracturee` retiré).
+  personnages, table, chargement de scènes, Valbois diorama, déplacement sémantique.
+- Seul échec connu, hors parcours carte : `webrtc_pooling_e2e_test` (serveur LAN
+  requis, sinon timeout de connexion).
 
 Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 `map_water_test`, `map_ambient_fx_test`, `map_backdrop_test`,

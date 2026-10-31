@@ -125,11 +125,8 @@ Suites utiles : `map_*`, `world_*`, `session_*`, `quest_navigation_test`,
 Le runner reconnaît les tests historiques qui écrivent un JSON (`"ok": true`) ou
 `ALL_OK=true`.
 
-**Échecs connus, hors parcours carte 2.5D** :
-- `webrtc_pooling_e2e_test` : nécessite le serveur de pooling LAN.
-- `semantic_move_test` : s'appuie sur le scénario `demo-couronne-fracturee`, retiré
-  du catalogue.
-- `user_flow_test` : cherche encore une carte simple là où Valbois est complexe.
+**Échec connu, hors parcours carte 2.5D** :
+- `webrtc_pooling_e2e_test` : nécessite le serveur de pooling LAN (sinon timeout de connexion).
 
 ---
 
