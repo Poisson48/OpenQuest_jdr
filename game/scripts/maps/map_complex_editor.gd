@@ -1226,6 +1226,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_roof(from, to)
 	elif _tool == ToolsScript.FLOOR_3D:
 		_create_floor(from, to)
+	elif _tool == ToolsScript.HOUSE_3D:
+		_create_mesh_house(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1478,7 +1480,24 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	_set_status("Pièce 3D construite : 4 murs (angles par recouvrement).")
 
-## Insère une porte dans un mur 3D : le segment est remplacé par deux montants
+## Maison rapide : enchaîne murs, dallage, toit et porte.
+func _create_mesh_house(from: Vector2, to: Vector2) -> void:
+	var x0 := minf(from.x, to.x)
+	var x1 := maxf(from.x, to.x)
+	var y0 := minf(from.y, to.y)
+	var y1 := maxf(from.y, to.y)
+	if x1 - x0 < 2.0 or y1 - y0 < 2.0:
+		_set_status("Maison rapide : rectangle trop petit (2 × 2 minimum).")
+		return
+	var previous_roof := _roof_height
+	_roof_height = maxf(_roof_height, _wall_height - 0.15)
+	_create_mesh_room(from, to)
+	_create_floor(from, to)
+	_create_mesh_roof(from, to)
+	# Porte au centre du mur avant (côté +Y).
+	_insert_door(Vector2((x0 + x1) * 0.5, y1))
+	_roof_height = previous_roof
+	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
 ## qui laissent une ouverture, puis la porte est posée dans le passage.
 func _insert_door(grid: Vector2) -> void:
 	var wall: Dictionary = {}
@@ -3684,6 +3703,9 @@ func _rebuild_tool_options() -> void:
 		flatten_chk.toggled.connect(func(on): _floor_flatten = on)
 		_tool_options.add_child(flatten_chk)
 		_option_note("Glissez un rectangle à l'intérieur d'une pièce : dallage de pierre (matière 2) et sol à plat.")
+	elif _tool == ToolsScript.HOUSE_3D:
+		_spin(_hbox(_tool_options), "Hauteur murs", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
+		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, en une seule action.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:

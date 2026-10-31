@@ -85,6 +85,8 @@ Outils terrain :
   (**pierre, terre, herbe, sable, neige**), nivellement optionnel.
 - **Outil 🚪 Porte 3D** : clique sur un mur 3D ; le mur est remplacé par deux
   montants laissant une ouverture, et une porte à auvent est insérée.
+- **Outil 🏡 Maison rapide** : glisse un rectangle ; construit d'un coup murs,
+  dallage, toit et porte au centre du mur avant.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

@@ -256,6 +256,21 @@ func _run() -> void:
 	_assert("mesh_roof_style_choice", _meshes_with_asset(editor, thatch_asset).size() > thatch_before)
 	editor._roof_asset = "res://assets/objects3d/buildings/toit_2pentes.glb"
 
+	# Maison rapide : tout en une passe.
+	var house_walls_before := _meshes_with_asset(editor, wall_asset).size()
+	var house_roofs_before := _meshes_with_asset(editor, "res://assets/objects3d/buildings/toit_2pentes.glb").size()
+	var house_doors_before := _meshes_with_asset(editor, "res://assets/objects3d/buildings/porte_auvent.glb").size()
+	editor._create_mesh_house(Vector2(12.0, 2.0), Vector2(18.0, 6.0))
+	await process_frame
+	_assert("house_walls", _meshes_with_asset(editor, wall_asset).size() > house_walls_before)
+	_assert("house_roof",
+		_meshes_with_asset(editor, "res://assets/objects3d/buildings/toit_2pentes.glb").size() > house_roofs_before)
+	_assert("house_door",
+		_meshes_with_asset(editor, "res://assets/objects3d/buildings/porte_auvent.glb").size() > house_doors_before)
+	var house_mats: Array = editor.doc.map_data.get("terrainMaterials", [])
+	_assert("house_floor", house_mats.size() > 4 * int(editor.doc.map_data.get("width", 1)) + 15
+		and int(house_mats[4 * int(editor.doc.map_data.get("width", 1)) + 15]) == 2)
+
 	# Échelle uniforme depuis l'inspecteur : les trois axes suivent.
 	var meshes: Array = editor.doc.elements_of_kind("mesh")
 	if not meshes.is_empty():
