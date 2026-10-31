@@ -173,6 +173,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Survol** d'une zone : liseré clair + détail dans la ligne d'état.
 - Les **liens entre zones** sont tracés sur le plan (ligne dorée + flèche vers la
   zone voisine).
+- Les aperçus des zones montrent **sols peints, relief, plans d'eau** et points
+  des objets 3D.
 - **Valider** : chevauchements, liens cassés, tailles incohérentes.
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et

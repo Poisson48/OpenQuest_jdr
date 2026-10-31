@@ -120,7 +120,8 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
   clic sur une zone découverte = voyage rapide (bascule de carte active).
 - **Survol** d'une zone : liseré clair et détail « nom (taille) » dans le pied de page.
 - **Liens** entre zones tracés sur le plan (ligne dorée + flèche) ; cliquer sa
-  propre zone referme la carte du monde.
+  propre zone referme la carte du monde. Les aperçus incluent sols, relief,
+  **plans d'eau** et objets 3D.
 - Transition par les bords (cf. 3.3) avec glissement de caméra.
 - Boussole / indicateur de sortie au survol des bords.
 - Le brouillard de monde masque les zones non découvertes ; découvre une zone en y entrant.

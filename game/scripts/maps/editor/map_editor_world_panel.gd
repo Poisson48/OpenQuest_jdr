@@ -950,6 +950,7 @@ func _draw_zone_content(zone: Dictionary, rect: Rect2) -> void:
 		return
 	var mats = map.get("terrainMaterials", [])
 	var heights = map.get("terrainHeights", [])
+	var water_level := float(map.get("waterLevel", -1.0))
 	var step := maxi(1, int(ceil(2.0 / px)))
 	var cy := 0
 	while cy < h:
@@ -962,7 +963,9 @@ func _draw_zone_content(zone: Dictionary, rect: Rect2) -> void:
 			var cell_color := _material_color(material)
 			if heights is Array and idx < (heights as Array).size():
 				var hgt := float((heights as Array)[idx])
-				if hgt > 0.0:
+				if water_level > -1.0 and hgt < water_level - 0.001:
+					cell_color = cell_color.lerp(Color(0.20, 0.42, 0.60), 0.78)
+				elif hgt > 0.0:
 					cell_color = cell_color.lightened(clampf(hgt * 0.09, 0.0, 0.35))
 			var block := Vector2(mini(step, w - cx), mini(step, h - cy))
 			draw_rect(Rect2(rect.position + Vector2(cx, cy) * px, block * px), cell_color, true)
