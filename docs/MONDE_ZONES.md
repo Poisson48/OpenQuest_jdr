@@ -106,6 +106,7 @@ Nouvel onglet **Monde** (à côté de Carte / Biblio) :
 - **Créer une zone** : rectangle à glisser sur le plan → nouvelle carte de la taille voulue (ou assigner une carte existante).
 - **Déplacer / redimensionner** une zone sur le plan (les tailles restent libres ; « Taille… » redimensionne la carte en conservant son contenu ; « Dupliquer » copie la zone sous elle-même).
 - **Relier** : auto-détection des bords qui se recouvrent + édition manuelle d'un lien (bord, carte cible, offset).
+- **Assigner** : rattache une carte existante comme zone du monde (position auto sous les zones).
 - **Ouvrir** une zone (double-clic) → éditeur de carte classique ; retour au plan monde.
 - **Plein écran** : la vue Monde occupe tout l'éditeur (Échap / « Réduire »).
 - **▶ Tester** : démarre une session de jeu directement sur le monde édité.

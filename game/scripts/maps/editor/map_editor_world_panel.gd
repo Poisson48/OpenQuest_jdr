@@ -48,6 +48,8 @@ var _link_dialog: ConfirmationDialog
 var _link_side_opt: OptionButton
 var _link_target_opt: OptionButton
 var _link_offset_spin: SpinBox
+var _assign_dialog: ConfirmationDialog
+var _assign_opt: OptionButton
 var _editor_root: Control
 var _fullscreen: bool = false
 var _original_parent: Node
@@ -85,6 +87,7 @@ func _build_ui() -> void:
 	_button(bar, "Renommer", func(): _open_rename())
 	_button(bar, "Taille…", func(): _open_resize())
 	_button(bar, "Dupliquer", func(): duplicate_selected())
+	_button(bar, "Assigner…", func(): _open_assign())
 	_button(bar, "Supprimer", func(): _open_delete())
 	_button(bar, "Recentrer", func(): fit_view())
 	_button(bar, "⟳", func(): refresh())
@@ -474,6 +477,21 @@ func _ensure_dialogs() -> void:
 	offset_row.add_child(_link_offset_spin)
 	_link_dialog.confirmed.connect(_apply_link)
 
+	_assign_dialog = ConfirmationDialog.new()
+	_assign_dialog.title = "Assigner une carte existante au monde"
+	add_child(_assign_dialog)
+	var assign_box := VBoxContainer.new()
+	assign_box.custom_minimum_size = Vector2(380, 110)
+	_assign_dialog.add_child(assign_box)
+	var assign_note := Label.new()
+	assign_note.text = "La carte choisie devient une zone du monde courant, placée sous les zones existantes."
+	assign_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	assign_note.custom_minimum_size = Vector2(380, 0)
+	assign_box.add_child(assign_note)
+	_assign_opt = OptionButton.new()
+	assign_box.add_child(_assign_opt)
+	_assign_dialog.confirmed.connect(_apply_assign)
+
 func _open_create_zone() -> void:
 	_ensure_dialogs()
 	_zone_dialog.popup_centered(Vector2i(360, 180))
@@ -506,6 +524,48 @@ func _apply_rename() -> void:
 	md.update_map(map)
 	refresh()
 	show_status("Zone renommée : %s" % new_title)
+
+func _open_assign() -> void:
+	_ensure_dialogs()
+	var md = get_node_or_null("/root/MapData")
+	if md == null:
+		return
+	var world_id := _current_world_id()
+	_assign_opt.clear()
+	for map_variant in md.maps:
+		if not map_variant is Dictionary:
+			continue
+		var map: Dictionary = map_variant
+		if str(map.get("renderMode", "")) != "complex":
+			continue
+		if str(map.get("worldId", "")) == world_id and not world_id.is_empty():
+			continue
+		var index := _assign_opt.item_count
+		_assign_opt.add_item(str(map.get("title", map.get("id", "Carte"))), index)
+		_assign_opt.set_item_metadata(index, str(map.get("id", "")))
+	if _assign_opt.item_count == 0:
+		show_status("Aucune carte libre à assigner (toutes sont déjà dans ce monde).")
+		return
+	_assign_dialog.popup_centered(Vector2i(520, 220))
+
+func _apply_assign() -> void:
+	var md = get_node_or_null("/root/MapData")
+	if md == null or _assign_opt.selected < 0:
+		return
+	var map_id := str(_assign_opt.get_item_metadata(_assign_opt.selected))
+	var world_id := _current_world_id()
+	if world_id.is_empty():
+		world_id = "monde"
+	var bounds: Rect2i = WorldZonesScript.world_bounds(zones)
+	var pos := Vector2i(bounds.position.x, bounds.position.y + bounds.size.y + 1) if bounds.size.x > 0 \
+		else Vector2i.ZERO
+	if md.assign_map_to_world(map_id, world_id, pos.x, pos.y):
+		selected_id = map_id
+		refresh()
+		fit_view()
+		show_status("Carte assignée au monde.")
+	else:
+		show_status("Assignation impossible.")
 
 func _open_link() -> void:
 	_ensure_dialogs()

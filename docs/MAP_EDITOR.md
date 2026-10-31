@@ -170,6 +170,8 @@ peuvent avoir des **tailles différentes**). Voir
 - **Renommer**, **Taille…** (redimensionne la carte de la zone, contenu conservé
   au coin haut-gauche), **Dupliquer** (copie la zone sous elle-même) et
   **Supprimer**.
+- **Assigner…** : rattache une carte existante (hors monde) comme nouvelle zone
+  du monde courant.
 - **Ouvrir** / double-clic : charge la zone dans l'éditeur.
 - **⤢ Plein écran** : affiche la vue Monde sur tout l'éditeur (Échap ou
   « Réduire » pour revenir à l'onglet).

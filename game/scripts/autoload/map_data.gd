@@ -1411,6 +1411,20 @@ func set_zone_edge(map_id: String, side: String, target_id: String, offset: int 
 	update_map(map)
 	return true
 
+## Rattache une carte existante à un monde de zones, à la position donnée.
+func assign_map_to_world(map_id: String, world_id: String, zone_x: int, zone_y: int) -> bool:
+	var map: Dictionary = get_by_id(map_id)
+	if map.is_empty():
+		return false
+	map["worldId"] = world_id
+	map["zoneX"] = int(zone_x)
+	map["zoneY"] = int(zone_y)
+	map["zoneW"] = int(map.get("width", 12))
+	map["zoneH"] = int(map.get("height", 9))
+	map["edges"] = {}
+	update_map(map)
+	return true
+
 func update_map(map_data: Dictionary) -> void:
 	var map_id: String = map_data.get("id", "")
 	if map_id.is_empty():

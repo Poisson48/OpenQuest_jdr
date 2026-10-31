@@ -165,6 +165,20 @@ func _run() -> void:
 			gd.get_map_play_tokens(str(play_ids[0])).size() >= 2)
 		gd.active_game = saved_game
 
+		# Assigner une carte existante (hors monde) comme nouvelle zone.
+		var free_map: Dictionary = md.create_complex_map("Carte libre", "general", "local", 11, 7)
+		var free_id := str(free_map.get("id", ""))
+		_created_maps.append(free_id)
+		_assert("world_assign_map", md.assign_map_to_world(free_id, "test-world", 40, 40))
+		var assigned: Dictionary = md.get_by_id(free_id)
+		_assert("world_assign_world", str(assigned.get("worldId", "")) == "test-world")
+		_assert("world_assign_size", int(assigned.get("zoneW", 0)) == 11
+			and int(assigned.get("zoneH", 0)) == 7)
+		_assert("world_assign_position", int(assigned.get("zoneX", -1)) == 40
+			and int(assigned.get("zoneY", -1)) == 40)
+		panel.refresh()
+		_assert("world_assign_panel", not panel._zone_by_id(free_id).is_empty())
+
 	editor.queue_free()
 	await process_frame
 	for map_id in _created_maps:
