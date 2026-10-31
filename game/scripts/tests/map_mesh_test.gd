@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_document(base)
 	_test_asset_library()
 	await _test_engine_mesh(base)
+	await _test_dimensions(base)
 	await _test_editor_ui(base)
 
 	if _failed:
@@ -165,6 +166,39 @@ func _test_engine_mesh(base: Dictionary) -> void:
 	engine.queue_free()
 	await process_frame
 
+func _test_dimensions(base: Dictionary) -> void:
+	# Dimensions explicites (cases) + rotation, avec le volume de substitution
+	# (AABB naturelle 0.9 × 1.0 × 0.9) pour des valeurs vérifiables.
+	var doc: Variant = DocScript.new()
+	doc.load_map(base)
+	doc.add_element({
+		"x": 2.0, "y": 2.0,
+		"w": 1.8, "h": 0.45,
+		"sizeX": 1.8, "sizeY": 2.0, "sizeZ": 0.45,
+		"asset": "res://assets/objects3d/absent_test.glb",
+		"display": {"rotation": 90.0},
+	}, K_MESH, "Dimensions")
+	var snapshot: Dictionary = doc.to_map_data()
+	var EngineScript: GDScript = load("res://scripts/maps/complex_map_engine_3d.gd")
+	var engine: Control = EngineScript.new()
+	get_root().add_child(engine)
+	await process_frame
+	engine.configure(snapshot, [], [], [], [], [], false, true, {}, {}, "")
+	await process_frame
+	await process_frame
+	var layer = engine._meshes_layer
+	_assert("dim_layer", layer != null and layer.get_child_count() == 1)
+	if layer != null and layer.get_child_count() == 1:
+		var root: Node3D = layer.get_child(0)
+		var cell: float = float(engine._cell_size)
+		_assert("dim_fallback", bool(root.get_meta("fallback", false)))
+		_assert("dim_scale_x", is_equal_approx(root.scale.x, cell * 1.8 / 0.9))
+		_assert("dim_scale_y", is_equal_approx(root.scale.y, cell * 2.0 / 1.0))
+		_assert("dim_scale_z", is_equal_approx(root.scale.z, cell * 0.45 / 0.9))
+		_assert("dim_rotation", is_equal_approx(root.rotation_degrees.y, -90.0))
+	engine.queue_free()
+	await process_frame
+
 func _test_editor_ui(base: Dictionary) -> void:
 	var editor: Control = load("res://scenes/map_editor/map_editor.tscn").instantiate()
 	get_root().add_child(editor)
@@ -185,6 +219,8 @@ func _test_editor_ui(base: Dictionary) -> void:
 	var placed_display: Dictionary = placed.get("display", {})
 	_assert("ui_mesh_scale", is_equal_approx(float(placed_display.get("scale", 0.0)), 1.5))
 	_assert("ui_mesh_rotation", is_equal_approx(float(placed_display.get("rotation", 0.0)), 90.0))
+	_assert("ui_mesh_size_fields", float(placed.get("sizeX", 0.0)) > 0.0
+		and float(placed.get("sizeY", 0.0)) > 0.0 and float(placed.get("sizeZ", 0.0)) > 0.0)
 	_assert("ui_mesh_selected", editor.doc.selection().size() == 1)
 	# L'outil doit rester sélectionnable par la palette.
 	_assert("ui_mesh_tool", ToolsScript.label(ToolsScript.MESH) == "Objet 3D")

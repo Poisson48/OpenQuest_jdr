@@ -237,19 +237,40 @@ func _basis_with_up(up: Vector3, yaw: float) -> Basis:
 func _build_mesh(mesh: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.name = str(mesh.get("id", "mesh")) if not str(mesh.get("id", "")).is_empty() else "Mesh"
-	_place_root(root, mesh)
-
 	var visual := _instantiate_asset(str(mesh.get("asset", "")))
 	var fallback := visual == null
 	if fallback:
 		visual = _build_fallback()
 	root.add_child(visual)
+	root.set_meta("visual", visual)
+	_place_root(root, mesh)
 	# Rendu 2.5D léger : aucune ombre portée, aucune collision.
 	_sanitize_visual(visual)
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
 	_add_contact_shadow(root, visual, _is_inclined(mesh))
 	root.set_meta("fallback", fallback)
 	return root
+
+## Facteurs d'échelle par axe pour obtenir les dimensions déclarées (en cases).
+## `sizeX`/`sizeY`/`sizeZ` permettent de redimensionner un objet 3D par axe
+## (calculées depuis l'AABB du GLB à la pose, éditables dans l'inspecteur).
+func _mesh_dimensions(mesh: Dictionary, visual: Node) -> Vector3:
+	var sx := float(mesh.get("sizeX", 0.0))
+	var sy := float(mesh.get("sizeY", 0.0))
+	var sz := float(mesh.get("sizeZ", 0.0))
+	if sx <= 0.0 and sy <= 0.0 and sz <= 0.0:
+		return Vector3.ZERO
+	var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
+	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
+	var natural := _visual_aabb(visual).size
+	var out := Vector3.ONE * display_scale
+	if sx > 0.0:
+		out.x = sx / maxf(0.001, natural.x)
+	if sy > 0.0:
+		out.y = sy / maxf(0.001, natural.y)
+	if sz > 0.0:
+		out.z = sz / maxf(0.001, natural.z)
+	return out
 
 ## Pose / repose la racine d'un mesh : pied sur le terrain (hauteur **moyenne**
 ## de l'empreinte pour un bâtiment droit, **maximale** pour un objet incliné via
@@ -262,7 +283,14 @@ func _place_root(root: Node3D, mesh: Dictionary) -> void:
 	var elevation := float(mesh.get("elevation", 0.0)) * _cell_size
 	var base_y := _terrain_base_y(mesh) if _follows_terrain(mesh) else 0.0
 	var yaw := -float(display.get("rotation", 0.0))
-	var uniform := _cell_size * display_scale
+	var visual: Node = root.get_meta("visual", null) if root.has_meta("visual") else null
+	var dimensions := _mesh_dimensions(mesh, visual) if visual != null else Vector3.ZERO
+	var scale_vec: Vector3
+	if dimensions == Vector3.ZERO:
+		scale_vec = Vector3.ONE * _cell_size * display_scale
+	else:
+		# Dimensions en cases ; l'unité de l'asset vaut 1 case (world = cases * cell).
+		scale_vec = dimensions * _cell_size
 	root.position = Vector3(
 		gx * _cell_size + _cell_size * 0.5,
 		base_y + elevation,
@@ -271,10 +299,10 @@ func _place_root(root: Node3D, mesh: Dictionary) -> void:
 	if _is_inclined(mesh):
 		var normal := _terrain_normal_at(gx, gy)
 		var basis := _basis_with_up(normal, deg_to_rad(yaw))
-		root.transform = Transform3D(basis.scaled(Vector3.ONE * uniform), root.position)
+		root.transform = Transform3D(basis.scaled(scale_vec), root.position)
 	else:
 		root.rotation_degrees = Vector3(0.0, yaw, 0.0)
-		root.scale = Vector3.ONE * uniform
+		root.scale = scale_vec
 
 ## Vrai si ce mesh doit suivre le terrain (option par objet, défaut oui).
 func _follows_terrain(mesh: Dictionary) -> bool:

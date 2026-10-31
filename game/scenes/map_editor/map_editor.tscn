@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/maps/map_complex_editor.gd" id="1_script"]
 [ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="2_theme"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/library.tscn" id="6_lib"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/history.tscn" id="7_hist"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/panels/esc_menu.tscn" id="8_esc"]
+[ext_resource type="PackedScene" path="res://scenes/map_editor/panels/world.tscn" id="9_world"]
 
 [node name="MapComplexEditor" type="Control"]
 clip_contents = true
@@ -220,6 +221,11 @@ horizontal_scroll_mode = 0
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="Monde" parent="SplitOuter/SplitInner/RightTabs" instance=ExtResource("9_world")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="EscMenu" parent="." instance=ExtResource("8_esc")]
 unique_name_in_owner = true

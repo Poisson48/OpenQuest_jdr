@@ -81,6 +81,23 @@ func _run() -> void:
 		img.save_png(out)
 		print("  capture: ", out, " (", img.get_width(), "x", img.get_height(), ")")
 
+	# Seconde capture : vue Monde (zones de tailles différentes).
+	if editor._world_panel != null and editor._right_tabs != null:
+		var world_tab: int = editor._right_tabs.get_tab_idx_from_control(editor._world_panel)
+		if world_tab >= 0:
+			editor._right_tabs.current_tab = world_tab
+			await _wait(8)
+			editor._world_panel.refresh()
+			editor._world_panel.fit_view()
+			await _wait(12)
+			var world_img: Image = get_root().get_texture().get_image()
+			if world_img != null:
+				world_img.convert(Image.FORMAT_RGBA8)
+				var world_out := copy_dir.path_join("carte_25d_monde.png")
+				world_img.save_png(world_out)
+				print("  capture: ", world_out, " (", world_img.get_width(), "x", world_img.get_height(), ")")
+				_assert("world_zones_visible", editor._world_panel.zones.size() >= 3)
+
 	if _failed:
 		printerr("map_25d_editor_shot_test:FAIL")
 		quit(1)

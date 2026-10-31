@@ -301,10 +301,12 @@ func _draw_selection() -> void:
 			draw_polyline(_closed(pts), COL_LOCKED, 1.0, true)
 		if not str(elem.get("group", "")).is_empty():
 			draw_polyline(_closed(pts), COL_GROUP, 1.0, true)
-	# Poignées souris : redimensionner / pivoter un décor seul.
+	# Poignées souris : redimensionner / pivoter un décor ou un objet 3D seul.
 	if selected.size() == 1:
 		var sole: Dictionary = doc.get_element(str(selected[0]))
-		if str(sole.get("kind", "")) == DocumentScript.KIND_PROP and not bool(sole.get("locked", false)):
+		var sole_kind := str(sole.get("kind", ""))
+		if (sole_kind == DocumentScript.KIND_PROP or sole_kind == DocumentScript.KIND_MESH) \
+				and not bool(sole.get("locked", false)):
 			_draw_prop_handles(sole)
 	if selected.size() > 1:
 		var bounds: Rect2 = doc.selection_bounds()
@@ -554,7 +556,8 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 		return {}
 	var id := str(selected[0])
 	var elem: Dictionary = doc.get_element(id)
-	if str(elem.get("kind", "")) != DocumentScript.KIND_PROP:
+	var elem_kind := str(elem.get("kind", ""))
+	if elem_kind != DocumentScript.KIND_PROP and elem_kind != DocumentScript.KIND_MESH:
 		return {}
 	if bool(elem.get("locked", false)):
 		return {}

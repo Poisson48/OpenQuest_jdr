@@ -244,6 +244,25 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 	elif kind == DocumentScript.KIND_MESH:
 		_section("Objet 3D")
 		_add_note(str(elem.get("asset", "")).get_file())
+		var display_mesh: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+		var size_x := float(elem.get("sizeX", elem.get("w", 1.0)))
+		var size_y := float(elem.get("sizeY", 1.0))
+		var size_z := float(elem.get("sizeZ", elem.get("h", 1.0)))
+		var rotation_mesh := float(display_mesh.get("rotation", 0.0))
+		_section("Dimensions (cases)")
+		var dim_row := _row()
+		_spin(dim_row, "Largeur X", 0.1, 50.0, size_x, 0.1,
+			func(v): _apply({"sizeX": v, "w": v}, "Dimensions"))
+		_spin(dim_row, "Prof. Z", 0.1, 50.0, size_z, 0.1,
+			func(v): _apply({"sizeZ": v, "h": v}, "Dimensions"))
+		_spin(_row(), "Hauteur Y", 0.1, 50.0, size_y, 0.1,
+			func(v): _apply({"sizeY": v}, "Dimensions"))
+		_section("Rotation")
+		var rot_row := _row()
+		_spin(rot_row, "Rotation °", -180.0, 180.0, rotation_mesh, 5.0,
+			func(v): _apply({"display": {"rotation": v}}, "Rotation"))
+		_text_button(rot_row, "−90°", func(): _apply({"display": {"rotation": wrapf(rotation_mesh - 90.0, -180.0, 180.0)}}, "Rotation"))
+		_text_button(rot_row, "＋90°", func(): _apply({"display": {"rotation": wrapf(rotation_mesh + 90.0, -180.0, 180.0)}}, "Rotation"))
 		_spin(_row(), "Élévation", -2.0, 20.0, float(elem.get("elevation", 0.0)), 0.1,
 			func(v): _apply({"elevation": v}, "Élévation"))
 		var terrain_row := _row()
@@ -256,7 +275,7 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 		_text_button(plane_row, "Arrière", func(): _apply({"layer": 1}, "Plan arrière"))
 		_text_button(plane_row, "Médian", func(): _apply({"layer": 2}, "Plan médian"))
 		_text_button(plane_row, "Avant", func(): _apply({"layer": 5}, "Plan avant"))
-		_add_note("Mesh 3D posé sur la grille : échelle et rotation dans « Effets visuels ». Nouveaux modèles : Blender → GLB dans game/assets/objects3d/ (docs/BLENDER_PIPELINE.md).")
+		_add_note("Dimensions en cases (largeur/profondeur/hauteur réelles de l'objet). Rotation : champ, boutons ou poignée au-dessus de la sélection. La poignée de coin redimensionne. Nouveaux modèles : Biblio → Importer un GLB (docs/BLENDER_PIPELINE.md).")
 	elif kind == DocumentScript.KIND_AREA:
 		_section("Lieu")
 		_category_selector(str(elem.get("category", "building")))

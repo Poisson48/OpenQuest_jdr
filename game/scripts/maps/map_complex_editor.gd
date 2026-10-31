@@ -107,6 +107,7 @@ var _overlay
 var _minimap
 var _inspector
 var _outliner
+var _world_panel: Control
 var _left_panel: VBoxContainer
 var _left_scroll: ScrollContainer
 var _right_tabs: TabContainer
@@ -194,6 +195,8 @@ func load_map(map_data: Dictionary) -> void:
 	_sync_engine(true)
 	_refresh_panels()
 	_update_hint()
+	if _world_panel != null:
+		_world_panel.refresh()
 
 func apply_to_map_data() -> Dictionary:
 	if _engine and _engine.has_method("get_view_state"):
@@ -408,9 +411,26 @@ func _bind_docks() -> void:
 	_outliner.set_document(doc)
 	_outliner.focus_requested.connect(_focus_element)
 
+	_world_panel = %Monde
+	_world_panel.open_map_requested.connect(_on_open_map_requested)
+	_world_panel.visibility_changed.connect(func():
+		if _world_panel.visible:
+			_world_panel.refresh()
+	)
+	if _right_tabs:
+		_right_tabs.tab_changed.connect(_on_right_tab_changed)
+
 	_bind_settings_tab()
 	_bind_library_tab()
 	_bind_history_tab()
+
+func _on_right_tab_changed(index: int) -> void:
+	if _world_panel == null or _right_tabs == null:
+		return
+	if _right_tabs.get_current_tab_control() == _world_panel:
+		_world_panel.refresh()
+		if not bool(_world_panel.get("_has_fitted")):
+			_world_panel.call_deferred("fit_view")
 
 func _on_viewport_size_changed() -> void:
 	_layout_force = true
@@ -1021,6 +1041,18 @@ func _apply_handle_resize(grid: Vector2) -> void:
 	var w := maxf(0.25, float(_handle_state.get("w", 1.0)) * scale)
 	var h := maxf(0.25, float(_handle_state.get("h", 1.0)) * scale)
 	var fields: Dictionary = {"w": w, "h": h}
+	var kind := str(doc.get_element(id).get("kind", ""))
+	if kind == DocumentScript.KIND_MESH:
+		# Objet 3D : la poignée de coin dimensionne l'objet (X/Z) proportionnellement.
+		var elem: Dictionary = doc.get_element(id)
+		var base_w := maxf(0.01, float(_handle_state.get("w", 1.0)))
+		var ratio := w / base_w
+		fields["sizeX"] = w
+		fields["sizeZ"] = h
+		if float(elem.get("sizeY", 0.0)) > 0.0:
+			fields["sizeY"] = maxf(0.1, float(elem.get("sizeY", 1.0)) * ratio)
+		doc.set_live_fields(id, fields)
+		return
 	if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
 		var radius := maxf(0.5, maxf(w, h) * 0.5)
 		fields["radius"] = radius
@@ -1282,10 +1314,12 @@ func _create_mesh(grid: Vector2) -> void:
 		_set_status("Choisissez d'abord un objet 3D dans la bibliothèque (onglet Biblio → Objets 3D).")
 		return
 	var asset := AssetLibraryScript.get_object3d_asset(_mesh_asset)
-	var footprint := _mesh_footprint_cells(_mesh_asset)
+	var bounds := _mesh_bounds_cells(_mesh_asset)
+	var footprint := Vector2(maxf(0.5, bounds.x), maxf(0.5, bounds.z))
 	var id: String = doc.add_element({
 		"x": grid.x, "y": grid.y,
 		"w": footprint.x, "h": footprint.y,
+		"sizeX": footprint.x, "sizeY": maxf(0.2, bounds.y), "sizeZ": footprint.y,
 		"asset": _mesh_asset,
 		"elevation": 0.0,
 		"followTerrain": true,
@@ -1296,16 +1330,15 @@ func _create_mesh(grid: Vector2) -> void:
 	}, DocumentScript.KIND_MESH, "Objet 3D")
 	doc.select_only(id)
 
-## Empreinte au sol (en cases) déduite de la boîte englobante du GLB : le MJ
-## n'a aucune dimension à saisir et la sélection colle au modèle.
-func _mesh_footprint_cells(asset_path: String, scale_factor: float = -1.0) -> Vector2:
+## Dimensions (en cases) de la boîte englobante du GLB, échelle de pose incluse.
+func _mesh_bounds_cells(asset_path: String, scale_factor: float = -1.0) -> Vector3:
 	if asset_path.is_empty():
-		return Vector2.ONE
+		return Vector3.ZERO
 	var factor := _mesh_scale if scale_factor < 0.0 else scale_factor
-	var cache_key := "%s|%.3f" % [asset_path, factor]
+	var cache_key := "b:%s|%.3f" % [asset_path, factor]
 	if _mesh_footprint_cache.has(cache_key):
 		return _mesh_footprint_cache[cache_key]
-	var out := Vector2.ONE
+	var out := Vector3.ZERO
 	var inst: Node3D = AssetLibraryScript.instantiate_object3d_scene(asset_path)
 	if inst != null:
 		var bounds: Array = []
@@ -1316,14 +1349,19 @@ func _mesh_footprint_cells(asset_path: String, scale_factor: float = -1.0) -> Ve
 			var aabb: AABB = aabb_variant
 			merged = aabb if first else merged.merge(aabb)
 			first = false
-		if not first and merged.size.x > 0.0 and merged.size.z > 0.0:
-			out = Vector2(
-				maxf(0.5, merged.size.x * factor),
-				maxf(0.5, merged.size.z * factor)
-			)
+		if not first and merged.size.length() > 0.0:
+			out = merged.size * factor
 		inst.free()
 	_mesh_footprint_cache[cache_key] = out
 	return out
+
+## Empreinte au sol (en cases) déduite de la boîte englobante du GLB : le MJ
+## n'a aucune dimension à saisir et la sélection colle au modèle.
+func _mesh_footprint_cells(asset_path: String, scale_factor: float = -1.0) -> Vector2:
+	var bounds := _mesh_bounds_cells(asset_path, scale_factor)
+	if bounds == Vector3.ZERO:
+		return Vector2.ONE
+	return Vector2(maxf(0.5, bounds.x), maxf(0.5, bounds.z))
 
 func _collect_mesh_aabbs(node: Node, xform: Transform3D, out: Array) -> void:
 	var next_xform := xform

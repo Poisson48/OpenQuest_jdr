@@ -121,6 +121,10 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
 - **＋ Importer un GLB…** ajoute un modèle `.glb`/`.gltf` à la bibliothèque de
   l'utilisateur (`user://map_assets/objects3d/imports/`), avec vignette générée
   automatiquement. Aucun outil externe requis pour ajouter ses propres bâtiments.
+- **Dimensions** : largeur X / hauteur Y / profondeur Z en cases, éditables dans
+  l'inspecteur ou par la poignée de coin de la sélection (la taille est déduite
+  de l'AABB du GLB à la pose). **Rotation** : champ de l'inspecteur, boutons
+  −90°/+90°, ou poignée de rotation au-dessus de la sélection.
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
@@ -142,6 +146,22 @@ Chaque carte complexe a un **`renderStyle`** :
 Réglage : onglet **Carte → Style de rendu**. Les données (décors, lieux, murs)
 sont communes ; seul le rendu change. En session, cliquer un **lieu** lié
 entre dans sa carte enfant ; **← Remonter** remonte d'un cran.
+
+## 1 quinquies. Onglet Monde : les cartes comme zones (façon Dofus)
+
+L'éditeur a un onglet **Monde** qui affiche toutes les zones du monde courant
+comme des rectangles à l'échelle, avec leur nom et leur taille (les zones
+peuvent avoir des **tailles différentes**). Voir
+[`MONDE_ZONES.md`](./MONDE_ZONES.md) pour le modèle complet.
+
+- **＋ Zone** : crée une carte 2.5D (terrain 3D) et la pose sous le monde.
+- **Glisser** une zone : change sa position `zoneX/zoneY` sur le plan.
+- **Relier les bords** : détecte automatiquement les voisins qui partagent un
+  bord (avec offset en cases quand les tailles diffèrent) et écrit `edges`.
+- **Valider** : chevauchements, liens cassés, tailles incohérentes.
+- **Ouvrir** / double-clic : charge la zone dans l'éditeur.
+- Chaque carte porte `worldId`, `zoneX/zoneY/zoneW/zoneH` et `edges`
+  (nord/sud/est/ouest).
 
 ## 2. Outils
 
