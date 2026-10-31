@@ -475,8 +475,35 @@ func refresh() -> void:
 	_render_navigator(ctx, map_ids, active_id)
 	_render_toolbar(state, display_map)
 	_configure_stage(state, ctx, map_id)
+	_ensure_token_selection(map_id)
 	_update_minimap(map_id)
 	_apply_chrome_visibility()
+
+## Sélectionne par défaut le pion du personnage actif pour rendre les actions
+## (déplacement, mini-carte) immédiatement compréhensibles.
+func _ensure_token_selection(map_id: String) -> void:
+	if _readonly or map_id.is_empty():
+		return
+	if not GameData.get_selected_token_id(map_id).is_empty():
+		return
+	var active: Dictionary = GameData.get_active_member()
+	var member_id := str(active.get("id", ""))
+	var tokens: Array = GameData.get_map_play_tokens(map_id)
+	var fallback := ""
+	for tok_variant in tokens:
+		if not tok_variant is Dictionary:
+			continue
+		var tok: Dictionary = tok_variant
+		if str(tok.get("kind", "")) != "member":
+			continue
+		var tok_member := str(tok.get("memberId", ""))
+		if tok_member == member_id:
+			GameData.set_selected_token_id(map_id, str(tok.get("id", "")))
+			return
+		if fallback.is_empty():
+			fallback = str(tok.get("id", ""))
+	if not fallback.is_empty():
+		GameData.set_selected_token_id(map_id, fallback)
 
 ## Met à jour la mini-carte avec la zone et les pions courants.
 func _update_minimap(map_id: String) -> void:

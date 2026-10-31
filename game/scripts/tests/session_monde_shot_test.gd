@@ -51,6 +51,12 @@ func _run() -> void:
 		(session as Control).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for _i in range(40):
 		await process_frame
+	# Ferme l'éventuelle carte d'introduction pour capturer la carte elle-même.
+	for overlay in session.find_children("*", "SpeakerDialogueOverlay", true, false):
+		if overlay.has_method("clear"):
+			overlay.clear()
+	for _i in range(4):
+		await process_frame
 	var img: Image = get_root().get_texture().get_image()
 	if img == null:
 		printerr("  FAIL capture")

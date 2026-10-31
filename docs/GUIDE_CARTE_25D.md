@@ -86,7 +86,7 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - **N** affiche/masque les noms flottants ; **C** affiche/masque la **mini-carte** (clic = recentrer la caméra).
 - **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
 - **H** ouvre l'**aide des raccourcis** de session (Échap pour fermer).
-- **D** ou bouton **Pas** : outil Déplacer — clique une case pour y déplacer le personnage sélectionné (ou actif) ; le survol affiche un curseur sur la case visée. Une case déjà occupée par une figurine est refusée.
+- **D** ou bouton **Pas** : outil Déplacer — clique une case pour y déplacer le personnage sélectionné (ou actif) ; le survol affiche un curseur sur la case visée. Une case déjà occupée par une figurine est refusée. Le pion du personnage actif est **sélectionné automatiquement** à l'ouverture d'une zone.
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :
   fondu noir + nom de la zone, et **« Nouvelle zone découverte »** à la première
   visite. Les **sorties** de la zone sont aussi cliquables en haut à gauche.
