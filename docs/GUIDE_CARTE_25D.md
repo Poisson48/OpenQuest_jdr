@@ -91,6 +91,8 @@ Outils terrain :
   façade extérieure (murs hauts recommandés).
 - **Outil 🪑 Meubler** : clique dans une pièce ; pose un ensemble de mobilier
   (salle commune, chambre, comptoir, campement) aligné au sol.
+- **Outil 🪵 Clôture** : glisse le long d'une limite ; pose une clôture
+  modulaire (**barrière / clôture basse / palissade**) alignée au terrain.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

@@ -208,6 +208,17 @@ func _run() -> void:
 	_assert("mesh_furniture_created",
 		editor.doc.elements_of_kind("mesh").size() >= mesh_count_before_furnish + 2)
 	_assert("mesh_furniture_selected", editor.doc.selection_size() >= 2)
+
+	# Clôture modulaire le long d'un tracé.
+	var fence_asset := "res://assets/objects3d/props/barriere.glb"
+	var fences_before := _meshes_with_asset(editor, fence_asset).size()
+	editor._create_mesh_fence(Vector2(2.0, 15.0), Vector2(8.0, 15.0))
+	await process_frame
+	var fences_after := _meshes_with_asset(editor, fence_asset)
+	_assert("mesh_fence_created", fences_after.size() > fences_before)
+	if fences_after.size() > fences_before:
+		var fence_display: Dictionary = fences_after[fences_before].get("display", {})
+		_assert("mesh_fence_rotation", absf(float(fence_display.get("rotation", 0.0))) < 1.0)
 	var walls_before_v := _meshes_with_asset(editor, wall_asset).size()
 	editor._create_mesh_wall_chain(Vector2(2.0, 4.0), Vector2(2.0, 8.0))
 	await process_frame

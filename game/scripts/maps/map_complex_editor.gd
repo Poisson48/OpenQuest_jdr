@@ -40,8 +40,12 @@ const FLOOR_MATERIALS := [
 	{"label": "Pierre", "id": 2}, {"label": "Terre", "id": 1},
 	{"label": "Herbe", "id": 0}, {"label": "Sable", "id": 4}, {"label": "Neige", "id": 3},
 ]
-const FURNITURE_PRESETS := [
-	{"id": "salle", "label": "Salle commune", "items": [
+const FENCE_STYLES := [
+	{"label": "Barrière", "path": "res://assets/objects3d/props/barriere.glb"},
+	{"label": "Clôture basse", "path": "res://assets/objects3d/props/cloture_basse.glb"},
+	{"label": "Palissade", "path": "res://assets/objects3d/props/palissade.glb"},
+]
+const FURNITURE_PRESETS := [	{"id": "salle", "label": "Salle commune", "items": [
 		["table_tabourets", 0.0, 0.0, 0.0], ["banc", 1.9, 0.7, 90.0],
 		["tonneau", -1.7, 0.8, 0.0], ["tapis", 0.0, 1.5, 0.0],
 	]},
@@ -132,6 +136,7 @@ var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
 var _floor_flatten: bool = true
 var _furnish_preset: String = "salle"
+var _fence_asset: String = "res://assets/objects3d/props/barriere.glb"
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -1246,6 +1251,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_floor(from, to)
 	elif _tool == ToolsScript.HOUSE_3D:
 		_create_mesh_house(from, to)
+	elif _tool == ToolsScript.FENCE_3D:
+		_create_mesh_fence(from, to)
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -1521,7 +1528,35 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_roof_height = previous_roof
 	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
 ## qui laissent une ouverture, puis la porte est posée dans le passage.
-## Pose un ensemble de mobilier à l'endroit cliqué.
+## Clôture modulaire le long d'un tracé (barrière / clôture / palissade).
+func _create_mesh_fence(from: Vector2, to: Vector2) -> void:
+	var delta := to - from
+	var total := delta.length()
+	if total < 0.5:
+		_set_status("Clôture : tracé trop court.")
+		return
+	var bounds := _mesh_bounds_cells(_fence_asset, 1.0)
+	var segment_len := maxf(1.0, bounds.x)
+	var depth := maxf(0.25, bounds.z)
+	var rotation := rad_to_deg(atan2(delta.y, delta.x))
+	var count := maxi(1, int(round(total / segment_len)))
+	var ids: Array = []
+	doc.begin_transaction()
+	for index in range(count):
+		var t := (float(index) + 0.5) / float(count)
+		var pos := from + delta * t
+		var id: String = doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": segment_len, "h": depth,
+			"asset": _fence_asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Clôture", "layer": 1,
+			"display": {"rotation": rotation, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Clôture")
+		ids.append(id)
+	doc.set_selection(ids)
+	doc.commit_transaction()
+	_set_status("Clôture : %d segment(s)." % count)
 func _insert_furniture(grid: Vector2) -> void:
 	var preset: Dictionary = {}
 	for preset_variant in FURNITURE_PRESETS:
@@ -3820,6 +3855,17 @@ func _rebuild_tool_options() -> void:
 		)
 		_tool_options.add_child(furnish_opt)
 		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
+	elif _tool == ToolsScript.FENCE_3D:
+		var fence_opt := OptionButton.new()
+		for i in range(FENCE_STYLES.size()):
+			var fence_style: Dictionary = FENCE_STYLES[i]
+			fence_opt.add_item(str(fence_style["label"]), i)
+			fence_opt.set_item_metadata(i, str(fence_style["path"]))
+			if str(fence_style["path"]) == _fence_asset:
+				fence_opt.select(i)
+		fence_opt.item_selected.connect(func(index: int): _fence_asset = str(fence_opt.get_item_metadata(index)))
+		_tool_options.add_child(fence_opt)
+		_option_note("Glissez le long d'une limite : clôture modulaire alignée au terrain.")
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:
