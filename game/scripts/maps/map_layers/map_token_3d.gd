@@ -37,6 +37,11 @@ var _cutout: MeshInstance3D
 var _shadow: MeshInstance3D
 var _selection_ring: MeshInstance3D
 var _dragging: bool = false
+var _fig_root: Node3D
+var _fig_base_position := Vector3.ZERO
+var _fig_base_rotation_y := 0.0
+var _idle_time: float = 0.0
+var _idle_phase: float = 0.0
 var _overlay_texture: Texture2D = null
 var _overlay_height: float = 1.0
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
@@ -213,6 +218,12 @@ func _add_figurine_visuals() -> bool:
 	var center := aabb.get_center()
 	fig.position = Vector3(-center.x * factor, -aabb.position.y * factor, -center.z * factor)
 	add_child(fig)
+	# Respiration discrète de la figurine (idle), déphasée par token.
+	_fig_root = fig
+	_fig_base_position = fig.position
+	_fig_base_rotation_y = fig.rotation_degrees.y
+	_idle_time = 0.0
+	_idle_phase = float(abs(hash(str(token_data.get("id", "")))) % 628) / 100.0
 	# Nom flottant au-dessus de la figurine (façon Dofus).
 	var label_text := str(token_data.get("label", "")).strip_edges()
 	if not label_text.is_empty():
@@ -260,6 +271,15 @@ func _add_figurine_visuals() -> bool:
 	add_child(_shadow)
 	_add_selection_disc()
 	return true
+
+## Respiration / balancement léger des figurines pour qu'elles paraissent vivantes.
+func _process(delta: float) -> void:
+	if _fig_root == null or _dragging:
+		return
+	_idle_time += delta
+	var t := _idle_time * 1.8 + _idle_phase
+	_fig_root.position.y = _fig_base_position.y + sin(t) * cell_size * 0.012
+	_fig_root.rotation_degrees.y = _fig_base_rotation_y + sin(t * 0.55) * 1.8
 
 ## AABB combinée d'un nœud 3D et de ses enfants MeshInstance3D.
 func _compute_node_aabb(node: Node3D) -> AABB:
