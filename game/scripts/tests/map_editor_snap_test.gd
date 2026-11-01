@@ -374,6 +374,136 @@ func _run() -> void:
 			and absf(scaled_dims.y - natural.y * 2.0) < 0.05
 			and absf(scaled_dims.x - natural.x * 2.0) < 0.05)
 
+	# =======================================================================
+	# Murs continus façon Tiny Glade / Sims
+	# =======================================================================
+	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
+
+	# 1) Pavage exact : 10 cases = 4 modules de 2,50, sans trou ni débordement.
+	editor._wall_height = 2.0
+	var plan_fit: Dictionary = editor._wall_chain_plan(Vector2(60.0, 60.0), Vector2(70.0, 60.0))
+	_assert("wall_plan_valid", bool(plan_fit.get("valid", false)))
+	_assert("wall_plan_count", int(plan_fit.get("count", 0)) == 4)
+	_assert("wall_plan_exact_fit", is_equal_approx(
+		float(plan_fit.get("segment_len", 0.0)) * float(plan_fit.get("count", 0)), 10.0))
+	_assert("wall_plan_endpoints_exact",
+		(plan_fit["from"] as Vector2).distance_to(Vector2(60.0, 60.0)) < 0.01
+		and (plan_fit["to"] as Vector2).distance_to(Vector2(70.0, 60.0)) < 0.01)
+	editor._create_mesh_wall_chain(Vector2(60.0, 60.0), Vector2(70.0, 60.0))
+	await process_frame
+	var fit_ids: Array = editor.doc.selection()
+	_assert("wall_chain_fit_created", fit_ids.size() == 4)
+	var fit_segments: Array = []
+	for fit_id_variant in fit_ids:
+		fit_segments.append(editor.doc.get_element(str(fit_id_variant)))
+	fit_segments.sort_custom(func(a, b): return float(a.get("x", 0.0)) < float(b.get("x", 0.0)))
+	if fit_segments.size() == 4:
+		var fit_left: Vector2 = editor._wall_endpoints(fit_segments[0])[0]
+		var fit_right: Vector2 = editor._wall_endpoints(fit_segments[3])[1]
+		_assert("wall_chain_fit_edges",
+			fit_left.distance_to(Vector2(60.0, 60.0)) < 0.02
+			and fit_right.distance_to(Vector2(70.0, 60.0)) < 0.02)
+		var continuous := true
+		for i in range(fit_segments.size() - 1):
+			var end_a: Vector2 = editor._wall_endpoints(fit_segments[i])[1]
+			var start_b: Vector2 = editor._wall_endpoints(fit_segments[i + 1])[0]
+			if end_a.distance_to(start_b) > 0.02:
+				continuous = false
+		_assert("wall_chain_no_gap", continuous)
+		_assert("wall_chain_height", is_equal_approx(
+			float((fit_segments[0] as Dictionary).get("sizeY", 0.0)), 2.0))
+
+	# 2) Coin L automatique : un retour à 90° rejoint l'extrémité existante.
+	var corners_before_l := _meshes_with_asset(editor, corner_asset).size()
+	editor._create_mesh_wall_chain(Vector2(70.0, 60.0), Vector2(70.0, 66.0))
+	await process_frame
+	var l_corners := _meshes_with_asset(editor, corner_asset)
+	_assert("wall_l_corner_created", l_corners.size() == corners_before_l + 1)
+	if l_corners.size() == corners_before_l + 1:
+		var l_corner: Dictionary = l_corners[l_corners.size() - 1]
+		_assert("wall_l_corner_at_junction",
+			Vector2(float(l_corner.get("x", 0.0)), float(l_corner.get("y", 0.0))).distance_to(Vector2(70.0, 60.0)) < 0.05)
+		var l_display: Dictionary = l_corner.get("display", {})
+		_assert("wall_l_corner_rotation", is_equal_approx(
+			fposmod(float(l_display.get("rotation", 0.0)), 360.0), 270.0))
+		_assert("wall_l_corner_height", is_equal_approx(float(l_corner.get("sizeY", 0.0)), 2.0))
+
+	# 3) Jonction T : un mur arrive sur le flanc d'un autre, sans coin L inutile.
+	var plan_t: Dictionary = editor._wall_chain_plan(Vector2(64.0, 64.0), Vector2(64.0, 60.2))
+	_assert("wall_t_side_snap", str(plan_t.get("end_snap", "")) == "side")
+	_assert("wall_t_side_point", (plan_t["to"] as Vector2).distance_to(Vector2(64.0, 60.0)) < 0.02)
+	_assert("wall_t_no_corner", editor._wall_chain_corner_specs(plan_t).is_empty())
+	editor._create_mesh_wall_chain(Vector2(64.0, 64.0), Vector2(64.0, 60.2))
+	await process_frame
+	var t_ids: Array = editor.doc.selection()
+	_assert("wall_t_created", t_ids.size() > 0)
+	var t_connected := false
+	for t_id_variant in t_ids:
+		for ep_variant in editor._wall_endpoints(editor.doc.get_element(str(t_id_variant))):
+			if (ep_variant as Vector2).distance_to(Vector2(64.0, 60.0)) < 0.02:
+				t_connected = true
+	_assert("wall_t_junction_connected", t_connected)
+
+	# 4) Pas de doublon : retracer exactement la même rangée ne crée rien.
+	var dup_before := _meshes_with_asset(editor, wall_asset).size()
+	editor._create_mesh_wall_chain(Vector2(60.0, 60.0), Vector2(70.0, 60.0))
+	await process_frame
+	_assert("wall_no_duplicate", _meshes_with_asset(editor, wall_asset).size() == dup_before)
+
+	# 5) Étirement connecté : extrémité opposée fixe, mur aligné voisin suit,
+	#    hauteur et profondeur conservées.
+	editor._wall_height = 2.0
+	editor._create_mesh_wall_chain(Vector2(80.0, 60.0), Vector2(84.0, 60.0))
+	editor._create_mesh_wall_chain(Vector2(84.0, 60.0), Vector2(88.0, 60.0))
+	await process_frame
+	var left_seg: Dictionary = _wall_near(editor, 83.0, 60.0)
+	var right_seg: Dictionary = _wall_near(editor, 85.0, 60.0)
+	_assert("wall_stretch_setup", not left_seg.is_empty() and not right_seg.is_empty())
+	if not left_seg.is_empty() and not right_seg.is_empty():
+		var left_id := str(left_seg.get("id", ""))
+		var right_id := str(right_seg.get("id", ""))
+		editor.doc.select_only(left_id)
+		editor._press_start_grid = Vector2(84.0, 60.0)
+		editor._handle_state = {
+			"id": left_id, "corner": 1,
+			"x": 83.0, "y": 60.0, "w": 2.0, "h": 0.7,
+			"mesh_dims": Vector3(2.0, 2.0, 0.7),
+			"rotation": 0.0, "start_grid": Vector2(84.0, 60.0),
+		}
+		editor._apply_handle_resize(Vector2(84.6, 60.0))
+		var left_after: Dictionary = editor.doc.get_element(left_id)
+		var right_after: Dictionary = editor.doc.get_element(right_id)
+		var left_len := float(left_after.get("sizeX", 0.0))
+		var left_start := float(left_after.get("x", 0.0)) - left_len * 0.5
+		var left_end := float(left_after.get("x", 0.0)) + left_len * 0.5
+		var right_len := float(right_after.get("sizeX", 0.0))
+		var right_start := float(right_after.get("x", 0.0)) - right_len * 0.5
+		var right_end := float(right_after.get("x", 0.0)) + right_len * 0.5
+		_assert("wall_stretch_opposite_fixed", is_equal_approx(left_start, 82.0))
+		_assert("wall_stretch_length", absf(left_len - 2.6) < 0.02)
+		_assert("wall_stretch_connected", absf(left_end - right_start) < 0.02)
+		_assert("wall_stretch_neighbor_follows", absf(right_start - 84.6) < 0.02)
+		_assert("wall_stretch_neighbor_far_fixed", absf(right_end - 86.0) < 0.02)
+		_assert("wall_stretch_height_kept", is_equal_approx(float(left_after.get("sizeY", 0.0)), 2.0))
+		_assert("wall_stretch_neighbor_kept_depth",
+			is_equal_approx(float(right_after.get("sizeZ", 0.0)), float(right_seg.get("sizeZ", 0.0))))
+		editor._handle_state.clear()
+
+	# 6) Feedback de construction : aperçu aimanté + statut qui annonce les modules.
+	editor._set_tool("mesh_wall")
+	var feedback_mods := {"shift": false, "ctrl": false, "alt": false}
+	editor._on_pointer_pressed(Vector2(90.0, 60.0), Vector2(400, 400), MOUSE_BUTTON_LEFT, feedback_mods)
+	editor._on_pointer_moved(Vector2(95.0, 60.0), Vector2(600, 400), feedback_mods)
+	var preview_to: Vector2 = editor._overlay.drag_preview.get("to", Vector2.ZERO)
+	_assert("wall_preview_snapped", preview_to.distance_to(Vector2(95.0, 60.0)) < 0.01)
+	var status_text := str(editor._status_lbl.text) if editor._status_lbl != null else ""
+	_assert("wall_feedback_status", status_text.find("Mur 3D") >= 0 and status_text.find("segment") >= 0)
+	var feedback_walls_before := _meshes_with_asset(editor, wall_asset).size()
+	editor._on_pointer_released(Vector2(95.0, 60.0), Vector2(600, 400), MOUSE_BUTTON_LEFT, feedback_mods)
+	await process_frame
+	_assert("wall_feedback_created", _meshes_with_asset(editor, wall_asset).size() > feedback_walls_before)
+	editor._set_tool("select")
+
 	editor.queue_free()
 	await process_frame
 	if _failed:
@@ -390,6 +520,17 @@ func _meshes_with_asset(editor: Control, asset_path: String) -> Array:
 		if str(elem.get("kind", "")) == "mesh" and str(elem.get("asset", "")) == asset_path:
 			out.append(elem)
 	return out
+
+## Segment de mur 3D droit dont le centre est proche de (x, y).
+func _wall_near(editor: Control, x: float, y: float, tolerance: float = 0.4) -> Dictionary:
+	for elem_variant in editor.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		if absf(float(elem.get("x", 0.0)) - x) <= tolerance \
+				and absf(float(elem.get("y", 0.0)) - y) <= tolerance:
+			return elem
+	return {}
 
 func _assert(label: String, condition: bool) -> void:
 	if condition:

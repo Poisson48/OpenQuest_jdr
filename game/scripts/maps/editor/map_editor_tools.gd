@@ -98,11 +98,11 @@ const DEFS := [
 	},
 	{
 		"id": MESH_WALL, "icon": "🏗", "label": "Mur 3D", "shortcut": "", "group": "place",
-		"hint": "Clic-glisser : rangée de murs 3D modulaires orientés, hauteur réglable. Les extrémités s'aimantent aux murs existants ; les segments se recouvrent aux angles.",
+		"hint": "Clic-glisser : rangée de murs 3D continus (pavage exact, pas de trou). Les extrémités s'aimantent aux murs existants : prolongement, coin L automatique, jonction T sur un flanc. Aucun module déjà posé n'est dupliqué. Poignées : étirer une extrémité (l'opposée reste fixe), les murs alignés suivent.",
 	},
 	{
 		"id": ROOM_3D, "icon": "🏠", "label": "Pièce 3D", "shortcut": "", "group": "place",
-		"hint": "Clic-glisser : construire une pièce fermée (4 murs + coins). Base de maison façon Sims.",
+		"hint": "Clic-glisser : pièce fermée (4 murs raccordés + coins L automatiques). Base de maison façon Sims : les murs se collent aux murs voisins.",
 	},
 	{
 		"id": ROOF_3D, "icon": "🛖", "label": "Toit 3D", "shortcut": "", "group": "place",
@@ -332,6 +332,7 @@ const SHORTCUTS := [
 	{"keys": "Alt+glisser", "action": "Dupliquer en glissant"},
 	{"keys": "Page ↑ / ↓", "action": "Avancer / reculer d'un rang"},
 	{"keys": "F", "action": "Recadrer sur la sélection"},
+	{"keys": "Poignée de mur 3D", "action": "Étirer une extrémité : l'opposée reste fixe, les murs alignés raccordés suivent, la hauteur est conservée"},
 	{"keys": "V H 1..0 B G U R T L M K E O", "action": "Sélection directe d'un outil"},
 ]
 

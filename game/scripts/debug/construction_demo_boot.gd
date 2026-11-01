@@ -103,6 +103,20 @@ func _ready() -> void:
 	editor._create_mesh_wall_chain(Vector2(3.0, 10.0), Vector2(9.0, 10.0))
 	editor._create_mesh_wall_chain(Vector2(3.0, 10.0), Vector2(3.0, 14.0))
 
+	# --- 5. Enceinte raccordée façon Tiny Glade ------------------------------
+	# Triangle de murs continus : coins L automatiques, prolongement collé,
+	# cloison en T sur le flanc d'une rangée, ouverture de fenêtre réelle.
+	editor._wall_height = 2.3
+	editor._create_mesh_wall_chain(Vector2(17.0, 15.0), Vector2(22.0, 15.0))
+	editor._create_mesh_wall_chain(Vector2(22.0, 15.0), Vector2(22.0, 17.0))
+	editor._create_mesh_wall_chain(Vector2(22.0, 17.0), Vector2(17.0, 17.0))
+	# Cloison en T : s'aimante sur le flanc de la rangée du haut.
+	editor._create_mesh_wall_chain(Vector2(20.75, 13.0), Vector2(20.75, 15.2))
+	# Fenêtre réelle dans le mur du haut, porte au centre du mur du bas.
+	editor._insert_window(Vector2(18.25, 15.0))
+	editor._insert_door(Vector2(19.5, 17.0))
+	editor._wall_height = 1.3
+
 	# --- Clôture, chemin, matériaux de chantier -------------------------------
 	editor._fence_asset = "res://assets/objects3d/props/barriere.glb"
 	editor._create_mesh_fence(Vector2(2.0, 15.5), Vector2(9.0, 15.5))
@@ -142,7 +156,7 @@ func _ready() -> void:
 	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 21.0, 16.0))
 
 	var hint := Label.new()
-	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier · 1 intérieur lié (porte de la maison de gauche, à tester en session). Palette « Placer » à gauche."
+	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier en cours · 1 enceinte raccordée (coins L et jonction T automatiques, fenêtre et porte percées) · 1 intérieur lié (porte de la maison de gauche, à tester en session). Palette « Placer » à gauche. Poignée sur un mur : étirer une extrémité, les murs alignés suivent."
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_top = 44
 	hint.offset_left = 240
@@ -155,7 +169,17 @@ func _ready() -> void:
 	hint.add_theme_constant_override("outline_size", 5)
 	hint.add_theme_font_size_override("font_size", 14)
 	add_child(hint)
-	print("[CONSTRUCTION DEMO] Carte prête : ", map_id)
+	var wall_count := 0
+	var corner_count := 0
+	for elem_variant in editor.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		var asset_path := str(elem.get("asset", ""))
+		if asset_path.ends_with("mur.glb"):
+			wall_count += 1
+		elif asset_path.ends_with("mur_coin.glb"):
+			corner_count += 1
+	print("[CONSTRUCTION DEMO] Carte prête : ", map_id,
+		" · murs 3D : ", wall_count, " · coins L : ", corner_count, " (réseau continu)")
 
 func _place_prop(editor: Control, asset_name: String, x: float, y: float, rotation: float) -> void:
 	var path := "res://assets/objects3d/props/%s.glb" % asset_name

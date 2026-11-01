@@ -62,6 +62,21 @@ const FURNITURE_PRESETS := [	{"id": "salle", "label": "Salle commune", "items": 
 	]},
 ]
 
+## Murs 3D modulaires : le module « mur » fait ~2,36 cases, le coin L ~2,1 × 1,7.
+## Le pavage d'une rangée est exact (dernier module ajusté) pour que les
+## extrémités tombent pile sur les voisines, quel que soit le tracé.
+const WALL_ASSET := "res://assets/objects3d/buildings/mur.glb"
+const WALL_CORNER_ASSET := "res://assets/objects3d/buildings/mur_coin.glb"
+## Rayon d'accroche d'une extrémité de mur sur le réseau existant (cases).
+const WALL_SNAP_RADIUS := 0.85
+## Tolérance pour considérer que deux murs partagent une extrémité (cases).
+const WALL_JOIN_EPS := 0.4
+## Longueur minimale d'un module / d'une rangée de murs (cases).
+const WALL_MIN_LENGTH := 0.5
+const WALL_MIN_SEGMENT := 0.4
+## Longueur maximale d'un module étiré à la poignée (garde-fou, cases).
+const WALL_MAX_SEGMENT := 120.0
+
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
 const SAVE_INTERVAL := "interval"
@@ -914,10 +929,14 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		return
 	if ToolsScript.is_drag_tool(_tool):
 		_press_mode = "draw"
+		var preview_from := _snap(grid)
+		# Mur 3D : l'aperçu part déjà de l'extrémité accrochée au réseau.
+		if _tool == ToolsScript.MESH_WALL:
+			preview_from = _snap_wall_point(preview_from).get("point", preview_from)
 		_overlay.drag_preview = {
 			"mode": _drag_preview_mode(),
-			"from": _snap(grid),
-			"to": _snap(grid),
+			"from": preview_from,
+			"to": preview_from,
 		}
 		_refresh_overlay()
 		return
@@ -991,6 +1010,12 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 				"rotation": float(display.get("rotation", 0.0)),
 				"start_grid": grid,
 			}
+			# Mur 3D : les murs raccordés partagent l'extrémité tirée, ils doivent
+			# donc être commités/revertis avec lui pendant le drag.
+			if str(handle_elem.get("kind", "")) == DocumentScript.KIND_MESH and _is_wall_mesh(handle_elem):
+				for attached_id in _wall_attached_ids(handle_elem):
+					if not _drag_ids.has(attached_id):
+						_drag_ids.append(attached_id)
 			_refresh_overlay()
 			return
 
@@ -1097,6 +1122,12 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 			if bool(mods.get("shift", false)) and _tool == ToolsScript.WALL:
 				to = _constrain_axis(_press_start_grid, to)
 			_overlay.drag_preview["to"] = to
+			# Mur 3D : aperçu aimanté sur le réseau + retour de construction.
+			if _tool == ToolsScript.MESH_WALL:
+				var preview_from: Vector2 = _overlay.drag_preview.get("from", _press_start_grid)
+				var snapped_to := _snap_wall_point(to)
+				_overlay.drag_preview["to"] = snapped_to.get("point", to)
+				_update_wall_draw_status(preview_from, snapped_to.get("point", to))
 		"paint":
 			if _tool == ToolsScript.PAINT:
 				_paint_terrain(grid)
@@ -1185,6 +1216,11 @@ func _apply_handle_resize(grid: Vector2) -> void:
 	if _handle_state.is_empty():
 		return
 	var id := str(_handle_state.get("id", ""))
+	var resized_elem: Dictionary = doc.get_element(id)
+	# Mur 3D : étirement le long de l'axe, extrémité opposée fixe et raccords suivis.
+	if _is_wall_mesh(resized_elem):
+		_apply_wall_handle_resize(id, resized_elem, grid)
+		return
 	var center := Vector2(float(_handle_state.get("x", 0.0)), float(_handle_state.get("y", 0.0)))
 	var start: Vector2 = _handle_state.get("start_grid", _press_start_grid)
 	var start_dist := maxf(0.15, start.distance_to(center))
@@ -1192,7 +1228,7 @@ func _apply_handle_resize(grid: Vector2) -> void:
 	var w := maxf(0.25, float(_handle_state.get("w", 1.0)) * scale)
 	var h := maxf(0.25, float(_handle_state.get("h", 1.0)) * scale)
 	var fields: Dictionary = {"w": w, "h": h}
-	var kind := str(doc.get_element(id).get("kind", ""))
+	var kind := str(resized_elem.get("kind", ""))
 	if kind == DocumentScript.KIND_MESH:
 		# Objet 3D : redimensionnement uniforme à partir des dimensions réelles
 		# (pas de la case occupée) pour ne pas écraser la hauteur d'un objet posé
@@ -1207,7 +1243,7 @@ func _apply_handle_resize(grid: Vector2) -> void:
 		}
 		doc.set_live_fields(id, fields)
 		return
-	if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
+	if str(resized_elem.get("kind", "")) == DocumentScript.KIND_LIGHT:
 		var radius := maxf(0.5, maxf(w, h) * 0.5)
 		fields["radius"] = radius
 		doc.set_live_fields(id, fields)
@@ -1240,6 +1276,9 @@ func _drag_preview_mode() -> String:
 
 func _finish_draw(to: Vector2) -> void:
 	var from: Vector2 = _press_start_grid
+	# Mur 3D : le tracé part de l'extrémité déjà accrochée montrée par l'aperçu.
+	if _tool == ToolsScript.MESH_WALL and _overlay.drag_preview.has("from"):
+		from = _overlay.drag_preview["from"]
 	if _overlay.drag_preview.has("to"):
 		to = _overlay.drag_preview["to"]
 	if _tool == ToolsScript.AREA:
@@ -1470,66 +1509,285 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 	}, DocumentScript.KIND_WALL, "Mur")
 	doc.select_only(id)
 
-## Construction « Sims » : une rangée de murs 3D modulaires le long du tracé.
-## Les segments suivent l'angle du trait et s'adaptent au terrain.
+# ===========================================================================
+# Murs 3D continus (façon Tiny Glade / Sims)
+# ===========================================================================
+#
+# Principe : un tracé de mur est toujours posé **sur** le réseau existant.
+#   1. Chaque extrémité s'aimante à l'extrémité d'un mur (prolongement ou coin L)
+#      ou sur son flanc (jonction T) ;
+#   2. la rangée est pavée exactement entre les deux extrémités aimantées : le
+#      module vaut `longueur / nombre`, donc pas de trou ni de débordement ;
+#   3. un coin L (`mur_coin.glb`) est posé automatiquement aux jonctions qui
+#      changent de direction, avec la même convention de rotation que la Pièce 3D ;
+#   4. un module qui recouvrirait un mur déjà posé est ignoré (pas de doublon).
+
+func _is_wall_mesh(elem: Dictionary) -> bool:
+	if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+		return false
+	return str(elem.get("asset", "")).ends_with("mur.glb")
+
+func _wall_length(elem: Dictionary) -> float:
+	var length := float(elem.get("sizeX", 0.0))
+	if length > 0.0:
+		return length
+	return maxf(0.5, _mesh_bounds_cells(str(elem.get("asset", WALL_ASSET)), 1.0).x)
+
+func _wall_rotation_rad(elem: Dictionary) -> float:
+	var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+	return deg_to_rad(float(display.get("rotation", 0.0)))
+
+## Extrémités monde `[a, b]` d'un module de mur.
+func _wall_endpoints(elem: Dictionary) -> Array:
+	var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+	var rad := _wall_rotation_rad(elem)
+	var along := Vector2(cos(rad), sin(rad))
+	var half := _wall_length(elem) * 0.5
+	return [center - along * half, center + along * half]
+
+## Aimantation d'un point sur le réseau de murs 3D.
+## Renvoie `{point, kind: "free"|"endpoint"|"side", id, wall, host_dir}`.
+## `host_dir` pointe depuis la jonction vers le centre du mur hôte.
+func _snap_wall_point(point: Vector2, exclude_ids: Array = []) -> Dictionary:
+	var best := {
+		"point": point, "kind": "free", "id": "",
+		"wall": {}, "host_dir": Vector2.ZERO,
+	}
+	var best_distance := WALL_SNAP_RADIUS
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if not _is_wall_mesh(elem):
+			continue
+		var elem_id := str(elem.get("id", ""))
+		if exclude_ids.has(elem_id):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var rad := _wall_rotation_rad(elem)
+		var along := Vector2(cos(rad), sin(rad))
+		# 1) Extrémité : prolongement (aligné) ou coin L (changement de direction).
+		for endpoint_variant in _wall_endpoints(elem):
+			var endpoint: Vector2 = endpoint_variant
+			var distance := point.distance_to(endpoint)
+			if distance < best_distance:
+				best_distance = distance
+				var host_dir := along if (center - endpoint).dot(along) >= 0.0 else -along
+				best = {
+					"point": endpoint, "kind": "endpoint", "id": elem_id,
+					"wall": elem, "host_dir": host_dir,
+				}
+		# 2) Flanc : jonction en T (le point tombe sur la ligne médiane du mur).
+		var half_length := _wall_length(elem) * 0.5
+		var offset := point - center
+		var along_offset := clampf(offset.dot(along), -half_length, half_length)
+		var side_point := center + along * along_offset
+		var side_distance := point.distance_to(side_point)
+		if side_distance < best_distance:
+			best_distance = side_distance
+			best = {
+				"point": side_point, "kind": "side", "id": elem_id,
+				"wall": elem, "host_dir": along,
+			}
+	return best
+
 func _snap_wall_endpoint(point: Vector2) -> Vector2:
-	var best := point
-	var best_distance := 0.85
+	return _snap_wall_point(point).get("point", point)
+
+## Plan d'une rangée : extrémités aimantées + pavage exact. Renvoie `valid=false`
+## si le tracé est trop court. Utilisé aussi par l'aperçu et le statut.
+func _wall_chain_plan(from: Vector2, to: Vector2) -> Dictionary:
+	var snap_from := _snap_wall_point(from)
+	var snap_to := _snap_wall_point(to)
+	var a: Vector2 = snap_from.get("point", from)
+	var b: Vector2 = snap_to.get("point", to)
+	var delta := b - a
+	var total := delta.length()
+	var bounds := _mesh_bounds_cells(WALL_ASSET, 1.0)
+	var nominal := maxf(1.0, bounds.x)
+	var plan := {
+		"valid": total >= WALL_MIN_LENGTH,
+		"from": a, "to": b, "delta": delta, "total": total,
+		"count": 1, "segment_len": total,
+		"nominal_len": nominal, "depth": maxf(0.3, bounds.z),
+		"rotation": rad_to_deg(atan2(delta.y, delta.x)),
+		"start_snap": str(snap_from.get("kind", "free")),
+		"end_snap": str(snap_to.get("kind", "free")),
+		"start_wall": snap_from.get("wall", {}),
+		"end_wall": snap_to.get("wall", {}),
+		"start_host_dir": snap_from.get("host_dir", Vector2.ZERO),
+		"end_host_dir": snap_to.get("host_dir", Vector2.ZERO),
+	}
+	if not bool(plan["valid"]):
+		return plan
+	var count := maxi(1, int(round(total / nominal)))
+	plan["count"] = count
+	plan["segment_len"] = total / float(count)
+	return plan
+
+## Coins L à poser pour un plan : uniquement quand une extrémité s'aimante sur
+## l'extrémité d'un mur hôte **non aligné** (un prolongement ne demande pas de coin).
+func _wall_chain_corner_specs(plan: Dictionary) -> Array:
+	var specs: Array = []
+	if not bool(plan.get("valid", false)):
+		return specs
+	var delta: Vector2 = plan.get("delta", Vector2.ZERO)
+	if delta.length() < 0.001:
+		return specs
+	var axis := delta.normalized()
+	if str(plan.get("start_snap", "")) == "endpoint" and not (plan.get("start_wall", {}) as Dictionary).is_empty():
+		var start_dir: Vector2 = plan.get("start_host_dir", Vector2.ZERO)
+		if start_dir.length() > 0.1 and absf(axis.dot(start_dir)) < 0.5:
+			specs.append({"point": plan["from"], "dir_a": axis, "dir_b": start_dir})
+	if str(plan.get("end_snap", "")) == "endpoint" and not (plan.get("end_wall", {}) as Dictionary).is_empty():
+		var end_dir: Vector2 = plan.get("end_host_dir", Vector2.ZERO)
+		if end_dir.length() > 0.1 and absf(axis.dot(end_dir)) < 0.5:
+			specs.append({"point": plan["to"], "dir_a": -axis, "dir_b": end_dir})
+	return specs
+
+## Rotation du coin L (`mur_coin.glb`) pour couvrir deux directions sortantes.
+## Au repos (rotation 0) ses deux bras regardent vers -X et -Y, comme la Pièce 3D.
+func _wall_corner_rotation(dir_a: Vector2, dir_b: Vector2) -> float:
+	var candidates: Array = [0.0, 90.0, 180.0, 270.0]
+	if dir_a.length() > 0.01:
+		candidates.append(rad_to_deg(atan2(-dir_a.y, -dir_a.x)))
+	if dir_b.length() > 0.01:
+		candidates.append(rad_to_deg(atan2(-dir_b.y, -dir_b.x)))
+	var best_rotation := 0.0
+	var best_score := -10.0
+	for candidate_variant in candidates:
+		var rotation := float(candidate_variant)
+		var rad := deg_to_rad(rotation)
+		var arm_x := Vector2(-1.0, 0.0).rotated(rad)
+		var arm_y := Vector2(0.0, -1.0).rotated(rad)
+		var score := maxf(arm_x.dot(dir_a) + arm_y.dot(dir_b),
+			arm_x.dot(dir_b) + arm_y.dot(dir_a))
+		if score > best_score:
+			best_score = score
+			best_rotation = rotation
+	return best_rotation
+
+## Pose (ou réutilise) un coin de mur à une jonction. Renvoie son id.
+func _add_wall_junction_corner(point: Vector2, dir_a: Vector2, dir_b: Vector2) -> String:
 	for elem_variant in doc.elements_sorted():
 		var elem: Dictionary = elem_variant
 		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
 			continue
-		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+		if not str(elem.get("asset", "")).ends_with("mur_coin.glb"):
 			continue
-		var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
-		var rotation := deg_to_rad(float(display.get("rotation", 0.0)))
-		var along := Vector2(cos(rotation), sin(rotation))
-		var length := float(elem.get("sizeX", 0.0))
-		if length <= 0.0:
-			length = _mesh_bounds_cells(str(elem.get("asset", "")), 1.0).x
 		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
-		for side in [-1.0, 1.0]:
-			var endpoint := center + along * (float(side) * length * 0.5)
-			var distance := point.distance_to(endpoint)
-			if distance < best_distance:
-				best_distance = distance
-				best = endpoint
-	return best
+		if center.distance_to(point) <= 0.2:
+			return str(elem.get("id", ""))
+	var bounds := _mesh_bounds_cells(WALL_CORNER_ASSET, 1.0)
+	return doc.add_element({
+		"x": point.x, "y": point.y,
+		"w": bounds.x, "h": bounds.z,
+		"sizeX": bounds.x, "sizeY": _wall_height, "sizeZ": bounds.z,
+		"asset": WALL_CORNER_ASSET,
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": "Coin de mur 3D", "layer": 1,
+		"display": {"rotation": _wall_corner_rotation(dir_a, dir_b), "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Coin de mur 3D")
 
+## Retour de construction pendant le tracé : nombre de modules, longueur,
+## accroches actives et coin L prévu. Branché sur le statut et l'aperçu.
+func _update_wall_draw_status(from: Vector2, to: Vector2) -> void:
+	var plan := _wall_chain_plan(from, to)
+	if not bool(plan.get("valid", false)):
+		_set_status("Mur 3D : tracé trop court (%.2f case)." % (to - from).length())
+		return
+	var snaps: Array = []
+	if str(plan.get("start_snap", "free")) != "free":
+		snaps.append("accroche départ")
+	if str(plan.get("end_snap", "free")) != "free":
+		snaps.append("accroche fin")
+	var corners := _wall_chain_corner_specs(plan)
+	var extra := ""
+	if not snaps.is_empty():
+		extra += " · " + ", ".join(snaps)
+	if not corners.is_empty():
+		extra += " · coin L"
+	_set_status("Mur 3D : %d segment(s) de %.2f · hauteur %.2f%s" % [
+		int(plan["count"]), float(plan["segment_len"]), _wall_height, extra])
+
+## Vrai si un module de mur déjà posé recouvre ce segment (évite les doublons).
+## Un mur de hauteur différente n'est pas considéré comme un doublon : on peut
+## volontairement superposer un module plus haut ou plus bas au même endroit.
+func _wall_segment_overlaps(center: Vector2, rotation_deg: float, length: float,
+		height: float = -1.0) -> bool:
+	var rad := deg_to_rad(rotation_deg)
+	var axis := Vector2(cos(rad), sin(rad))
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if not _is_wall_mesh(elem):
+			continue
+		if height >= 0.0 and absf(float(elem.get("sizeY", 0.0)) - height) > 0.05:
+			continue
+		var other_axis := Vector2(cos(_wall_rotation_rad(elem)), sin(_wall_rotation_rad(elem)))
+		if absf(other_axis.dot(axis)) < 0.98:
+			continue
+		var other_center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var offset := center - other_center
+		var along := offset.dot(axis)
+		var perpendicular := absf(offset.dot(Vector2(-axis.y, axis.x)))
+		if perpendicular > 0.2:
+			continue
+		var other_length := _wall_length(elem)
+		var overlap := minf(along + length * 0.5, other_length * 0.5) \
+			- maxf(along - length * 0.5, -other_length * 0.5)
+		if overlap > 0.2:
+			return true
+	return false
+
+## Construction « Sims » : une rangée de murs 3D modulaires le long du tracé.
+## Les extrémités s'aimantent au réseau existant, la rangée est pavée exactement
+## et les coins L sont posés automatiquement.
 func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
-	from = _snap_wall_endpoint(from)
-	to = _snap_wall_endpoint(to)
-	var delta := to - from
-	var total := delta.length()
-	if total < 0.5:
+	var plan := _wall_chain_plan(from, to)
+	if not bool(plan.get("valid", false)):
 		_set_status("Tracé de mur trop court.")
 		return
-	var asset := "res://assets/objects3d/buildings/mur.glb"
-	var bounds := _mesh_bounds_cells(asset, 1.0)
-	var segment_len := maxf(1.0, bounds.x)
-	var depth := maxf(0.3, bounds.z)
-	var rotation := rad_to_deg(atan2(delta.y, delta.x))
-	var count := maxi(1, int(round(total / segment_len)))
+	var segment_len := float(plan["segment_len"])
+	var depth := float(plan["depth"])
+	var rotation := float(plan["rotation"])
+	var count := int(plan["count"])
+	var start: Vector2 = plan["from"]
+	var delta: Vector2 = plan["to"] - start
 	var ids: Array = []
+	var skipped := 0
 	doc.begin_transaction()
 	for index in range(count):
 		var t := (float(index) + 0.5) / float(count)
-		var pos := from + delta * t
+		var pos := start + delta * t
+		if _wall_segment_overlaps(pos, rotation, segment_len, _wall_height):
+			skipped += 1
+			continue
 		var id: String = doc.add_element({
 			"x": pos.x, "y": pos.y,
 			"w": segment_len, "h": depth,
 			"sizeX": segment_len, "sizeY": _wall_height, "sizeZ": depth,
-			"asset": asset,
+			"asset": WALL_ASSET,
 			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
 			"label": "Mur 3D", "layer": 1,
 			"display": {"rotation": rotation, "scale": 1.0},
 		}, DocumentScript.KIND_MESH, "Mur 3D")
 		ids.append(id)
+	var corner_specs := _wall_chain_corner_specs(plan)
+	for corner_variant in corner_specs:
+		var corner: Dictionary = corner_variant
+		var corner_id := _add_wall_junction_corner(
+			corner["point"], corner["dir_a"], corner["dir_b"])
+		if not corner_id.is_empty() and not ids.has(corner_id):
+			ids.append(corner_id)
 	doc.set_selection(ids)
 	doc.commit_transaction()
-	_set_status("Mur 3D : %d segment(s) de %.2f case(s), hauteur %.2f." % [count, segment_len, _wall_height])
+	var parts: Array = ["%d segment(s)" % (count - skipped)]
+	if not corner_specs.is_empty():
+		parts.append("%d coin(s) L" % corner_specs.size())
+	if skipped > 0:
+		parts.append("%d déjà posé(s)" % skipped)
+	_set_status("Mur 3D : %s · hauteur %.2f." % [" · ".join(parts), _wall_height])
 
-## Construit une pièce fermée : quatre rangées de murs qui se recouvrent aux angles.
+## Construit une pièce fermée : quatre rangées raccordées. Les coins L sont
+## posés automatiquement par les jonctions (plus de coins manuels en double).
 func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
@@ -1547,28 +1805,116 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	ids.append_array(doc.selection())
 	_create_mesh_wall_chain(Vector2(x0, y1), Vector2(x0, y0))
 	ids.append_array(doc.selection())
-	# Coins : rotations choisies pour que les bras rentrent dans la pièce.
-	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
-	var corner_bounds := _mesh_bounds_cells(corner_asset, 1.0)
-	var corners := [
-		[Vector2(x0, y0), 180.0], [Vector2(x1, y0), 270.0],
-		[Vector2(x1, y1), 0.0], [Vector2(x0, y1), 90.0],
-	]
-	for corner_variant in corners:
-		var corner: Array = corner_variant
-		var pos: Vector2 = corner[0]
-		var id: String = doc.add_element({
-			"x": pos.x, "y": pos.y,
-			"w": corner_bounds.x, "h": corner_bounds.z,
-			"sizeX": corner_bounds.x, "sizeY": _wall_height, "sizeZ": corner_bounds.z,
-			"asset": corner_asset,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
-			"label": "Coin de mur 3D", "layer": 1,
-			"display": {"rotation": float(corner[1]), "scale": 1.0},
-		}, DocumentScript.KIND_MESH, "Coin de mur 3D")
-		ids.append(id)
 	doc.set_selection(ids)
-	_set_status("Pièce 3D construite : 4 murs + 4 coins.")
+	_set_status("Pièce 3D construite : murs raccordés et coins L automatiques.")
+
+# ===========================================================================
+# Édition directe des murs (poignées)
+# ===========================================================================
+
+## Murs dont une extrémité touche une extrémité de `elem` (raccords partagés).
+func _wall_attached_ids(elem: Dictionary) -> Array:
+	var ids: Array = []
+	var self_id := str(elem.get("id", ""))
+	for endpoint_variant in _wall_endpoints(elem):
+		var endpoint: Vector2 = endpoint_variant
+		for other_variant in doc.elements_sorted():
+			var other: Dictionary = other_variant
+			if not _is_wall_mesh(other):
+				continue
+			var other_id := str(other.get("id", ""))
+			if other_id == self_id or ids.has(other_id):
+				continue
+			for other_end_variant in _wall_endpoints(other):
+				if (other_end_variant as Vector2).distance_to(endpoint) <= WALL_JOIN_EPS:
+					ids.append(other_id)
+					break
+	return ids
+
+## Étirement d'un mur à la poignée : l'extrémité opposée reste fixe (au lieu de
+## dilater les deux), l'extrémité tirée s'aimante au réseau et les murs alignés
+## qui partagent cette extrémité suivent (prolongement connecté). La hauteur et
+## l'épaisseur du mur sont préservées : les raccords ne cassent pas.
+func _apply_wall_handle_resize(id: String, elem: Dictionary, grid: Vector2) -> void:
+	var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+	var rad := _wall_rotation_rad(elem)
+	var axis := Vector2(cos(rad), sin(rad))
+	var length := _wall_length(elem)
+	var natural := _mesh_bounds_cells(str(elem.get("asset", WALL_ASSET)), 1.0)
+	var height := float(elem.get("sizeY", 0.0))
+	if height <= 0.0:
+		height = natural.y
+	var depth := float(elem.get("sizeZ", 0.0))
+	if depth <= 0.0:
+		depth = maxf(0.3, natural.z)
+	var corner := clampi(int(_handle_state.get("corner", 0)), 0, 3)
+	var half_w := length * 0.5
+	var half_h := maxf(0.1, float(elem.get("h", depth)) * 0.5)
+	var corner_offsets := [
+		Vector2(-half_w, -half_h), Vector2(half_w, -half_h),
+		Vector2(half_w, half_h), Vector2(-half_w, half_h),
+	]
+	var local_corner: Vector2 = (corner_offsets[corner] as Vector2).rotated(rad)
+	var side := 1.0 if local_corner.dot(axis) >= 0.0 else -1.0
+	var pull_dir := axis * side
+	var fixed_end := center - pull_dir * length * 0.5
+	var old_end := center + pull_dir * length * 0.5
+	var attached := _wall_attached_ids(elem)
+	var skip_ids: Array = [id]
+	skip_ids.append_array(attached)
+	var new_length := clampf((grid - fixed_end).dot(pull_dir),
+		WALL_MIN_SEGMENT, WALL_MAX_SEGMENT)
+	var snap := _snap_wall_point(fixed_end + pull_dir * new_length, skip_ids)
+	var snapped_type := str(snap.get("kind", "free"))
+	if snapped_type != "free":
+		new_length = clampf((snap.get("point", fixed_end) - fixed_end).dot(pull_dir),
+			WALL_MIN_SEGMENT, WALL_MAX_SEGMENT)
+	var new_end := fixed_end + pull_dir * new_length
+	var new_center := fixed_end + pull_dir * new_length * 0.5
+	doc.set_live_fields(id, {
+		"x": new_center.x, "y": new_center.y,
+		"w": new_length, "sizeX": new_length,
+		"sizeY": height, "sizeZ": depth,
+	})
+	# Prolongement connecté : les murs alignés partagent l'extrémité déplacée.
+	for attached_variant in attached:
+		_move_attached_wall(str(attached_variant), old_end, new_end, id)
+	var note := " · accroche" if snapped_type != "free" else ""
+	if not attached.is_empty():
+		note += " · %d mur(s) raccordé(s)" % attached.size()
+	_set_status("Mur : %.2f case(s), hauteur %.2f%s." % [new_length, height, note])
+
+## Déplace l'extrémité d'un mur voisin aligné (prolongement/raccourci connecté).
+func _move_attached_wall(wall_id: String, old_point: Vector2, new_point: Vector2, self_id: String) -> void:
+	var elem: Dictionary = doc.get_element(wall_id)
+	if elem.is_empty() or not _is_wall_mesh(elem):
+		return
+	var self_elem: Dictionary = doc.get_element(self_id)
+	var self_axis := Vector2(cos(_wall_rotation_rad(self_elem)), sin(_wall_rotation_rad(self_elem)))
+	var endpoints := _wall_endpoints(elem)
+	var near_index := -1
+	for index in range(2):
+		if (endpoints[index] as Vector2).distance_to(old_point) <= WALL_JOIN_EPS:
+			near_index = index
+			break
+	if near_index < 0:
+		return
+	var axis := Vector2(cos(_wall_rotation_rad(elem)), sin(_wall_rotation_rad(elem)))
+	# Seuls les murs quasi alignés suivent : un mur perpendiculaire garde son
+	# orientation (le raccord en angle sera retravaillé par les coins).
+	if absf(axis.dot(self_axis)) < 0.9:
+		return
+	var other_end: Vector2 = endpoints[1 - near_index]
+	var near_end: Vector2 = endpoints[near_index]
+	var toward_near := 1.0 if (near_end - other_end).dot(axis) >= 0.0 else -1.0
+	var direction := axis * toward_near
+	var new_length := clampf((new_point - other_end).dot(direction),
+		WALL_MIN_SEGMENT, WALL_MAX_SEGMENT)
+	var new_center := other_end + direction * new_length * 0.5
+	doc.set_live_fields(wall_id, {
+		"x": new_center.x, "y": new_center.y,
+		"w": new_length, "sizeX": new_length,
+	})
 
 ## Maison rapide : enchaîne murs, dallage, toit et porte.
 func _create_mesh_house(from: Vector2, to: Vector2) -> void:
@@ -1588,7 +1934,7 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))
 	_roof_height = previous_roof
 	_set_status("Maison rapide construite : murs, dallage, toit et porte.")
-## qui laissent une ouverture, puis la porte est posée dans le passage.
+
 ## Chemin de terre : peint les cases le long du tracé, largeur réglable.
 func _create_path(from: Vector2, to: Vector2) -> void:
 	var w := int(doc.map_data.get("width", 0))
@@ -1623,10 +1969,12 @@ func _create_mesh_fence(from: Vector2, to: Vector2) -> void:
 		_set_status("Clôture : tracé trop court.")
 		return
 	var bounds := _mesh_bounds_cells(_fence_asset, 1.0)
-	var segment_len := maxf(1.0, bounds.x)
+	var nominal_len := maxf(1.0, bounds.x)
 	var depth := maxf(0.25, bounds.z)
 	var rotation := rad_to_deg(atan2(delta.y, delta.x))
-	var count := maxi(1, int(round(total / segment_len)))
+	var count := maxi(1, int(round(total / nominal_len)))
+	# Pavage exact : la clôture couvre le tracé sans trou ni débordement.
+	var segment_len := total / float(count)
 	var ids: Array = []
 	doc.begin_transaction()
 	for index in range(count):
@@ -3470,6 +3818,23 @@ func _refresh_ghost() -> void:
 			ghost["color"] = Color(1.0, 0.72, 0.35, 0.9)
 			ghost["radius"] = _light_place_radius
 		_overlay.ghost = ghost
+	elif _tool == ToolsScript.MESH_WALL or _tool == ToolsScript.ROOM_3D \
+			or _tool == ToolsScript.HOUSE_3D:
+		# Feedback de construction : matérialise le point d'accroche au réseau
+		# (extrémité ou flanc) quand le curseur en approche un.
+		var wall_snap := _snap_wall_point(_snap(_overlay.hover_grid))
+		var snap_kind := str(wall_snap.get("kind", "free"))
+		if snap_kind != "free":
+			var snap_point: Vector2 = wall_snap.get("point", _overlay.hover_grid)
+			_overlay.ghost = {
+				"x": snap_point.x, "y": snap_point.y,
+				"w": 0.8, "h": 0.8,
+				"icon": "🧱", "kind": "wall_snap",
+				"color": Color(0.95, 0.8, 0.4, 0.95),
+				"snapped": true,
+			}
+		else:
+			_overlay.ghost.clear()
 	elif _tool == ToolsScript.TEMPLATE and not _selected_template.is_empty():
 		var footprint: Vector2 = TemplatesScript.footprint(_selected_template, _template_rotation)
 		_overlay.ghost = {
@@ -4397,6 +4762,19 @@ func _update_status_position(grid: Vector2) -> void:
 func _update_status_selection() -> void:
 	if _status_lbl == null:
 		return
+	var selected: Array = doc.selection()
+	if selected.size() == 1:
+		var elem: Dictionary = doc.get_element(str(selected[0]))
+		# Feedback d'édition directe : dimensions du mur et geste attendu.
+		if _is_wall_mesh(elem):
+			_status_lbl.text = "Mur 3D : %.2f case(s) de long · hauteur %.2f · poignées : étirer une extrémité" % [
+				_wall_length(elem), float(elem.get("sizeY", 0.0))]
+			return
+		if str(elem.get("kind", "")) == DocumentScript.KIND_MESH:
+			var dims: Vector3 = _mesh_actual_dimensions(elem)
+			_status_lbl.text = "Objet 3D : %.2f × %.2f × %.2f · poignées : redimensionner / pivoter" % [
+				dims.x, dims.z, dims.y]
+			return
 	_status_lbl.text = "%d élément(s) sélectionné(s)" % doc.selection_size()
 
 func _update_hint() -> void:
