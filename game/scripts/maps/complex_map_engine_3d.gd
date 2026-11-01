@@ -292,7 +292,9 @@ func _build_viewport_tree() -> void:
 	_viewport.handle_input_locally = false
 	_viewport.physics_object_picking = false
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_viewport.msaa_3d = Viewport.MSAA_DISABLED
+	# Anti-aliasing : le low-poly + les contours d'objets gagnent beaucoup en
+	# lisibilité avec du MSAA (Tiny Glade-like), sans flou type FXAA.
+	_viewport.msaa_3d = Viewport.MSAA_2X
 	_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	_viewport.scaling_3d_scale = 1.0
 	# Taille initiale (remplacée par celle du container dès le premier resize,
@@ -709,6 +711,47 @@ func _apply_render_quality() -> void:
 	env.adjustment_brightness = float(preset.get("brightness", 1.05))
 	env.adjustment_contrast = float(preset.get("contrast", 1.06))
 	env.adjustment_saturation = float(preset.get("saturation", 1.10)) if terrain else 1.0
+	# --- Éclairage indirect / réflexions (palliatif aux assets low-poly) ---
+	var gi_on := terrain and not table_view and bool(preset.get("gi", false))
+	env.sdfgi_enabled = gi_on
+	if gi_on:
+		env.sdfgi_cascades = int(preset.get("giCascades", 3))
+		env.sdfgi_min_cell_size = float(preset.get("giMinCell", 1.0))
+		env.sdfgi_energy = float(preset.get("giEnergy", 0.9))
+		env.sdfgi_normal_bias = 1.1
+		env.sdfgi_use_occlusion = true
+		env.sdfgi_read_sky_light = true
+		env.sdfgi_bounce_feedback = 0.45
+		env.sdfgi_max_distance = float(preset.get("giMaxDistance", 70.0))
+	var ssil_on := terrain and not table_view and bool(preset.get("ssil", false))
+	env.ssil_enabled = ssil_on
+	if ssil_on:
+		env.ssil_radius = 5.0
+		env.ssil_intensity = float(preset.get("ssilIntensity", 0.9))
+		env.ssil_sharpness = 0.9
+		env.ssil_normal_rejection = 1.0
+	var ssr_on := terrain and not table_view and bool(preset.get("ssr", false))
+	env.ssr_enabled = ssr_on
+	if ssr_on:
+		env.ssr_max_steps = 64
+		env.ssr_fade_in = 0.15
+		env.ssr_fade_out = 2.0
+		env.ssr_depth_tolerance = 0.5
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	else:
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+	# --- Brume volumétrique douce (profondeur + god rays discrets) ---
+	var vol_on := terrain and not table_view and bool(preset.get("volumetricFog", false))
+	env.volumetric_fog_enabled = vol_on
+	if vol_on:
+		env.volumetric_fog_density = float(preset.get("volumetricDensity", 0.008))
+		env.volumetric_fog_albedo = Color.html(str(preset.get("volumetricColor", "#fff1de")))
+		env.volumetric_fog_emission = Color(0, 0, 0, 1)
+		env.volumetric_fog_emission_energy = 0.0
+		env.volumetric_fog_anisotropy = 0.35
+		env.volumetric_fog_length = 120.0
+		env.volumetric_fog_gi_inject = 0.4
+		env.volumetric_fog_ambient_inject = 0.2
 	if _sun != null:
 		# Le style 2.5D coupe les ombres par défaut ; sur un vrai terrain 3D on les
 		# réactive pour asseoir les constructions (qualité Dofus).
@@ -716,6 +759,12 @@ func _apply_render_quality() -> void:
 		_sun.shadow_blur = float(preset.get("shadowBlur", 1.35))
 		_sun.shadow_bias = 0.04
 		_sun.directional_shadow_blend_splits = true
+		# Taille angulaire du soleil : ombres à pénombres douces (Tiny Glade).
+		_sun.light_angular_distance = float(preset.get("shadowAngular", 0.0))
+		_sun.directional_shadow_max_distance = 160.0
+		_sun.directional_shadow_split_1 = 0.12
+		_sun.directional_shadow_split_2 = 0.30
+		_sun.directional_shadow_split_3 = 0.55
 	# DOF très léger : donne de la profondeur au fond sans flouter la carte.
 	_apply_depth_of_field(env, terrain)
 
@@ -1281,7 +1330,16 @@ func _apply_lighting() -> void:
 	_sun.shadow_enabled = terrain3d and bool(cfg.get("shadows", false))
 	if _world_env != null and _world_env.environment != null:
 		var env: Environment = _world_env.environment
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		# Ambiante : ciel si le preset le permet (lumière pastel venant de la
+		# voûte, plus « Tiny Glade » qu'une couleur plate), sinon couleur.
+		var ambient_sky := terrain3d and bool(preset.get("sky", false)) \
+			and bool(preset.get("ambientFromSky", false))
+		if ambient_sky:
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+			env.ambient_light_sky_contribution = float(preset.get("skyContribution", 0.7))
+		else:
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			env.ambient_light_sky_contribution = 0.0
 		env.ambient_light_color = ambient_color
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
@@ -1289,6 +1347,11 @@ func _apply_lighting() -> void:
 		env.fog_enabled = terrain3d and fog_density > 0.0001
 		env.fog_light_color = Color.html(str(preset.get("fogColor", "#2b3445")))
 		env.fog_density = fog_density
+		# Profondeur atmosphérique : brume qui prend la couleur du ciel au loin
+		# et diffusion chaude autour du soleil (god rays doux).
+		env.fog_aerial_perspective = float(preset.get("aerial", 0.0)) if terrain3d else 0.0
+		env.fog_sun_scatter = float(preset.get("sunScatter", 0.0)) if terrain3d else 0.0
+		env.fog_light_energy = float(preset.get("fogLightEnergy", 1.0))
 		_apply_sky(env, terrain3d, preset)
 
 func _apply_atmosphere() -> void:

@@ -86,6 +86,20 @@ $env:GODOT_BIN = "C:\Users\Leo\AppData\Local\Microsoft\WinGet\Packages\GodotEngi
 .\scripts\run_tests.ps1 -Filter '^map_render_quality_test$|^map_camera_test$|^session_' -TimeoutSeconds 180
 ```
 
+## Passe avancée : GI, réflexions, brume et ombres douces
+
+Deuxième passe dans le preset `tiny_glade` (palliatif au manque d'assets) :
+
+- **SDFGI** (éclairage indirect dynamique) + **SSIL** + **SSR** (réflexions ciel)
+  activés uniquement en terrain3d, hors vue table.
+- **Ambiante de ciel** (`AMBIENT_SOURCE_SKY`, contribution 0.7) plutôt qu'une
+  couleur plate.
+- **Brume volumétrique** douce + `fog_aerial_perspective` + diffusion solaire.
+- **Ombres à pénombres** : `light_angular_distance` du soleil, splits de shadow
+  distance réglés.
+- **MSAA 2×** sur le SubViewport pour les contours low-poly.
+- Capture : `docs/screenshots/tiny_glade_apres_gi.png`.
+
 ## Limites honnêtes
 
 - **Assets low-poly** : on ne retrouve pas la richesse géométrique de Tiny Glade
@@ -110,7 +124,7 @@ $env:GODOT_BIN = "C:\Users\Leo\AppData\Local\Microsoft\WinGet\Packages\GodotEngi
 - `game/scripts/tests/map_render_quality_test.gd` (assertions Tiny Glade)
 - `docs/TINY_GLADE_VISUEL.md` (ce document)
 - Captures : `docs/screenshots/tiny_glade_avant.png`, `tiny_glade_apres.png`,
-  `construction_demo.png` (régénérée par le script existant)
+  `tiny_glade_apres_gi.png`, `construction_demo.png` (régénérée par le script existant)
 
 ## Ce que le Lead peut vérifier / capturer
 

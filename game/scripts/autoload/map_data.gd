@@ -70,6 +70,13 @@ const LIGHTING_PRESETS := {
 		"backdropCenter": "#d6e2ad", "backdropMid": "#b8cfa3",
 		"backdropEdge": "#f2ead8",
 		"saturation": 1.20, "brightness": 1.02, "contrast": 1.08,
+		# Rendu avancé : GI dynamique, réflexions, brume volumétrique, ambiante
+		# de ciel, ombres à pénombres douces (palliatif aux assets low-poly).
+		"gi": true, "giEnergy": 0.9, "ssil": true, "ssilIntensity": 0.9,
+		"ssr": true, "volumetricFog": true, "volumetricDensity": 0.006,
+		"volumetricColor": "#fff1de", "ambientFromSky": true,
+		"skyContribution": 0.7, "aerial": 0.35, "sunScatter": 0.18,
+		"shadowAngular": 1.3, "fogLightEnergy": 1.0,
 	},
 }
 const DEFAULT_LIGHTING_CONFIG := {

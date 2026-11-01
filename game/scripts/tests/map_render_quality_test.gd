@@ -174,6 +174,23 @@ func _run() -> void:
 	var attrs: CameraAttributes = engine.get_camera_attributes()
 	_assert("tiny_glade_dof", attrs is CameraAttributesPractical
 		and (attrs as CameraAttributesPractical).dof_blur_far_enabled)
+	# Rendu avancé (compensation assets low-poly) : GI, réflexions, brume
+	# volumétrique, ambiante de ciel, ombres douces, MSAA.
+	_assert("advanced_sdfgi", tg_env.sdfgi_enabled)
+	_assert("advanced_ssil", tg_env.ssil_enabled)
+	_assert("advanced_ssr",
+		tg_env.ssr_enabled
+		and tg_env.reflected_light_source == Environment.REFLECTION_SOURCE_SKY)
+	_assert("advanced_volumetric_fog",
+		tg_env.volumetric_fog_enabled and tg_env.volumetric_fog_density > 0.0)
+	_assert("advanced_ambient_sky",
+		tg_env.ambient_light_source == Environment.AMBIENT_SOURCE_SKY
+		and tg_env.ambient_light_sky_contribution > 0.5)
+	_assert("advanced_aerial_perspective", tg_env.fog_aerial_perspective > 0.0)
+	_assert("advanced_sun_scatter", tg_env.fog_sun_scatter > 0.0)
+	_assert("advanced_soft_shadows", engine._sun.light_angular_distance > 0.0)
+	_assert("advanced_msaa", engine._viewport.msaa_3d != Viewport.MSAA_DISABLED,
+		"msaa=%d" % engine._viewport.msaa_3d)
 	# Nuit (preset sans ciel) : on revient à un fond uni, pas de ciel résiduel.
 	engine.configure(night_map, [], [], [], [], [], false, true, {"mode": "select"})
 	for _i in range(4):
