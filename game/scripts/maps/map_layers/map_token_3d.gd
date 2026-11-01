@@ -46,6 +46,12 @@ var _fig_base_position := Vector3.ZERO
 var _fig_base_rotation_y := 0.0
 var _idle_time: float = 0.0
 var _idle_phase: float = 0.0
+## Déplacement animé (marche) : tween courant + état exposé aux tests.
+var _move_tween: Tween = null
+var _walking: bool = false
+## Poussière de pas (CPUParticles3D, one-shot, créée à la demande).
+var _dust: CPUParticles3D = null
+var _dust_texture: ImageTexture = null
 var _overlay_texture: Texture2D = null
 var _overlay_height: float = 1.0
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
@@ -74,7 +80,11 @@ func setup(
 
 ## Met à jour le relief et repose le token sans reconstruire son visuel
 ## (pinceau de relief de l'éditeur : `ComplexMapEngine3D.refresh_terrain`).
-func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.ZERO) -> void:
+func set_terrain_heights(
+	terrain_heights: Array,
+	map_size: Vector2i = Vector2i.ZERO,
+	repose: bool = true
+) -> void:
 	_terrain_heights = terrain_heights if terrain_heights is Array else []
 	if map_size.x > 0:
 		_terrain_w = map_size.x
@@ -88,7 +98,7 @@ func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.Z
 		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
 			_terrain_relief = true
 			break
-	if is_inside_tree():
+	if repose and is_inside_tree():
 		_sync_position()
 
 ## Hauteur du terrain (en cases) aux coordonnées grille **centrées case** —
@@ -292,6 +302,134 @@ func _process(delta: float) -> void:
 	var t := _idle_time * 1.8 + _idle_phase
 	_fig_root.position.y = _fig_base_position.y + sin(t) * cell_size * 0.012
 	_fig_root.rotation_degrees.y = _fig_base_rotation_y + sin(t * 0.55) * 1.8
+
+## Met à jour les données d'un token **sans reconstruire son visuel** (le moteur
+## réutilise les nœuds existants entre deux `configure` : pas de clignotement,
+## l'animation de marche peut démarrer depuis la position courante). La position
+## est gérée par `move_to_grid()` juste après.
+func update_token(data: Dictionary) -> void:
+	token_data = data.duplicate(true)
+	set_selected(selected_state)
+
+## Anime le déplacement du token vers une case (arc de marche + poussière).
+## `animated = false` replace immédiatement (téléportation, chargement).
+func move_to_grid(gx: float, gy: float, animated: bool = true) -> void:
+	token_data["x"] = gx
+	token_data["y"] = gy
+	var target := _grid_to_world(gx, gy)
+	if selected_state:
+		target.y += cell_size * (0.06 if diorama_mode else 0.12)
+	if not animated or not is_inside_tree():
+		position = target
+		_walking = false
+		return
+	if position.distance_to(target) < 0.0005:
+		position = target
+		return
+	var from := position
+	var delta := target - from
+	var flat_dist := Vector2(delta.x, delta.z).length()
+	# Durée ∝ distance, bornée : un pas de case reste vif, un grand saut reste lisible.
+	var duration := clampf(flat_dist / maxf(cell_size * 4.2, 0.1), 0.10, 0.42)
+	# Orientation vers la direction du déplacement (visible en pion/figurine).
+	if flat_dist > cell_size * 0.05:
+		var yaw := atan2(delta.x, delta.z)
+		if diorama_mode and _fig_root != null:
+			_fig_base_rotation_y = rad_to_deg(yaw)
+		else:
+			rotation.y = yaw
+	_play_step_dust()
+	_walking = true
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = create_tween()
+	_move_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_move_tween.tween_method(func(t: float) -> void:
+		var pos := from.lerp(target, t)
+		# Petit arc de marche : le personnage se soulève puis retombe.
+		pos.y += sin(t * PI) * cell_size * 0.16
+		position = pos
+	, 0.0, 1.0, duration)
+	_move_tween.tween_callback(func() -> void:
+		_walking = false
+		if not is_inside_tree():
+			return
+		position = target
+		apply_terrain_y()
+		_play_step_dust()
+	)
+
+## Vrai pendant l'animation de marche (tests / captures).
+func is_walking() -> bool:
+	return _walking
+
+## Cible logique courante en coordonnées grille (centres de case).
+func get_grid_position() -> Vector2:
+	return Vector2(float(token_data.get("x", 0.0)), float(token_data.get("y", 0.0)))
+
+## Petit nuage de poussière au pied, façon Dofus (aucune ombre, aucune collision).
+func _ensure_dust() -> void:
+	if _dust != null and is_instance_valid(_dust):
+		return
+	_dust = CPUParticles3D.new()
+	_dust.name = "StepDust"
+	_dust.amount = 8
+	_dust.lifetime = 0.45
+	_dust.one_shot = true
+	_dust.explosiveness = 0.95
+	_dust.emitting = false
+	_dust.direction = Vector3(0.0, 1.0, 0.0)
+	_dust.spread = 75.0
+	_dust.initial_velocity_min = cell_size * 0.25
+	_dust.initial_velocity_max = cell_size * 0.65
+	_dust.gravity = Vector3(0.0, cell_size * 0.9, 0.0)
+	_dust.scale_amount_min = cell_size * 0.10
+	_dust.scale_amount_max = cell_size * 0.22
+	_dust.position.y = cell_size * 0.05
+	var quad := QuadMesh.new()
+	quad.size = Vector2(cell_size * 0.24, cell_size * 0.24)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = _make_dust_texture()
+	mat.albedo_color = Color(0.74, 0.68, 0.55, 0.55)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.disable_receive_shadows = true
+	quad.material = mat
+	_dust.mesh = quad
+	_dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_dust)
+
+## Texture ronde douce générée (pas d'asset externe).
+func _make_dust_texture() -> ImageTexture:
+	if _dust_texture != null:
+		return _dust_texture
+	var size := 16
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var center := Vector2(size * 0.5, size * 0.5)
+	for y in range(size):
+		for x in range(size):
+			var d := Vector2(x + 0.5, y + 0.5).distance_to(center) / (size * 0.5)
+			var a := clampf(1.0 - d, 0.0, 1.0)
+			a = a * a
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
+	_dust_texture = ImageTexture.create_from_image(img)
+	return _dust_texture
+
+func _play_step_dust() -> void:
+	if not is_inside_tree():
+		return
+	_ensure_dust()
+	if _dust == null or not _dust.is_inside_tree():
+		return
+	_dust.restart()
+	_dust.emitting = true
+
+## Arrête l'animation de marche (états tests / téléportation).
+func stop_walking() -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_walking = false
 
 ## AABB combinée d'un nœud 3D et de ses enfants MeshInstance3D.
 func _compute_node_aabb(node: Node3D) -> AABB:

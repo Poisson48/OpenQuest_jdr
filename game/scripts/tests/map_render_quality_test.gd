@@ -2,6 +2,14 @@ extends SceneTree
 
 ## Qualité de rendu 2.5D : AO écran, glow, contraste/couleurs et ombres douces
 ## activés par le moteur sur une carte terrain3d.
+##
+## Couvre aussi les ajouts « qualité Dofus » :
+##   • **végétation procédurale** déterministe (touffes/fleurs, pas d'ombre,
+##     teinte de nuit) ;
+##   • **marche des personnages** : réutilisation des nœuds entre deux
+##     `configure`, animation de déplacement (arc + poussière de pas), arrivée
+##     exacte sur la case ;
+##   • **pulsation d'arrivée** de caméra (feedback de changement de zone).
 
 func _init() -> void:
 	call_deferred("_run")
@@ -19,6 +27,8 @@ func _run() -> void:
 	engine.configure(village, [], [], [], [], [], false, true, {"mode": "select"})
 	for _i in range(8):
 		await process_frame
+
+	# --- Ambiance / render quality (existant) ---
 	var env: Environment = engine._world_env.environment
 	_assert("render_ssao", env.ssao_enabled)
 	_assert("render_glow", env.glow_enabled and env.glow_intensity > 0.0)
@@ -27,16 +37,98 @@ func _run() -> void:
 	_assert("render_tonemap_aces", env.tonemap_mode == Environment.TONE_MAPPER_ACES)
 	_assert("render_sun_warm", engine._sun.light_color.r > engine._sun.light_color.b)
 	_assert("render_ambient", env.ambient_light_energy > 0.2)
-	# Changement de preset : nuit bleutée, ambiance plus basse.
+
+	# --- Végétation procédurale (nouveau) ---
+	_assert("render_vegetation", engine.is_vegetation_active())
+	var veg_counts: Dictionary = engine.get_vegetation_counts()
+	_assert("render_vegetation_tufts", int(veg_counts.get("tufts", 0)) > 0)
+	_assert("render_vegetation_total", engine.get_vegetation_count() > 40)
+	var veg_layer = engine._vegetation_layer
+	_assert("render_vegetation_layer", veg_layer != null)
+	if veg_layer != null and veg_layer.has_method("get_vegetation_mesh_instance"):
+		var veg_instance = veg_layer.get_vegetation_mesh_instance()
+		_assert("render_vegetation_no_shadow",
+			veg_instance != null
+			and veg_instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		_assert("render_vegetation_multimesh",
+			veg_instance != null and veg_instance.multimesh != null
+			and veg_instance.multimesh.instance_count == int(veg_counts.get("tufts", 0)))
+		_assert("render_vegetation_wind",
+			veg_layer.get_material() != null
+			and float(veg_layer.get_material().get_shader_parameter("wind_strength")) > 0.0)
+	# Déterministe : reconfigurer la même carte redonne exactement le même compte.
+	var veg_before: int = int(engine.get_vegetation_count())
+	engine.configure(village, [], [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(4):
+		await process_frame
+	_assert("render_vegetation_deterministic", engine.get_vegetation_count() == veg_before)
+
+	# --- Marche des personnages (nouveau) ---
+	var tokens := [
+		{"id": "tok-a", "kind": "npc", "label": "A", "x": 3.0, "y": 3.0,
+			"hp": 10, "maxHp": 10},
+		{"id": "tok-b", "kind": "npc", "label": "B", "x": 6.0, "y": 4.0,
+			"hp": 10, "maxHp": 10},
+	]
+	engine.configure(village, tokens, [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(4):
+		await process_frame
+	_assert("render_tokens_created", engine._token_nodes.size() == 2)
+	var node_a = engine._token_nodes.get("tok-a")
+	_assert("render_token_walk_api", node_a != null and node_a.has_method("is_walking"))
+	if node_a != null:
+		var instance_id := int(node_a.get_instance_id())
+		_assert("render_token_idle_initially", not node_a.is_walking())
+		# Même carte : le nœud doit être réutilisé (pas de clignotement).
+		tokens[0]["x"] = 8.0
+		tokens[0]["y"] = 6.0
+		engine.configure(village, tokens, [], [], [], [], false, true, {"mode": "select"})
+		_assert("render_token_reused",
+			engine._token_nodes.get("tok-a") == node_a
+			and int(engine._token_nodes.get("tok-a").get_instance_id()) == instance_id)
+		_assert("render_token_walking", node_a.is_walking())
+		_assert("render_token_step_dust", node_a._dust != null)
+		# La marche se termine sur la case demandée.
+		await create_timer(1.0).timeout
+		_assert("render_token_walk_done", not node_a.is_walking())
+		_assert("render_token_arrived",
+			node_a.get_grid_position().is_equal_approx(Vector2(8.0, 6.0)),
+			"grid=%s" % [str(node_a.get_grid_position())])
+		_assert("render_token_terrain_y",
+			absf(node_a.position.y - engine.terrain_height_at(8.0, 6.0) * engine._cell_size) < 0.35)
+
+	# --- Pulsation d'arrivée (nouveau) ---
+	var zoom_before: float = float(engine.zoom)
+	engine.play_arrival_pulse()
+	_assert("render_arrival_started", engine.is_arrival_pulse_playing())
+	await create_timer(0.9).timeout
+	_assert("render_arrival_done", not engine.is_arrival_pulse_playing())
+	_assert("render_arrival_zoom_restored", is_equal_approx(engine.zoom, zoom_before),
+		"zoom=%f attendu=%f" % [engine.zoom, zoom_before])
+
+	# --- Nuit : preset bleuté + végétation teintée (existant + nouveau) ---
 	var night_map: Dictionary = village.duplicate(true)
 	var night_light: Dictionary = md.get_lighting_config(night_map)
 	night_light["preset"] = "nuit"
+	night_light["nightMode"] = true
 	night_map["lighting"] = night_light
 	engine.configure(night_map, [], [], [], [], [], false, true, {"mode": "select"})
 	for _i in range(6):
 		await process_frame
 	_assert("render_night_preset", engine._sun.light_color.b > engine._sun.light_color.r)
 	_assert("render_night_ambient", engine._world_env.environment.ambient_light_energy < 0.4)
+	if engine._vegetation_layer != null and engine._vegetation_layer.get_material() != null:
+		var tint = engine._vegetation_layer.get_material().get_shader_parameter("albedo_tint")
+		_assert("render_night_vegetation_tint", tint is Color
+			and not (tint as Color).is_equal_approx(Color.WHITE))
+	else:
+		_assert("render_night_vegetation_layer", false,
+			"active=%s count=%d material=%s" % [
+				str(engine.is_vegetation_active()),
+				int(engine.get_vegetation_count()),
+				str(engine._vegetation_layer.get_material() if engine._vegetation_layer != null else null),
+			])
+
 	engine.queue_free()
 	await process_frame
 	if _failed:
@@ -48,9 +140,9 @@ func _run() -> void:
 
 var _failed := false
 
-func _assert(label: String, condition: bool) -> void:
+func _assert(label: String, condition: bool, detail: String = "") -> void:
 	if condition:
 		print("  OK   " + label)
 	else:
 		_failed = true
-		printerr("  FAIL " + label)
+		printerr("  FAIL " + label + ("" if detail.is_empty() else " (" + detail + ")"))

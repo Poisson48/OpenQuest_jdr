@@ -235,6 +235,19 @@ func play_effect(effect_id: String) -> void:
 	if _complex.has_method("trigger_effect"):
 		_complex.trigger_effect(effect_id)
 
+## Pulsation de cadrage à l'arrivée sur une zone (déléguée au moteur carte).
+func play_arrival_pulse(strength: float = 1.0) -> void:
+	var renderer := active_renderer()
+	if renderer != null and renderer.has_method("play_arrival_pulse"):
+		renderer.play_arrival_pulse(strength)
+
+## Vrai pendant la pulsation d'arrivée (tests/captures).
+func is_arrival_pulse_playing() -> bool:
+	var renderer := active_renderer()
+	if renderer != null and renderer.has_method("is_arrival_pulse_playing"):
+		return bool(renderer.is_arrival_pulse_playing())
+	return false
+
 func show_speech(speaker: String, text: String, grid: Vector2 = Vector2(-1, -1)) -> void:
 	if _bubbles == null:
 		return

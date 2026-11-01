@@ -31,6 +31,7 @@ const MapGround3DScript := preload("res://scripts/maps/map_layers/map_ground_3d.
 const MapBackdrop3DScript := preload("res://scripts/maps/map_layers/map_backdrop_3d.gd")
 const MapWater3DScript := preload("res://scripts/maps/map_layers/map_water_3d.gd")
 const MapAmbientFx3DScript := preload("res://scripts/maps/map_layers/map_ambient_fx_3d.gd")
+const MapVegetation3DScript := preload("res://scripts/maps/map_layers/map_vegetation_3d.gd")
 const MapGrid3DScript := preload("res://scripts/maps/map_layers/map_grid_3d.gd")
 const MapToken3DScript := preload("res://scripts/maps/map_layers/map_token_3d.gd")
 const MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.gd")
@@ -134,6 +135,8 @@ var _water_layer: Node3D
 var _water_level: float = -1.0
 ## Calque d'ambiance animée (lucioles / poussière / feuilles), après l'eau.
 var _ambient_fx_layer: Node3D
+## Végétation procédurale (touffes d'herbe, fleurs) — terrain3d 2.5D uniquement.
+var _vegetation_layer: Node3D
 ## Effet d'ambiance courant (`map_data["ambientFx"]`) ; "" = aucun.
 var _ambient_fx: String = ""
 var _elevations_layer: Node3D
@@ -173,6 +176,12 @@ var _token_drag: Node = null
 var _token_press_candidate: Node = null
 var _token_click_candidate: Node = null
 var _token_nodes: Dictionary = {}
+## Clé de rendu des tokens (carte + style) : on ne réutilise les nœuds que si
+## elle ne change pas, sinon on reconstruit (vue table ↔ 2.5D, autre carte…).
+var _token_render_key: String = ""
+## Pulsation d'arrivée (changement de zone) : état exposé aux tests/captures.
+var _arrival_pulse_active: bool = false
+var _arrival_tween: Tween = null
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
@@ -249,6 +258,7 @@ func _build_viewport_tree() -> void:
 		_backdrop_layer = null
 		_water_layer = null
 		_ambient_fx_layer = null
+		_vegetation_layer = null
 		_world = null
 	_viewport_container = SubViewportContainer.new()
 	_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -330,6 +340,10 @@ func _build_viewport_tree() -> void:
 	_ambient_fx_layer = MapAmbientFx3DScript.new()
 	_ambient_fx_layer.name = "AmbientFx"
 	_world.add_child(_ambient_fx_layer)
+
+	_vegetation_layer = MapVegetation3DScript.new()
+	_vegetation_layer.name = "Vegetation"
+	_world.add_child(_vegetation_layer)
 
 	_elevations_layer = MapElevations3DScript.new()
 	_elevations_layer.name = "Elevations"
@@ -446,6 +460,7 @@ func configure(
 	_load_backdrop()
 	_load_water()
 	_load_ambient_fx()
+	_load_vegetation()
 	_load_elevations()
 	_sync_table_environment()
 	_apply_camera_perspective()
@@ -651,6 +666,103 @@ func get_backdrop_material() -> ShaderMaterial:
 	return _backdrop_layer.get_material() as ShaderMaterial
 
 # ===========================================================================
+# Végétation procédurale — touffes d'herbe et fleurs (terrain3d 2.5D)
+# ===========================================================================
+#
+# Semis déterministe sur les cases d'herbe (pas dans l'eau, pas sur terre/pierre) :
+# touffes croisées avec vent doux + petites fleurs. Purement visuel (aucune
+# collision, aucune ombre) ; retiré en mode `illustrated` et hors style 2.5D.
+# Donne au sol la lisibilité « Dofus » : la carte ne paraît plus nue.
+
+## Vrai si le style de rendu courant doit recevoir de la végétation.
+func _vegetation_wanted() -> bool:
+	if _ground_mode != MapData.GROUND_TERRAIN3D:
+		return false
+	if table_view:
+		return false
+	return MapRenderStyleScript.is_map_25d(map_data) or MapRenderStyleScript.is_diorama(map_data)
+
+## Configure (ou retire) le calque de végétation.
+func _load_vegetation() -> void:
+	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
+		return
+	if not _vegetation_wanted():
+		_vegetation_layer.clear()
+		return
+	var w: int = int(map_data.get("width", 16))
+	var h: int = int(map_data.get("height", 12))
+	var water_level := float(map_data.get("waterLevel", -1.0))
+	if _vegetation_layer.has_method("configure"):
+		_vegetation_layer.configure(
+			w, h, _cell_size, _terrain_heights, _terrain_materials,
+			water_level, MapData.is_night_mode(map_data), true
+		)
+
+## Vrai si de la végétation est rendue.
+func is_vegetation_active() -> bool:
+	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
+		return false
+	return _vegetation_layer.has_method("is_active") and _vegetation_layer.is_active()
+
+## Nombre d'instances de végétation (touffes + fleurs).
+func get_vegetation_count() -> int:
+	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
+		return 0
+	if not _vegetation_layer.has_method("get_vegetation_count"):
+		return 0
+	return int(_vegetation_layer.get_vegetation_count())
+
+## Détail (tests/captures) : touffes et fleurs séparément.
+func get_vegetation_counts() -> Dictionary:
+	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
+		return {"tufts": 0, "flowers": 0}
+	return {
+		"tufts": int(_vegetation_layer.get_tuft_count()) if _vegetation_layer.has_method("get_tuft_count") else 0,
+		"flowers": int(_vegetation_layer.get_flower_count()) if _vegetation_layer.has_method("get_flower_count") else 0,
+	}
+
+# ===========================================================================
+# Pulsation d'arrivée (changement de zone) — feedback de cadrage
+# ===========================================================================
+#
+# À l'arrivée sur une carte (fondu de zone, voyage rapide), un léger « breathe »
+# de zoom (rentre puis revient) donne un feedback doux façon Dofus. Purement
+# caméra : aucun état de jeu modifié, le zoom final est exactement l'initial.
+
+## Joue la pulsation d'arrivée (sans effet si la caméra n'est pas prête).
+func play_arrival_pulse(strength: float = 1.0) -> void:
+	if _camera == null or table_view:
+		return
+	var start := zoom
+	var peak := clampf(start * (1.0 + 0.06 * maxf(strength, 0.0)), MIN_ZOOM, MAX_ZOOM)
+	if is_equal_approx(peak, start):
+		return
+	_arrival_pulse_active = true
+	if _arrival_tween != null and _arrival_tween.is_valid():
+		_arrival_tween.kill()
+	_arrival_tween = create_tween()
+	_arrival_tween.set_trans(Tween.TRANS_SINE)
+	_arrival_tween.set_ease(Tween.EASE_OUT)
+	_arrival_tween.tween_method(func(z: float) -> void:
+		zoom = z
+		_update_ortho_size()
+	, start, peak, 0.16)
+	_arrival_tween.set_ease(Tween.EASE_IN_OUT)
+	_arrival_tween.tween_method(func(z: float) -> void:
+		zoom = z
+		_update_ortho_size()
+	, peak, start, 0.38)
+	_arrival_tween.tween_callback(func() -> void:
+		zoom = start
+		_update_ortho_size()
+		_arrival_pulse_active = false
+	)
+
+## Vrai pendant la pulsation d'arrivée (tests/captures).
+func is_arrival_pulse_playing() -> bool:
+	return _arrival_pulse_active
+
+# ===========================================================================
 # Eau (lacs, étangs, douves) — `map_data["waterLevel"]`
 # ===========================================================================
 #
@@ -840,6 +952,7 @@ func set_ground_mode(mode: String = "") -> void:
 	_ground_mode = resolved
 	_load_ground(_ground_mode)
 	_load_backdrop()
+	_load_vegetation()
 	_apply_camera_perspective()
 	_apply_atmosphere()
 	_apply_lighting()
@@ -913,6 +1026,8 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 	_load_water()
 	# Ambiance animée : dépend de `ambientFx`, du mode de sol et de la nuit.
 	_load_ambient_fx()
+	# Végétation : dépend des matières peintes, des hauteurs et de l'eau.
+	_load_vegetation()
 	var w: int = int(map_data.get("width", 16))
 	var h: int = int(map_data.get("height", 12))
 	var map_size := Vector2i(w, h)
@@ -1126,56 +1241,96 @@ func _rebuild_layers() -> void:
 	if _elevations_layer:
 		_elevations_layer.visible = elevations_ok
 
-	_clear_children(_tokens_layer, _token_nodes)
-	_token_nodes.clear()
+	# Tokens : on **réutilise** les nœuds existants quand la carte et le style de
+	# rendu n'ont pas changé. Deux bénéfices façon Dofus : pas de clignotement au
+	# refresh, et la marche peut s'animer depuis la position courante (au lieu
+	# d'un saut sec vers la case d'arrivée).
+	var render_key := "%s|%s|%s" % [_loaded_map_id, str(table_view), str(is_diorama)]
+	if render_key != _token_render_key:
+		_token_render_key = render_key
+		_clear_children(_tokens_layer, _token_nodes)
+		_token_nodes.clear()
+	var seen_tokens := {}
 	for tok in _tokens:
 		if bool(tok.get("hidden", false)):
 			continue
-		var node = MapToken3DScript.new()
-		# Portrait / silhouette en pied dès qu'une image est dispo.
-		# Billboard caméra : visible même en vue de dessus.
-		var has_image := not str(tok.get("image", "")).strip_edges().is_empty()
-		if not has_image and str(tok.get("kind", "")) == "member":
-			var mid := str(tok.get("memberId", ""))
-			for m_variant in _party:
-				if str((m_variant as Dictionary).get("id", "")) == mid:
-					has_image = not str((m_variant as Dictionary).get("portrait", (m_variant as Dictionary).get("image", ""))).strip_edges().is_empty()
-					break
-		var use_cutout := has_image \
-			or MapRenderStyleScript.is_dd2(map_data) \
-			or MapRenderStyleScript.is_map_25d(map_data) \
-			or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
-		# Vue table : des **pions** 3D posés sur le plateau, pas des découpes.
-		if table_view:
-			use_cutout = false
-		node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
-		if table_view and node.has_method("set_pawn_mode"):
-			node.set_pawn_mode(true)
-		# En carte 2.5D, les membres sans portrait deviennent des figurines 3D
-		# choisies d'après leur classe / nom (kit v6), avec repli par hash.
-		if not table_view and not has_image and MapRenderStyleScript.is_map_25d(map_data) \
-				and node.has_method("set_figurine_asset"):
-			var figurine := _figurine_asset_for_token(tok)
-			if not figurine.is_empty():
-				node.set_figurine_asset(figurine)
-		if use_cutout and node.has_method("set_overlay_height"):
-			# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
-			# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
-			var scale_val := float(tok.get("scale", 1.0))
-			var height_cells := scale_val
-			if scale_val <= 0.001:
-				height_cells = 1.0
-			elif scale_val < 0.5:
-				height_cells = maxf(1.0, scale_val * float(map_data.get("height", 12)))
-			node.set_overlay_height(_cell_size * height_cells)
-		node.snap_to_grid = snap_to_grid
-		node.set_selected(str(tok.get("id", "")) == _selected_token_id)
-		node.drag_finished.connect(_on_token_drag_finished)
-		node.selected.connect(_on_token_selected)
-		_tokens_layer.add_child(node)
-		_token_nodes[str(tok.get("id", ""))] = node
+		var token_id := str(tok.get("id", ""))
+		if token_id.is_empty():
+			continue
+		var node = _token_nodes.get(token_id)
+		var reused := node != null and is_instance_valid(node)
+		if not reused:
+			node = _create_token_node(tok, w, h)
+			_tokens_layer.add_child(node)
+			_token_nodes[token_id] = node
+		else:
+			if node.has_method("update_token"):
+				node.update_token(tok)
+			node.snap_to_grid = snap_to_grid
+			node.set_selected(token_id == _selected_token_id)
+			if node.has_method("set_terrain_heights"):
+				# `repose = false` : ne pas téléporter le token sur la nouvelle
+				# case avant l'animation de marche (c'est move_to_grid qui gère).
+				node.set_terrain_heights(_terrain_heights, Vector2i(w, h), false)
+			if node.has_method("move_to_grid"):
+				node.move_to_grid(
+					float(tok.get("x", 0.0)), float(tok.get("y", 0.0)), true)
+		seen_tokens[token_id] = true
+	for tid in _token_nodes.keys().duplicate():
+		if seen_tokens.has(tid):
+			continue
+		var stale = _token_nodes[tid]
+		if stale != null and is_instance_valid(stale):
+			stale.queue_free()
+		_token_nodes.erase(tid)
 
 	_rebuild_token_overlay()
+
+## Construit un nœud de token complet (visuel, relief, figurine, sélection).
+func _create_token_node(tok: Dictionary, w: int, h: int) -> Node:
+	var node = MapToken3DScript.new()
+	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
+	# Portrait / silhouette en pied dès qu'une image est dispo.
+	# Billboard caméra : visible même en vue de dessus.
+	var has_image := not str(tok.get("image", "")).strip_edges().is_empty()
+	if not has_image and str(tok.get("kind", "")) == "member":
+		var mid := str(tok.get("memberId", ""))
+		for m_variant in _party:
+			if str((m_variant as Dictionary).get("id", "")) == mid:
+				has_image = not str((m_variant as Dictionary).get("portrait", (m_variant as Dictionary).get("image", ""))).strip_edges().is_empty()
+				break
+	var use_cutout := has_image \
+		or MapRenderStyleScript.is_dd2(map_data) \
+		or MapRenderStyleScript.is_map_25d(map_data) \
+		or (is_diorama and str(map_data.get("backgroundImage", "")).strip_edges().is_empty())
+	# Vue table : des **pions** 3D posés sur le plateau, pas des découpes.
+	if table_view:
+		use_cutout = false
+	node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
+	if table_view and node.has_method("set_pawn_mode"):
+		node.set_pawn_mode(true)
+	# En carte 2.5D, les membres sans portrait deviennent des figurines 3D
+	# choisies d'après leur classe / nom (kit v6), avec repli par hash.
+	if not table_view and not has_image and MapRenderStyleScript.is_map_25d(map_data) \
+			and node.has_method("set_figurine_asset"):
+		var figurine := _figurine_asset_for_token(tok)
+		if not figurine.is_empty():
+			node.set_figurine_asset(figurine)
+	if use_cutout and node.has_method("set_overlay_height"):
+		# `scale` = hauteur en **cases** (créature Medium = 1). Les anciennes
+		# valeurs fractionnaires (0.07 / 0.14 = % hauteur de carte) sont migrées.
+		var scale_val := float(tok.get("scale", 1.0))
+		var height_cells := scale_val
+		if scale_val <= 0.001:
+			height_cells = 1.0
+		elif scale_val < 0.5:
+			height_cells = maxf(1.0, scale_val * float(map_data.get("height", 12)))
+		node.set_overlay_height(_cell_size * height_cells)
+	node.snap_to_grid = snap_to_grid
+	node.set_selected(str(tok.get("id", "")) == _selected_token_id)
+	node.drag_finished.connect(_on_token_drag_finished)
+	node.selected.connect(_on_token_selected)
+	return node
 
 	_clear_children(_effects_layer, _effect_nodes)
 	_effect_nodes.clear()
@@ -1207,6 +1362,8 @@ func _rebuild_layers() -> void:
 	_load_water()
 	# Ambiance : même logique (clé `ambientFx`).
 	_load_ambient_fx()
+	# Végétation : matières/hauteurs/eau (no-op si inchangés).
+	_load_vegetation()
 	# Fond de plateau : dimensions/mode/nuit (no-op si inchangés).
 	_load_backdrop()
 

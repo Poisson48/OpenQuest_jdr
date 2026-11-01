@@ -13,6 +13,11 @@ signal notice_requested(text: String)
 const WorldNavigationScript := preload("res://scripts/session/world_navigation.gd")
 const WorldMapOverlayScript := preload("res://scripts/session/world_map_overlay.gd")
 
+## Fondu de zone : durées et courbe (feedback doux façon Dofus).
+const FADE_IN_SECONDS := 0.22
+const FADE_OUT_SECONDS := 0.30
+const ARRIVAL_PULSE_STRENGTH := 1.0
+
 @onready var navigator: MapNavigatorPanel = %MapNavigator
 @onready var stage: MapStagePanel = %MapStage
 @onready var toolbar: MapToolbarPanel = %MapToolbar
@@ -374,6 +379,7 @@ func _travel_to_zone(map_id: String) -> void:
 		notice_requested.emit("Voyage vers %s" % title)
 		await _flash_zone_title(title, not was_known)
 	await _fade_to(0.0)
+	_play_arrival_feedback()
 	_transitioning = false
 
 ## Affiche le nom de la zone au centre pendant le fondu (écran noir).
@@ -402,16 +408,27 @@ func _flash_zone_title(title: String, is_new: bool = false) -> void:
 	if _zone_new_lbl != null:
 		_zone_new_lbl.visible = false
 
-## Fond noir progressif entre deux zones.
+## Fond noir progressif entre deux zones (courbe douce, durée asymétrique).
 func _fade_to(alpha: float) -> void:
 	if _fade == null:
 		return
 	_fade.visible = true
+	var duration := FADE_IN_SECONDS if alpha > 0.5 else FADE_OUT_SECONDS
 	var tween := create_tween()
-	tween.tween_property(_fade, "color:a", alpha, 0.22)
+	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_fade, "color:a", alpha, duration)
 	await tween.finished
 	if alpha <= 0.01:
 		_fade.visible = false
+
+## Pulsation de cadrage à l'arrivée sur une carte (léger « breathe » de zoom).
+func _play_arrival_feedback() -> void:
+	if stage != null and stage.has_method("play_arrival_pulse"):
+		stage.play_arrival_pulse(ARRIVAL_PULSE_STRENGTH)
+
+## Vrai pendant un fondu / voyage de zone (tests, captures, entrées à ignorer).
+func is_transitioning() -> bool:
+	return _transitioning
 
 # ---------------------------------------------------------------------------
 # API
@@ -926,6 +943,7 @@ func _start_zone_transition(target_id: String, token_id: String, position: Vecto
 		refresh()
 		await _flash_zone_title(title, not was_known)
 	await _fade_to(0.0)
+	_play_arrival_feedback()
 	_transitioning = false
 
 ## Cartes du monde courant (celles de la session + toutes les zones du même monde).

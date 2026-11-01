@@ -61,6 +61,14 @@ func _run() -> void:
 		var after: Vector2i = gd.get_member_token_position(village_id, "move-aria")
 		_assert("move_tool_moved", after != before)
 		_assert("move_tool_target", after.x == 10 and after.y == 12)
+		# Animation de marche : le nœud existe et s'anime (arc + poussière).
+		var moving_node = engine._token_nodes.get(token_id)
+		_assert("move_animation_node", moving_node != null and moving_node.has_method("is_walking"))
+		if moving_node != null:
+			_assert("move_animation_walking", moving_node.is_walking())
+			_assert("move_animation_step_dust", moving_node._dust != null)
+			await create_timer(0.9).timeout
+			_assert("move_animation_done", not moving_node.is_walking())
 		workspace._move_selected_step(Vector2i(1, 0))
 		await process_frame
 		var stepped: Vector2i = gd.get_member_token_position(village_id, "move-aria")
@@ -83,6 +91,18 @@ func _run() -> void:
 		workspace._on_token_selected("tok-npc-test")
 		await process_frame
 		_assert("npc_speech_bubble", workspace.stage.speech_bubble_count() >= 1)
+		# Passages de zone : fondu (feedback) + pulsation d'arrivée.
+		await workspace._fade_to(1.0)
+		_assert("transition_fade_dark",
+			workspace._fade != null and workspace._fade.visible
+			and workspace._fade.color.a > 0.9)
+		await workspace._fade_to(0.0)
+		_assert("transition_fade_clear",
+			workspace._fade == null or not workspace._fade.visible
+			or workspace._fade.color.a < 0.01)
+		_assert("transition_api", not workspace.is_transitioning())
+		workspace._play_arrival_feedback()
+		_assert("transition_arrival_pulse", engine.is_arrival_pulse_playing())
 	session.queue_free()
 	await process_frame
 	if _failed:
