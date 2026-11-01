@@ -172,6 +172,12 @@ var _orbit_yaw: float = 0.0
 var _orbit_pitch: float = -72.0
 var _orbit_distance: float = 48.0
 var _orbit_target: Vector3 = Vector3.ZERO
+## Navigation à la souris droite : un clic simple ouvre le menu contextuel,
+## un glisser orbite (Maj+glisser = déplacer la vue).
+var _right_nav_down: bool = false
+var _right_nav_dragging: bool = false
+var _right_nav_shift: bool = false
+var _right_nav_start: Vector2 = Vector2.ZERO
 var _token_drag: Node = null
 var _token_press_candidate: Node = null
 var _token_click_candidate: Node = null
@@ -2218,15 +2224,59 @@ func _editor_gui_input(event: InputEvent) -> void:
 					_orbit_dragging = false
 					_pan_dragging = false
 				accept_event()
-			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
+			MOUSE_BUTTON_LEFT:
 				if mb.pressed:
 					grab_focus()
 					editor_pointer_pressed.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
 				else:
 					editor_pointer_released.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
 				accept_event()
+			MOUSE_BUTTON_RIGHT:
+				if mb.pressed:
+					# Clic droit : glisser pour naviguer en 3D ; un simple clic
+					# (sans déplacement) ouvrira le menu contextuel au relâchement.
+					grab_focus()
+					_right_nav_down = true
+					_right_nav_dragging = false
+					_right_nav_shift = mb.shift_pressed
+					_right_nav_start = mb.position
+					_orbit_dragging = false
+					_pan_dragging = false
+					accept_event()
+				else:
+					var was_dragging := _right_nav_dragging
+					_right_nav_down = false
+					_right_nav_dragging = false
+					_orbit_dragging = false
+					_pan_dragging = false
+					if not was_dragging:
+						# Menu contextuel habituel conservé pour un vrai clic.
+						editor_pointer_pressed.emit(_screen_to_grid(mb.position), mb.position, MOUSE_BUTTON_RIGHT, _mods(mb))
+						editor_pointer_released.emit(_screen_to_grid(mb.position), mb.position, MOUSE_BUTTON_RIGHT, _mods(mb))
+					accept_event()
 	elif event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
+		if _right_nav_down:
+			if not _right_nav_dragging \
+					and motion.position.distance_to(_right_nav_start) >= 4.0:
+				_right_nav_dragging = true
+				if _right_nav_shift:
+					_pan_dragging = true
+					_orbit_dragging = false
+					_begin_view_drag(_right_nav_start, true)
+				else:
+					_pan_dragging = false
+					_begin_orbit_drag(_right_nav_start)
+			if _right_nav_dragging:
+				if _right_nav_shift:
+					_pan_from_motion(motion)
+				else:
+					_update_orbit_drag(motion.position)
+				accept_event()
+				return
+			if not _right_nav_dragging:
+				accept_event()
+				return
 		if _orbit_dragging:
 			_update_orbit_drag(motion.position)
 			accept_event()

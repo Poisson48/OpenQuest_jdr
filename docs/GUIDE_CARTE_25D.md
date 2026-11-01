@@ -75,11 +75,10 @@ Outils terrain :
 - **Échelle** : champ dans les options pour le prochain objet, ou dans
   l'inspecteur pour la sélection (uniforme X/Y/Z). La poignée de coin
   redimensionne aussi en conservant les proportions.
-- **Outil 🏗 Mur 3D** : glisse un tracé pour construire une **rangée de murs
-  modulaires** (`mur.glb`) orientés et alignés au terrain, avec **hauteur
-  réglable** ; **les extrémités s'aimantent aux murs existants** et les façades
-  (porte, fenêtre, auvent) peuvent s'aimanter dessus. Base de construction libre
-  façon Sims.
+- **Outil 🏗 Mur 3D** : glisse un tracé pour construire un **panneau de mur
+  lissé** continu, avec **hauteur réglable** ; **les extrémités s'aimantent aux
+  murs existants** (prolongement, coin L, jonction T) et les façades (porte,
+  fenêtre, auvent) peuvent s'aimanter dessus.
 - **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs + 4
   coins d'angle), puis pose porte/fenêtre/auvent et un toit.
 - **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une
@@ -132,10 +131,10 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - **G** recentre la caméra sur le groupe (ou bouton **Groupe** dans la barre), **F** recadre toute la carte.
 - **N** affiche/masque les noms flottants ; **C** affiche/masque la **mini-carte** (clic = recentrer la caméra).
 - **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
-- **Navigation 3D dans l'éditeur** : molette = zoom · **clic milieu maintenu = orbite
-  libre** autour du point visé · **Maj + clic milieu = déplacer** la vue ·
-  bouton **🧭** = revenir à l'angle de la carte. L'édition (sélection, murs,
-  dallage…) reste alignée au sol pendant l'orbite.
+- **Navigation 3D dans l'éditeur** : molette = zoom · **clic milieu ou clic droit
+  glissé = orbite libre** autour du point visé · **Maj + clic milieu/droit =
+  déplacer** la vue · bouton **🧭** = revenir à l'angle de la carte. Un clic
+  droit sans glisser ouvre le menu contextuel.
 - **H** ouvre l'**aide des raccourcis** de session (Échap pour fermer).
 - **D** ou bouton **Pas** : outil Déplacer — clique une case pour y déplacer le personnage sélectionné (ou actif) ; le survol affiche un curseur sur la case visée. Une case déjà occupée par une figurine est refusée, et les **murs/bâtiments 3D bloquent le passage**. Le pion du personnage actif est **sélectionné automatiquement** à l'ouverture d'une zone.
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :

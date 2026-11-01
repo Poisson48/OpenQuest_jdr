@@ -941,7 +941,7 @@ func _finish_draw(to: Vector2) -> void:
 	elif _tool == ToolsScript.WALL:
 		_construction._create_wall(from, to)
 	elif _tool == ToolsScript.MESH_WALL:
-		_create_mesh_wall_chain(from, to)
+		_construction._create_mesh_wall_smooth(from, to)
 	elif _tool == ToolsScript.ROOM_3D:
 		_create_mesh_room(from, to)
 	elif _tool == ToolsScript.ROOF_3D:

@@ -100,7 +100,7 @@ const DEFS := [
 	},
 	{
 		"id": MESH_WALL, "icon": "🏗", "label": "Mur 3D", "shortcut": "", "group": "place",
-		"hint": "Clic-glisser : rangée de murs 3D continus (pavage exact, pas de trou). Les extrémités s'aimantent aux murs existants : prolongement, coin L automatique, jonction T sur un flanc. Aucun module déjà posé n'est dupliqué. Poignées : étirer une extrémité (l'opposée reste fixe), les murs alignés suivent.",
+		"hint": "Clic-glisser : un seul panneau de mur lissé (pas de micro-segments), aligné au terrain. Les extrémités s'aimantent aux murs existants : prolongement, coin L automatique, jonction T. Hauteur réglable ; étirement connecté aux murs alignés.",
 	},
 	{
 		"id": ROOM_3D, "icon": "🏠", "label": "Pièce 3D", "shortcut": "", "group": "place",

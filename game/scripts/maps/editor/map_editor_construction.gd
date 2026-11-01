@@ -323,6 +323,40 @@ func _wall_segment_overlaps(center: Vector2, rotation_deg: float, length: float,
 			return true
 	return false
 
+## Mur continu lissé : un seul panneau étiré sur tout le tracé, sans les
+## micro-segments qui donnaient un aspect « escalier » aux angles.
+func _create_mesh_wall_smooth(from: Vector2, to: Vector2) -> void:
+	var plan := _wall_chain_plan(from, to)
+	if not bool(plan.get("valid", false)):
+		_ed._set_status("Tracé de mur trop court.")
+		return
+	var total := float(plan["total"])
+	var depth := float(plan["depth"])
+	var rotation := float(plan["rotation"])
+	var start: Vector2 = plan["from"]
+	var end: Vector2 = plan["to"]
+	var center := (start + end) * 0.5
+	_ed.doc.begin_transaction()
+	var id: String = _ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": total, "h": depth,
+		"sizeX": total, "sizeY": _ed._wall_height, "sizeZ": depth,
+		"asset": WALL_ASSET,
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": "Mur 3D", "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Mur 3D")
+	var ids: Array = [id]
+	for corner_variant in _wall_chain_corner_specs(plan):
+		var corner: Dictionary = corner_variant
+		var corner_id := _add_wall_junction_corner(
+			corner["point"], corner["dir_a"], corner["dir_b"])
+		if not corner_id.is_empty() and not ids.has(corner_id):
+			ids.append(corner_id)
+	_ed.doc.set_selection(ids)
+	_ed.doc.commit_transaction()
+	_ed._set_status("Mur 3D lissé : %.2f case(s) · hauteur %.2f." % [total, _ed._wall_height])
+
 ## Construction « Sims » : une rangée de murs 3D modulaires le long du tracé.
 ## Les extrémités s'aimantent au réseau existant, la rangée est pavée exactement
 ## et les coins L sont posés automatiquement.
