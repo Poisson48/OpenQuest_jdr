@@ -101,7 +101,7 @@ font_color = Color(0.9, 0.45, 0.4, 1)       # PV
 color = Color(0.45, 0.18, 0.14, 0.85)       # séparateur danger
 ```
 
-**Impact** : impossible de changer la DA d'un seul endroit ; dérive visuelle entre pages ; `ThemeColors` (pourtant centralisé) est contourné.
+**État** : les 173 valeurs ont été remappées sur la nouvelle palette (§5.1) — plus aucune teinte hors charte. La dette reste **structurelle** : changer une teinte demande encore de modifier les scènes une par une.
 **Action** : ajouter ces 5 teintes à `ThemeColors`, puis remplacer les overrides par des `theme_type_variation` (H1/H2/H3, Caption, Badge…).
 
 ---
@@ -231,13 +231,39 @@ Dans ces pages, il occupe ~120 px avant la TopBar, sur des écrans de travail de
 
 ## 5. Système de design — état
 
-### 5.1 Palette
-- ✅ `BG_DARK`, `GOLD`, `GOLD_LIGHT`, `TEXT`, `TEXT_MUTED`, `DANGER`, `SUCCESS`, `ACCENT`, `ALERT`, `LOG_*`
+### 5.1 Palette — « grimoire » (JDR sur table)
+
+Palette refondue : encre indigo pour les fonds, or antique pour l'accent,
+sceau de cire pour le danger, vert-de-gris pour la réussite, bleu arcanique
+pour l'enquête. Chaque teinte a un rôle unique.
+
+| Jeton | Hex | Rôle |
+|-------|-----|------|
+| `SURFACE_DEEP` | `#0d0b12` | fond le plus profond (scène) |
+| `BG_DARK` | `#14111c` | fond de page |
+| `SURFACE_DOCK` | `#1b1726` | docks / panneaux latéraux |
+| `BG_INPUT` | `#171320` | champs de saisie |
+| `BG_CARD` | `#221d2f` | cartes |
+| `SURFACE_RAISED` | `#2b2440` | surfaces surélevées, survol |
+| `BORDER` | `#3c3252` | bordures |
+| `HAIRLINE` | `#2c2540` | filets internes |
+| `TEXT` | `#ece0c4` | parchemin (texte) |
+| `TEXT_MUTED` | `#a3937f` | parchemin estompé |
+| `GOLD` / `ACCENT` | `#c9a44c` | or antique |
+| `GOLD_LIGHT` | `#f2d98a` | titres, valeurs actives |
+| `DANGER` | `#b23a48` | sceau de cire (destructif) |
+| `SUCCESS` | `#4e9e8a` | vert-de-gris |
+| `ALERT` | `#d9743f` | braise (attention) |
+| `INVESTIGATION_ACCENT` | `#8296d8` | bleu arcanique (enquête) |
+| `BOT_ACCENT` | `#8fd2ea` | cyan (compagnons IA) |
+| `LOG_NPC` | `#b9a0dc` | lavande arcanique (PNJ) |
+| `LOG_PLAYER` | `#8fcbb6` | menthe (joueur) |
+
 - ✅ Constantes typographiques `FONT_SIZE_H1/H2/H3/BODY/CAPTION/MICRO`
-- ✅ Constantes boutons `BTN_HEIGHT_CTA/STANDARD/COMPACT`
-- ⚠️ `SURFACE_DEEP/DOCK/RAISED`, `HAIRLINE` définies mais peu utilisées
-- ❌ 5 teintes utilisées en session **absentes** de la palette (§3.3)
-- ❌ constantes de tailles de boutons **non appliquées** (§3.8)
+- ✅ Constantes boutons `BTN_HEIGHT_CTA/STANDARD/COMPACT` + hauteur unique 48 px appliquée
+- ✅ Teintes du HUD désormais dans la palette : `HUD_TITLE`, `HUD_TURN`, `HUD_HERO_SUB`, `HUD_HP`, `DANGER_SEP`
+- ✅ Thème et scènes alignés sur la palette (173 occurrences remappées)
+- ⚠️ Les couleurs restent écrites **en dur** dans les `.tscn` (dette §3.3) — mais plus aucune teinte hors palette
 
 ### 5.2 Typographie
 - ✅ Hiérarchie H1 24 / H2 20 / H3 16 cohérente entre pages

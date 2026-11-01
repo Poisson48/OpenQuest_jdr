@@ -1,19 +1,26 @@
 extends Node
 
-# Constantes de couleurs issues de css/style.css
-const BG_DARK: Color = Color("1a1410")
-const BG_CARD: Color = Color("2a2218")
-const BG_INPUT: Color = Color("1e1812")
-const BORDER: Color = Color("4a3c2a")
-const GOLD: Color = Color("c9a227")
-const GOLD_LIGHT: Color = Color("e8c547")
-const TEXT: Color = Color("e8dcc8")
-const TEXT_MUTED: Color = Color("9a8870")
-const DANGER: Color = Color("cc4444")
-const SUCCESS: Color = Color("44aa99")
-const INVESTIGATION_ACCENT: Color = Color("788cc8")
-const ONESHOT_ACCENT: Color = Color("4a9988")
-const BOT_ACCENT: Color = Color("88ccff")
+# ---------------------------------------------------------------------------
+# Palette « grimoire » — inspiration jeu de rôle sur table
+# ---------------------------------------------------------------------------
+# Encre indigo pour les fonds (parchemin encré), or antique pour l'accent
+# principal, sceau de cire pour le danger, vert-de-gris pour la réussite,
+# bleu arcanique pour l'enquête. Contraste plus marqué qu'une simple gamme
+# brun/or, et chaque teinte a un rôle unique.
+
+const BG_DARK: Color = Color("14111c")      # fond de page (encre)
+const BG_CARD: Color = Color("221d2f")      # carte / panneau
+const BG_INPUT: Color = Color("171320")     # champ de saisie
+const BORDER: Color = Color("3c3252")       # bordure
+const GOLD: Color = Color("c9a44c")         # or antique (accent)
+const GOLD_LIGHT: Color = Color("f2d98a")   # or clair (titres)
+const TEXT: Color = Color("ece0c4")         # parchemin
+const TEXT_MUTED: Color = Color("a3937f")   # parchemin estompé
+const DANGER: Color = Color("b23a48")       # sceau de cire
+const SUCCESS: Color = Color("4e9e8a")      # vert-de-gris
+const INVESTIGATION_ACCENT: Color = Color("8296d8")  # bleu arcanique
+const ONESHOT_ACCENT: Color = Color("4e9e8a")
+const BOT_ACCENT: Color = Color("8fd2ea")
 
 # ---------------------------------------------------------------------------
 # Jetons de session (console MJ)
@@ -24,14 +31,14 @@ const BOT_ACCENT: Color = Color("88ccff")
 
 const ACCENT: Color = GOLD
 const ACCENT_LIGHT: Color = GOLD_LIGHT
-const ALERT: Color = Color("e07a3f")
-const ALERT_SOFT: Color = Color("f0a870")
+const ALERT: Color = Color("d9743f")
+const ALERT_SOFT: Color = Color("f0ae7a")
 
 ## Fonds : le parchemin sombre passe du plus profond (scène) au plus clair (carte).
-const SURFACE_DEEP: Color = Color("140f0b")
-const SURFACE_DOCK: Color = Color("221b13")
-const SURFACE_RAISED: Color = Color("2f2618")
-const HAIRLINE: Color = Color("3a2f21")
+const SURFACE_DEEP: Color = Color("0d0b12")
+const SURFACE_DOCK: Color = Color("1b1726")
+const SURFACE_RAISED: Color = Color("2b2440")
+const HAIRLINE: Color = Color("2c2540")
 
 # ---------------------------------------------------------------------------
 # Typographie — 3 niveaux max pour les titres
@@ -50,10 +57,19 @@ const BTN_HEIGHT_CTA: int = 48       # Action principale (Lancer, Envoyer)
 const BTN_HEIGHT_STANDARD: int = 40  # Action secondaire
 const BTN_HEIGHT_COMPACT: int = 32   # Outil compact (dés, zoom)
 
+# ---------------------------------------------------------------------------
+# HUD joueur immersif — sorties du codage en dur des scènes
+# ---------------------------------------------------------------------------
+const HUD_TITLE: Color = Color("ece0c4")
+const HUD_TURN: Color = Color("f2d98a")
+const HUD_HERO_SUB: Color = Color("a3937f")
+const HUD_HP: Color = Color("e06070")
+const DANGER_SEP: Color = Color("5a2028")
+
 ## Couleurs d'auteur du journal — un rôle, une teinte.
 const LOG_GM: Color = GOLD_LIGHT
-const LOG_NPC: Color = Color("b79bd8")
-const LOG_PLAYER: Color = Color("8fc7b4")
+const LOG_NPC: Color = Color("b9a0dc")
+const LOG_PLAYER: Color = Color("8fcbb6")
 const LOG_BOT: Color = BOT_ACCENT
 const LOG_DICE: Color = ALERT_SOFT
 const LOG_SYSTEM: Color = TEXT_MUTED

@@ -32,7 +32,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.0784314, 0.0588235, 0.0431373, 1)
+color = Color(0.050980, 0.043137, 0.070588, 1)
 
 [node name="Margins" type="MarginContainer" parent="."]
 unique_name_in_owner = true

@@ -21,7 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -51,7 +51,7 @@ text = "← Retour"
 [node name="Title" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 24
 text = "👥 Fiches de Personnages"
 
@@ -124,14 +124,14 @@ theme_override_constants/separation = 12
 
 [node name="TierPickerTitle" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 16
 text = "Choisir la complexité de la fiche"
 horizontal_alignment = 1
 
 [node name="TierPickerHint" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+theme_override_colors/font_color = Color(0.639216, 0.580392, 0.541176, 1)
 text = "Style Naheulbeuk, JDR classique ou fiche D&D complète."
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -213,7 +213,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 18
 text = "Éditer le Personnage"
 autowrap_mode = 3
@@ -304,7 +304,7 @@ layout_mode = 2
 [node name="LblSimpleStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 text = "Stats simplifiées (Naheulbeuk) :"
 
 [node name="GridSimpleStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -378,7 +378,7 @@ layout_mode = 2
 [node name="LblStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 text = "Caractéristiques (1-30) :"
 
 [node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -510,7 +510,7 @@ layout_mode = 2
 [node name="LblMediumExtraTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 text = "Compétences & personnalité :"
 
 [node name="LblSkills" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -553,7 +553,7 @@ layout_mode = 2
 [node name="LblCompleteTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 text = "Fiche avancée (D&D) :"
 
 [node name="GridComplete" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -638,7 +638,7 @@ size_flags_horizontal = 3
 [node name="LblModifiers" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+theme_override_colors/font_color = Color(0.639216, 0.580392, 0.541176, 1)
 text = "Modificateurs : FOR +0 | DEX +0 | CON +0 | INT +0 | SAG +0 | CHA +0"
 autowrap_mode = 3
 

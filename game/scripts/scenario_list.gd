@@ -133,7 +133,7 @@ func _current_mode_filter() -> String:
 
 func _configure_detail_panel() -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.121569, 0.0980392, 0.0784314, 0.98)
+	style.bg_color = Color(0.121569, 0.101961, 0.168627, 0.98)
 	style.border_color = ThemeColors.BORDER
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(10)

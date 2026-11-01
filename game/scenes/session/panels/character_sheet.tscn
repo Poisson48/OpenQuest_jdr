@@ -98,7 +98,7 @@ text = "✕"
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
-color = Color(0.788235, 0.635294, 0.152941, 1)
+color = Color(0.788235, 0.643137, 0.298039, 1)
 
 [node name="StatsPage" type="ScrollContainer" parent="Frame/Root/Left/LeftBody"]
 unique_name_in_owner = true

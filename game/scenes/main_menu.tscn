@@ -21,7 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -105,7 +105,7 @@ text = "← Accueil"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 18
 text = "Partie en cours"
 
@@ -129,7 +129,7 @@ theme_override_constants/separation = 8
 
 [node name="LblStepsTitle" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/StepsPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 theme_override_font_sizes/font_size = 18
 text = "Comment ça marche ?"
 
@@ -172,14 +172,14 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
 theme_override_font_sizes/font_size = 16
 text = "⚔️ Aventure"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
 theme_override_font_sizes/font_size = 13
 text = "One-shots en une session (3–4 h) ou campagnes longues sur plusieurs chapitres — exploration, combat et arcs narratifs."
 autowrap_mode = 3
@@ -195,14 +195,14 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
+theme_override_colors/font_color = Color(0.509804, 0.588235, 0.847059, 1)
 theme_override_font_sizes/font_size = 16
 text = "🔍 Enquête"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
 theme_override_font_sizes/font_size = 13
 text = "Mystères urbains, interrogatoires, indices cachés et déductions policières en mode polar."
 autowrap_mode = 3

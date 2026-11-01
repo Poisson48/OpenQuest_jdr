@@ -21,7 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -51,7 +51,7 @@ text = "← Retour"
 [node name="Title" type="Label" parent="MainLayout/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 24
 text = "⚙️ Configuration de la Partie"
 
@@ -81,7 +81,7 @@ theme_override_constants/separation = 8
 
 [node name="LblScnTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "1. Choix du Scénario"
 
 [node name="OptScenario" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
@@ -103,7 +103,7 @@ theme_override_constants/separation = 8
 
 [node name="LblRulesTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "2. Format & Mode de Jeu"
 
 [node name="LblQuestFormat" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
@@ -133,7 +133,7 @@ layout_mode = 2
 [node name="NetStatusLabel" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
 theme_override_font_sizes/font_size = 13
 text = "○ Serveur non connecté"
 
@@ -146,14 +146,14 @@ theme_override_constants/separation = 8
 
 [node name="LblMapsTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "3. Cartes associées"
 
 [node name="MapsHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 autowrap_mode = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
 theme_override_font_sizes/font_size = 12
 text = "Coche les cartes à inclure dans la partie (monde + scènes locales)."
 
@@ -178,13 +178,13 @@ theme_override_constants/separation = 8
 
 [node name="LblJoinerTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "⏳ En attente de l'hôte"
 
 [node name="LblJoinerHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
 autowrap_mode = 2
 text = "Choisissez votre personnage ci-dessous. L'hôte lancera la partie quand tout le monde est prêt."
 
@@ -216,7 +216,7 @@ theme_override_constants/separation = 8
 
 [node name="LblPartyTitle" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "4. Composition du Groupe"
 
 [node name="LblMainChar" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
@@ -263,6 +263,6 @@ alignment = 1
 unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 18
 text = "🚀 Lancer l'Aventure !"

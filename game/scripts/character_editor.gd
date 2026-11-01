@@ -135,7 +135,7 @@ func _consume_input() -> void:
 
 func _configure_panels() -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.121569, 0.0980392, 0.0784314, 0.98)
+	style.bg_color = Color(0.121569, 0.101961, 0.168627, 0.98)
 	style.border_color = ThemeColors.BORDER
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(10)
@@ -146,7 +146,7 @@ func _configure_panels() -> void:
 	form_panel.add_theme_stylebox_override("panel", style)
 
 	var tier_style := style.duplicate()
-	tier_style.bg_color = Color(0.101961, 0.0784314, 0.0627451, 0.98)
+	tier_style.bg_color = Color(0.078431, 0.066667, 0.109804, 0.98)
 	tier_picker_panel.add_theme_stylebox_override("panel", tier_style)
 	UiLayout.center_modal(tier_picker_panel, Vector2(480, 260))
 
