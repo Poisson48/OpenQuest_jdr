@@ -17,29 +17,40 @@ class_name MapVegetation3D
 ## assombrit/refroidit l'ensemble.
 
 ## Densité de touffes par case d'herbe (0..1).
-const TUFT_DENSITY := 0.55
+const TUFT_DENSITY := 0.85
 ## Densité de fleurs par case d'herbe (0..1).
-const FLOWER_DENSITY := 0.10
+const FLOWER_DENSITY := 0.18
+## Densité de buissons par case d'herbe (0..1).
+const BUSH_DENSITY := 0.16
 ## Garde-fou de performance : nombre max d'instances par catégorie.
-const MAX_TUFTS := 3000
-const MAX_FLOWERS := 700
+const MAX_TUFTS := 5000
+const MAX_FLOWERS := 1800
+const MAX_BUSHES := 900
 const MATERIAL_GRASS := 0
 ## Teinte de nuit (même logique que le sol).
-const NIGHT_TINT := Color(0.32, 0.36, 0.48)
-## Couleurs d'instance des touffes (verts Valbois, légère variation).
+const NIGHT_TINT := Color(0.40, 0.44, 0.58)
+## Couleurs d'instance des touffes (verts Valbois lumineux, variation douce).
 const TUFT_COLORS := [
-	Color(0.34, 0.50, 0.24),
-	Color(0.40, 0.55, 0.27),
-	Color(0.30, 0.46, 0.22),
-	Color(0.44, 0.56, 0.30),
-	Color(0.36, 0.48, 0.22),
+	Color(0.34, 0.56, 0.20),
+	Color(0.28, 0.48, 0.16),
+	Color(0.40, 0.62, 0.24),
+	Color(0.24, 0.44, 0.14),
+	Color(0.36, 0.58, 0.22),
 ]
-## Couleurs d'instance des fleurs (petites touches claires).
+## Couleurs d'instance des fleurs : blanc/crème, jaune, rose, bleu, orange.
 const FLOWER_COLORS := [
-	Color(0.94, 0.92, 0.80),
-	Color(0.94, 0.82, 0.42),
-	Color(0.82, 0.84, 0.94),
-	Color(0.90, 0.70, 0.80),
+	Color(0.98, 0.96, 0.86),
+	Color(0.99, 0.88, 0.36),
+	Color(0.96, 0.62, 0.74),
+	Color(0.70, 0.76, 1.00),
+	Color(0.99, 0.70, 0.40),
+	Color(0.90, 0.84, 1.00),
+]
+## Couleurs d'instance des buissons (verts plus sombres, volume).
+const BUSH_COLORS := [
+	Color(0.30, 0.46, 0.20),
+	Color(0.36, 0.52, 0.24),
+	Color(0.26, 0.42, 0.18),
 ]
 
 ## Shader inline : albédo unshaded + vent (balancement par instance).
@@ -67,12 +78,15 @@ void fragment() {
 
 var _tuft_instance: MultiMeshInstance3D
 var _flower_instance: MultiMeshInstance3D
+var _bush_instance: MultiMeshInstance3D
 var _material: ShaderMaterial
 var _tuft_mesh: ArrayMesh
 var _flower_mesh: ArrayMesh
+var _bush_mesh: Mesh
 var _active: bool = false
 var _tuft_count: int = 0
 var _flower_count: int = 0
+var _bush_count: int = 0
 var _map_w: int = 0
 var _map_h: int = 0
 var _cell_size: float = 1.0
@@ -95,6 +109,11 @@ func _ensure_instances() -> void:
 	_flower_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flower_instance.visible = false
 	add_child(_flower_instance)
+	_bush_instance = MultiMeshInstance3D.new()
+	_bush_instance.name = "Bushes"
+	_bush_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_bush_instance.visible = false
+	add_child(_bush_instance)
 
 ## Configure la végétation (no-op si paramètres identiques).
 ## `heights` : tableau plat de hauteurs en cases ; `materials` : IDs de matière ;
@@ -144,15 +163,18 @@ func set_night_mode(on: bool) -> void:
 func is_active() -> bool:
 	return _active
 
-## Nombre total d'instances (touffes + fleurs).
+## Nombre total d'instances (touffes + fleurs + buissons).
 func get_vegetation_count() -> int:
-	return _tuft_count + _flower_count
+	return _tuft_count + _flower_count + _bush_count
 
 func get_tuft_count() -> int:
 	return _tuft_count
 
 func get_flower_count() -> int:
 	return _flower_count
+
+func get_bush_count() -> int:
+	return _bush_count
 
 func get_tuft_multimesh() -> MultiMesh:
 	if _tuft_instance == null:
@@ -164,6 +186,11 @@ func get_flower_multimesh() -> MultiMesh:
 		return null
 	return _flower_instance.multimesh
 
+func get_bush_multimesh() -> MultiMesh:
+	if _bush_instance == null:
+		return null
+	return _bush_instance.multimesh
+
 func get_material() -> ShaderMaterial:
 	return _material
 
@@ -174,12 +201,16 @@ func clear() -> void:
 	_active = false
 	_tuft_count = 0
 	_flower_count = 0
+	_bush_count = 0
 	if _tuft_instance != null and is_instance_valid(_tuft_instance):
 		_tuft_instance.multimesh = null
 		_tuft_instance.visible = false
 	if _flower_instance != null and is_instance_valid(_flower_instance):
 		_flower_instance.multimesh = null
 		_flower_instance.visible = false
+	if _bush_instance != null and is_instance_valid(_bush_instance):
+		_bush_instance.multimesh = null
+		_bush_instance.visible = false
 	visible = false
 
 ## Mise à jour rapide de la nuit sans reconstruire.
@@ -197,6 +228,8 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	var tuft_colors: Array = []
 	var flower_transforms: Array = []
 	var flower_colors: Array = []
+	var bush_transforms: Array = []
+	var bush_colors: Array = []
 	for y in range(_map_h):
 		for x in range(_map_w):
 			var idx := y * _map_w + x
@@ -239,27 +272,46 @@ func _rebuild(heights: Array, materials: Array) -> void:
 					Vector3(fscale, fscale, fscale))
 				flower_transforms.append(Transform3D(fbasis, base + fj + Vector3(0.0, 0.02, 0.0)))
 				flower_colors.append(FLOWER_COLORS[int(_hash01(x, y, 26) * FLOWER_COLORS.size()) % FLOWER_COLORS.size()])
+			if _hash01(x, y, 31) < BUSH_DENSITY and bush_transforms.size() < MAX_BUSHES:
+				var bj := Vector3(
+					(_hash01(x, y, 32) - 0.5) * _cell_size * 0.5,
+					0.0,
+					(_hash01(x, y, 33) - 0.5) * _cell_size * 0.5
+				)
+				var bscale := 0.8 + _hash01(x, y, 34) * 0.7
+				var bradius := _cell_size * 0.30
+				var bbasis := Basis(Vector3.UP, _hash01(x, y, 35) * TAU).scaled(
+					Vector3(bscale, bscale * (0.8 + _hash01(x, y, 36) * 0.5), bscale))
+				# Le buisson est posé au sol : la sphère est centrée à mi-hauteur.
+				bush_transforms.append(Transform3D(
+					bbasis, base + bj + Vector3(0.0, bradius * 0.85, 0.0)))
+				bush_colors.append(BUSH_COLORS[int(_hash01(x, y, 37) * BUSH_COLORS.size()) % BUSH_COLORS.size()])
 	_tuft_count = tuft_transforms.size()
 	_flower_count = flower_transforms.size()
+	_bush_count = bush_transforms.size()
 	if _tuft_mesh == null:
 		_tuft_mesh = _make_tuft_mesh(_cell_size)
 	if _flower_mesh == null:
 		_flower_mesh = _make_flower_mesh(_cell_size)
+	if _bush_mesh == null:
+		_bush_mesh = _make_bush_mesh(_cell_size)
 	_apply_multimesh(_tuft_instance, tuft_transforms, tuft_colors, _tuft_mesh)
 	_apply_multimesh(_flower_instance, flower_transforms, flower_colors, _flower_mesh)
-	_active = _tuft_count > 0
+	_apply_multimesh(_bush_instance, bush_transforms, bush_colors, _bush_mesh)
+	_active = get_vegetation_count() > 0
 	visible = _active
 	if _active:
 		_apply_tint()
 	else:
 		_tuft_instance.visible = false
 		_flower_instance.visible = false
+		_bush_instance.visible = false
 
 func _apply_multimesh(
 	instance: MultiMeshInstance3D,
 	transforms: Array,
 	colors: Array,
-	mesh: ArrayMesh
+	mesh: Mesh
 ) -> void:
 	if transforms.is_empty():
 		instance.multimesh = null
@@ -289,16 +341,16 @@ func _ensure_material() -> ShaderMaterial:
 	_apply_tint()
 	return _material
 
-## Touffe : deux quads croisés, dégradé pied sombre → pointe claire (vertex colors).
+## Touffe : trois quads croisés (volume), dégradé pied sombre → pointe claire.
 func _make_tuft_mesh(cell: float) -> ArrayMesh:
-	var width := cell * 0.20
-	var height := cell * 0.50
+	var width := cell * 0.32
+	var height := cell * 0.85
 	var top_gray := Color(1.0, 1.0, 1.0, 1.0)
-	var bottom_gray := Color(0.50, 0.52, 0.46, 1.0)
+	var bottom_gray := Color(0.44, 0.48, 0.38, 1.0)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for plane in range(2):
-		var angle := float(plane) * PI * 0.5
+	for plane in range(3):
+		var angle := float(plane) * PI / 3.0
 		var right := Vector3(cos(angle), 0.0, sin(angle)) * width * 0.5
 		var p0 := -right
 		var p1 := right
@@ -310,14 +362,14 @@ func _make_tuft_mesh(cell: float) -> ArrayMesh:
 
 ## Fleur : petit quad croisé perché sur une tige courte.
 func _make_flower_mesh(cell: float) -> ArrayMesh:
-	var width := cell * 0.13
-	var height := cell * 0.26
+	var width := cell * 0.16
+	var height := cell * 0.38
 	var top_gray := Color(1.0, 1.0, 1.0, 1.0)
-	var bottom_gray := Color(0.55, 0.60, 0.50, 1.0)
+	var bottom_gray := Color(0.50, 0.56, 0.44, 1.0)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for plane in range(2):
-		var angle := float(plane) * PI * 0.5
+	for plane in range(3):
+		var angle := float(plane) * PI / 3.0
 		var right := Vector3(cos(angle), 0.0, sin(angle)) * width * 0.5
 		var p0 := -right
 		var p1 := right
@@ -326,6 +378,15 @@ func _make_flower_mesh(cell: float) -> ArrayMesh:
 		_add_quad(st, p0, p1, p2, p3, bottom_gray, top_gray)
 	st.generate_normals()
 	return st.commit()
+
+## Buisson : petite sphère basse (volume rond) posée sur l'herbe.
+func _make_bush_mesh(cell: float) -> Mesh:
+	var sphere := SphereMesh.new()
+	sphere.radius = cell * 0.40
+	sphere.height = cell * 0.75
+	sphere.radial_segments = 10
+	sphere.rings = 5
+	return sphere
 
 func _add_quad(
 	st: SurfaceTool,

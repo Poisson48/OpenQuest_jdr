@@ -152,6 +152,10 @@ var _lights_layer: Node3D
 var _sun: DirectionalLight3D
 var _atmosphere: ColorRect
 var _vignette: ColorRect
+## Ciel procédural (terrain3d) + attributs caméra (DOF léger) réutilisés.
+var _sky: Sky
+var _sky_material: ShaderMaterial
+var _camera_attributes: CameraAttributesPractical
 var _areas_overlay: Control
 var _token_overlay: Control
 var _overlay_icons: Dictionary = {}
@@ -402,7 +406,8 @@ func _build_viewport_tree() -> void:
 	_vignette = ColorRect.new()
 	_vignette.name = "Vignette"
 	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_vignette.color = Color(0, 0, 0, 0.18)
+	_vignette.color = Color(1, 1, 1, 1)
+	_vignette.material = _make_vignette_material()
 	_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_vignette)
 
@@ -547,6 +552,135 @@ func set_view_inset(left: float, top: float, right: float, bottom: float) -> voi
 ## Qualité de rendu « Dofus » : AO écran pour asseoir les bâtiments, glow doux
 ## sur les lumières, contraste/couleurs légèrement relevés. Réservé au 2.5D
 ## terrain pour ne pas dégrader les fonds illustrés.
+## Matériau du vignettage doux (radial) — remplace un aplat noir uniforme.
+func _make_vignette_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+uniform float strength : hint_range(0.0, 1.0) = 0.18;
+uniform vec4 tint : source_color = vec4(0.05, 0.04, 0.08, 1.0);
+
+void fragment() {
+	vec2 uv = UV * 2.0 - 1.0;
+	float dist = length(uv * vec2(1.0, 0.82));
+	float v = smoothstep(0.30, 1.15, dist) * strength;
+	COLOR = vec4(tint.rgb, v);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("strength", 0.18)
+	mat.set_shader_parameter("tint", Color(0.05, 0.04, 0.08))
+	return mat
+
+## Crée (une fois) le ciel procédural réutilisable (shader de ciel pastel).
+func _ensure_sky() -> void:
+	if _sky != null and _sky_material != null:
+		return
+	var shader := Shader.new()
+	shader.code = """
+shader_type sky;
+render_mode use_debanding;
+
+uniform vec4 top_color : source_color = vec4(0.62, 0.80, 0.92, 1.0);
+uniform vec4 horizon_color : source_color = vec4(1.0, 0.90, 0.76, 1.0);
+uniform vec4 ground_color : source_color = vec4(0.92, 0.88, 0.80, 1.0);
+uniform float sun_glow : hint_range(0.0, 4.0) = 1.2;
+
+void sky() {
+	float y = EYEDIR.y;
+	// Dégradé vertical doux : sol pastel → horizon crème → haut bleu pâle.
+	vec3 col = mix(horizon_color.rgb, top_color.rgb, clamp(y * 1.35 + 0.05, 0.0, 1.0));
+	col = mix(ground_color.rgb, col, smoothstep(-0.38, 0.02, y));
+	// Disque solaire discret + halo chaud (facultatif, jamais écrasant).
+	float sun = max(dot(EYEDIR, LIGHT0_DIRECTION), 0.0);
+	col += LIGHT0_COLOR.rgb * pow(sun, 420.0) * sun_glow * LIGHT0_ENERGY;
+	col += LIGHT0_COLOR.rgb * pow(sun, 8.0) * 0.06 * sun_glow * LIGHT0_ENERGY;
+	COLOR = col;
+}
+"""
+	_sky_material = ShaderMaterial.new()
+	_sky_material.shader = shader
+	_sky_material.set_shader_parameter("top_color", Color(0.62, 0.80, 0.92))
+	_sky_material.set_shader_parameter("horizon_color", Color(1.0, 0.90, 0.76))
+	_sky_material.set_shader_parameter("ground_color", Color(0.92, 0.88, 0.80))
+	_sky_material.set_shader_parameter("sun_glow", 1.2)
+	_sky = Sky.new()
+	_sky.sky_material = _sky_material
+	_sky.radiance_size = Sky.RADIANCE_SIZE_256
+
+## Applique le ciel (ou revient au fond uni) selon le preset / le mode de sol.
+## Les cartes illustrées et la vue table gardent le fond uni : rien ne change
+## pour elles. Fallback silencieux si le ciel n'est pas disponible.
+func _apply_sky(env: Environment, terrain3d: bool, preset: Dictionary) -> void:
+	if env == null:
+		return
+	var want_sky := terrain3d and not table_view and bool(preset.get("sky", false))
+	if not want_sky:
+		if env.sky != null:
+			env.sky = null
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color.html(str(preset.get("background", "#10151c")))
+		env.fog_sky_affect = 0.0
+		return
+	_ensure_sky()
+	if _sky == null or _sky_material == null:
+		# Fallback : dégradé de couleur uni pastel.
+		env.sky = null
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color.html(str(preset.get("skyHorizon", "#ffe9cf")))
+		return
+	_sky_material.set_shader_parameter(
+		"top_color", Color.html(str(preset.get("skyTop", "#9fd0e8"))))
+	_sky_material.set_shader_parameter(
+		"horizon_color", Color.html(str(preset.get("skyHorizon", "#ffe9cf"))))
+	_sky_material.set_shader_parameter(
+		"ground_color", Color.html(str(preset.get("skyGroundBottom", "#e9e2d4"))))
+	_sky_material.set_shader_parameter(
+		"sun_glow", float(preset.get("sunGlow", 1.2)))
+	env.sky = _sky
+	env.background_mode = Environment.BG_SKY
+	env.background_energy_multiplier = float(preset.get("skyEnergy", 1.0))
+	env.fog_sky_affect = float(preset.get("fogSkyAffect", 0.0))
+
+## DOF très léger (profondeur) — uniquement en perspective sur un vrai terrain.
+func _apply_depth_of_field(env: Environment, terrain: bool) -> void:
+	if env == null or _camera == null:
+		return
+	var perspective := _camera.projection == Camera3D.PROJECTION_PERSPECTIVE
+	var dof_on := terrain and perspective and not table_view
+	if _camera_attributes == null:
+		_camera_attributes = CameraAttributesPractical.new()
+	_camera_attributes.dof_blur_far_enabled = dof_on
+	_camera_attributes.dof_blur_far_distance = 58.0
+	_camera_attributes.dof_blur_far_transition = 20.0
+	_camera_attributes.dof_blur_amount = 0.035
+	_camera_attributes.dof_blur_near_enabled = false
+	# Godot 4 : les attributs de profondeur de champ vivent sur la Camera3D.
+	_camera.attributes = _camera_attributes if dof_on else null
+
+## Vrai si le ciel procédural est actuellement rendu.
+func is_sky_active() -> bool:
+	if _world_env == null or _world_env.environment == null:
+		return false
+	return _world_env.environment.sky != null \
+		and _world_env.environment.background_mode == Environment.BG_SKY
+
+func get_sky_material() -> ShaderMaterial:
+	return _sky_material
+
+## Attributs caméra (DOF) courants, null si désactivés.
+func get_camera_attributes() -> CameraAttributes:
+	if _camera == null:
+		return null
+	return _camera.attributes
+
+## Force de vignettage courante (0..1) — tests/captures.
+func get_vignette_strength() -> float:
+	if _vignette == null or _vignette.material is not ShaderMaterial:
+		return 0.0
+	return float((_vignette.material as ShaderMaterial).get_shader_parameter("strength"))
+
 func _apply_render_quality() -> void:
 	if _world_env == null:
 		return
@@ -563,23 +697,27 @@ func _apply_render_quality() -> void:
 		env.ssao_horizon = 0.08
 		env.ssao_sharpness = 0.98
 		env.ssao_light_affect = 0.12
+	var preset: Dictionary = MapData.get_lighting_preset(str(_lighting_config.get("preset", "jour")))
+	var preset_glow := float(preset.get("glow", 0.34))
 	env.glow_enabled = true
-	env.glow_intensity = 0.34 if terrain else 0.18
+	env.glow_intensity = preset_glow if terrain else preset_glow * 0.6
 	env.glow_strength = 0.9
 	env.glow_bloom = 0.025
 	env.glow_hdr_threshold = 1.05
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.04
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.08 if terrain else 1.0
+	env.adjustment_brightness = float(preset.get("brightness", 1.05))
+	env.adjustment_contrast = float(preset.get("contrast", 1.06))
+	env.adjustment_saturation = float(preset.get("saturation", 1.10)) if terrain else 1.0
 	if _sun != null:
 		# Le style 2.5D coupe les ombres par défaut ; sur un vrai terrain 3D on les
 		# réactive pour asseoir les constructions (qualité Dofus).
 		_sun.shadow_enabled = terrain and not table_view
-		_sun.shadow_blur = 1.25
+		_sun.shadow_blur = float(preset.get("shadowBlur", 1.35))
 		_sun.shadow_bias = 0.04
 		_sun.directional_shadow_blend_splits = true
+	# DOF très léger : donne de la profondeur au fond sans flouter la carte.
+	_apply_depth_of_field(env, terrain)
 
 func _load_ground(p_ground_mode: String = "") -> void:
 	if _ground == null:
@@ -654,8 +792,20 @@ func _load_backdrop() -> void:
 		return
 	var w: int = int(map_data.get("width", 16))
 	var h: int = int(map_data.get("height", 12))
+	# Palette de fond « prairie pastel » portée par certains presets lumineux
+	# (Tiny Glade) : elle remplace le brun sombre qui masquerait le ciel.
+	var preset: Dictionary = MapData.get_lighting_preset(
+		str(_lighting_config.get("preset", "jour")))
+	var palette: Dictionary = {}
+	if preset.has("backdropCenter"):
+		palette = {
+			"center": Color.html(str(preset.get("backdropCenter", "#cfe0a8"))),
+			"mid": Color.html(str(preset.get("backdropMid", "#b9d0a8"))),
+			"edge": Color.html(str(preset.get("backdropEdge", "#f0ead8"))),
+		}
 	if _backdrop_layer.has_method("configure"):
-		_backdrop_layer.configure(w, h, _cell_size, MapData.is_night_mode(map_data))
+		_backdrop_layer.configure(
+			w, h, _cell_size, MapData.is_night_mode(map_data), palette)
 
 ## Vrai si le fond de plateau est rendu.
 func is_backdrop_active() -> bool:
@@ -718,13 +868,14 @@ func get_vegetation_count() -> int:
 		return 0
 	return int(_vegetation_layer.get_vegetation_count())
 
-## Détail (tests/captures) : touffes et fleurs séparément.
+## Détail (tests/captures) : touffes, fleurs et buissons séparément.
 func get_vegetation_counts() -> Dictionary:
 	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
-		return {"tufts": 0, "flowers": 0}
+		return {"tufts": 0, "flowers": 0, "bushes": 0}
 	return {
 		"tufts": int(_vegetation_layer.get_tuft_count()) if _vegetation_layer.has_method("get_tuft_count") else 0,
 		"flowers": int(_vegetation_layer.get_flower_count()) if _vegetation_layer.has_method("get_flower_count") else 0,
+		"bushes": int(_vegetation_layer.get_bush_count()) if _vegetation_layer.has_method("get_bush_count") else 0,
 	}
 
 # ===========================================================================
@@ -1133,14 +1284,12 @@ func _apply_lighting() -> void:
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		env.ambient_light_color = ambient_color
 		env.ambient_light_energy = ambient_energy
-		env.background_mode = Environment.BG_COLOR
-		env.background_color = Color.html(str(preset.get("background", "#10151c")))
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
 		env.fog_enabled = terrain3d and fog_density > 0.0001
 		env.fog_light_color = Color.html(str(preset.get("fogColor", "#2b3445")))
 		env.fog_density = fog_density
-		env.fog_sky_affect = 0.0
+		_apply_sky(env, terrain3d, preset)
 
 func _apply_atmosphere() -> void:
 	if _atmosphere == null or _vignette == null:
@@ -1162,17 +1311,24 @@ func _apply_atmosphere() -> void:
 		tint.a = opacity
 		_atmosphere.color = tint
 		var vig := float(atmo.get("vignette", 0.15))
-		_vignette.color = Color(0, 0, 0, minf(vig, 0.08) if illustrated else (minf(vig, 0.18) if is_diorama else vig))
+		_set_vignette_strength(minf(vig, 0.08) if illustrated else (minf(vig, 0.18) if is_diorama else vig))
 	elif illustrated:
 		# Fond peint : pas de voile — on lit l'image telle quelle.
 		_atmosphere.color = Color(0, 0, 0, 0.0)
-		_vignette.color = Color(0, 0, 0, 0.0)
+		_set_vignette_strength(0.0)
 	elif is_diorama:
 		_atmosphere.color = Color(0.08, 0.06, 0.10, 0.06)
-		_vignette.color = Color(0, 0, 0, 0.12)
+		_set_vignette_strength(0.12)
 	else:
 		_atmosphere.color = Color(0.04, 0.03, 0.06, 0.08)
-		_vignette.color = Color(0, 0, 0, 0.12 if is_gm else 0.22)
+		_set_vignette_strength(0.12 if is_gm else 0.20)
+
+## Applique la force du vignettage radial (0 = aucun).
+func _set_vignette_strength(value: float) -> void:
+	if _vignette == null or not (_vignette.material is ShaderMaterial):
+		return
+	var mat: ShaderMaterial = _vignette.material
+	mat.set_shader_parameter("strength", clampf(value, 0.0, 0.6))
 
 func _apply_view_state(view_state: Dictionary) -> void:
 	if view_state.is_empty():

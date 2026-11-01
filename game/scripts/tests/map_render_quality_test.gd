@@ -129,6 +129,59 @@ func _run() -> void:
 				str(engine._vegetation_layer.get_material() if engine._vegetation_layer != null else null),
 			])
 
+	# --- Tiny Glade : ciel pastel, preset lumineux, végétation dense, DOF/vignette ---
+	var tg_map: Dictionary = village.duplicate(true)
+	var tg_light: Dictionary = md.get_lighting_config(tg_map)
+	tg_light["preset"] = "tiny_glade"
+	tg_light["enabled"] = false
+	tg_map["lighting"] = tg_light
+	engine.configure(tg_map, [], [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(8):
+		await process_frame
+	var tg_env: Environment = engine._world_env.environment
+	_assert("tiny_glade_sky_active", engine.is_sky_active())
+	_assert("tiny_glade_bg_sky", tg_env.background_mode == Environment.BG_SKY)
+	var sky_mat: ShaderMaterial = engine.get_sky_material()
+	_assert("tiny_glade_sky_material",
+		sky_mat != null and sky_mat.shader != null
+		and sky_mat.shader.code.contains("shader_type sky"))
+	if sky_mat != null:
+		_assert("tiny_glade_sky_pastel",
+			sky_mat.get_shader_parameter("top_color") is Color
+			and sky_mat.get_shader_parameter("horizon_color") is Color)
+	_assert("tiny_glade_sun_warm_strong",
+		engine._sun.light_color.r > engine._sun.light_color.b
+		and engine._sun.light_energy > 1.2)
+	_assert("tiny_glade_ambient_pastel", tg_env.ambient_light_energy > 0.5)
+	_assert("tiny_glade_fog_depth",
+		tg_env.fog_enabled and tg_env.fog_density > 0.0 and tg_env.fog_density < 0.01)
+	_assert("tiny_glade_glow_soft",
+		tg_env.glow_enabled and tg_env.glow_intensity >= 0.4)
+	_assert("tiny_glade_saturation",
+		tg_env.adjustment_enabled and tg_env.adjustment_saturation > 1.12)
+	# Végétation dense : touffes + fleurs + buissons, plus denses qu'avant.
+	var tg_counts: Dictionary = engine.get_vegetation_counts()
+	_assert("tiny_glade_vegetation_dense",
+		int(tg_counts.get("tufts", 0)) > 100,
+		"tufts=%d" % int(tg_counts.get("tufts", 0)))
+	_assert("tiny_glade_flowers",
+		int(tg_counts.get("flowers", 0)) > 10,
+		"flowers=%d" % int(tg_counts.get("flowers", 0)))
+	_assert("tiny_glade_bushes", int(tg_counts.get("bushes", 0)) > 0,
+		"bushes=%d" % int(tg_counts.get("bushes", 0)))
+	# Profondeur : vignettage doux + DOF léger en perspective.
+	_assert("tiny_glade_vignette", engine.get_vignette_strength() > 0.0)
+	var attrs: CameraAttributes = engine.get_camera_attributes()
+	_assert("tiny_glade_dof", attrs is CameraAttributesPractical
+		and (attrs as CameraAttributesPractical).dof_blur_far_enabled)
+	# Nuit (preset sans ciel) : on revient à un fond uni, pas de ciel résiduel.
+	engine.configure(night_map, [], [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(4):
+		await process_frame
+	_assert("render_night_no_sky", not engine.is_sky_active())
+	_assert("render_night_bg_color",
+		engine._world_env.environment.background_mode == Environment.BG_COLOR)
+
 	engine.queue_free()
 	await process_frame
 	if _failed:

@@ -73,6 +73,8 @@ var _cell_size: float = 1.0
 var _night_mode: bool = false
 var _has_config: bool = false
 var _size_world: float = 0.0
+## Palette optionnelle (preset lumineux type Tiny Glade) : centre/milieu/bord.
+var _palette: Dictionary = {}
 
 func _ready() -> void:
 	_ensure_mesh_instance()
@@ -87,27 +89,45 @@ func _ensure_mesh_instance() -> void:
 	add_child(_mesh_instance)
 
 ## Configure le fond. Aucun fond si dimensions invalides (désactivé).
+## `palette` (optionnelle) : {"center": Color, "mid": Color, "edge": Color} pour
+## un preset lumineux (prairie pastel) ; vide = palette sombre historique.
 ## No-op si paramètres identiques (le refresh ne reconstruit pas inutilement).
 func configure(
 	map_width: int,
 	map_height: int,
 	cell_size: float,
-	night_mode: bool = false
+	night_mode: bool = false,
+	palette: Dictionary = {}
 ) -> void:
 	var next_w := maxi(0, map_width)
 	var next_h := maxi(0, map_height)
 	var next_cell := cell_size if cell_size > 0.0 else 1.0
+	var next_palette := palette.duplicate() if palette is Dictionary else {}
 	if _has_config \
 			and next_w == _map_w and next_h == _map_h \
 			and is_equal_approx(next_cell, _cell_size) \
-			and night_mode == _night_mode:
+			and night_mode == _night_mode \
+			and next_palette == _palette:
 		return
 	_map_w = next_w
 	_map_h = next_h
 	_cell_size = next_cell
 	_night_mode = night_mode
+	_palette = next_palette
 	_has_config = true
 	_rebuild()
+
+## Change la palette du fond à chaud (rebuild si différente).
+func set_palette(palette: Dictionary) -> void:
+	var next := palette.duplicate() if palette is Dictionary else {}
+	if next == _palette:
+		return
+	_palette = next
+	if _has_config:
+		_rebuild()
+
+func get_palette() -> Dictionary:
+	return _palette.duplicate()
 
 func set_night_mode(on: bool) -> void:
 	if _night_mode == on:
@@ -181,12 +201,16 @@ func _build_material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = _shader
-	_material.set_shader_parameter("center_color", CENTER_COLOR)
-	_material.set_shader_parameter("mid_color", MID_COLOR)
-	_material.set_shader_parameter("edge_color", EDGE_COLOR)
+	_material.set_shader_parameter("center_color", _palette_color("center", CENTER_COLOR))
+	_material.set_shader_parameter("mid_color", _palette_color("mid", MID_COLOR))
+	_material.set_shader_parameter("edge_color", _palette_color("edge", EDGE_COLOR))
 	_material.set_shader_parameter("night_tint", NIGHT_TINT if _night_mode else Color.WHITE)
 	_material.set_shader_parameter("grain_strength", GRAIN_STRENGTH)
 	_material.set_shader_parameter("band_strength", BAND_STRENGTH)
 	# Très bas : le fond passe avant tout le reste de la carte.
 	_material.render_priority = -120
 	return _material
+
+func _palette_color(key: String, fallback: Color) -> Color:
+	var value = _palette.get(key, null)
+	return value if value is Color else fallback

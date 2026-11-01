@@ -27,9 +27,9 @@ func _ready() -> void:
 	map["worldId"] = MONDE
 	map["lighting"] = {
 		"enabled": true,
-		"preset": "matin",
+		"preset": "tiny_glade",
 		"direction": "sw",
-		"intensity": 0.35,
+		"intensity": 0.55,
 		"sources": [
 			{"id": "lamp-h1-l", "x": 4.8, "y": 7.2, "elevation": 1.7, "color": "#ffd9a8", "energy": 0.9, "radius": 2.8, "flicker": true, "shadows": true},
 			{"id": "lamp-h1-r", "x": 7.2, "y": 7.2, "elevation": 1.7, "color": "#ffd9a8", "energy": 0.9, "radius": 2.8, "flicker": true, "shadows": true},

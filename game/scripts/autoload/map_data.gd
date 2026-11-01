@@ -25,7 +25,7 @@ const DEFAULT_GRID_CONFIG := {
 	"color": "#ffffff",
 	"enabled": true,
 }
-const LIGHTING_PRESET_ORDER := ["jour", "matin", "coucher", "nuit", "donjon"]
+const LIGHTING_PRESET_ORDER := ["jour", "matin", "coucher", "nuit", "donjon", "tiny_glade"]
 const LIGHTING_PRESETS := {
 	"jour": {
 		"label": "☀ Jour clair", "sunColor": "#fff1d8", "sunEnergy": 1.25,
@@ -56,6 +56,20 @@ const LIGHTING_PRESETS := {
 		"sunAngle": -62.0, "sunYaw": 15.0, "ambientColor": "#171b2a",
 		"ambientEnergy": 0.20, "background": "#05060a", "exposure": 1.12,
 		"fogDensity": 0.02, "glow": 0.65,
+	},
+	"tiny_glade": {
+		# Direction artistique Tiny Glade : ciel pastel, soleil chaud et doux,
+		# ambiance lumineuse, horizon crème, brume légère de profondeur.
+		"label": "🌤 Tiny Glade", "sunColor": "#ffe3b8", "sunEnergy": 1.55,
+		"sunAngle": -42.0, "sunYaw": -52.0, "ambientColor": "#cfe6ff",
+		"ambientEnergy": 0.62, "background": "#bfe0ef", "exposure": 1.0,
+		"fogDensity": 0.002, "glow": 0.45,
+		"sky": true, "skyTop": "#9ccbe8", "skyHorizon": "#ffe6c2",
+		"skyGroundBottom": "#efe6d6", "sunGlow": 1.1, "skyEnergy": 1.0,
+		"fogSkyAffect": 0.20, "fogColor": "#f5e8d6", "shadowBlur": 1.7,
+		"backdropCenter": "#d6e2ad", "backdropMid": "#b8cfa3",
+		"backdropEdge": "#f2ead8",
+		"saturation": 1.20, "brightness": 1.02, "contrast": 1.08,
 	},
 }
 const DEFAULT_LIGHTING_CONFIG := {
