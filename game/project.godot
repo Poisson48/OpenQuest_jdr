@@ -28,6 +28,7 @@ LocaleSettings="*res://scripts/autoload/locale_settings.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MapData="*res://scripts/autoload/map_data.gd"
 MultiplayerManager="*res://scripts/multiplayer/multiplayer_manager.gd"
+ButtonSizing="*res://scripts/autoload/button_sizing.gd"
 
 [display]
 
