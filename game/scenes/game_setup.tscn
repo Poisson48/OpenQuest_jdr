@@ -252,7 +252,7 @@ alignment = 1
 
 [node name="BtnStartGame" type="Button" parent="MainLayout/BottomAction/HBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 19

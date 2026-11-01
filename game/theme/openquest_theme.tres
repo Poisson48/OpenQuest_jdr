@@ -1,6 +1,7 @@
-[gd_resource type="Theme" load_steps=29 format=3 uid="uid://openquest_theme_001"]
+[gd_resource type="Theme" load_steps=31 format=3 uid="uid://openquest_theme_001"]
 
 [ext_resource type="FontVariation" path="res://assets/fonts/ui_font.tres" id="1_ui_font"]
+[ext_resource type="Texture2D" path="res://assets/ui/split_grabber.svg" id="2_grabber"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_disabled"]
 content_margin_left = 12.0
@@ -384,6 +385,36 @@ corner_radius_bottom_left = 10
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_none"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_split_bar"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.050980, 0.043137, 0.070588, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.133333, 0.113725, 0.184314, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.788235, 0.643137, 0.298039, 0.7)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
 [resource]
 default_font = ExtResource("1_ui_font")
 default_font_size = 17
@@ -429,6 +460,15 @@ HScrollBar/styles/grabber = SubResource("StyleBoxFlat_scroll_grabber")
 HScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_scroll_grabber_hl")
 HScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_scroll_grabber_hl")
 HScrollBar/styles/scroll = SubResource("StyleBoxFlat_scroll_track")
+HSplitContainer/constants/minimum_grab_thickness = 11
+HSplitContainer/icons/grabber = ExtResource("2_grabber")
+HSplitContainer/styles/split_bar_background = SubResource("StyleBoxFlat_split_bar")
+VSplitContainer/constants/minimum_grab_thickness = 11
+VSplitContainer/icons/grabber = ExtResource("2_grabber")
+VSplitContainer/styles/split_bar_background = SubResource("StyleBoxFlat_split_bar")
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_tooltip")
+TooltipLabel/colors/font_color = Color(0.964706, 0.933333, 0.854902, 1)
+TooltipLabel/font_sizes/font_size = 15
 HSplitContainer/constants/autohide = 0
 HSplitContainer/constants/separation = 8
 Label/colors/font_color = Color(0.964706, 0.933333, 0.854902, 1)

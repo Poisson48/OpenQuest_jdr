@@ -21,7 +21,7 @@ layout_mode = 2
 
 [node name="BtnZoomOut" type="Button" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(32, 30)
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "−"
@@ -36,14 +36,14 @@ horizontal_alignment = 1
 
 [node name="BtnZoomIn" type="Button" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(32, 30)
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "+"
 
 [node name="BtnZoomReset" type="Button" parent="."]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(32, 30)
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Recadrer"

@@ -109,21 +109,18 @@ columns = 2
 
 [node name="BtnAdvNewChar" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Héros d'Aventure"
 
 [node name="BtnAdvScenarios" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "📜 Bibliothèque de Scénarios"
 
 [node name="BtnAdvPlay" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
@@ -178,21 +175,18 @@ columns = 2
 
 [node name="BtnInvNewChar" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "+ Créer un Détective / Enquêteur"
 
 [node name="BtnInvScenarios" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "📁 Dossiers d'Enquêtes & Mystères"
 
 [node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.509804, 0.588235, 0.847059, 1)
@@ -276,7 +270,6 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 40)
 tooltip_text = "Crée une carte monde et ouvre l’éditeur"
 text = "+ Carte monde"
 
@@ -284,7 +277,6 @@ text = "+ Carte monde"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 40)
 tooltip_text = "Crée une carte d’aventure et ouvre l’éditeur"
 text = "+ Carte aventure"
 
@@ -292,7 +284,6 @@ text = "+ Carte aventure"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 40)
 tooltip_text = "Crée une carte d’enquête et ouvre l’éditeur"
 text = "+ Carte enquête"
 
@@ -313,7 +304,7 @@ theme_override_constants/separation = 16
 unique_name_in_owner = true
 title = "Supprimer la carte"
 initial_position = 2
-size = Vector2i(420, 120)
+size = Vector2i(460, 140)
 dialog_text = "Supprimer cette carte ?"
 ok_button_text = "Supprimer"
 cancel_button_text = "Annuler"
@@ -322,7 +313,7 @@ cancel_button_text = "Annuler"
 unique_name_in_owner = true
 title = "Publier la carte"
 initial_position = 2
-size = Vector2i(420, 140)
+size = Vector2i(460, 140)
 dialog_text = "Publier cette carte dans le catalogue ?"
 ok_button_text = "Publier"
 cancel_button_text = "Annuler"
@@ -421,7 +412,7 @@ size_flags_horizontal = 3
 unique_name_in_owner = true
 title = "Supprimer le bot"
 initial_position = 2
-size = Vector2i(420, 120)
+size = Vector2i(460, 140)
 dialog_text = "Supprimer ce compagnon bot ?"
 ok_button_text = "Supprimer"
 cancel_button_text = "Annuler"

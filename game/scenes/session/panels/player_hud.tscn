@@ -35,7 +35,6 @@ theme_override_constants/separation = 10
 
 [node name="BtnLeave" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "← Quitter"
@@ -64,7 +63,7 @@ horizontal_alignment = 2
 
 [node name="BtnZoomOut" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 32)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Dézoomer"
@@ -72,7 +71,7 @@ text = "−"
 
 [node name="BtnZoomIn" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 32)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Zoomer"
@@ -80,7 +79,6 @@ text = "+"
 
 [node name="BtnFit" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Afficher toute la carte"
@@ -151,7 +149,7 @@ text = "Histoire"
 [node name="BtnClearFocus" type="Button" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 unique_name_in_owner = true
 visible = true
-custom_minimum_size = Vector2(28, 28)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "«"
@@ -256,7 +254,6 @@ theme_override_constants/separation = 6
 
 [node name="BtnMySheet" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"AccentButton"
@@ -264,7 +261,6 @@ text = "Ma fiche"
 
 [node name="BtnInventory" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
@@ -302,7 +298,7 @@ text = "Inventaire"
 
 [node name="BtnCloseInv" type="Button" parent="InventoryPanel/InvCol/InvHeader"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 34)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "✕"
@@ -354,7 +350,6 @@ theme_override_constants/separation = 6
 
 [node name="BtnExplore" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'explore attentivement les environs à la recherche d'indices."
@@ -362,7 +357,6 @@ text = "Explorer"
 
 [node name="BtnTalk" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'engage la conversation avec les personnes présentes."
@@ -370,7 +364,6 @@ text = "Discuter"
 
 [node name="BtnInspect" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'examine minutieusement cet endroit."
@@ -378,7 +371,6 @@ text = "Examiner"
 
 [node name="BtnFight" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Je dégaine mon arme et me prépare au combat !"
@@ -397,21 +389,20 @@ placeholder_text = "Que faites-vous ?"
 
 [node name="BtnSend" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_type_variation = &"AccentButton"
 text = "Envoyer"
 
 [node name="BtnD6" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(48, 38)
+custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d6"
 
 [node name="BtnD20" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(52, 38)
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d20"

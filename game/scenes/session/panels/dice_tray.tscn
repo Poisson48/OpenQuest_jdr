@@ -38,42 +38,42 @@ layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="BtnD4" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
 text = "d4"
 
 [node name="BtnD6" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
 text = "d6"
 
 [node name="BtnD8" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
 text = "d8"
 
 [node name="BtnD10" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
 text = "d10"
 
 [node name="BtnD12" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
 text = "d12"
 
 [node name="BtnD20" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
@@ -81,7 +81,7 @@ theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "d20"
 
 [node name="BtnD100" type="Button" parent="Col/QuickRow"]
-custom_minimum_size = Vector2(38, 34)
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
@@ -100,7 +100,6 @@ placeholder_text = "2d6+3"
 
 [node name="BtnRoll" type="Button" parent="Col/CustomRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 tooltip_text = "Lancer la formule saisie"
 text = "Lancer"

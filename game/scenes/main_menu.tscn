@@ -56,21 +56,21 @@ alignment = 1
 
 [node name="BtnOngoing" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
 text = "🗺️ Partie en cours"
 
 [node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
 text = "🏛️ Hub & Gestion"
 
 [node name="BtnDiscord" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
 tooltip_text = "Rejoindre la communauté OpenQuest sur Discord"
@@ -116,7 +116,7 @@ theme_override_constants/separation = 8
 
 [node name="BtnPlayNew" type="Button" parent="ScrollContainer/Margin/VBox/OngoingPage/OngoingVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 44)
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "⚙️ Nouvelle Partie"
 
@@ -211,7 +211,7 @@ autowrap_mode = 3
 unique_name_in_owner = true
 title = "Effacer la partie"
 initial_position = 2
-size = Vector2i(420, 120)
+size = Vector2i(460, 140)
 dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
 ok_button_text = "Effacer"
 cancel_button_text = "Annuler"

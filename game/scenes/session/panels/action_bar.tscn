@@ -47,28 +47,24 @@ layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="BtnExplore" type="Button" parent="Col/Suggestions/SuggestionRow"]
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'explore attentivement les environs à la recherche d'indices."
 text = "Explorer"
 
 [node name="BtnTalk" type="Button" parent="Col/Suggestions/SuggestionRow"]
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'engage la conversation avec les personnes présentes."
 text = "Discuter"
 
 [node name="BtnInspect" type="Button" parent="Col/Suggestions/SuggestionRow"]
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'examine minutieusement cet endroit."
 text = "Examiner"
 
 [node name="BtnFight" type="Button" parent="Col/Suggestions/SuggestionRow"]
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Je dégaine mon arme et me prépare au combat !"
@@ -88,7 +84,6 @@ placeholder_text = "Que faites-vous ?"
 
 [node name="BtnSend" type="Button" parent="Col/InputRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"AccentButton"
 tooltip_text = "Soumettre votre action"
