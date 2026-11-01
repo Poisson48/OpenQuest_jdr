@@ -266,26 +266,13 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="BtnNewMapWorld" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
+[node name="MenuMapsCreate" type="MenuButton" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Crée une carte monde et ouvre l’éditeur"
-text = "+ Carte monde"
-
-[node name="BtnNewMapAdv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Crée une carte d’aventure et ouvre l’éditeur"
-text = "+ Carte aventure"
-
-[node name="BtnNewMapInv" type="Button" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar/MapsCreateRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Crée une carte d’enquête et ouvre l’éditeur"
-text = "+ Carte enquête"
+tooltip_text = "Créer une carte"
+text = "＋ Nouvelle carte"
+flat = false
 
 [node name="MapsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Cartes/VBox"]
 layout_mode = 2

@@ -11,13 +11,34 @@ signal unpublish_pressed(scenario_id: String, title: String)
 
 var _scn: Dictionary = {}
 
+## Menu « ⋯ » : actions secondaires pour ne pas surcharger la carte.
+const MENU_VIEW := 0
+const MENU_PUBLISH := 1
+const MENU_UNPUBLISH := 2
+const MENU_DELETE := 3
+
 func _ready() -> void:
 	%BtnEdit.pressed.connect(func(): edit_pressed.emit(str(_scn.get("id", ""))))
-	%BtnView.pressed.connect(func(): view_pressed.emit(_scn))
 	%BtnPlay.pressed.connect(func(): play_pressed.emit(str(_scn.get("id", ""))))
-	%BtnDelete.pressed.connect(func(): delete_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
-	%BtnPublish.pressed.connect(func(): publish_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
-	%BtnUnpublish.pressed.connect(func(): unpublish_pressed.emit(str(_scn.get("id", "")), str(_scn.get("title", "Scénario"))))
+	var popup: PopupMenu = %MenuMore.get_popup()
+	popup.add_item("👁 Voir détails", MENU_VIEW)
+	popup.add_item("📚 Publier dans le catalogue", MENU_PUBLISH)
+	popup.add_item("📝 Remettre en brouillon", MENU_UNPUBLISH)
+	popup.add_item("🗑 Supprimer", MENU_DELETE)
+	popup.id_pressed.connect(_on_menu_action)
+
+func _on_menu_action(id: int) -> void:
+	var scn_id := str(_scn.get("id", ""))
+	var title := str(_scn.get("title", "Scénario"))
+	match id:
+		MENU_VIEW:
+			view_pressed.emit(_scn)
+		MENU_PUBLISH:
+			publish_pressed.emit(scn_id, title)
+		MENU_UNPUBLISH:
+			unpublish_pressed.emit(scn_id, title)
+		MENU_DELETE:
+			delete_pressed.emit(scn_id, title)
 
 func setup(scn: Dictionary) -> void:
 	if not is_node_ready():
@@ -47,5 +68,6 @@ func setup(scn: Dictionary) -> void:
 	var is_draft := GameData.is_draft_scenario(scn)
 	var can_unpublish := GameData.is_catalog_scenario(scn) and not GameData.DEMO_SCENARIO_IDS.has(str(scn.get("id", "")))
 	%BtnPlay.visible = not is_draft
-	%BtnPublish.visible = is_draft
-	%BtnUnpublish.visible = can_unpublish
+	var popup: PopupMenu = %MenuMore.get_popup()
+	popup.set_item_disabled(popup.get_item_index(MENU_PUBLISH), not is_draft)
+	popup.set_item_disabled(popup.get_item_index(MENU_UNPUBLISH), not can_unpublish)

@@ -5,21 +5,14 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ---
 
-## Priorité 1 — surcharge d'interface
-
-- [ ] **Réduire les cartes scénario** — 6 boutons → 2 visibles (`Lancer`, `Modifier`) + menu « ⋯ » (contre 2 pour un personnage, 1 pour un bot)
-- [ ] **Réduire les cartes de carte** — 6 boutons également (`Aperçu`, `Jouer`, `Modifier`, `Publier`, `Brouillon`, `Supprimer`)
-- [ ] **Alléger la barre d'outils de l'onglet Cartes** — sort + mode + 4 boutons de création sur une ligne
-- [ ] **Variante compacte de l'en-tête** — l'`AppHeader` complet (eyebrow + titre + tagline + langue) prend ~120 px sur 4 pages de travail
-
-## Priorité 2 — structure
+## Priorité 1 — structure
 
 - [ ] **Responsive hub / menu** — seul `game_setup` gère l'étroit ; les 5 onglets du hub et les grilles 2 colonnes ne se replient pas sous 960 px
 - [ ] **Fil d'Ariane** — absent des pages d'interface (existant uniquement côté cartes)
 - [ ] **Composant `Card` générique** — 4 cartes divergentes (`character`, `bot`, `scenario`, `map`) à factoriser
 - [ ] **Réduire les 219 overrides de style** — 139 tailles de police + 80 couleurs en dur dans les `.tscn` ; chantier long, page par page
 
-## Priorité 3 — carte et session (périmètre Poisson48)
+## Priorité 2 — carte et session (périmètre Poisson48)
 
 - [ ] **Vérifier le cadrage de Valbois** — cartouche, rose des vents, légende et bâtiments est/nord réputés invisibles (reporter : découpe de texture / caméra)
 - [ ] **Échelle des tokens en cases** — aujourd'hui exprimée en % de la hauteur de carte ; + dédoublonner le token Kael (party ↔ playDefaults)
@@ -32,6 +25,10 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ## Vérifié récemment (ne plus traiter)
 
+- [x] Cartes scénario : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
+- [x] Cartes de carte : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
+- [x] Barre d'outils Cartes : 5 boutons de création → menu « ＋ Nouvelle carte »
+- [x] Variante compacte de l'en-tête sur les 4 pages de travail
 - [x] Hauteurs de boutons obsolètes supprimées (67 déclarations) — `ButtonSizing` impose 48 px exactement
 - [x] Poignées de `SplitContainer` stylées (icône 3 points or + fond de barre)
 - [x] Infobulles stylées (`TooltipPanel` + `TooltipLabel`)

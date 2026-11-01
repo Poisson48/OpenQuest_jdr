@@ -18,18 +18,36 @@ const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 @onready var _desc: Label = %LblDesc
 @onready var _mode: Label = %LblMode
 @onready var _meta: Label = %LblMeta
-@onready var _btn_demo: Button = %BtnDemo
 
 var _map_id: String = ""
 var _title_text: String = ""
 
+## Menu « ⋯ » : actions secondaires regroupées.
+const MENU_DEMO := 0
+const MENU_PUBLISH := 1
+const MENU_UNPUBLISH := 2
+const MENU_DELETE := 3
+
 func _ready() -> void:
 	%BtnPreview.pressed.connect(func(): preview_pressed.emit(_map_id))
 	%BtnEdit.pressed.connect(func(): edit_pressed.emit(_map_id))
-	%BtnDelete.pressed.connect(func(): delete_pressed.emit(_map_id, _title_text))
-	%BtnPublish.pressed.connect(func(): publish_pressed.emit(_map_id, _title_text))
-	%BtnUnpublish.pressed.connect(func(): unpublish_pressed.emit(_map_id, _title_text))
-	_btn_demo.pressed.connect(func(): demo_pressed.emit())
+	var popup: PopupMenu = %MenuMore.get_popup()
+	popup.add_item("🎲 Jouer avec Kael", MENU_DEMO)
+	popup.add_item("📚 Publier", MENU_PUBLISH)
+	popup.add_item("📝 Remettre en brouillon", MENU_UNPUBLISH)
+	popup.add_item("🗑 Supprimer", MENU_DELETE)
+	popup.id_pressed.connect(_on_menu_action)
+
+func _on_menu_action(id: int) -> void:
+	match id:
+		MENU_DEMO:
+			demo_pressed.emit()
+		MENU_PUBLISH:
+			publish_pressed.emit(_map_id, _title_text)
+		MENU_UNPUBLISH:
+			unpublish_pressed.emit(_map_id, _title_text)
+		MENU_DELETE:
+			delete_pressed.emit(_map_id, _title_text)
 
 func setup(map_data: Dictionary, category: String) -> void:
 	if not is_node_ready():
@@ -69,7 +87,8 @@ func setup(map_data: Dictionary, category: String) -> void:
 	var is_draft := MapData.is_draft_map(map_data)
 	var is_demo := MapData.is_demo_map_id(_map_id)
 	var can_unpublish := MapData.is_catalog_map(map_data) and not is_demo
-	_btn_demo.visible = scenario_id == "demo-valbois"
-	%BtnPublish.visible = is_draft
-	%BtnUnpublish.visible = can_unpublish
-	%BtnDelete.visible = not is_demo
+	var popup: PopupMenu = %MenuMore.get_popup()
+	popup.set_item_disabled(popup.get_item_index(MENU_DEMO), scenario_id != "demo-valbois")
+	popup.set_item_disabled(popup.get_item_index(MENU_PUBLISH), not is_draft)
+	popup.set_item_disabled(popup.get_item_index(MENU_UNPUBLISH), not can_unpublish)
+	popup.set_item_disabled(popup.get_item_index(MENU_DELETE), is_demo)

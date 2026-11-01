@@ -23,11 +23,9 @@ scènes) et de finitions d'usage.
 | # | Point | Gravité | Effort |
 |---|-------|---------|--------|
 | 1 | 219 overrides de style en dur dans les `.tscn` | Moyen | Élevé |
-| 2 | Cartes scénario à 6 boutons | Moyen | Faible |
-| 3 | Responsive limité à une seule page | Moyen | Moyen |
-| 4 | Pas de fil d'Ariane dans l'interface | Faible | Moyen |
-| 5 | En-tête complet répété sur les pages de travail | Faible | Faible |
-| 6 | Pas de composant `Card` générique | Faible | Moyen |
+| 2 | Responsive limité à une seule page | Moyen | Moyen |
+| 3 | Pas de fil d'Ariane dans l'interface | Faible | Moyen |
+| 4 | Pas de composant `Card` générique | Faible | Moyen |
 
 ---
 
@@ -51,24 +49,10 @@ encore d'éditer les fichiers un par un, et le thème ne fait plus autorité.
 
 ---
 
-## 2 · MOYEN — Cartes scénario surchargées : 6 boutons
-
-**Où** : `game/scenes/hub/panels/scenario_card.tscn`
-**Constat** :
-
-```
-BtnEdit · BtnView · BtnPlay · BtnPublish · BtnUnpublish · BtnDelete
-```
-
-À comparer : `character_card` = 2 boutons, `bot_card` = 1, `map_card` = 6.
-**Impact** : la carte fait ~330 px de haut ; l'action principale (`Lancer`) ne se
-distingue plus des actions rares.
-**Action** : garder 2 actions visibles (`Lancer`, `Modifier`) + menu « ⋯ » pour
-`Voir détails / Publier / Brouillon / Supprimer`. Même traitement pour `map_card`.
 
 ---
 
-## 3 · MOYEN — Responsive limité à une seule page
+## 2 · MOYEN — Responsive limité à une seule page
 
 **Constat** :
 
@@ -87,7 +71,7 @@ $ grep -rn "is_narrow_viewport\|is_compact_viewport" game/scripts | grep -v ui_l
 
 ---
 
-## 4 · FAIBLE — Pas de fil d'Ariane dans l'interface
+## 3 · FAIBLE — Pas de fil d'Ariane dans l'interface
 
 **Constat** : le fil d'Ariane n'existe que côté cartes
 (`MapData.get_map_breadcrumb`, `map_complex_editor`, `map_workspace`, `map_navigator`).
@@ -99,20 +83,10 @@ le libellé du bouton retour.
 
 ---
 
-## 5 · FAIBLE — En-tête complet répété sur les pages de travail
-
-**Constat** : `AppHeader` (eyebrow + titre + tagline + sélecteur de langue) est
-instancié sur **6 pages**, dont `character_editor`, `scenario_list`,
-`game_setup`, `scenario_editor`.
-Sur ces pages de travail dense, il consomme ~120 px de haut avant la barre de
-navigation, et la tagline marketing n'y a pas de fonction.
-
-**Action** : variante `compact` du composant (eyebrow + titre uniquement) pour les
-pages internes ; `full` réservé au menu.
 
 ---
 
-## 6 · FAIBLE — Pas de composant `Card` générique
+## 4 · FAIBLE — Pas de composant `Card` générique
 
 **Constat** : quatre cartes coexistent avec des structures divergentes :
 
@@ -130,12 +104,10 @@ pages internes ; `full` réservé au menu.
 
 ## Ordre d'attaque suggéré
 
-1. **§2 — cartes scénario / carte** (finitions les plus visibles)
-2. **§5 — en-tête compact** (gain d'espace sur 4 pages)
-3. **§3 — responsive** (structure)
-4. **§4 — fil d'Ariane**
-5. **§1 — dette de style** (chantier long, page par page)
-6. **§6 — composant Card** (lors de la prochaine refonte des cartes)
+1. **§2 — responsive** (structure, une seule page gère l'étroit aujourd'hui)
+2. **§3 — fil d'Ariane**
+3. **§1 — dette de style** (chantier long, page par page)
+4. **§4 — composant Card** (lors de la prochaine refonte des cartes)
 
 ---
 

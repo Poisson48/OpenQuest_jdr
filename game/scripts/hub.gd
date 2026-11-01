@@ -23,9 +23,7 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var btn_inv_new_char: Button = %BtnInvNewChar
 @onready var btn_inv_scenarios: Button = %BtnInvScenarios
 @onready var btn_inv_play: Button = %BtnInvPlay
-@onready var btn_new_map_world: Button = %BtnNewMapWorld
-@onready var btn_new_map_adv: Button = %BtnNewMapAdv
-@onready var btn_new_map_inv: Button = %BtnNewMapInv
+@onready var menu_maps_create: MenuButton = %MenuMapsCreate
 @onready var confirm_delete_map: ConfirmationDialog = %ConfirmDeleteMap
 @onready var confirm_publish_map: ConfirmationDialog = %ConfirmPublishMap
 @onready var confirm_delete_bot: ConfirmationDialog = %ConfirmDeleteBot
@@ -50,10 +48,7 @@ func _ready() -> void:
 	btn_inv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
 	btn_inv_play.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
 
-	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
-	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
-	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
-	_add_vtt_map_button()
+	menu_maps_create.get_popup().id_pressed.connect(_on_maps_create_selected)
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_publish_map.confirmed.connect(_on_confirm_publish_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
@@ -173,29 +168,37 @@ func _current_maps_mode() -> String:
 		return "adventure"
 	return str(maps_mode_filter.get_item_metadata(maps_mode_filter.selected))
 
+## Menu unique de création : 2 entrées utiles selon le mode courant.
+const MAP_CREATE_WORLD := 0
+const MAP_CREATE_LOCAL := 1
+const MAP_CREATE_INV := 2
+const MAP_CREATE_VTT := 3
+const MAP_CREATE_VTT_INV := 4
+
 func _sync_maps_create_buttons() -> void:
 	var inv := _current_maps_mode() == "investigation"
-	if btn_new_map_world:
-		btn_new_map_world.visible = not inv
-	if btn_new_map_adv:
-		btn_new_map_adv.visible = not inv
-	if btn_new_map_inv:
-		btn_new_map_inv.visible = inv
-	# Boutons VTT ajoutés dynamiquement : 2 derniers enfants de MapsCreateRow.
-	var row: Node = get_node_or_null("%MapsCreateRow")
-	if row == null:
-		return
-	var dyn_btns: Array = []
-	for child in row.get_children():
-		if child == btn_new_map_world or child == btn_new_map_adv or child == btn_new_map_inv:
-			continue
-		if child is Button:
-			dyn_btns.append(child)
-	# Convention : 1er = battlemap aventure, 2e = battlemap enquête.
-	if dyn_btns.size() >= 1:
-		dyn_btns[0].visible = not inv
-	if dyn_btns.size() >= 2:
-		dyn_btns[1].visible = inv
+	var popup: PopupMenu = menu_maps_create.get_popup()
+	popup.clear()
+	if inv:
+		popup.add_item("🔍 Carte d'enquête", MAP_CREATE_INV)
+		popup.add_item("🧱 Battlemap enquête 3D", MAP_CREATE_VTT_INV)
+	else:
+		popup.add_item("🌍 Carte monde", MAP_CREATE_WORLD)
+		popup.add_item("⚔️ Carte d'aventure", MAP_CREATE_LOCAL)
+		popup.add_item("🧱 Battlemap 3D", MAP_CREATE_VTT)
+
+func _on_maps_create_selected(id: int) -> void:
+	match id:
+		MAP_CREATE_WORLD:
+			_create_map("general", "world")
+		MAP_CREATE_LOCAL:
+			_create_map("general", "local")
+		MAP_CREATE_INV:
+			_create_map("investigation", "local")
+		MAP_CREATE_VTT:
+			_create_complex_map("general")
+		MAP_CREATE_VTT_INV:
+			_create_complex_map("investigation")
 
 func _setup_maps_library_tabs() -> void:
 	if maps_library_tabs == null:
@@ -318,9 +321,9 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 	if map_list.is_empty():
 		var empty := Label.new()
 		if _maps_library_tab == "draft":
-			empty.text = "Aucun brouillon ici — utilise les boutons « + » ci-dessus pour en créer un."
+			empty.text = "Aucun brouillon ici — utilise le menu « ＋ Nouvelle carte » ci-dessus."
 		else:
-			empty.text = "Aucune carte — publie un brouillon, ou crée-en une avec les boutons « + »."
+			empty.text = "Aucune carte — publie un brouillon, ou crée-en une avec le menu « ＋ Nouvelle carte »."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 		section.add_child(empty)
@@ -369,28 +372,6 @@ func _create_map(roster: String, map_kind: String) -> void:
 	MapData.preview_map_id = map.get("id", "")
 	MapData.editor_mode = "edit"
 	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")
-
-func _add_vtt_map_button() -> void:
-	var row: Node = get_node_or_null("%MapsCreateRow")
-	if row == null:
-		if btn_new_map_adv == null or btn_new_map_adv.get_parent() == null:
-			return
-		row = btn_new_map_adv.get_parent()
-	var btn_vtt := Button.new()
-	btn_vtt.text = "+ Battlemap 3D"
-	btn_vtt.tooltip_text = "Crée une carte VTT complexe (tokens, brouillard, effets 3D)"
-	btn_vtt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_vtt.custom_minimum_size = Vector2(0, 40)
-	btn_vtt.pressed.connect(func(): _create_complex_map("general"))
-	row.add_child(btn_vtt)
-	var btn_vtt_inv := Button.new()
-	btn_vtt_inv.text = "+ Battlemap enquête 3D"
-	btn_vtt_inv.tooltip_text = "Battlemap VTT pour scénarios d'enquête"
-	btn_vtt_inv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_vtt_inv.custom_minimum_size = Vector2(0, 40)
-	btn_vtt_inv.pressed.connect(func(): _create_complex_map("investigation"))
-	row.add_child(btn_vtt_inv)
-	_sync_maps_create_buttons()
 
 func _create_complex_map(roster: String) -> void:
 	_maps_library_tab = "draft"

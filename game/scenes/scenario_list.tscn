@@ -39,6 +39,7 @@ theme_override_constants/separation = 12
 
 [node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
+compact = true
 
 [node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true

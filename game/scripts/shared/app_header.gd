@@ -5,10 +5,23 @@ extends VBoxContainer
 
 @onready var opt_language: OptionButton = %OptLanguage
 
+## Mode compact : eyebrow + titre seulement (pages de travail dense).
+## Le mode complet (tagline + langue) est réservé au menu principal.
+@export var compact: bool = false
+
 var _updating_language_ui := false
 
 func _ready() -> void:
-	_setup_language_selector()
+	if compact:
+		var tagline := get_node_or_null("Tagline")
+		if tagline:
+			tagline.visible = false
+		var lang_row := get_node_or_null("LanguageRow")
+		if lang_row:
+			lang_row.visible = false
+		add_theme_constant_override("separation", 2)
+	else:
+		_setup_language_selector()
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
 
 func _setup_language_selector() -> void:
