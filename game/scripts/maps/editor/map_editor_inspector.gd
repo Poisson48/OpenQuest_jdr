@@ -16,6 +16,7 @@ signal unlink_requested(source_id: String, target_id: String)
 signal link_mode_requested(source_id: String)
 signal child_map_requested(area_id: String)
 signal open_map_requested(map_id: String)
+signal create_interior_requested(element_id: String)
 
 var doc = null
 var _suppress: bool = false
@@ -245,6 +246,13 @@ func _build_kind_fields(elem: Dictionary, kind: String) -> void:
 	elif kind == DocumentScript.KIND_MESH:
 		_section("Objet 3D")
 		_add_note(str(elem.get("asset", "")).get_file())
+		if str(elem.get("asset", "")).ends_with("porte_auvent.glb"):
+			var interior_btn := Button.new()
+			interior_btn.text = "🏠 Créer / ouvrir l'intérieur"
+			interior_btn.tooltip_text = "Crée le lieu et une carte intérieure indépendante (12 × 9) reliée à cette porte."
+			interior_btn.pressed.connect(func(): create_interior_requested.emit(str(elem.get("id", ""))))
+			add_child(interior_btn)
+			_add_note("La taille de l'intérieur est indépendante du bâtiment extérieur.")
 		var display_mesh: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
 		var size_x := float(elem.get("sizeX", elem.get("w", 1.0)))
 		var size_y := float(elem.get("sizeY", 1.0))

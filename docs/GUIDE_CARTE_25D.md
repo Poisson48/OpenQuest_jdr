@@ -95,6 +95,10 @@ Outils terrain :
   linteau) ; sinon la fenêtre reste appliquée sur la façade.
 - **Outil 🪜 Escalier 3D** : clique près d'un mur ; pose un escalier extérieur
   adossé à la façade (ou libre ailleurs).
+- **Outil 🚪 Intérieur** : clique sur une **Porte 3D** ; crée automatiquement
+  un lieu + une carte intérieure **12 × 9** avec pièce de départ, puis l'ouvre.
+  Sa taille est indépendante du bâtiment : idéal pour des intérieurs simplifiés
+  façon Dofus/Pokémon. Le même bouton existe dans l'Inspecteur de la porte.
 - **Outil 🪑 Meubler** : clique dans une pièce ; pose un ensemble de mobilier
   (salle commune, chambre, comptoir, campement) aligné au sol.
 - **Outil 🪵 Clôture** : glisse le long d'une limite ; pose une clôture

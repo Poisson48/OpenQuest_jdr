@@ -24,7 +24,7 @@
 | Biblio | recherche + filtres (bâtiments / toits & façades / personnages / nature / intérieurs / mobilier), **import GLB** avec vignette |
 | Aimantation | toits sur le bâtiment le plus proche, façades sur le **mur le plus proche** (avant/arrière/côté), dos collé au nu ; **rotation héritée** ; aperçu fantôme |
 | Édition objet | dimensions X/Y/Z, rotation (R, poignées), élévation, **échelle uniforme** |
-| Construction | **Mur 3D** (hauteur réglable), **Pièce 3D**, **Dallage** (matière + nivellement), **Toit 3D** (styles), **Porte 3D** et **Fenêtre 3D** avec ouvertures réelles, **Maison rapide** |
+| Construction | **Mur 3D** (hauteur réglable), **Pièce 3D**, **Dallage** (matière + nivellement), **Toit 3D** (styles), **Porte 3D** et **Fenêtre 3D** avec ouvertures réelles, **Maison rapide**, **intérieurs liés** (lieu + carte enfant 12 × 9 indépendante via l'outil 🚪 Intérieur) |
 | Intérieur / extérieur | **Meubler** (4 ensembles), **Clôture** (3 styles), **Chemin** peint au sol |
 | Rendu | **SSAO**, **glow**, étalonnage, **ombres directionnelles** sur terrain 3D |
 | Aide | bouton **?** (parcours, astuces, raccourcis), mini-carte |
@@ -165,6 +165,7 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 [`construction_demo.png`](./screenshots/construction_demo.png) ·
 [`construction_complete.png`](./screenshots/construction_complete.png) ·
 [`construction_door_3d.png`](./screenshots/construction_door_3d.png) ·
+[`interior_linked_demo.png`](./screenshots/interior_linked_demo.png) ·
 [`auvent_demo.png`](./screenshots/auvent_demo.png)
 
 Guides : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) ·

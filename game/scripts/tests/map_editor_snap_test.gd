@@ -62,6 +62,33 @@ func _run() -> void:
 		_assert("door_on_ground", is_equal_approx(float(door.get("elevation", 0.0)), 0.0))
 		_assert("door_in_front", float(door.get("y", 0.0)) > 6.0)
 
+	# Intérieur : une porte crée un lieu + une carte enfant de taille indépendante.
+	var village_id := str(village.get("id", ""))
+	var areas_before: int = (md.get_by_id(village_id).get("areas", []) as Array).size()
+	var interior_door: Dictionary = _meshes_with_asset(editor, door_path)[0]
+	editor._create_interior_at(Vector2(float(interior_door.get("x", 0.0)), float(interior_door.get("y", 0.0))))
+	await process_frame
+	var parent_map: Dictionary = md.get_by_id(village_id)
+	var parent_areas: Array = parent_map.get("areas", [])
+	_assert("interior_area_created", parent_areas.size() == areas_before + 1)
+	var interior_area: Dictionary = {}
+	for area_variant in parent_areas:
+		var area: Dictionary = area_variant
+		if not str(area.get("targetMapId", "")).is_empty() and str(area.get("label", "")) == "Intérieur de maison":
+			interior_area = area
+	_assert("interior_area_linked", not interior_area.is_empty()
+		and not str(interior_area.get("targetMapId", "")).is_empty())
+	if not interior_area.is_empty():
+		var child_id := str(interior_area.get("targetMapId", ""))
+		var child_map: Dictionary = md.get_by_id(child_id)
+		_assert("interior_child_exists", not child_map.is_empty())
+		_assert("interior_child_size", int(child_map.get("width", 0)) == 12
+			and int(child_map.get("height", 0)) == 9)
+		_assert("interior_child_parent", str(child_map.get("parentMapId", "")) == village_id)
+		_assert("interior_child_room", (child_map.get("meshes", []) as Array).size() >= 12)
+		_assert("interior_open_emitted", not cycle_targets.is_empty()
+			and str(cycle_targets[cycle_targets.size() - 1]) == child_id)
+
 	# Sans aimantation : le module reste à l'endroit cliqué, à plat.
 	editor._mesh_snap_modules = false
 	editor._mesh_asset = roof_path

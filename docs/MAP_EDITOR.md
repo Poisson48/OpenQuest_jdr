@@ -63,6 +63,12 @@ La profondeur n'est pas limitée : village → place du marché → intérieur d
 taverne. En session, cliquer un lieu descend d'un cran, et un bouton retour
 remonte.
 
+**Variante construction 3D** : avec l'outil **🚪 Intérieur** (ou le bouton
+« 🏠 Créer / ouvrir l'intérieur » de l'Inspecteur sur une **Porte 3D**), un
+lieu et sa carte enfant **12 × 9** sont créés automatiquement, avec une pièce
+de départ, puis la carte intérieure s'ouvre. Sa taille est indépendante du
+bâtiment extérieur : c'est le modèle Dofus/Pokémon des intérieurs simplifiés.
+
 Un lieu qui possède une carte est souligné en doré et marqué d'une loupe ;
 un lieu purement décoratif (une simple étiquette « Moulin ») reste en bleu.
 
@@ -231,6 +237,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🪟 Fenêtre 3D | — | Clic sur un **mur 3D** : fenêtre à volets sur la façade, avec **ouverture réelle** (appui + linteau) si le mur est assez haut |
 | Placer | 🪑 Meubler | — | Clic dans une pièce : ensemble **salle commune / chambre / comptoir / campement** |
 | Placer | 🪜 Escalier 3D | — | Clic près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre |
+| Placer | 🚪 Intérieur | — | Clic sur une **Porte 3D** : crée le lieu + une carte intérieure **12 × 9** indépendante (pièce de départ), puis l'ouvre |
 | Placer | 🪵 Clôture | — | Clic-glisser : clôture modulaire **barrière / clôture basse / palissade** le long du tracé |
 | Placer | 🛤 Chemin | — | Clic-glisser : chemin peint au sol (terre/autre matière), largeur réglable |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |

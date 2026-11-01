@@ -467,6 +467,7 @@ func _bind_docks() -> void:
 	_inspector.focus_requested.connect(_focus_element)
 	_inspector.unlink_requested.connect(func(a, b): doc.unlink_elements(a, b))
 	_inspector.child_map_requested.connect(_on_child_map_requested)
+	_inspector.create_interior_requested.connect(_on_create_interior_requested)
 	_inspector.open_map_requested.connect(_on_open_map_requested)
 	_inspector.link_mode_requested.connect(func(id):
 		_link_source = id
@@ -1298,6 +1299,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_insert_furniture(grid)
 	elif _tool == ToolsScript.STAIRS_3D:
 		_insert_stairs(grid)
+	elif _tool == ToolsScript.INTERIOR_3D:
+		_create_interior_at(grid)
 	elif _tool == ToolsScript.MARKER:
 		_create_marker(grid)
 	elif _tool == ToolsScript.EFFECT:
@@ -1654,6 +1657,165 @@ func _insert_stairs(grid: Vector2) -> void:
 	}, DocumentScript.KIND_MESH, "Escalier")
 	doc.select_only(id)
 	_set_status("Escalier 3D posé%s." % (" contre la façade" if not wall.is_empty() else " libre"))
+
+## Crée le lieu d'entrée d'une porte 3D, sa carte intérieure indépendante
+## (12 × 9, pièce de départ) et ouvre cette carte.
+func _create_interior_at(grid: Vector2) -> void:
+	var door: Dictionary = {}
+	var best := 3.0
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if not str(elem.get("asset", "")).ends_with("porte_auvent.glb"):
+			continue
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		var distance := center.distance_to(grid)
+		if distance < best:
+			best = distance
+			door = elem
+	if door.is_empty():
+		_set_status("Intérieur : cliquez sur une porte 3D (🚪 Porte 3D).")
+		return
+	var parent_id := str(doc.map_data.get("id", ""))
+	if parent_id.is_empty():
+		return
+	var door_center := Vector2(float(door.get("x", grid.x)), float(door.get("y", grid.y)))
+	# Si un lieu lié existe déjà à cet endroit, on l'ouvre au lieu de dupliquer.
+	for area_variant in doc.map_data.get("areas", []):
+		if not area_variant is Dictionary:
+			continue
+		var area: Dictionary = area_variant
+		var target := str(area.get("targetMapId", ""))
+		if target.is_empty():
+			continue
+		var area_center := Vector2(float(area.get("x", 0.0)), float(area.get("y", 0.0)))
+		if area_center.distance_to(door_center) <= 3.0:
+			_set_status("Intérieur déjà lié : ouverture de « %s »." % area.get("label", "lieu"))
+			_open_interior_map(target)
+			return
+	var label := "Intérieur de maison"
+	var area_id: String = doc.add_element({
+		"x": door_center.x, "y": door_center.y,
+		"w": 2.4, "h": 2.4,
+		"shape": "rect",
+		"category": "building",
+		"icon": "🚪",
+		"label": label,
+		"targetMapId": "",
+		"showCallout": true,
+		"labelOffset": {"x": 0.0, "y": -2.0},
+		"layer": 5,
+	}, DocumentScript.KIND_AREA, "Lieu d'intérieur")
+	save_now()
+	var child := MapData.create_child_map_for_area(parent_id, area_id, 12, 9)
+	if child.is_empty():
+		_set_status("Intérieur : impossible de créer la carte enfant.")
+		return
+	var child_id := str(child.get("id", ""))
+	_build_starter_interior(child, parent_id)
+	# Recharge le parent pour récupérer targetMapId, puis sélectionne le lieu.
+	doc.load_map(MapData.get_by_id(parent_id))
+	_sync_settings_ui()
+	doc.select_only(area_id)
+	_refresh_panels()
+	_refresh_breadcrumb()
+	_refresh_overlay()
+	_set_status("Intérieur créé (12 × 9). Ouverture de la carte intérieure…")
+	_open_interior_map(child_id)
+
+func _open_interior_map(map_id: String) -> void:
+	if map_id.is_empty() or MapData.get_by_id(map_id).is_empty():
+		return
+	if not open_map_requested.get_connections().is_empty():
+		open_map_requested.emit(map_id)
+		return
+	load_map(MapData.get_by_id(map_id))
+	_set_tool(ToolsScript.SELECT)
+
+## Construit une petite pièce de départ dans la carte intérieure.
+func _build_starter_interior(child: Dictionary, parent_id: String) -> void:
+	var w := int(child.get("width", 12))
+	var h := int(child.get("height", 9))
+	child["fogEnabled"] = false
+	child["ambientFx"] = "dust"
+	child["renderStyle"] = str(doc.map_data.get("renderStyle", "2.5d"))
+	child["groundMode"] = "terrain3d"
+	var materials: Array = []
+	materials.resize(w * h)
+	materials.fill(2)
+	var heights: Array = []
+	heights.resize(w * h)
+	heights.fill(0.0)
+	var meshes: Array = []
+	var x0 := 2.0
+	var x1 := float(w - 2)
+	var y0 := 2.0
+	var y1 := float(h - 2)
+	var wall_height := 2.2
+	_append_interior_wall_chain(meshes, Vector2(x0, y0), Vector2(x1, y0), wall_height)
+	_append_interior_wall_chain(meshes, Vector2(x1, y0), Vector2(x1, y1), wall_height)
+	_append_interior_wall_chain(meshes, Vector2(x1, y1), Vector2(x0, y1), wall_height)
+	_append_interior_wall_chain(meshes, Vector2(x0, y1), Vector2(x0, y0), wall_height)
+	var corner_asset := "res://assets/objects3d/buildings/mur_coin.glb"
+	var corner_bounds := _mesh_bounds_cells(corner_asset, 1.0)
+	for corner_variant in [
+		[Vector2(x0, y0), 180.0], [Vector2(x1, y0), 270.0],
+		[Vector2(x1, y1), 0.0], [Vector2(x0, y1), 90.0],
+	]:
+		var corner: Array = corner_variant
+		_append_interior_mesh(meshes, corner_asset, corner[0],
+			corner_bounds.x, corner_bounds.z, wall_height, float(corner[1]), "Coin de mur 3D")
+	var door_asset := "res://assets/objects3d/buildings/porte_auvent.glb"
+	var door_bounds := _mesh_aabb_cells(door_asset, 1.0)
+	_append_interior_mesh(meshes, door_asset, Vector2((x0 + x1) * 0.5, y1),
+		door_bounds.size.x, door_bounds.size.z, door_bounds.size.y, 0.0, "Porte à auvent")
+	var table_asset := "res://assets/objects3d/props/table_tabourets.glb"
+	if ResourceLoader.exists(table_asset):
+		var table_bounds := _mesh_aabb_cells(table_asset, 1.0)
+		_append_interior_mesh(meshes, table_asset, Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5),
+			table_bounds.size.x, table_bounds.size.z, table_bounds.size.y, 0.0, "Table")
+	child["terrainMaterials"] = materials
+	child["terrainHeights"] = heights
+	child["meshes"] = meshes
+	child["areas"] = [{
+		"id": MapData.generate_id("area"),
+		"x": (x0 + x1) * 0.5, "y": float(h) - 1.0,
+		"w": 2.4, "h": 1.2, "shape": "rect", "category": "exit",
+		"icon": "⬅", "label": "Sortie", "targetMapId": parent_id,
+		"showCallout": true, "labelOffset": {"x": 0.0, "y": 1.2}, "layer": 5,
+	}]
+	MapData.update_map(child)
+
+func _append_interior_mesh(meshes: Array, asset: String, pos: Vector2,
+		size_x: float, size_z: float, height: float, rotation: float, label: String) -> void:
+	meshes.append({
+		"id": MapData.generate_id("mesh"),
+		"kind": DocumentScript.KIND_MESH,
+		"x": pos.x, "y": pos.y,
+		"w": size_x, "h": size_z,
+		"sizeX": size_x, "sizeY": height, "sizeZ": size_z,
+		"asset": asset, "elevation": 0.0,
+		"followTerrain": true, "tiltToTerrain": false,
+		"label": label, "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	})
+
+func _append_interior_wall_chain(meshes: Array, from: Vector2, to: Vector2, height: float) -> void:
+	var delta := to - from
+	var total := delta.length()
+	if total < 0.5:
+		return
+	var asset := "res://assets/objects3d/buildings/mur.glb"
+	var bounds := _mesh_bounds_cells(asset, 1.0)
+	var segment_len := maxf(0.5, bounds.x)
+	var depth := maxf(0.2, bounds.z)
+	var rotation := rad_to_deg(atan2(delta.y, delta.x))
+	var count := maxi(1, int(round(total / segment_len)))
+	for index in range(count):
+		var t := (float(index) + 0.5) / float(count)
+		_append_interior_mesh(meshes, asset, from + delta * t,
+			total / float(count), depth, height, rotation, "Mur 3D")
 
 func _insert_furniture(grid: Vector2) -> void:
 	var preset: Dictionary = {}
@@ -3043,6 +3205,12 @@ func _open_esc_menu() -> void:
 
 ## Crée la carte d'un lieu. La carte courante est enregistrée d'abord : elle
 ## doit contenir le lieu pour que MapData puisse y écrire le lien retour.
+func _on_create_interior_requested(element_id: String) -> void:
+	var elem: Dictionary = doc.get_element(element_id)
+	if elem.is_empty():
+		return
+	_create_interior_at(Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0))))
+
 func _on_child_map_requested(area_id: String) -> void:
 	var map_id := str(doc.map_data.get("id", ""))
 	if map_id.is_empty() or area_id.is_empty():
@@ -4007,6 +4175,8 @@ func _rebuild_tool_options() -> void:
 		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
 	elif _tool == ToolsScript.STAIRS_3D:
 		_option_note("Cliquez près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre.")
+	elif _tool == ToolsScript.INTERIOR_3D:
+		_option_note("Cliquez sur une porte 3D : crée un lieu + une carte intérieure indépendante (12 × 9, pièce de départ), puis l'ouvre.")
 	elif _tool == ToolsScript.FENCE_3D:
 		var fence_opt := OptionButton.new()
 		for i in range(FENCE_STYLES.size()):

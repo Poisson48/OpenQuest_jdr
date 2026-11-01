@@ -107,11 +107,17 @@ func _ready() -> void:
 	_place_prop(editor, "puits", 20.5, 9.0, 0.0)
 	_place_prop(editor, "banc", 20.3, 10.2, 90.0)
 
+	# Lieu + carte intérieure liés à la porte de la première maison.
+	editor._create_interior_at(Vector2(6.0, 7.0))
+	await get_tree().process_frame
+	editor.load_map(md.get_by_id(map_id))
+	await get_tree().process_frame
+
 	editor.doc.clear_selection()
 	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 21.0, 16.0))
 
 	var hint := Label.new()
-	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier. Palette « Placer » à gauche. Sélectionne un objet pour dimensions/Échelle."
+	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier · 1 intérieur lié (porte de la maison de gauche, à tester en session). Palette « Placer » à gauche."
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_top = 44
 	hint.offset_left = 240
