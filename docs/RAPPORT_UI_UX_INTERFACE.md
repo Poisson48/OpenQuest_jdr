@@ -45,22 +45,25 @@ Il reste **une dette de fond** : beaucoup de style est encore écrit **en dur da
 
 ## 3. Problèmes restants
 
-### 3.1 · MOYEN — `AppTopBar` créé mais jamais utilisé
+### 3.1 · ✅ CORRIGÉ — `AppTopBar` partagé et réellement utilisé
 
-**Où** : `game/scenes/shared/app_top_bar.tscn`, `game/scripts/shared/app_top_bar.gd`
-**Constat** : le composant existe (`BtnBack` + `Title` + `Actions`, signal `back_pressed`) mais **aucune scène ne l'instancie** :
+**Ancien constat** : le composant existait mais **aucune scène ne l'instanciait** ;
+les 5 pages gardaient une `HBoxContainer TopBar` inline, avec des libellés
+divergents (`← Accueil` / `← Retour` / `✕`) et des séparations 10 ou 12 px.
 
-```bash
-$ grep -rln "app_top_bar.tscn" game/scenes/
-game/scenes/shared/app_top_bar.tscn      # ← seulement sa propre définition
-```
+**Corrigé** :
+- `back_text` / `title_text` passés en `@export` (ils étaient de simples `var`,
+  donc non définissables depuis une scène) + helpers `set_title()` et
+  `set_title_visible()`.
+- Les 6 pages instancient désormais `AppTopBar` :
+  `hub`, `character_editor`, `scenario_list`, `game_setup`, `scenario_editor`,
+  `map_viewer`. Les actions de chaque page vivent dans `…/TopBar/Actions`.
+- Retour unifié sur le signal `back_pressed` (plus de `%BtnBack` / `%BtnHome`
+  dupliqués) ; titres dynamiques via `%TopBar.set_title()`.
+- Séparation unique à 12 px, titre à 24 px, aligné verticalement au centre.
 
-Les 5 pages conservent donc chacune leur `HBoxContainer TopBar` inline, avec des divergences :
-`← Accueil` (hub) / `← Retour` (personnages, scénarios, setup) / `✕` (carte),
-séparations 10 px ou 12 px, titres 24 px.
-
-**Impact** : l'objectif « une seule TopBar » n'est pas atteint ; toute évolution devra être répétée 5 fois. Deux fichiers morts à maintenir.
-**Action** : soit terminer la migration (instancier le composant + brancher `%TopBar.back_pressed`), soit supprimer les fichiers morts.
+Tests : les 6 scènes chargent sans erreur ; `keyboard_nav_test` **PASS**
+(dont « Échap depuis l'éditeur → Hub », qui passe par le bouton retour).
 
 ---
 
@@ -292,7 +295,7 @@ pour l'enquête. Chaque teinte a un rôle unique.
 
 ### Priorité 1 — dette structurante (impact fort, coût modéré)
 
-1. **Trancher `AppTopBar`** : terminer la migration des 5 pages, ou supprimer les 2 fichiers morts.
+1. ~~**Trancher `AppTopBar`**~~ → fait : migration des 6 pages (§3.1).
 2. **Embarquer une police** et la déclarer `default_font` du thème.
 3. **Rapatrier les 5 teintes manquantes** dans `ThemeColors` et remplacer les 83 couleurs en dur par des variations de thème.
 
@@ -323,7 +326,7 @@ pour l'enquête. Chaque teinte a un rôle unique.
 | Hauteurs de boutons distinctes | 5 (34, 40, 44, 48, 50) |
 | Boutons dans `scenario_card` | 6 |
 | Pages utilisant `AppHeader` | 6 |
-| Pages utilisant `AppTopBar` | **0** |
+| Pages utilisant `AppTopBar` | **6** |
 | Pages responsive | 1 (`game_setup`) |
 | Raccourcis clavier globaux | Échap, Ctrl+Entrée, Ctrl+S |
 | Test clavier | `keyboard_nav_test` → PASS |

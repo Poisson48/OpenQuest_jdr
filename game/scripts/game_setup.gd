@@ -37,7 +37,7 @@ var _is_pooling_joiner: bool = false
 var _is_pooling_host: bool = false
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(_on_back_pressed)
+	%TopBar.back_pressed.connect(_on_back_pressed)
 	%BtnStartGame.pressed.connect(_on_start_game_pressed)
 	%BtnJoinerRegister.pressed.connect(_on_joiner_register_pressed)
 

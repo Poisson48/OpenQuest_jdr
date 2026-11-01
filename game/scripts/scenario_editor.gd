@@ -44,7 +44,7 @@ var _refreshing_scene_maps: bool = false
 var _rebuild_scheduled: bool = false
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(_on_back_pressed)
+	%TopBar.back_pressed.connect(_on_back_pressed)
 	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnAddScene.pressed.connect(_on_add_scene_pressed)

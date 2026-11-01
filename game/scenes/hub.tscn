@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://hub_scene_001"]
+[gd_scene load_steps=6 format=3 uid="uid://hub_scene_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/hub.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://scenes/hub/panels/pooling_panel.tscn" id="1_pooling"]
 [ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="Hub" type="Control"]
 layout_mode = 3
@@ -40,22 +41,11 @@ theme_override_constants/separation = 12
 [node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
 
-[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnHome" type="Button" parent="MainLayout/TopBar"]
+[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 44)
 layout_mode = 2
-text = "← Accueil"
-
-[node name="Title" type="Label" parent="MainLayout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
-theme_override_font_sizes/font_size = 24
-text = "🏛️ Centre d'Aventures"
+back_text = "← Accueil"
+title_text = "🏛️ Centre d'Aventures"
 
 [node name="TabNav" type="HBoxContainer" parent="MainLayout"]
 unique_name_in_owner = true

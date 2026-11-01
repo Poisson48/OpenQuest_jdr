@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://map_viewer"]
+[gd_scene load_steps=7 format=3 uid="uid://map_viewer"]
 
 [ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/map_viewer.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://scenes/map_viewer/panels/mode_row.tscn" id="3_mode"]
 [ext_resource type="PackedScene" path="res://scenes/map_viewer/simple_editor.tscn" id="4_simple"]
 [ext_resource type="PackedScene" path="res://scenes/map_editor/map_editor.tscn" id="5_editor"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="MapViewer" type="Control"]
 layout_mode = 3
@@ -38,16 +39,13 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="TopBar" type="HBoxContainer" parent="VBox"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="BtnBack" type="Button" parent="VBox/TopBar"]
+[node name="TopBar" parent="VBox" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "← Retour"
+back_text = "← Retour"
+title_text = "Carte"
 
-[node name="TitleInput" type="LineEdit" parent="VBox/TopBar"]
+[node name="TitleInput" type="LineEdit" parent="VBox/TopBar/Actions"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -55,25 +53,18 @@ size_flags_horizontal = 3
 placeholder_text = "Titre de la carte"
 theme_override_font_sizes/font_size = 17
 
-[node name="MapTitle" type="Label" parent="VBox/TopBar"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"TitleLabel"
-text = "Carte"
-
-[node name="BtnSave" type="Button" parent="VBox/TopBar"]
+[node name="BtnSave" type="Button" parent="VBox/TopBar/Actions"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "💾 Enregistrer"
 
-[node name="BtnEdit" type="Button" parent="VBox/TopBar"]
+[node name="BtnEdit" type="Button" parent="VBox/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "✏️ Modifier"
 
-[node name="BtnPreview" type="Button" parent="VBox/TopBar"]
+[node name="BtnPreview" type="Button" parent="VBox/TopBar/Actions"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2

@@ -11,7 +11,7 @@ const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 @onready var form_title: Label = %FormTitle
 @onready var roster_filter: OptionButton = %RosterFilter
 @onready var entity_filter: OptionButton = %EntityFilter
-@onready var page_title: Label = $MainLayout/TopBar/Title
+@onready var top_bar = %TopBar
 
 @onready var input_name: LineEdit = %InputName
 @onready var input_race: LineEdit = %InputRace
@@ -82,7 +82,7 @@ var _dirty: bool = false
 var _pending_action: Callable = Callable()
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(_on_back_pressed)
+	%TopBar.back_pressed.connect(_on_back_pressed)
 	%BtnNewChar.pressed.connect(_on_new_character_pressed)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnCancel.pressed.connect(_on_cancel_pressed)
@@ -171,13 +171,13 @@ func _apply_entry_context() -> void:
 		_locked_roster = "general"
 
 	if _locked_roster == "investigation":
-		page_title.text = "🔍 Enquêteurs & Bots"
+		top_bar.set_title("🔍 Enquêteurs & Bots")
 		roster_filter.selected = 2
 		roster_filter.disabled = true
 		roster_filter.visible = false
 	else:
 		_locked_roster = "general"
-		page_title.text = "👥 Héros d'Aventure"
+		top_bar.set_title("👥 Héros d'Aventure")
 		roster_filter.selected = 1
 		roster_filter.disabled = true
 		roster_filter.visible = false

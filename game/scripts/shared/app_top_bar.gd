@@ -11,14 +11,14 @@ signal back_pressed
 @onready var actions: HBoxContainer = %Actions
 
 ## Texte du bouton retour (défaut : "← Retour").
-var back_text: String = "← Retour":
+@export var back_text: String = "← Retour":
 	set(value):
 		back_text = value
 		if is_node_ready():
 			btn_back.text = value
 
 ## Texte du titre.
-var title_text: String = "Page":
+@export var title_text: String = "Page":
 	set(value):
 		title_text = value
 		if is_node_ready():
@@ -28,6 +28,14 @@ func _ready() -> void:
 	btn_back.text = back_text
 	title.text = title_text
 	btn_back.pressed.connect(func(): back_pressed.emit())
+
+## Met à jour le titre (pages dont le titre est dynamique).
+func set_title(value: String) -> void:
+	title_text = value
+
+## Affiche / masque le libellé de titre (éditeur de carte : champ de saisie).
+func set_title_visible(on: bool) -> void:
+	title.visible = on
 
 ## Ajoute un contrôle dans la zone d'actions (à droite du titre).
 func add_action(control: Control) -> void:

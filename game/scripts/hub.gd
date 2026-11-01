@@ -16,7 +16,7 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var maps_sort: OptionButton = %MapsSort
 @onready var maps_mode_filter: OptionButton = %MapsModeFilter
 @onready var maps_library_tabs: HBoxContainer = %MapsLibraryTabs
-@onready var btn_home: Button = %BtnHome
+@onready var top_bar = %TopBar
 @onready var btn_adv_new_char: Button = %BtnAdvNewChar
 @onready var btn_adv_scenarios: Button = %BtnAdvScenarios
 @onready var btn_adv_play: Button = %BtnAdvPlay
@@ -39,7 +39,7 @@ var _maps_library_tab_group: ButtonGroup
 
 func _ready() -> void:
 	# @onready résout les % avant ce corps ; ne pas reparente les onglets avant les connexions.
-	btn_home.pressed.connect(_on_home_pressed)
+	top_bar.back_pressed.connect(_on_home_pressed)
 	MultiplayerManager.game_started.connect(_on_remote_game_started)
 
 	btn_adv_new_char.pressed.connect(func(): GameData.go_to_character_editor("general"))
