@@ -1,131 +1,99 @@
-# Rapport UI/UX — Interface (hors cartes)
+# Rapport UI/UX — Interface (hors cartes) — points ouverts
 
 **Projet** : OpenQuest JDR — client Godot 4.7
 **Branche** : `interface`
-**Date** : 30 octobre 2026
+**Date** : 1er novembre 2026
 **Périmètre** : menu, hub, éditeurs de contenu, configuration de partie, session MJ, HUD joueur, thème partagé
 **Hors périmètre** : moteur de carte, éditeurs de carte, tokens, fog → voir `RAPPORT_UI_UX_CARTES.md`
 
-**Méthode** : lecture des `.tscn` / `.gd`, mesures headless (`session_layout_check`, sondes temporaires de géométrie), captures prises *depuis le moteur* (`get_viewport().get_texture()`), vérification de l'état réel des onglets et des minimums de taille.
-
-> Les points listés ci-dessous ont tous été **vérifiés dans le code ou mesurés**, pas déduits.
-
----
-
-## 1. Résumé exécutif
-
-L'interface a beaucoup gagné en cohérence sur les derniers chantiers : titres unifiés à 24 px, marges à 20/16 px, en-tête partagé, formulaire personnage réparé, journal MJ réparé, confirmations de perte de modifications généralisées.
-
-Il reste **une dette de fond** : beaucoup de style est encore écrit **en dur dans les scènes** au lieu de passer par le thème, et deux objectifs de factorisation ne sont pas terminés (le composant `AppTopBar` existe mais n'est utilisé nulle part, `UiLayout` n'est appliqué que sur une page).
-
-**Trois problèmes structurants :**
-
-1. `AppTopBar` est **du code mort** — les 5 barres de navigation sont toujours dupliquées dans les scènes.
-2. **Aucune police** n'est définie : le jeu rend avec la police bitmap par défaut de Godot.
-3. **173 valeurs de style en dur** dans les `.tscn` (90 tailles de police, 83 couleurs) court-circuitent `ThemeColors` et le thème.
+> **Ce document ne contient que ce qui reste à faire.** Tout ce qui a été corrigé
+> (palette, police, tailles de texte, hauteurs de boutons, AppTopBar, clavier,
+> journal MJ, formulaire personnage, confirmations…) a été retiré.
+> Chaque point ci-dessous a été re-vérifié dans le code à la date du rapport.
 
 ---
 
-## 2. Ce qui a été corrigé (vérifié)
+## Synthèse
 
-| Correctif | Preuve |
-|-----------|--------|
-| Formulaire personnage pleine largeur | `GridCombat` + 3 autres grids à `size_flags_horizontal=3` ; mesure : 1192 px sur 1240 |
-| Variables `_dirty` / `_pending_action` déclarées dans l'éditeur de personnages | plus d'erreur de parse au chargement |
-| Autoload `UiLayout` réparé (cast `Window`/`MainLoop` invalide) | l'autoload se charge |
-| Journal MJ réparé | minimums du dock droit 1914 → 417 px ; journal 877 px de haut |
-| Confirmation avant perte de modifications | 5 éditeurs : personnages, scénarios, carte (viewer / complexe / simple) |
-| Cartes personnages en grille 4 par ligne, comme les bots | `GridContainer columns=4` |
-| En-tête partagé `AppHeader` (6 pages) | instancié dans 6 scènes |
-| Titres de pages à 24 px, marges 20/16 px | 8 scènes + thème |
-| Onglet « Enquêtes » fonctionnel | sonde : 5 onglets, `is_tab_hidden=false` |
-| HUD joueur ne masque plus le contenu de carte | `_map.apply_immersive_inset(_player_hud.chrome_insets())` |
+L'interface est cohérente sur ses fondations : palette unique, une seule police,
+une seule hauteur de bouton, une seule barre de navigation, raccourcis clavier
+partout. Ce qui reste relève de la **dette de forme** (le style vit encore dans
+les scènes) et de quelques **finitions d'usage**.
 
----
-
-## 3. Problèmes restants
-
-### 3.1 · ✅ CORRIGÉ — `AppTopBar` partagé et réellement utilisé
-
-**Ancien constat** : le composant existait mais **aucune scène ne l'instanciait** ;
-les 5 pages gardaient une `HBoxContainer TopBar` inline, avec des libellés
-divergents (`← Accueil` / `← Retour` / `✕`) et des séparations 10 ou 12 px.
-
-**Corrigé** :
-- `back_text` / `title_text` passés en `@export` (ils étaient de simples `var`,
-  donc non définissables depuis une scène) + helpers `set_title()` et
-  `set_title_visible()`.
-- Les 6 pages instancient désormais `AppTopBar` :
-  `hub`, `character_editor`, `scenario_list`, `game_setup`, `scenario_editor`,
-  `map_viewer`. Les actions de chaque page vivent dans `…/TopBar/Actions`.
-- Retour unifié sur le signal `back_pressed` (plus de `%BtnBack` / `%BtnHome`
-  dupliqués) ; titres dynamiques via `%TopBar.set_title()`.
-- Séparation unique à 12 px, titre à 24 px, aligné verticalement au centre.
-
-Tests : les 6 scènes chargent sans erreur ; `keyboard_nav_test` **PASS**
-(dont « Échap depuis l'éditeur → Hub », qui passe par le bouton retour).
+| # | Point | Gravité | Effort |
+|---|-------|---------|--------|
+| 1 | 219 overrides de style en dur dans les `.tscn` | Moyen | Élevé |
+| 2 | Hauteurs de boutons déclarées obsolètes (23 × 34 px…) | Moyen | Faible |
+| 3 | `SplitContainer` non stylés (poignées grises) | Moyen | Faible |
+| 4 | Cartes scénario à 6 boutons | Moyen | Faible |
+| 5 | Responsive limité à une seule page | Moyen | Moyen |
+| 6 | Infobulles non stylées | Faible | Faible |
+| 7 | Pas de fil d'Ariane dans l'interface | Faible | Moyen |
+| 8 | En-tête complet répété sur les pages de travail | Faible | Faible |
+| 9 | Pas de composant `Card` générique | Faible | Moyen |
+| 10 | Dialogues de confirmation hétérogènes | Faible | Faible |
 
 ---
 
-### 3.2 · MOYEN — Aucune police dans le thème
+## 1 · MOYEN — 219 overrides de style écrits en dur dans les scènes
 
-**Où** : `game/theme/openquest_theme.tres:386`
-**Constat** :
-
-```
-default_font_size = 16      # taille seule, aucun default_font
-```
-
-**Impact** : rendu avec la police bitmap de Godot — flou en haute densité, incohérent avec une DA dark fantasy.
-**Action** : embarquer une police (Inter / Noto Sans) et la déclarer comme `default_font` du thème.
-
----
-
-### 3.3 · MOYEN — 173 valeurs de style écrites en dur dans les scènes
-
-**Où** : toutes les scènes
-**Constat** :
+**Où** : toutes les scènes de `game/scenes/`
+**Constat** (comptage à date) :
 
 | Type | Occurrences |
 |------|-------------|
-| `theme_override_font_sizes/font_size` | **90** |
-| `theme_override_colors/font_color = Color(...)` | **83** |
+| `theme_override_font_sizes/font_size` | **139** |
+| `theme_override_colors/font_color` | **80** |
 
-Exemples qui n'existent pas dans `ThemeColors` :
+Les valeurs sont maintenant **alignées sur la palette** (aucune teinte hors charte),
+mais elles restent dupliquées dans les scènes : changer une couleur ou une taille
+demande encore d'éditer les fichiers un par un, et le thème ne fait plus autorité.
 
-```tscn
-# session/panels/player_hud.tscn
-font_color = Color(0.95, 0.9, 0.78, 0.9)    # titre HUD
-font_color = Color(0.92, 0.78, 0.35, 1)     # indicateur de tour
-font_color = Color(0.7, 0.62, 0.5, 1)       # sous-titre héros
-font_color = Color(0.9, 0.45, 0.4, 1)       # PV
-
-# session/panels/gm_console.tscn
-color = Color(0.45, 0.18, 0.14, 0.85)       # séparateur danger
-```
-
-**État** : les 173 valeurs ont été remappées sur la nouvelle palette (§5.1) — plus aucune teinte hors charte. La dette reste **structurelle** : changer une teinte demande encore de modifier les scènes une par une.
-**Action** : ajouter ces 5 teintes à `ThemeColors`, puis remplacer les overrides par des `theme_type_variation` (H1/H2/H3, Caption, Badge…).
+**Action** : remplacer progressivement les overrides par les variations du thème
+(`TitleLabel`, `HeadingLabel`, `SectionLabel`, `CaptionLabel`, `BadgeLabel`,
+`AccentButton`…), en commençant par les pages les plus stables (menu, hub).
 
 ---
 
-### 3.4 · MOYEN — Poignées de `SplitContainer` non stylées
+## 2 · MOYEN — Hauteurs de boutons déclarées obsolètes
 
-**Où** : `game/theme/openquest_theme.tres:411-412` et `:470-471`
-**Constat** : seules les constantes sont définies, aucune `StyleBox` pour la barre de séparation :
+**Où** : scènes d'interface
+**Constat** : `ButtonSizing` impose 48 px à l'exécution, mais les scènes déclarent
+encore des hauteurs qui n'ont plus d'effet et induisent en erreur :
 
-```
-HSplitContainer/constants/autohide = 0
-HSplitContainer/constants/separation = 8
-# rien pour HSplitContainer/styles/split_bar ni /grabber
-```
+| Déclaration | Occurrences |
+|-------------|-------------|
+| `custom_minimum_size = Vector2(0, 34)` | **23** |
+| `custom_minimum_size = Vector2(38, 34)` | **10** |
+| `custom_minimum_size = Vector2(0, 50)` | **7** |
+| `custom_minimum_size = Vector2(32, 30)` | **6** |
 
-**Impact** : poignées **grises Godot par défaut** au milieu d'une palette or/brun — visible en session MJ (3 colonnes) et dans tous les éditeurs.
-**Action** : styliser `split_bar` + `grabber` (+ `grabber_highlight`).
+**Impact** : deux sources de vérité pour la même règle ; à la lecture d'une scène,
+la hauteur réelle des boutons est indiscernable.
+**Action** : supprimer ces déclarations, ou bien supprimer `ButtonSizing` et fixer
+la hauteur dans le thème — mais une seule source.
 
 ---
 
-### 3.5 · MOYEN — Cartes scénario surchargées : 6 boutons
+## 3 · MOYEN — Poignées de `SplitContainer` non stylées
+
+**Où** : `game/theme/openquest_theme.tres`
+**Constat** :
+
+```
+$ grep -c "split_bar\|HSplitContainer/styles" game/theme/openquest_theme.tres
+0
+```
+
+Seules les constantes `autohide` / `separation` sont définies.
+**Impact** : poignées **grises Godot par défaut** au milieu d'une palette indigo/or,
+visibles en session MJ (3 colonnes) et dans les éditeurs.
+**Action** : styliser `split_bar`, `grabber`, `grabber_highlight` pour
+`HSplitContainer` et `VSplitContainer`.
+
+---
+
+## 4 · MOYEN — Cartes scénario surchargées : 6 boutons
 
 **Où** : `game/scenes/hub/panels/scenario_card.tscn`
 **Constat** :
@@ -134,206 +102,118 @@ HSplitContainer/constants/separation = 8
 BtnEdit · BtnView · BtnPlay · BtnPublish · BtnUnpublish · BtnDelete
 ```
 
-(six boutons pleine largeur empilés ; `character_card` n'en a que 2, `bot_card` 1)
-**Impact** : la carte fait ~330 px de haut, la hiérarchie action principale / action rare disparaît, la liste devient longue à parcourir.
-**Action** : garder 2 boutons visibles (`Lancer`, `Modifier`) + menu « ⋯ » pour `Publier / Brouillon / Voir détails / Supprimer`.
+À comparer : `character_card` = 2 boutons, `bot_card` = 1.
+**Impact** : la carte fait ~330 px de haut ; l'action principale (`Lancer`) ne se
+distingue plus des actions rares.
+**Action** : garder 2 actions visibles (`Lancer`, `Modifier`) + menu « ⋯ » pour
+`Voir détails / Publier / Brouillon / Supprimer`.
 
 ---
 
-### 3.6 · MOYEN — Responsive limité à une seule page
+## 5 · MOYEN — Responsive limité à une seule page
 
-**Où** : `game/scripts/game_setup.gd:617` est le **seul** appelant de `UiLayout.is_narrow_viewport()`.
 **Constat** :
-- Hub : 5 onglets sur une ligne + `GridContainer` 2 colonnes, sans repli sous 960 px.
-- Menu : `ModesGrid columns=2` + 3 boutons hero de 200 px sur une ligne (600 px + marges) → débordement sous ~700 px.
-- `UiLayout.BREAKPOINT_NARROW = 960` et `BREAKPOINT_COMPACT = 800` existent mais ne servent qu'à `game_setup`.
 
-**Impact** : fenêtre minimale (640×400 depuis le correctif récent) → contenus coupés ou illisibles.
-**Action** : helper `UiLayout.apply_grid_columns(grid, min_cols)` appelé sur `resized`, et repli des barres d'onglets en `ScrollContainer`.
-
----
-
-### 3.7 · MOYEN — Pas de fil d'Ariane
-
-**Constat** : aucune trace de fil d'Ariane dans les pages d'interface.
-
-```bash
-$ grep -rn "breadcrumb" game/scenes game/scripts
-# seul MapData.get_map_breadcrumb (périmètre cartes) + map_complex_editor
+```
+$ grep -rn "is_narrow_viewport\|is_compact_viewport" game/scripts | grep -v ui_layout | wc -l
+1        # game_setup.gd uniquement
 ```
 
-**Impact** : dans *Hub → Scénarios → Éditeur*, l'utilisateur n'a aucun repère de profondeur ; seul le libellé du bouton retour l'indique, et il varie.
-**Action** : `Hub › Scénarios › Éditeur` sous le titre de la TopBar.
+- Hub : 5 onglets sur une ligne, aucun repli sous 960 px.
+- Menu : 3 boutons hero de 200 px + `ModesGrid columns=2` → débordement sous ~700 px.
+- Les seuils `BREAKPOINT_NARROW = 960` / `BREAKPOINT_COMPACT = 800` existent dans
+  `UiLayout` mais ne servent qu'à `game_setup`.
+
+**Action** : helper `UiLayout.apply_grid_columns(grid, min_cols)` appelé sur
+`resized`, et barre d'onglets du hub dans un `ScrollContainer` horizontal.
 
 ---
 
-### 3.8 · FAIBLE — Cinq hauteurs de boutons différentes
+## 6 · FAIBLE — Infobulles non stylées
 
-**Constat** (relevé des `custom_minimum_size` des scènes d'interface) :
+**Constat** :
 
-| Hauteur | Occurrences |
-|---------|-------------|
-| 50 px | 7 (boutons d'action du hub) |
-| 48 px | 3 (boutons hero du menu) |
-| 44 px | 2 (retour hub, CTA setup) |
-| 40 px | 3 (création de carte) |
+```
+$ grep -c "TooltipPanel\|TooltipLabel/colors" game/theme/openquest_theme.tres
+0
+```
 
-Alors que `UiLayout.MIN_BUTTON_HEIGHT = 44`, `MIN_CTA_HEIGHT = 48` et
-`ThemeColors.BTN_HEIGHT_CTA/STANDARD/COMPACT` (48/40/32) existent déjà… et ne sont **pas utilisés**.
-**Action** : appliquer les 3 tailles canoniques (48 CTA / 40 standard / 32 compact).
-
----
-
-### 3.9 · ✅ CORRIGÉ — Accessibilité clavier
-
-**Ancien constat** : un seul `focus_mode` explicite, `Échap` sans effet sur les formulaires, `Ctrl+Entrée` limité à la console MJ, et `session_style.gd` forçait `focus_mode = FOCUS_NONE` sur les boutons d'outils (focus clavier impossible).
-
-**Corrigé** :
-- `scripts/shared/ui_shortcuts.gd` : helpers partagés `is_cancel` / `is_submit` / `is_save` / `is_accept`.
-- `Échap` contextuel — éditeur de personnages (ferme le picker, puis le formulaire, puis retour hub), éditeur de scénario (retour avec confirmation), liste de scénarios (ferme le détail), configuration (retour), session (ferme fiche de personnage → dialogue → inventaire, sans quitter).
-- `Ctrl+Entrée` généralisé : valide dans les formulaires, envoie l'action du joueur (`action_bar`), lance les dés (`dice_tray`), démarre la partie (`game_setup`).
-- `Ctrl+S` : enregistre dans les deux éditeurs.
-- `session_style.gd` : boutons d'outils remis en `FOCUS_ALL`.
-- L'événement est consommé **avant** l'action (un changement de scène rend `get_viewport()` nul).
-- Test de non-régression ajouté : `scripts/tests/keyboard_nav_test.gd` → **[KEYBOARD NAV] PASS** (4 scénarios).
+`PopupMenu` est stylé, pas les infobulles.
+**Impact** : infobulles grises par défaut, alors qu'elles portent le sens des
+suggestions de session (« Explorer / Discuter / Examiner / Combattre » : la phrase
+envoyée est dans l'infobulle).
+**Action** : styliser `TooltipPanel` + `TooltipLabel`.
 
 ---
 
-### 3.10 · FAIBLE — En-tête complet répété sur les pages internes
+## 7 · FAIBLE — Pas de fil d'Ariane dans l'interface
 
-**Constat** : `AppHeader` (eyebrow + titre + tagline + sélecteur de langue) est instancié sur **6 pages**, y compris `character_editor`, `scenario_list`, `game_setup`, `scenario_editor`.
-Dans ces pages, il occupe ~120 px avant la TopBar, sur des écrans de travail dense.
-**Impact** : espace vertical perdu dans des pages orientées tâche ; la tagline marketing n'y apporte rien.
-**Action** : variante `compact` (eyebrow + titre seuls, sans tagline ni langue) pour les pages internes, `full` pour le menu.
+**Constat** : le fil d'Ariane n'existe que côté cartes
+(`MapData.get_map_breadcrumb`, `map_complex_editor`, `map_workspace`, `map_navigator`).
+Aucune page d'interface n'en affiche.
 
----
-
-### 3.11 · FAIBLE — Infobulles non stylées
-
-**Constat** : `grep -c "Tooltip" game/theme/openquest_theme.tres` → **0**.
-`PopupMenu` est stylé, mais pas `TooltipPanel` / `TooltipLabel`.
-**Impact** : infobulles grises par défaut, alors qu'elles portent le sens des suggestions de session (« Explorer / Discuter / Examiner / Combattre » — la phrase envoyée est dans le tooltip).
-**Action** : styliser `TooltipPanel` + `TooltipLabel` dans le thème.
+**Impact** : dans *Hub → Scénarios → Éditeur*, la profondeur n'est lisible que par
+le libellé du bouton retour.
+**Action** : ligne `Hub › Scénarios › Éditeur` sous le titre de la barre partagée.
 
 ---
 
-## 4. Analyse page par page
+## 8 · FAIBLE — En-tête complet répété sur les pages de travail
 
-| Page | État | Reste à faire |
-|------|------|---------------|
-| **Menu principal** | Titres 24 px, en-tête complet, 3 boutons hero, 2 cartes de mode, langue | Repli des 3 boutons sous 800 px (§3.6) ; hover sur les cartes de mode |
-| **Hub** | 5 onglets pleine largeur, en-tête, cartes en grille 4 | Repli des onglets en scroll (§3.6) ; uniformiser les boutons d'action 50 → 48 px (§3.8) |
-| **Personnages** | Formulaire pleine largeur réparé, grille 4, confirmation de perte | Police (§3.2) ; couleurs en dur (§3.3) ; `Échap` (§3.9) |
-| **Scénarios** | Grille, détail en overlay, filtre de mode, confirmation | Carte à 6 boutons (§3.5) ; détail en panneau latéral plutôt qu'overlay |
-| **Configuration** | 2 colonnes, responsive présent, CTA 44 px | CTA à 48 px (§3.8) ; marge interne du `ScenarioPreview` |
-| **Éditeur de scénario** | TopBar inline, panneaux, graphe | Fil d'Ariane (§3.7) ; `Échap` (§3.9) |
-| **Session MJ** | 3 colonnes, journal réparé (877 px), dés/action compacts | Poignées de split grises (§3.4) ; tooltips (§3.11) |
-| **HUD joueur** | Vue immersive, journal intégré, insets carte appliqués | Couleurs en dur (§3.3) ; pas de raccourci d'ouverture de fiche |
+**Constat** : `AppHeader` (eyebrow + titre + tagline + sélecteur de langue) est
+instancié sur **6 pages**, dont `character_editor`, `scenario_list`,
+`game_setup`, `scenario_editor`.
+Sur ces pages de travail dense, il consomme ~120 px de haut avant la barre de
+navigation, et la tagline marketing n'y a pas de fonction.
+
+**Action** : variante `compact` du composant (eyebrow + titre uniquement) pour les
+pages internes ; `full` réservé au menu.
 
 ---
 
-## 5. Système de design — état
+## 9 · FAIBLE — Pas de composant `Card` générique
 
-### 5.1 Palette — « grimoire » (JDR sur table)
+**Constat** : quatre cartes coexistent avec des structures divergentes :
 
-Palette refondue : encre indigo pour les fonds, or antique pour l'accent,
-sceau de cire pour le danger, vert-de-gris pour la réussite, bleu arcanique
-pour l'enquête. Chaque teinte a un rôle unique.
+| Carte | Boutons | Contenu |
+|-------|---------|---------|
+| `character_card` | 2 | nom + tier + roster + méta + stats |
+| `bot_card` | 1 | nom + mode + méta + tag + traits + stats |
+| `scenario_card` | 6 | titre + badge + synopsis + méta |
+| `map_card` | 4-6 | badge + titre + scénario + mode + méta |
 
-| Jeton | Hex | Rôle |
-|-------|-----|------|
-| `SURFACE_DEEP` | `#0d0b12` | fond le plus profond (scène) |
-| `BG_DARK` | `#14111c` | fond de page |
-| `SURFACE_DOCK` | `#1b1726` | docks / panneaux latéraux |
-| `BG_INPUT` | `#171320` | champs de saisie |
-| `BG_CARD` | `#221d2f` | cartes |
-| `SURFACE_RAISED` | `#2b2440` | surfaces surélevées, survol |
-| `BORDER` | `#3c3252` | bordures |
-| `HAIRLINE` | `#2c2540` | filets internes |
-| `TEXT` | `#ece0c4` | parchemin (texte) |
-| `TEXT_MUTED` | `#a3937f` | parchemin estompé |
-| `GOLD` / `ACCENT` | `#c9a44c` | or antique |
-| `GOLD_LIGHT` | `#f2d98a` | titres, valeurs actives |
-| `DANGER` | `#b23a48` | sceau de cire (destructif) |
-| `SUCCESS` | `#4e9e8a` | vert-de-gris |
-| `ALERT` | `#d9743f` | braise (attention) |
-| `INVESTIGATION_ACCENT` | `#8296d8` | bleu arcanique (enquête) |
-| `BOT_ACCENT` | `#8fd2ea` | cyan (compagnons IA) |
-| `LOG_NPC` | `#b9a0dc` | lavande arcanique (PNJ) |
-| `LOG_PLAYER` | `#8fcbb6` | menthe (joueur) |
-
-- ✅ Constantes typographiques `FONT_SIZE_H1/H2/H3/BODY/CAPTION/MICRO`
-- ✅ Constantes boutons `BTN_HEIGHT_CTA/STANDARD/COMPACT` + hauteur unique 48 px appliquée
-- ✅ Teintes du HUD désormais dans la palette : `HUD_TITLE`, `HUD_TURN`, `HUD_HERO_SUB`, `HUD_HP`, `DANGER_SEP`
-- ✅ Thème et scènes alignés sur la palette (173 occurrences remappées)
-- ⚠️ Les couleurs restent écrites **en dur** dans les `.tscn` (dette §3.3) — mais plus aucune teinte hors palette
-
-### 5.2 Typographie
-- ✅ Hiérarchie H1 24 / H2 20 / H3 17 cohérente entre pages
-- ✅ Tailles relevées pour la lisibilité avec Ringbearer : les corps ≤ 13 px
-  passent à 14 px, 14 → 16, 16 → 17 ; base du thème 16 → 17
-- ✅ Contraste du texte relevé : `TEXT` `#ece0c4` → `#f6eeda`, `TEXT_MUTED`
-  `#a3937f` → `#c3b4a1`
-- ✅ Points de coupe corrigés après agrandissement : cartes de groupe 104 → 136 px,
-  barre d'outils de carte 38 → 58 px, titre de tour sur 2 lignes,
-  « Fin définitive » sur une ligne
-- ❌ aucune police embarquée (§3.2)
-- ⚠️ 90 tailles en override au lieu des variations du thème (§3.3)
-
-### 5.3 Composants partagés
-- ✅ `AppHeader` (6 pages), `PoolingPanel` (hub → Multijoueur)
-- ❌ `AppTopBar` non utilisé (§3.1)
-- ⚠️ pas de composant `Card` générique : `character_card` (2 boutons), `bot_card` (1), `map_card` (4-6), `scenario_card` (6) divergent
-
-### 5.4 Thème
-- ✅ boutons (4 variations), panneaux (Dock/Inset/Toolbar/Alert), onglets, inputs, scrollbars, dialogues
-- ❌ pas de police, pas de tooltips, pas de split bars (§3.2, 3.4, 3.11)
+**Impact** : chaque évolution de style doit être répétée quatre fois.
+**Action** : carte de base (en-tête, corps, barre d'actions) + variations.
 
 ---
 
-## 6. Plan d'action priorisé
+## 10 · FAIBLE — Dialogues de confirmation hétérogènes
 
-### Priorité 1 — dette structurante (impact fort, coût modéré)
+**Constat** : tailles déclarées dans les scènes :
 
-1. ~~**Trancher `AppTopBar`**~~ → fait : migration des 6 pages (§3.1).
-2. **Embarquer une police** et la déclarer `default_font` du thème.
-3. **Rapatrier les 5 teintes manquantes** dans `ThemeColors` et remplacer les 83 couleurs en dur par des variations de thème.
+| Scène | Taille |
+|-------|--------|
+| `main_menu` / `hub` (×2) | `420 × 120` |
+| `hub` (publier) | `420 × 140` |
+| `scenario_list` (supprimer) | `440 × 120` |
+| `scenario_list` (publier) / `character_editor` / `scenario_editor` | `480 × 140` |
 
-### Priorité 2 — confort d'usage
-
-4. **Styliser les `SplitContainer`** (barre + poignée).
-5. **Réduire les cartes scénario** à 2 actions + menu « ⋯ ».
-6. **Généraliser le responsive** : helper `apply_grid_columns` + repli des barres d'onglets.
-7. **Ajouter un fil d'Ariane** sur les pages profondes.
-
-### Priorité 3 — finition
-
-8. **Appliquer les 3 hauteurs de boutons canoniques** (48/40/32).
-9. **Variante compacte de l'en-tête** pour les pages internes.
-10. **Styliser les infobulles**.
-11. ~~**Accessibilité clavier**~~ → fait (voir §3.9).
+**Impact** : les modales changent de taille d'un écran à l'autre pour le même type
+d'action.
+**Action** : une taille canonique (ex. `460 × 140`) et les mêmes libellés de
+boutons partout.
 
 ---
 
-## 7. Annexe — métriques relevées
+## Ordre d'attaque suggéré
 
-| Métrique | Valeur |
-|----------|--------|
-| Tailles de police en override dans les `.tscn` | 90 |
-| Couleurs `font_color` en override | 83 |
-| `font_size` de titre de page | 24 px (uniforme) |
-| Marges de page | 20 px (H) / 16 px (V) |
-| Hauteurs de boutons distinctes | 5 (34, 40, 44, 48, 50) |
-| Boutons dans `scenario_card` | 6 |
-| Pages utilisant `AppHeader` | 6 |
-| Pages utilisant `AppTopBar` | **6** |
-| Pages responsive | 1 (`game_setup`) |
-| Raccourcis clavier globaux | Échap, Ctrl+Entrée, Ctrl+S |
-| Test clavier | `keyboard_nav_test` → PASS |
-| Journal MJ (session) | 877 px de haut, minimums dock 417 px |
-| Police définie dans le thème | **aucune** |
-| Styles `SplitContainer` | **aucun** (constantes seules) |
-| Styles `Tooltip` | **aucun** |
+1. **§2 — hauteurs obsolètes** (immédiat, supprime une incohérence trompeuse)
+2. **§3 — poignées de split** + **§6 — infobulles** (thème uniquement)
+3. **§4 — carte scénario** + **§10 — dialogues** (finitions visibles)
+4. **§8 — en-tête compact** (gain d'espace sur 4 pages)
+5. **§1 — dette de style** (chantier long, page par page)
+6. **§5 — responsive** et **§7 — fil d'Ariane** (structure)
+7. **§9 — composant Card** (lors de la prochaine refonte des cartes)
 
 ---
 
