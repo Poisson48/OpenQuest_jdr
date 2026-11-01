@@ -88,37 +88,43 @@ func _ready() -> void:
 		[SAVE_INTERVAL, "Périodique (30 s)"],
 	])
 
-	# Type de sol : vrai terrain 3D (relief) ou fond illustré plat.
-	var ground_lbl := Label.new()
-	ground_lbl.text = "Type de sol"
-	add_child(ground_lbl)
+	# --- Terrain & eau -------------------------------------------------------
+	# Groupe inséré juste avant « Style de rendu » : la lecture va du sol vers
+	# le rendu (terrain → eau → ambiance → style → lumière).
+	var terrain_group := VBoxContainer.new()
+	terrain_group.name = "TerrainGroup"
+	terrain_group.add_theme_constant_override("separation", 4)
+	add_child(terrain_group)
+	terrain_group.add_child(_heading("🌍 Terrain & eau"))
+	terrain_group.add_child(_caption(
+		"Type de sol : terrain 3D avec relief et jupe de falaise, ou fond illustré plat."))
 	var ground_opt := OptionButton.new()
-	add_child(ground_opt)
+	ground_opt.tooltip_text = "Choisit un terrain 3D (relief, eau, objets qui suivent le sol) ou une image de fond plate."
+	terrain_group.add_child(ground_opt)
 	_fill_option(ground_opt, [
 		["terrain3d", "Terrain 3D (relief)"],
 		["illustrated", "Fond illustré (plat)"],
 	])
 	widgets["ground_mode"] = ground_opt
 	ground_opt.item_selected.connect(func(_i): ground_mode_changed.emit())
-	# Niveau d'eau : -1 = pas d'eau, >= 0 = plan d'eau (lac / étang).
-	var water_lbl := Label.new()
-	water_lbl.text = "Eau (niveau)"
-	add_child(water_lbl)
+
+	terrain_group.add_child(_caption(
+		"Eau : −1 = aucune ; sinon hauteur du plan d'eau en cases. Creusez d'abord le relief avec l'outil ⛰ Relief (U)."))
 	var water_spin := SpinBox.new()
 	water_spin.min_value = -1.0
 	water_spin.max_value = 8.0
 	water_spin.step = 0.1
 	water_spin.value = -1.0
-	water_spin.tooltip_text = "-1 = aucune eau ; sinon hauteur du plan d'eau en cases (les creux du relief deviennent un lac)."
-	add_child(water_spin)
+	water_spin.tooltip_text = "−1 = aucune eau ; sinon hauteur du plan d'eau en cases (les creux du relief deviennent un lac)."
+	terrain_group.add_child(water_spin)
 	widgets["water_level"] = water_spin
 	water_spin.value_changed.connect(func(_v): water_changed.emit())
-	# Ambiance animée : lucioles, poussière ou feuilles.
-	var fx_lbl := Label.new()
-	fx_lbl.text = "Ambiance"
-	add_child(fx_lbl)
+
+	terrain_group.add_child(_caption(
+		"Ambiance : particules décoratives (lucioles, poussière, feuilles, pluie, neige)."))
 	var fx_opt := OptionButton.new()
-	add_child(fx_opt)
+	fx_opt.tooltip_text = "Particules animées purement décoratives ; elles ne modifient pas le gameplay."
+	terrain_group.add_child(fx_opt)
 	_fill_option(fx_opt, [
 		["", "Aucune"],
 		["fireflies", "Lucioles (étang / forêt)"],
@@ -129,15 +135,10 @@ func _ready() -> void:
 	])
 	widgets["ambient_fx"] = fx_opt
 	fx_opt.item_selected.connect(func(_i): ambient_fx_changed.emit())
+
 	var style_node := find_child("LblStyle", true, false)
 	if style_node is Node:
-		var style_index := style_node.get_index()
-		move_child(ground_lbl, style_index)
-		move_child(ground_opt, style_index + 1)
-		move_child(water_lbl, style_index + 2)
-		move_child(water_spin, style_index + 3)
-		move_child(fx_lbl, style_index + 4)
-		move_child(fx_opt, style_index + 5)
+		move_child(terrain_group, style_node.get_index())
 
 	%BtnImportBg.pressed.connect(func(): import_background_pressed.emit())
 	%BtnImportOverlay.pressed.connect(func(): import_overlay_pressed.emit())
@@ -178,5 +179,29 @@ func _ready() -> void:
 	%BtnImportJson.pressed.connect(func(): import_json_pressed.emit())
 
 func _fill_option(opt: OptionButton, entries: Array) -> void:
-	for i in range(mini(opt.item_count, entries.size())):
+	# Si le .tscn et le catalogue divergent (ex. ajout du style « 2.5D »), on
+	# reconstruit les items depuis le catalogue : libellés ET métadonnées
+	# restent ainsi alignés.
+	if opt.item_count != entries.size():
+		opt.clear()
+		for i in range(entries.size()):
+			opt.add_item(str(entries[i][1]), i)
+			opt.set_item_metadata(i, str(entries[i][0]))
+		return
+	for i in range(entries.size()):
 		opt.set_item_metadata(i, str(entries[i][0]))
+
+func _heading(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.theme_type_variation = &"HeadingLabel"
+	lbl.add_theme_font_size_override("font_size", 12)
+	return lbl
+
+func _caption(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.theme_type_variation = &"CaptionLabel"
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return lbl

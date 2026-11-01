@@ -5,6 +5,15 @@ const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd"
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
+const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
+
+## Outils de construction mis en avant dans l'état vide de l'inspecteur.
+## (Identifiants du catalogue `MapEditorTools`, volontairement en clair pour
+## rester lisible sans dépendre de l'ordre de déclaration du catalogue.)
+const BUILD_TOOL_IDS := [
+	"mesh_wall", "room_3d", "roof_3d", "floor_3d", "door_3d",
+	"house_3d", "window_3d", "furnish_3d", "interior_3d",
+]
 
 ## Inspecteur de l'élément (ou du lot) sélectionné : identité, transformation,
 ## effets visuels, propriétés spécifiques au type et liens sortants/entrants.
@@ -37,7 +46,7 @@ func rebuild() -> void:
 		return
 	var selected: Array = doc.selection()
 	if selected.is_empty():
-		_add_placeholder("Aucune sélection.\nCliquez un élément, ou glissez dans le vide pour un rectangle de sélection.")
+		_build_empty_state()
 		return
 	if selected.size() > 1:
 		_build_multi(selected)
@@ -53,23 +62,29 @@ func _build_single(elem: Dictionary) -> void:
 		return
 	var kind := str(elem.get("kind", ""))
 	_title("%s %s" % [DocumentScript.KIND_ICONS.get(kind, "•"), DocumentScript.KIND_LABELS.get(kind, kind)])
+	_add_selection_summary(elem)
+	_build_actions([str(elem.get("id", ""))])
 
 	_line_edit("Nom", str(elem.get("label", "")), func(text): _apply({"label": text}, "Renommage"))
 
-	_section("Position & taille")
+	_section("📍 Position & taille")
 	var pos_row := _row()
-	_spin(pos_row, "X", -999.0, 999.0, float(elem.get("x", 0.0)), 0.25,
+	var x_spin := _spin(pos_row, "X", -999.0, 999.0, float(elem.get("x", 0.0)), 0.25,
 		func(v): _apply({"x": v}, "Position"))
-	_spin(pos_row, "Y", -999.0, 999.0, float(elem.get("y", 0.0)), 0.25,
+	x_spin.tooltip_text = "Position horizontale de l'élément, en cases (0 = bord gauche)."
+	var y_spin := _spin(pos_row, "Y", -999.0, 999.0, float(elem.get("y", 0.0)), 0.25,
 		func(v): _apply({"y": v}, "Position"))
+	y_spin.tooltip_text = "Position verticale de l'élément, en cases (0 = bord haut)."
 	var size_row := _row()
-	_spin(size_row, "Largeur", 0.25, 64.0, float(elem.get("w", 1.0)), 0.25,
+	var w_spin := _spin(size_row, "Largeur", 0.25, 64.0, float(elem.get("w", 1.0)), 0.25,
 		func(v): _apply({"w": v}, "Taille"))
-	_spin(size_row, "Hauteur", 0.25, 64.0, float(elem.get("h", 1.0)), 0.25,
+	w_spin.tooltip_text = "Largeur de l'empreinte au sol, en cases. Pour un objet 3D, passez par Dimensions."
+	var h_spin := _spin(size_row, "Hauteur", 0.25, 64.0, float(elem.get("h", 1.0)), 0.25,
 		func(v): _apply({"h": v}, "Taille"))
+	h_spin.tooltip_text = "Profondeur de l'empreinte au sol, en cases. Pour un objet 3D, passez par Dimensions."
 
 	var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
-	_section("Effets visuels")
+	_section("🎛 Apparence")
 	var fx_row := _row()
 	_spin(fx_row, "Rotation °", -180.0, 180.0, float(display.get("rotation", 0.0)), 5.0,
 		func(v): _apply({"display": {"rotation": v}}, "Rotation"))
@@ -90,15 +105,18 @@ func _build_single(elem: Dictionary) -> void:
 
 	_build_kind_fields(elem, kind)
 
-	_section("Organisation")
+	_section("🏷 Organisation")
 	_layer_selector(int(elem.get("layer", 3)))
 	var flags_row := _row()
-	_check(flags_row, "Verrouillé", bool(elem.get("locked", false)),
+	var locked_check := _check(flags_row, "Verrouillé", bool(elem.get("locked", false)),
 		func(on): _apply({"locked": on}, "Verrou"))
-	_check(flags_row, "Masqué", bool(elem.get("hidden", false)),
+	locked_check.tooltip_text = "Un élément verrouillé reste visible mais ne peut plus être sélectionné ni déplacé sur la carte."
+	var hidden_check := _check(flags_row, "Masqué", bool(elem.get("hidden", false)),
 		func(on): _apply({"hidden": on}, "Visibilité"))
+	hidden_check.tooltip_text = "Masque l'élément à l'affichage et en session, sans le supprimer."
 	if not str(elem.get("group", "")).is_empty():
 		_add_note("Membre d'un groupe (Ctrl+Maj+G pour dégrouper)")
+	_add_note("Calque = profondeur d'affichage (Terrain → Décor → Structures → …). Page ↑/↓ change l'ordre d'un cran.")
 
 	_multiline("Notes MJ", str(elem.get("notes", "")),
 		func(text): _apply({"notes": text}, "Notes"))
@@ -107,12 +125,10 @@ func _build_single(elem: Dictionary) -> void:
 
 func _build_multi(selected: Array) -> void:
 	_title("🎯 %d éléments sélectionnés" % selected.size())
-	var kinds: Dictionary = {}
-	for id in selected:
-		kinds[str(doc.get_element(str(id)).get("kind", "?"))] = true
-	_add_note("Types : %s" % ", ".join(kinds.keys()))
+	_build_selection_kinds(selected)
+	_build_actions(selected)
 
-	_section("Appliquer à toute la sélection")
+	_section("🎛 Appliquer à toute la sélection")
 	var fx_row := _row()
 	_spin(fx_row, "Rotation °", -180.0, 180.0, 0.0, 5.0,
 		func(v): _apply({"display": {"rotation": v}}, "Rotation"))
@@ -121,10 +137,12 @@ func _build_multi(selected: Array) -> void:
 	_color_field("Teinte", "", func(hex): _apply({"display": {"tint": hex}}, "Teinte"))
 	_layer_selector(int(doc.get_element(str(selected[0])).get("layer", 3)))
 	var flags_row := _row()
-	_check(flags_row, "Verrouillé", false, func(on): _apply({"locked": on}, "Verrou"))
-	_check(flags_row, "Masqué", false, func(on): _apply({"hidden": on}, "Visibilité"))
+	var locked_check := _check(flags_row, "Verrouillé", false, func(on): _apply({"locked": on}, "Verrou"))
+	locked_check.tooltip_text = "Verrouille ou déverrouille tous les éléments sélectionnés."
+	var hidden_check := _check(flags_row, "Masqué", false, func(on): _apply({"hidden": on}, "Visibilité"))
+	hidden_check.tooltip_text = "Masque ou réaffiche tous les éléments sélectionnés."
 
-	_section("Éléments")
+	_section("📋 Éléments sélectionnés")
 	for id_variant in selected:
 		var id := str(id_variant)
 		var elem: Dictionary = doc.get_element(id)
@@ -133,6 +151,11 @@ func _build_multi(selected: Array) -> void:
 		btn.text = "%s %s" % [DocumentScript.KIND_ICONS.get(str(elem.get("kind", "")), "•"), elem.get("label", id)]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_font_size_override("font_size", 11)
+		btn.tooltip_text = "Recadrer la vue sur cet élément (%.1f, %.1f)" % [
+			float(elem.get("x", 0.0)), float(elem.get("y", 0.0)),
+		]
 		btn.pressed.connect(func(): focus_requested.emit(id))
 		row.add_child(btn)
 
@@ -363,6 +386,7 @@ func _layer_selector(current: int) -> void:
 	row.add_child(lbl)
 	var option := OptionButton.new()
 	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	option.tooltip_text = "Calque d'affichage de l'élément : détermine sa profondeur de rendu et son groupe dans l'outliner."
 	var layers: Array = doc.map_data.get("layers", [])
 	for i in range(layers.size()):
 		var layer_def: Dictionary = layers[i]
@@ -626,6 +650,193 @@ func _apply_mesh_scale(factor: float, natural: Vector3) -> void:
 		"sizeX": dims.x, "sizeY": dims.y, "sizeZ": dims.z,
 		"w": dims.x, "h": dims.z, "display": {"scale": 1.0},
 	}, "Échelle")
+
+# ===========================================================================
+# Aide contextuelle, actions rapides et état vide
+# ===========================================================================
+
+## État vide : au lieu d'un simple texte, on guide vers les outils de
+## construction, la navigation 3D et les recettes les plus courantes.
+func _build_empty_state() -> void:
+	_title("🧭 Aucune sélection")
+	_add_note("Cliquez un objet sur la carte pour l'éditer. Glissez dans le vide pour sélectionner plusieurs objets.")
+	_add_note("Astuce : la palette de gauche arme un outil ; l'inspecteur décrit ensuite l'objet sélectionné.")
+
+	_section("🏗 Outils de construction")
+	_add_note("Armés dans la palette, puis posés au clic ou au glisser :")
+	for tool_id in BUILD_TOOL_IDS:
+		_add_tool_row(tool_id)
+
+	_section("🧭 Navigation 3D")
+	_add_note("Molette : zoom · clic milieu : orbite autour du point visé.")
+	_add_note("Maj + clic milieu : déplacer la vue · F : recadrer · Échap : annuler.")
+	_add_note("Clic : sélectionner · glisser : rectangle de sélection · Ctrl+clic : ajouter/retirer.")
+
+	_section("💡 Recettes express")
+	_add_note("Maison : Pièce 3D → Toit 3D → Porte 3D → Fenêtre 3D → Meubler.")
+	_add_note("Intérieur : pose une Porte 3D, puis l'outil Intérieur (ou le bouton de l'inspecteur de la porte).")
+	_add_note("Relief : ⛰ Relief (U) pour monter/baisser le sol ; le niveau d'eau se règle dans Carte → Terrain & eau.")
+
+## Une ligne « icône + nom (+ raccourci) » pour l'aide à la construction.
+func _add_tool_row(tool_id: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	add_child(row)
+	var icon := Label.new()
+	icon.text = ToolsScript.icon(tool_id)
+	icon.add_theme_font_size_override("font_size", 14)
+	row.add_child(icon)
+	var lbl := Label.new()
+	var shortcut := str(ToolsScript.get_def(tool_id).get("shortcut", ""))
+	lbl.text = str(ToolsScript.label(tool_id)) + ("" if shortcut.is_empty() else "  (%s)" % shortcut)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
+	lbl.tooltip_text = ToolsScript.tooltip(tool_id)
+	lbl.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(lbl)
+
+## Bandeau d'actions contextuelles : les gestes les plus fréquents sont
+## accessibles sans connaître les raccourcis.
+func _build_actions(selected: Array) -> void:
+	_section("⚡ Actions")
+	var single := selected.size() == 1
+	var id := str(selected[0]) if single else ""
+	# Deux boutons par ligne : reste lisible quand le dock droit est étroit
+	# (~190 px en fenêtre réduite).
+	var row := _row()
+	if single:
+		_action_button(row, "🎯 Recadrer", "Cadrer la vue sur cet élément (F)",
+			func(): focus_requested.emit(id))
+	_action_button(row, "⧉ Dupliquer", "Dupliquer la sélection (Ctrl+D)",
+		func(): _doc_duplicate())
+	var row2 := _row()
+	_action_button(row2, "🗑 Supprimer", "Supprimer la sélection (Suppr)",
+		func(): _doc_delete(), "DangerButton")
+	_action_button(row2, "⬆ Avant", "Mettre au premier plan",
+		func(): _doc_call("bring_to_front"))
+	var row3 := _row()
+	_action_button(row3, "⬇ Arrière", "Mettre à l'arrière-plan",
+		func(): _doc_call("send_to_back"))
+	if _selection_has_group(selected):
+		_action_button(row3, "Dégrouper", "Séparer les éléments du groupe (Ctrl+Maj+G)",
+			func(): _doc_call("ungroup_selection"))
+	else:
+		_action_button(row3, "Grouper", "Déplacer les éléments ensemble (Ctrl+G)",
+			func(): _doc_call("group_selection"))
+
+	if single:
+		var elem: Dictionary = doc.get_element(id) if doc != null else {}
+		var locked := bool(elem.get("locked", false))
+		var row4 := _row()
+		_action_button(row4, "🔓 Déverrouiller" if locked else "🔒 Verrouiller",
+			"Verrouiller / déverrouiller cet élément sur la carte",
+			func(): _toggle_element_flag(id, "locked", "Verrou"))
+		_action_button(row4, "🔍 Même type", "Sélectionner tous les éléments du même type",
+			func(): _doc_call("select_same_kind"))
+	else:
+		var align_row := HBoxContainer.new()
+		align_row.add_theme_constant_override("separation", 2)
+		align_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		add_child(align_row)
+		_glyph_button(align_row, "⇤", "Aligner à gauche", func(): _doc_align("left"))
+		_glyph_button(align_row, "⇥", "Aligner à droite", func(): _doc_align("right"))
+		_glyph_button(align_row, "⤒", "Aligner en haut", func(): _doc_align("top"))
+		_glyph_button(align_row, "⤓", "Aligner en bas", func(): _doc_align("bottom"))
+		_glyph_button(align_row, "⇔", "Centrer horizontalement", func(): _doc_align("center_h"))
+		_glyph_button(align_row, "⇕", "Centrer verticalement", func(): _doc_align("center_v"))
+		var dist_row := _row()
+		_action_button(dist_row, "↔ Répartir H", "Répartir horizontalement",
+			func(): _doc_distribute(true))
+		_action_button(dist_row, "↕ Répartir V", "Répartir verticalement",
+			func(): _doc_distribute(false))
+
+## Résumé lisible de la sélection multiple : composition + emprise.
+func _build_selection_kinds(selected: Array) -> void:
+	var counts: Dictionary = {}
+	for id_variant in selected:
+		var kind := str(doc.get_element(str(id_variant)).get("kind", "?"))
+		counts[kind] = int(counts.get(kind, 0)) + 1
+	var parts: PackedStringArray = PackedStringArray()
+	for kind in counts:
+		parts.append("%d × %s" % [int(counts[kind]), str(DocumentScript.KIND_LABELS.get(kind, kind))])
+	_add_note("Sélection : %s" % " · ".join(parts))
+	if doc != null:
+		var bounds: Rect2 = doc.selection_bounds()
+		_add_note("Emprise : %.1f × %.1f cases · %d élément(s)" % [
+			bounds.size.x, bounds.size.y, selected.size(),
+		])
+
+## Badge d'identité affiché sous le titre : calque et état verrou/masqué.
+func _add_selection_summary(elem: Dictionary) -> void:
+	if doc == null:
+		return
+	var layer_id := int(elem.get("layer", 3))
+	var layer_label := "Calque %d" % layer_id
+	if doc.has_method("layer_name"):
+		layer_label = str(doc.layer_name(layer_id))
+	var flags: PackedStringArray = PackedStringArray()
+	if bool(elem.get("locked", false)):
+		flags.append("🔒 verrouillé")
+	if bool(elem.get("hidden", false)):
+		flags.append("🚫 masqué")
+	var suffix := "" if flags.is_empty() else " · " + " · ".join(flags)
+	_add_note("Calque : %s%s" % [layer_label, suffix])
+
+func _action_button(parent: Control, text: String, tooltip: String, action: Callable, variation: String = "") -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.tooltip_text = tooltip
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = Vector2(0, 26)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 11)
+	if not variation.is_empty():
+		btn.theme_type_variation = StringName(variation)
+	btn.pressed.connect(action)
+	parent.add_child(btn)
+	return btn
+
+func _glyph_button(parent: Control, text: String, tooltip: String, action: Callable) -> Button:
+	var btn := _action_button(parent, text, tooltip, action)
+	btn.custom_minimum_size = Vector2(24, 26)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	return btn
+
+func _selection_has_group(selected: Array) -> bool:
+	if doc == null:
+		return false
+	for id_variant in selected:
+		if not str(doc.get_element(str(id_variant)).get("group", "")).is_empty():
+			return true
+	return false
+
+func _doc_call(method: String) -> void:
+	if doc != null and doc.has_method(method):
+		doc.call(method)
+
+func _doc_duplicate() -> void:
+	_doc_call("duplicate_selection")
+
+func _doc_delete() -> void:
+	if doc != null:
+		doc.remove_elements(doc.selection())
+
+func _doc_align(mode: String) -> void:
+	if doc != null:
+		doc.align_selection(mode)
+
+func _doc_distribute(horizontal: bool) -> void:
+	if doc != null:
+		doc.distribute_selection(horizontal)
+
+func _toggle_element_flag(id: String, key: String, note: String) -> void:
+	if doc == null or not doc.has_element(id):
+		return
+	var elem: Dictionary = doc.get_element(id)
+	# `modify_element` (et non `modify_selection`) : le bouton cible l'élément
+	# affiché, même si la sélection a changé entre-temps (après duplication).
+	doc.modify_element(id, {key: not bool(elem.get(key, false))}, note)
 
 func _stamp_light_selection() -> void:
 	if doc == null:

@@ -39,6 +39,13 @@ theme_type_variation = &"HeadingLabel"
 theme_override_font_sizes/font_size = 12
 text = "⌨ Raccourcis"
 
+[node name="LblShortcutsHint" type="Label" parent="."]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+theme_override_font_sizes/font_size = 10
+text = "Actifs quand la vue 3D a le focus (pas pendant la saisie dans un champ texte)."
+autowrap_mode = 3
+
 [node name="ShortcutsHost" type="VBoxContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 2

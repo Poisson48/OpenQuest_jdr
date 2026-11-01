@@ -119,6 +119,8 @@ func _draw() -> void:
 		_draw_vision()
 	if not player_preview:
 		_draw_hover()
+		_draw_hover_element()
+		_draw_out_of_bounds()
 	if show_links and not player_preview:
 		_draw_links()
 	_draw_flat_elements()
@@ -133,6 +135,8 @@ func _draw() -> void:
 	_draw_measure()
 	if show_light_radii:
 		_draw_light_radii()
+	if not player_preview:
+		_draw_navigation_help()
 
 ## Aperçu du champ de vision : les cases atteintes sont éclaircies, la source
 ## est marquée. Ce que le calque ne peint pas est dans l'ombre d'un mur.
@@ -154,6 +158,116 @@ func _draw_hover() -> void:
 		return
 	var pts := _cell_rect_points(int(roundf(hover_grid.x)), int(roundf(hover_grid.y)))
 	draw_polyline(_closed(pts), COL_HOVER, 1.5, true)
+
+## Élément qui serait sélectionné au clic (ou supprimé par la gomme) :
+## contour discret + étiquette de nom, ou avertissement verrouillé.
+func _draw_hover_element() -> void:
+	if not hover_valid or doc == null or player_preview:
+		return
+	if not ghost.is_empty() or not drag_preview.is_empty() or not polygon_points.is_empty() \
+			or measure_active or band_active:
+		return
+	var elem := _hovered_element()
+	if elem.is_empty():
+		return
+	var pts := _footprint(elem)
+	if pts.size() < 4:
+		return
+	var locked: bool = not doc.is_element_selectable(elem)
+	var outline := COL_LOCKED if locked else Color(1.0, 1.0, 1.0, 0.72)
+	draw_polyline(_closed(pts), outline, 2.0 if locked else 1.5, true)
+	var at := _p(hover_grid.x, hover_grid.y)
+	var kind := str(elem.get("kind", ""))
+	var name := str(elem.get("label", "")).strip_edges()
+	if name.is_empty():
+		name = str(DocumentScript.KIND_LABELS.get(kind, kind))
+	var text := ("🔒 " + name) if locked else name
+	if text.length() > 32:
+		text = text.substr(0, 31) + "…"
+	_draw_text_badge(at + Vector2(14, -10), text,
+		COL_LOCKED if locked else Color(1.0, 0.94, 0.82, 0.95))
+
+func _hovered_element() -> Dictionary:
+	if doc == null or not hover_valid:
+		return {}
+	var point := _p(hover_grid.x, hover_grid.y)
+	var sorted: Array = doc.elements_sorted()
+	for i in range(sorted.size() - 1, -1, -1):
+		var elem: Dictionary = sorted[i]
+		if not doc.is_element_visible(elem):
+			continue
+		var pts := _footprint(elem)
+		if pts.size() < 4:
+			continue
+		if Geometry2D.is_point_in_polygon(point, pts):
+			return elem
+	return {}
+
+## Hors carte : on montre la case limite la plus proche pour expliquer pourquoi
+## le placement ne se fait pas (l'éditeur ignore silencieusement le clic).
+func _draw_out_of_bounds() -> void:
+	if hover_valid or doc == null or player_preview:
+		return
+	if hover_grid.x <= -900.0 or (is_equal_approx(hover_grid.x, -1.0) and is_equal_approx(hover_grid.y, -1.0)):
+		return
+	var w := int(doc.map_data.get("width", 16))
+	var h := int(doc.map_data.get("height", 12))
+	if w <= 0 or h <= 0:
+		return
+	var cx := clampi(int(roundf(hover_grid.x)), 0, w - 1)
+	var cy := clampi(int(roundf(hover_grid.y)), 0, h - 1)
+	var pts := _cell_rect_points(cx, cy)
+	draw_colored_polygon(pts, Color(COL_LOCKED.r, COL_LOCKED.g, COL_LOCKED.b, 0.12))
+	draw_polyline(_closed(pts), COL_LOCKED, 2.0, true)
+	_draw_text_badge(_p(float(cx), float(cy)) + Vector2(14, -10), "Hors carte",
+		Color(1.0, 0.72, 0.62, 0.95))
+
+## Petite étiquette d'aide lisible sur toutes les cartes (fond sombre + texte).
+func _draw_text_badge(at: Vector2, text: String, color: Color) -> void:
+	var font := get_theme_default_font()
+	if font == null or text.is_empty():
+		return
+	var font_size := 12
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var padding := Vector2(6, 4)
+	var box := Rect2(at, text_size + padding * 2.0)
+	draw_rect(box.grow(1.0), Color(0.10, 0.08, 0.06, 0.9), true)
+	draw_rect(box, Color(0.06, 0.05, 0.04, 0.82), true)
+	draw_string(font, box.position + Vector2(padding.x, padding.y + font.get_ascent(font_size)),
+		text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+## Rappel de navigation affiché tant que rien n'est sélectionné : onboarding
+## discret, il disparaît dès le premier objet sélectionné.
+func _draw_navigation_help() -> void:
+	if doc == null or player_preview or not doc.selection().is_empty():
+		return
+	if not ghost.is_empty() or not drag_preview.is_empty() or not polygon_points.is_empty() \
+			or measure_active or band_active:
+		return
+	if size.x < 260.0 or size.y < 110.0:
+		return
+	var font := get_theme_default_font()
+	if font == null:
+		return
+	var lines := PackedStringArray([
+		"Molette : zoom · clic milieu : orbite 3D",
+		"Maj + clic milieu : déplacer la vue · Échap : annuler",
+		"Clic : sélectionner · glisser : rectangle · F : recadrer",
+	])
+	var font_size := 11
+	var max_width := 0.0
+	for line in lines:
+		max_width = maxf(max_width, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+	var padding := Vector2(10, 7)
+	var line_h := float(font_size) + 5.0
+	var box_size := Vector2(max_width + padding.x * 2.0, line_h * float(lines.size()) + padding.y * 2.0)
+	var box := Rect2(Vector2(10.0, size.y - box_size.y - 10.0), box_size)
+	draw_rect(box, Color(0.05, 0.04, 0.06, 0.72), true)
+	draw_rect(box.grow(1.0), Color(0.45, 0.38, 0.28, 0.55), false, 1.0)
+	for i in range(lines.size()):
+		draw_string(font,
+			box.position + Vector2(padding.x, padding.y + line_h * float(i + 1) - 2.0),
+			lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.86, 0.80, 0.70, 0.95))
 
 func _draw_links() -> void:
 	for segment_variant in doc.link_segments():
@@ -297,8 +411,14 @@ func _draw_selection() -> void:
 			continue
 		draw_colored_polygon(pts, COL_SELECT_FILL)
 		draw_polyline(_closed(pts), COL_SELECT, 2.0, true)
-		for corner in pts:
-			draw_rect(Rect2(corner - Vector2(3, 3), Vector2(6, 6)), COL_SELECT, true)
+		# Les poignées ne concernent que les décors et objets 3D (voir
+		# `handle_at_screen`) : ne pas afficher de faux coins ailleurs.
+		var kind := str(elem.get("kind", ""))
+		var has_handles := (kind == DocumentScript.KIND_PROP or kind == DocumentScript.KIND_MESH) \
+			and not bool(elem.get("locked", false))
+		if has_handles:
+			for corner in pts:
+				draw_rect(Rect2(corner - Vector2(3, 3), Vector2(6, 6)), COL_SELECT, true)
 		if bool(elem.get("locked", false)):
 			draw_polyline(_closed(pts), COL_LOCKED, 1.0, true)
 		if not str(elem.get("group", "")).is_empty():
@@ -455,6 +575,8 @@ func _draw_drag_preview() -> void:
 			draw_line(a, b, Color(0.85, 0.7, 0.5, 0.95), 4.0, true)
 			draw_circle(a, 4.0, Color(0.95, 0.85, 0.6, 0.9))
 			draw_circle(b, 4.0, Color(0.95, 0.85, 0.6, 0.9))
+			_draw_text_badge((a + b) * 0.5 + Vector2(10, -18),
+				"%.1f case(s)" % from.distance_to(to), Color(1.0, 0.92, 0.8, 0.95))
 		"circle":
 			var center := _p(from.x, from.y)
 			var edge := _p(to.x, to.y)
@@ -464,8 +586,8 @@ func _draw_size_label(anchor: Vector2, w: float, h: float) -> void:
 	var font := get_theme_default_font()
 	if font == null:
 		return
-	draw_string(font, anchor + Vector2(4, -6), "%.1f × %.1f cases" % [w, h],
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.6, 0.95))
+	var text := "%.1f × %.1f cases" % [w, h]
+	_draw_text_badge(anchor + Vector2(4, -22), text, Color(1.0, 0.9, 0.6, 0.95))
 
 func _draw_polygon() -> void:
 	if polygon_points.size() == 0:
