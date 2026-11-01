@@ -24,6 +24,7 @@
 | Biblio | recherche + filtres (bâtiments / toits & façades / personnages / nature / intérieurs / mobilier), **import GLB** avec vignette |
 | Aimantation | toits sur le bâtiment le plus proche, façades sur le **mur le plus proche** (avant/arrière/côté), dos collé au nu ; **rotation héritée** ; aperçu fantôme |
 | Édition objet | dimensions X/Y/Z, rotation (R, poignées), élévation, **échelle uniforme** |
+| Navigation 3D | **orbite libre au clic milieu**, pan **Maj+clic milieu**, zoom molette, bouton 🧭 pour revenir à l'angle de la carte |
 | Construction | **Mur 3D** (hauteur réglable), **Pièce 3D**, **Dallage** (matière + nivellement), **Toit 3D** (styles), **Porte 3D** et **Fenêtre 3D** avec ouvertures réelles, **Maison rapide**, **intérieurs liés** (lieu + carte enfant 12 × 9 indépendante via l'outil 🚪 Intérieur) |
 | Intérieur / extérieur | **Meubler** (4 ensembles), **Clôture** (3 styles), **Chemin** peint au sol |
 | Éclairage | presets **Jour / Matin / Coucher / Nuit / Donjon**, soleil coloré, ambiance colorée, exposition **ACES**, fog de profondeur, torches/lanternes vacillantes + ombres |

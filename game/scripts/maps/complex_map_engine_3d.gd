@@ -159,6 +159,16 @@ var _drag_start: Vector2 = Vector2.ZERO
 var _pan_start: Vector3 = Vector3.ZERO
 var _pan_velocity: Vector2 = Vector2.ZERO
 var _last_pan_pos: Vector2 = Vector2.ZERO
+## Navigation 3D de l'éditeur : orbite libre autour du point visé (clic milieu).
+var _orbit_dragging: bool = false
+var _orbit_enabled: bool = false
+var _orbit_start: Vector2 = Vector2.ZERO
+var _orbit_start_yaw: float = 0.0
+var _orbit_start_pitch: float = -72.0
+var _orbit_yaw: float = 0.0
+var _orbit_pitch: float = -72.0
+var _orbit_distance: float = 48.0
+var _orbit_target: Vector3 = Vector3.ZERO
 var _token_drag: Node = null
 var _token_press_candidate: Node = null
 var _token_click_candidate: Node = null
@@ -926,6 +936,8 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		_map_extent = _ground.get_map_extent()
 
 func _apply_camera_perspective() -> void:
+	_orbit_dragging = false
+	_orbit_enabled = false
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
 	if table_view:
 		# Vue table : perspective « assis à la table », cadrage piloté par l'orbite.
@@ -1312,6 +1324,8 @@ func _visible_ground_size() -> Vector2:
 func _ground_focus() -> Vector2:
 	if _camera == null:
 		return Vector2.ZERO
+	if editor_mode and _orbit_enabled:
+		return Vector2(_orbit_target.x, _orbit_target.z)
 	var world := _raycast_ground(_control_to_viewport(_focus_screen_pos()))
 	if world == Vector3.INF:
 		return Vector2(_camera.position.x, _camera.position.z)
@@ -2026,20 +2040,26 @@ func _editor_gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		match mb.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
-				if not mb.ctrl_pressed:
-					return
 				_apply_zoom(1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_WHEEL_DOWN:
-				if not mb.ctrl_pressed:
-					return
 				_apply_zoom(1.0 / 1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_MIDDLE:
-				_pan_dragging = mb.pressed
 				_pan_velocity = Vector2.ZERO
 				if mb.pressed:
-					_begin_view_drag(mb.position, true)
+					if mb.shift_pressed:
+						# Maj + clic milieu : déplacer la vue (pan).
+						_pan_dragging = true
+						_orbit_dragging = false
+						_begin_view_drag(mb.position, true)
+					else:
+						# Clic milieu : orbiter librement autour du point visé.
+						_pan_dragging = false
+						_begin_orbit_drag(mb.position)
+				else:
+					_orbit_dragging = false
+					_pan_dragging = false
 				accept_event()
 			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
 				if mb.pressed:
@@ -2050,6 +2070,10 @@ func _editor_gui_input(event: InputEvent) -> void:
 				accept_event()
 	elif event is InputEventMouseMotion:
 		var motion := event as InputEventMouseMotion
+		if _orbit_dragging:
+			_update_orbit_drag(motion.position)
+			accept_event()
+			return
 		if _pan_dragging:
 			_pan_from_motion(motion)
 			accept_event()
@@ -2059,9 +2083,51 @@ func _editor_gui_input(event: InputEvent) -> void:
 ## Déplacement de vue piloté par l'éditeur (outil « main », espace maintenu) —
 ## c'est un pan : déplacer la caméra sans la tourner.
 func begin_view_pan(screen_pos: Vector2, pan_mode: bool = true) -> void:
+	_orbit_dragging = false
+	_orbit_enabled = false
 	_pan_dragging = true
 	_pan_velocity = Vector2.ZERO
 	_begin_view_drag(screen_pos, pan_mode)
+
+## Démarre une orbite 3D autour du point visé (clic milieu, mode éditeur).
+func _begin_orbit_drag(screen_pos: Vector2) -> void:
+	if _camera == null:
+		return
+	_orbit_dragging = true
+	_orbit_enabled = true
+	_pan_dragging = false
+	var center := size * 0.5
+	var world := _raycast_ground(_control_to_viewport(center))
+	if world == Vector3.INF:
+		world = Vector3(_camera.position.x, 0.0, _camera.position.z)
+	_orbit_target = world
+	_orbit_distance = maxf(12.0, _camera.position.distance_to(world))
+	_orbit_start = screen_pos
+	_orbit_start_yaw = _camera.rotation_degrees.y
+	_orbit_start_pitch = _camera.rotation_degrees.x
+	_orbit_yaw = _orbit_start_yaw
+	_orbit_pitch = _orbit_start_pitch
+
+func _update_orbit_drag(screen_pos: Vector2) -> void:
+	if _camera == null:
+		return
+	var delta := screen_pos - _orbit_start
+	_orbit_yaw = _orbit_start_yaw - delta.x * 0.38
+	_orbit_pitch = clampf(_orbit_start_pitch - delta.y * 0.28, -89.0, -8.0)
+	var basis := Basis.from_euler(Vector3(
+		deg_to_rad(_orbit_pitch), deg_to_rad(_orbit_yaw), 0.0))
+	var forward := -basis.z
+	var cam_pos := _orbit_target - forward * _orbit_distance
+	_camera.global_transform = Transform3D(basis, cam_pos)
+	view_changed.emit()
+
+## Réinitialise la caméra d'édition sur l'angle du style courant.
+func reset_editor_camera() -> void:
+	_orbit_dragging = false
+	_orbit_enabled = false
+	_apply_camera_perspective()
+	request_fit_to_view()
+	view_changed.emit()
 
 func update_view_pan(screen_pos: Vector2) -> void:
 	if not _pan_dragging or _camera == null:

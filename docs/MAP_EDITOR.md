@@ -219,7 +219,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Groupe | Outil | Touche | Comportement |
 |--------|-------|--------|--------------|
 | Navigation | 👆 Sélection | `V` | Clic : sélectionner · glisser dans le vide : rectangle de sélection · glisser un élément : déplacer |
-| Navigation | ✋ Navigation | `H` | Clic-glisser : déplacer la vue (aussi : clic milieu, ou `Espace` maintenu) |
+| Navigation | ✋ Navigation | `H` | Clic-glisser : déplacer la vue (aussi : `Maj`+clic milieu, ou `Espace` maintenu) · **clic milieu : orbite 3D libre** · molette : zoom · bouton **🧭** : réinitialiser l'orbite |
 | Placer | 🧍 Token | `1` | Pose un token **Joueur / PNJ / Monstre** (taille, couleur) ; un PNJ peut porter un **dialogue** affiché en session |
 | Placer | 📍 Marqueur | `2` | Pose un marqueur narratif (PNJ, indice, danger, ville…) |
 | Placer | 🔥 Effet | `3` | Pose un effet de particules (feu, fumée, magie, pluie) |
@@ -228,7 +228,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | ⬡ Zone libre | `6` | Clics successifs = sommets · `Entrée` ou clic droit ferme le polygone |
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
 | Placer | 🧱 Mur | `8` | Trace un mur de plateau (occultation, vue VTT) |
-| Placer | 🏗 Mur 3D | — | Clic-glisser : construis une **rangée de murs 3D modulaires** (`mur.glb`) orientés le long du tracé, alignés au terrain ; hauteur réglable — base de construction « Sims » |
+| Placer | 🏗 Mur 3D | — | Clic-glisser : construis une **rangée de murs 3D modulaires** (`mur.glb`) orientés le long du tracé, alignés au terrain ; hauteur réglable ; **les extrémités s'aimantent aux murs existants** — base de construction « Sims » |
 | Placer | 🏠 Pièce 3D | — | Clic-glisser un rectangle : **4 murs + 4 coins** fermés, hauteur réglable, prêts à recevoir porte, fenêtre et toit |
 | Placer | 🛖 Toit 3D | — | Clic-glisser au-dessus d'une pièce : grille de **tuiles de toit 2 pans** à la hauteur réglée ; styles **Tuiles / Chaume / Croupe / Appentis** |
 | Placer | ▦ Dallage | — | Clic-glisser dans une pièce : sol **pierre/terre/herbe/sable/neige** et nivellement du terrain |

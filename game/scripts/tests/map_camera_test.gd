@@ -22,6 +22,7 @@ func _run() -> void:
 	await _test_diorama_pan_and_visible(Engine3DScript, md)
 	await _test_fit_scales_with_map_size(Engine3DScript, md)
 	await _test_vtt_is_orthographic(Engine3DScript, md)
+	await _test_editor_orbit_3d(Engine3DScript, md)
 	await _test_create_defaults(md)
 
 	if _failed:
@@ -146,6 +147,32 @@ func _test_vtt_is_orthographic(Engine3DScript: GDScript, md) -> void:
 	print("  vtt_pan_100_cells=", pan_100_cells)
 	_assert("vtt_pan_sane", pan_100_cells > 1.0 and pan_100_cells < 25.0)
 
+	engine.queue_free()
+	await _wait_frames(2)
+
+func _test_editor_orbit_3d(Engine3DScript: GDScript, md) -> void:
+	var map: Dictionary = md.create_complex_map("Caméra orbite", "general", "local", 20, 14)
+	map["renderStyle"] = "2.5d"
+	map["fogEnabled"] = false
+	md.update_map(map)
+	var engine: Control = _make_engine(Engine3DScript)
+	engine.configure(md.get_by_id(str(map.get("id", ""))), [], [], [], [], [], false, true, {}, {}, "")
+	engine.set_editor_mode(true)
+	await _wait_frames(10)
+	engine.reset_zoom()
+	await _wait_frames(3)
+	var yaw_before: float = engine._camera.rotation_degrees.y
+	var pitch_before: float = engine._camera.rotation_degrees.x
+	engine._begin_orbit_drag(Vector2(500, 350))
+	engine._update_orbit_drag(Vector2(620, 410))
+	await _wait_frames(2)
+	_assert("orbit_enabled", engine._orbit_enabled)
+	_assert("orbit_yaw_changed", absf(engine._camera.rotation_degrees.y - yaw_before) > 1.0)
+	_assert("orbit_pitch_changed", absf(engine._camera.rotation_degrees.x - pitch_before) > 1.0)
+	var dist: float = engine._camera.position.distance_to(engine._orbit_target)
+	_assert("orbit_distance_kept", absf(dist - engine._orbit_distance) < 0.5)
+	var focus: Vector2 = engine._ground_focus()
+	_assert("orbit_focus_kept", focus.distance_to(Vector2(engine._orbit_target.x, engine._orbit_target.z)) < 0.1)
 	engine.queue_free()
 	await _wait_frames(2)
 

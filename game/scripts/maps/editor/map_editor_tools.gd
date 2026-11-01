@@ -98,7 +98,7 @@ const DEFS := [
 	},
 	{
 		"id": MESH_WALL, "icon": "🏗", "label": "Mur 3D", "shortcut": "", "group": "place",
-		"hint": "Clic-glisser : construire une rangée de murs 3D modulaires (mur.glb), orientée le long du tracé.",
+		"hint": "Clic-glisser : rangée de murs 3D modulaires orientés, hauteur réglable. Les extrémités s'aimantent aux murs existants ; les segments se recouvrent aux angles.",
 	},
 	{
 		"id": ROOM_3D, "icon": "🏠", "label": "Pièce 3D", "shortcut": "", "group": "place",

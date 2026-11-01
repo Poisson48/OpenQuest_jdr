@@ -205,6 +205,13 @@ func _run() -> void:
 	var tall_walls := _meshes_with_asset(editor, wall_asset)
 	var tall_wall: Dictionary = tall_walls[tall_walls.size() - 1]
 	_assert("mesh_wall_height", is_equal_approx(float(tall_wall.get("sizeY", 0.0)), 2.2))
+	# Accroche d'extrémité : un nouveau tracé rejoint le bout d'un mur existant.
+	var endpoint := Vector2(float(tall_wall.get("x", 0.0)), float(tall_wall.get("y", 0.0))) \
+		+ Vector2(cos(deg_to_rad(float((tall_wall.get("display", {}) as Dictionary).get("rotation", 0.0)))),
+			sin(deg_to_rad(float((tall_wall.get("display", {}) as Dictionary).get("rotation", 0.0))))) \
+		* float(tall_wall.get("sizeX", 2.36)) * 0.5
+	var snapped_end: Vector2 = editor._snap_wall_endpoint(endpoint + Vector2(0.2, 0.0))
+	_assert("mesh_wall_endpoint_snap", snapped_end.distance_to(endpoint) < 0.1)
 	# Fenêtre avec ouverture réelle dans un mur assez haut.
 	var tall_walls_before_window := _meshes_with_asset(editor, wall_asset).size()
 	var tall_windows_before := _meshes_with_asset(editor, "res://assets/objects3d/buildings/fenetre_volets.glb").size()

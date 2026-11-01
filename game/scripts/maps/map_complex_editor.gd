@@ -438,6 +438,12 @@ func _build_action_bar() -> void:
 			_engine.reset_zoom()
 	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
+	_icon_button(bar, "🧭", "Vue 3D : réinitialiser l'orbite (clic milieu = orbite, Maj+clic milieu = déplacer)", func():
+		if _engine.has_method("reset_editor_camera"):
+			_engine.reset_editor_camera()
+		else:
+			_engine.request_fit_to_view()
+	)
 	bar.add_child(VSeparator.new())
 	_icon_button(bar, "‹", "Zone précédente du monde", func(): _cycle_world_map(-1))
 	_icon_button(bar, "›", "Zone suivante du monde", func(): _cycle_world_map(1))
@@ -1466,7 +1472,33 @@ func _create_wall(from: Vector2, to: Vector2) -> void:
 
 ## Construction « Sims » : une rangée de murs 3D modulaires le long du tracé.
 ## Les segments suivent l'angle du trait et s'adaptent au terrain.
+func _snap_wall_endpoint(point: Vector2) -> Vector2:
+	var best := point
+	var best_distance := 0.85
+	for elem_variant in doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+		var rotation := deg_to_rad(float(display.get("rotation", 0.0)))
+		var along := Vector2(cos(rotation), sin(rotation))
+		var length := float(elem.get("sizeX", 0.0))
+		if length <= 0.0:
+			length = _mesh_bounds_cells(str(elem.get("asset", "")), 1.0).x
+		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+		for side in [-1.0, 1.0]:
+			var endpoint := center + along * (float(side) * length * 0.5)
+			var distance := point.distance_to(endpoint)
+			if distance < best_distance:
+				best_distance = distance
+				best = endpoint
+	return best
+
 func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
+	from = _snap_wall_endpoint(from)
+	to = _snap_wall_endpoint(to)
 	var delta := to - from
 	var total := delta.length()
 	if total < 0.5:
@@ -4373,7 +4405,8 @@ func _update_hint() -> void:
 	if not _editable:
 		_hint_lbl.text = "Aperçu 3D — molette pour zoomer, clic milieu pour déplacer la vue."
 		return
-	_hint_lbl.text = "%s %s — %s" % [ToolsScript.icon(_tool), ToolsScript.label(_tool), ToolsScript.hint(_tool)]
+	_hint_lbl.text = "%s %s — %s · Molette : zoom · clic milieu : orbite 3D · Maj+clic milieu : déplacer" % [
+		ToolsScript.icon(_tool), ToolsScript.label(_tool), ToolsScript.hint(_tool)]
 
 func _update_zoom_label() -> void:
 	if _zoom_lbl and _engine:
