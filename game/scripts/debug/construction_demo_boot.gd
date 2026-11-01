@@ -226,7 +226,7 @@ func _place_prop(editor: Control, asset_name: String, x: float, y: float, rotati
 	var path := "res://assets/objects3d/props/%s.glb" % asset_name
 	if not ResourceLoader.exists(path):
 		return
-	var bounds: Vector2 = Vector2(editor._mesh_bounds_cells(path, 1.0).x, editor._mesh_bounds_cells(path, 1.0).z)
+	var bounds: Vector2 = Vector2(editor._construction._mesh_bounds_cells(path, 1.0).x, editor._construction._mesh_bounds_cells(path, 1.0).z)
 	editor.doc.add_element({
 		"x": x, "y": y,
 		"w": maxf(0.4, bounds.x), "h": maxf(0.4, bounds.y),

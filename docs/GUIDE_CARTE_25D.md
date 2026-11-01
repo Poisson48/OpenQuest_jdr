@@ -79,8 +79,8 @@ Outils terrain :
   lissé** continu, avec **hauteur réglable** ; **les extrémités s'aimantent aux
   murs existants** (prolongement, coin L, jonction T) et les façades (porte,
   fenêtre, auvent) peuvent s'aimanter dessus.
-- **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 murs + 4
-  coins d'angle), puis pose porte/fenêtre/auvent et un toit.
+- **Outil 🏠 Pièce 3D** : glisse un rectangle pour fermer une pièce (4 panneaux
+  de murs lissés + coins), puis pose porte/fenêtre/auvent et un toit.
 - **Outil 🛖 Toit 3D** : glisse un rectangle au-dessus de la pièce ; génère une
   grille de tuiles à la hauteur réglée, avec styles **Tuiles / Chaume / Croupe /
   Appentis**.

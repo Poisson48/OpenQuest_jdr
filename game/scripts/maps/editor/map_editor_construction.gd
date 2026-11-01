@@ -417,16 +417,16 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 		_ed._set_status("Pièce trop petite (minimum 1,5 × 1,5).")
 		return
 	var ids: Array = []
-	_create_mesh_wall_chain(Vector2(x0, y0), Vector2(x1, y0))
+	_create_mesh_wall_smooth(Vector2(x0, y0), Vector2(x1, y0))
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_chain(Vector2(x1, y0), Vector2(x1, y1))
+	_create_mesh_wall_smooth(Vector2(x1, y0), Vector2(x1, y1))
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_chain(Vector2(x1, y1), Vector2(x0, y1))
+	_create_mesh_wall_smooth(Vector2(x1, y1), Vector2(x0, y1))
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_chain(Vector2(x0, y1), Vector2(x0, y0))
+	_create_mesh_wall_smooth(Vector2(x0, y1), Vector2(x0, y0))
 	ids.append_array(_ed.doc.selection())
 	_ed.doc.set_selection(ids)
-	_ed._set_status("Pièce 3D construite : murs raccordés et coins L automatiques.")
+	_ed._set_status("Pièce 3D construite : 4 panneaux lissés + coins.")
 
 # ===========================================================================
 # Édition directe des murs (poignées)

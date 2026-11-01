@@ -302,7 +302,7 @@ func _run() -> void:
 	var room_corners_before := _meshes_with_asset(editor, "res://assets/objects3d/buildings/mur_coin.glb").size()
 	editor._create_mesh_room(Vector2(2.0, 14.0), Vector2(8.0, 18.0))
 	await process_frame
-	_assert("mesh_room_walls", _meshes_with_asset(editor, wall_asset).size() > room_walls_before + 4)
+	_assert("mesh_room_walls", _meshes_with_asset(editor, wall_asset).size() >= room_walls_before + 4)
 	_assert("mesh_room_corners",
 		_meshes_with_asset(editor, "res://assets/objects3d/buildings/mur_coin.glb").size() == room_corners_before + 4)
 	_assert("mesh_room_selected", editor.doc.selection_size() >= 8)

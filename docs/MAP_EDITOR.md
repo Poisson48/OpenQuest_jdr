@@ -229,7 +229,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🟫 Plateforme | `7` | Trace une plateforme surélevée (étage, pont, estrade) |
 | Placer | 🧱 Mur | `8` | Trace un mur de plateau (occultation, vue VTT) |
 | Placer | 🏗 Mur 3D | — | Clic-glisser : **panneau de mur lissé** continu (plus de micro-segments en escalier), aligné au terrain ; hauteur réglable ; extrémités aimantées aux murs existants (prolongement, coin L, jonction T) |
-| Placer | 🏠 Pièce 3D | — | Clic-glisser un rectangle : **4 murs + 4 coins** fermés, hauteur réglable, prêts à recevoir porte, fenêtre et toit |
+| Placer | 🏠 Pièce 3D | — | Clic-glisser un rectangle : **4 panneaux de murs lissés + coins**, hauteur réglable, prêts à recevoir porte, fenêtre et toit |
 | Placer | 🛖 Toit 3D | — | Clic-glisser au-dessus d'une pièce : grille de **tuiles de toit 2 pans** à la hauteur réglée ; styles **Tuiles / Chaume / Croupe / Appentis** |
 | Placer | ▦ Dallage | — | Clic-glisser dans une pièce : sol **pierre/terre/herbe/sable/neige** et nivellement du terrain |
 | Placer | 🚪 Porte 3D | — | Clic sur un **mur 3D** : ouvre une baie (deux montants) et insère une porte à auvent |
