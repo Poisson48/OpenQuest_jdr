@@ -109,7 +109,7 @@ Schéma de carte v5 : `renderStyle`, `groundMode` (`terrain3d`/`illustrated`),
 Runner : `scripts/run_tests.ps1` (timeout par test, détection `PASS`/JSON,
 captures ignorées par défaut, pas de `--quit` trompeur).
 
-**Dernier run complet : 44 tests, 43 PASS.**
+**Dernier run complet : 45 tests, 44 PASS.**
 
 - PASS : toute la suite carte 2.5D, monde/zones, éditeur, session (mini-carte,
   déplacement au clic), scénarios, personnages, table, chargement de scènes,

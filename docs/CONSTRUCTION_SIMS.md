@@ -111,7 +111,86 @@ $env:GODOT_BIN = "<chemin>\Godot_v4.7.2-stable_win64.exe"
 Démo : `.\scripts\play-godot.ps1 res://scenes/debug/construction_demo.tscn`
 (enceinte raccordée avec coins L, jonction T, fenêtre et porte percées).
 
+## Tracé organique (freehand, façon Tiny Glade)
+
+Outil **🌀 Tracé organique** (`game/scripts/maps/construction/organic_path.gd`
++ `map_complex_editor.gd`). Au lieu d'un segment droit, on dessine à main levée :
+
+1. les points souris sont lissés par une spline **Catmull-Rom**
+   (`smooth_points`, extrémités dupliquées pour passer pile par le début/la fin) ;
+2. la courbe est ré-échantillonnée à pas constant (`resample`, début et fin
+   exacts) ;
+3. chaque tronçon devient un module (`mur.glb`, clôture basse, palissade ou
+   barrière) orienté sur la **tangente**, avec un léger **recouvrement** à chaque
+   jointure : pas de trou dans les virages.
+
+Options : style, hauteur (murs), **lissage** (1–10), espacement des modules
+(0 = longueur nominale de l'asset). L'aperçu du tracé s'affiche pendant le
+geste ; le relâchement construit toute la chaîne en **une seule transaction**
+(undo unique) et sélectionne les modules. Pour les murs 3D, le début et la fin
+s'accrochent au réseau de murs existant (rayon 0,85 case) ; les clôtures ne
+s'accrochent pas encore.
+
+## Décor facile au pinceau (végétation)
+
+Outil **🌿 Végétation** (`game/scripts/maps/construction/organic_scatter.gd`) :
+un clic-glisser disperse automatiquement du décor autour du tracé, sans poser
+chaque objet un par un.
+
+- **Modes** : buissons, haies, roseaux, arbres (arbre / arbre d'automne),
+  bosquets, rochers (rocher / gros rocher) ou mélange.
+- **Réglages** : densité, taille (échelle de base), rayon de dispersion, option
+  « remplir la zone » (disque autour du pinceau) sinon bordure du tracé.
+- **Variété** : rotation 0–360° et échelle ±15 % par objet, `followTerrain`.
+- **Propreté** : une seule case par objet du trait (pas de doublon), cases déjà
+  occupées par un élément ignorées, **eau évitée** quand `waterLevel` et
+  `terrainHeights` sont disponibles (case immergée si hauteur < niveau).
+- **Déterministe** : même graine (`_scatter_seed`) + même tracé = même décor
+  (utile aux tests et aux captures).
+- **Un seul undo par trait** (transaction ouverte au press, fermée au relâche) ;
+  statut avec le nombre d'objets posés.
+
+## Tests
+
+`game/scripts/tests/map_organic_creation_test.gd` couvre :
+
+- maths du tracé : lissage d'une droite (reste sur l'axe), extrémités
+  conservées, ré-échantillonnage à pas constant, modules orientés tangente,
+  recouvrement sans trou, extrémités collées à la courbe ;
+- dispersion pure : modes/assets, positions déterministes selon la graine,
+  dispersion autour du tracé, variations rotation/échelle, dédoublonnage ;
+- éditeur : création d'une chaîne organique (tangente/hauteur/pas de trou),
+  undo unique, geste souris réel (aperçu puis construction), style palissade,
+  geste trop court ; pinceau végétation (>0 objets, cases uniques,
+  `followTerrain`, variété, undo unique, déterminisme, évitement de l'eau, mode
+  zone, geste souris réel).
+
+Commande :
+
+```powershell
+$env:GODOT_BIN = "<chemin>\Godot_v4.7.2-stable_win64.exe"
+.\scripts\run_tests.ps1 -Filter '^map_organic_creation_test$|^map_editor_snap_test$|^map_editor_test$' -TimeoutSeconds 180
+```
+
+Démo : `.\scripts\play-godot.ps1 res://scenes/debug/construction_demo.tscn`
+(maisons, enceinte raccordée, **palissade organique courbe + végétation
+dispersée**, intérieur lié).
+
 ## Limites connues / suite
+
+- Le tracé organique reste une **approximation par modules droits** : les GLB
+  ne sont pas déformés le long de la courbe. Le lissage + recouvrement donnent
+  une courbe continue, mais un virage très serré (rayon ≈ 1 case) peut produire
+  des chevauchements visibles ; augmenter le lissage et l'espacement aide.
+- L'accroche début/fin du tracé organique ne concerne que les **murs 3D** (pas
+  les clôtures), et il n'y a pas de fusion en un élément unique.
+- La végétation évite l'eau seulement si `waterLevel` + `terrainHeights` sont
+  présents ; l'évitement des bâtiments se limite aux cases déjà occupées. Un
+  très grand trait crée beaucoup d'éléments mesh distincts (perf).
+- **Topologie de murs / détection de pièces / toit automatique** : reportés
+  (pivot produit vers l'organique et la facilité de décoration). Le code partiel
+  topologie/pièces a été retiré pour garder la base stable et testée.
+- Anciennes limites des murs modulaires :
 
 - Un tracé qui s'aimante sur un **flanc** ne crée pas de coin : visuellement le
   mur bute dans l'autre (pas de module de jonction T dédié dans le kit actuel).

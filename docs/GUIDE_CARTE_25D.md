@@ -109,6 +109,12 @@ Outils terrain :
   Coucher / Nuit / Donjon) dans **Carte → Ambiance lumineuse**.
 - **Outil 🛤 Chemin** : glisse un tracé ; peint un chemin au sol (matière au
   choix, largeur réglable) pour relier bâtiments et zones.
+- **Outil 🌀 Tracé organique** : clic-glisser libre ; lisse la courbe et la pose
+  en modules continus (mur/clôture/palissade) orientés sur la tangente. Idéal
+  pour les virages doux et les tracés naturels façon Tiny Glade.
+- **Outil 🌿 Végétation** : clic-glisser ; disperse automatiquement buissons,
+  haies, roseaux, arbres, bosquets ou rochers avec densité/taille/rayon. Un seul
+  undo par trait, pas de doublon de case, eau évitée.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

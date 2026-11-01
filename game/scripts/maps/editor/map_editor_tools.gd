@@ -28,6 +28,8 @@ const FENCE_3D := "fence_3d"
 const STAIRS_3D := "stairs_3d"
 const INTERIOR_3D := "interior_3d"
 const PATH_3D := "path_3d"
+const ORGANIC := "organic"
+const SCATTER := "scatter"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -143,6 +145,14 @@ const DEFS := [
 	{
 		"id": PATH_3D, "icon": "🛤", "label": "Chemin", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser : trace un chemin de terre (largeur réglable) sur le terrain.",
+	},
+	{
+		"id": ORGANIC, "icon": "🌀", "label": "Tracé organique", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser libre : dessine une courbe lissée (Catmull-Rom) et la construit en modules continus (mur, clôture, palissade) orientés sur la tangente. Relâchez pour construire : courbes, virages doux, diagonales. Options style / hauteur / lissage.",
+	},
+	{
+		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser : disperse automatiquement buissons, haies, roseaux, arbres, bosquets ou rochers autour du tracé (densité, taille, rayon). Rotations et échelles variées, sans doublon sur une case, eau évitée, un seul undo par trait.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",
@@ -333,6 +343,8 @@ const SHORTCUTS := [
 	{"keys": "Page ↑ / ↓", "action": "Avancer / reculer d'un rang"},
 	{"keys": "F", "action": "Recadrer sur la sélection"},
 	{"keys": "Poignée de mur 3D", "action": "Étirer une extrémité : l'opposée reste fixe, les murs alignés raccordés suivent, la hauteur est conservée"},
+	{"keys": "Tracé organique", "action": "Clic-glisser libre : courbe lissée en modules continus (mur/clôture/palissade), relâchez pour construire"},
+	{"keys": "Végétation", "action": "Clic-glisser : dispersion auto de buissons/arbres/rochers (densité, taille, rayon), un seul undo par trait"},
 	{"keys": "V H 1..0 B G U R T L M K E O", "action": "Sélection directe d'un outil"},
 ]
 

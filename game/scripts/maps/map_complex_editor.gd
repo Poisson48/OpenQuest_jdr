@@ -29,6 +29,8 @@ const EscMenuScript := preload("res://scripts/maps/editor/map_editor_esc_menu.gd
 const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
+const OrganicPathScript := preload("res://scripts/maps/construction/organic_path.gd")
+const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
 
 const ROOF_STYLES := [
 	{"label": "Tuiles (2 pans)", "path": "res://assets/objects3d/buildings/toit_2pentes.glb"},
@@ -44,6 +46,13 @@ const FENCE_STYLES := [
 	{"label": "Barrière", "path": "res://assets/objects3d/props/barriere.glb"},
 	{"label": "Clôture basse", "path": "res://assets/objects3d/props/cloture_basse.glb"},
 	{"label": "Palissade", "path": "res://assets/objects3d/props/palissade.glb"},
+]
+## Styles du tracé organique (freehand) — modules orientés sur la tangente.
+const ORGANIC_STYLES := [
+	{"label": "Mur 3D", "path": "res://assets/objects3d/buildings/mur.glb"},
+	{"label": "Clôture basse", "path": "res://assets/objects3d/props/cloture_basse.glb"},
+	{"label": "Palissade", "path": "res://assets/objects3d/props/palissade.glb"},
+	{"label": "Barrière", "path": "res://assets/objects3d/props/barriere.glb"},
 ]
 const FURNITURE_PRESETS := [	{"id": "salle", "label": "Salle commune", "items": [
 		["table_tabourets", 0.0, 0.0, 0.0], ["banc", 1.9, 0.7, 90.0],
@@ -154,6 +163,23 @@ var _furnish_preset: String = "salle"
 var _fence_asset: String = "res://assets/objects3d/props/barriere.glb"
 var _path_width: int = 1
 var _path_material: int = 1
+## Tracé organique (freehand) : style, lissage Catmull-Rom, espacement des modules.
+var _organic_asset: String = "res://assets/objects3d/buildings/mur.glb"
+var _organic_smoothing: int = 4
+var _organic_spacing: float = 0.0
+var _organic_points: Array = []
+## Décor auto (végétation) au pinceau : mode, densité, taille, rayon, zone.
+var _scatter_mode: String = "mix"
+var _scatter_density: float = 1.0
+var _scatter_size: float = 1.0
+var _scatter_radius: float = 1.4
+var _scatter_zone_mode: bool = false
+var _scatter_seed: int = 0
+var _scatter_active: bool = false
+var _scatter_occupied: Dictionary = {}
+var _scatter_ids: Array = []
+var _scatter_last_point: Vector2 = Vector2.ZERO
+var _scatter_rng := RandomNumberGenerator.new()
 
 # --- Interaction --------------------------------------------------------------
 var _press_mode: String = "none"
@@ -923,6 +949,22 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_begin_select_or_move(grid, screen, mods)
 		return
 
+	if _tool == ToolsScript.ORGANIC:
+		if not _in_bounds(grid):
+			_set_status("Tracé organique : commencez dans la carte.")
+			return
+		_press_mode = "organic"
+		_organic_points = [grid]
+		_overlay.polygon_points = [grid]
+		_refresh_overlay()
+		_set_status("Tracé organique : glissez librement, relâchez pour construire.")
+		return
+	if _tool == ToolsScript.SCATTER:
+		if not _in_bounds(grid):
+			return
+		_press_mode = "scatter"
+		_start_scatter_stroke(grid)
+		return
 	if ToolsScript.is_pose_tool(_tool):
 		_place_pose_element(_snap(grid))
 		_press_mode = "none"
@@ -1116,6 +1158,17 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 		"rotate":
 			_press_moved = true
 			_apply_handle_rotate(grid)
+		"organic":
+			_press_moved = true
+			var last_point: Vector2 = (_organic_points[_organic_points.size() - 1] as Vector2) \
+				if not _organic_points.is_empty() else grid
+			if last_point.distance_to(grid) >= 0.15:
+				_organic_points.append(grid)
+				_overlay.polygon_points = _organic_points.duplicate()
+				_preview_organic_status()
+		"scatter":
+			_press_moved = true
+			_continue_scatter_stroke(grid)
 		"draw":
 			_press_moved = true
 			var to := _snap(grid)
@@ -1172,6 +1225,10 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_handle_state.clear()
 		"draw":
 			_finish_draw(_snap(grid))
+		"organic":
+			_finish_organic_stroke()
+		"scatter":
+			_finish_scatter_stroke()
 		"paint":
 			_painted_cells.clear()
 		"relief":
@@ -1189,6 +1246,10 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 	_refresh_overlay()
 
 func _handle_right_click(grid: Vector2) -> void:
+	# Tracé organique en cours : le clic droit annule le trait (pas de polygone).
+	if _press_mode == "organic" or _press_mode == "scatter":
+		_cancel_action()
+		return
 	if not _overlay.polygon_points.is_empty():
 		_close_polygon()
 		return
@@ -1200,6 +1261,17 @@ func _handle_right_click(grid: Vector2) -> void:
 		_set_status("Position (%.1f, %.1f) — %s" % [grid.x, grid.y, doc.get_tile_at(int(roundf(grid.x)), int(roundf(grid.y)))])
 
 func _cancel_action() -> void:
+	if _press_mode == "organic":
+		_organic_points.clear()
+		_press_mode = "none"
+		_overlay.clear_transient()
+		_refresh_overlay()
+		_set_status("Tracé organique annulé.")
+		return
+	if _press_mode == "scatter":
+		# Le trait est déjà en cours de pose : on le valide (undo global possible).
+		_finish_scatter_stroke()
+		return
 	if _press_mode in ["move", "resize", "rotate"] and not _drag_ids.is_empty():
 		doc.revert_live_edit(_drag_ids)
 		_sync_engine()
@@ -1992,6 +2064,274 @@ func _create_mesh_fence(from: Vector2, to: Vector2) -> void:
 	doc.set_selection(ids)
 	doc.commit_transaction()
 	_set_status("Clôture : %d segment(s)." % count)
+
+# ===========================================================================
+# Tracé organique (freehand, façon Tiny Glade)
+# ===========================================================================
+
+func _organic_style_label() -> String:
+	for style_variant in ORGANIC_STYLES:
+		var style: Dictionary = style_variant
+		if str(style["path"]) == _organic_asset:
+			return str(style["label"])
+	return _organic_asset.get_file().get_basename().capitalize()
+
+func _organic_module_depth(asset: String) -> float:
+	return maxf(0.2, _mesh_bounds_cells(asset, 1.0).z)
+
+func _organic_module_height(asset: String) -> float:
+	if asset.ends_with("mur.glb"):
+		return _wall_height
+	var natural := _mesh_bounds_cells(asset, 1.0)
+	return natural.y if natural.y > 0.1 else _wall_height
+
+## Accroche début/fin du tracé au réseau de murs existant (mur 3D uniquement).
+func _snap_organic_endpoints(points: Array, asset: String) -> Array:
+	var out: Array = points.duplicate()
+	if not asset.ends_with("mur.glb") or out.size() < 2:
+		return out
+	out[0] = _snap_wall_endpoint(out[0])
+	out[out.size() - 1] = _snap_wall_endpoint(out[out.size() - 1])
+	return out
+
+## Construit une courbe organique en modules orientés tangente.
+## Renvoie les ids des modules (transaction unique, sélection finale).
+func _build_organic_chain(points: Array) -> Array:
+	var ids: Array = []
+	if points.size() < 2:
+		return ids
+	var asset := _organic_asset
+	var depth := _organic_module_depth(asset)
+	var height := _organic_module_height(asset)
+	var nominal := maxf(0.8, _mesh_bounds_cells(asset, 1.0).x)
+	var spacing := _organic_spacing if _organic_spacing > 0.0 else nominal
+	var snapped := _snap_organic_endpoints(points, asset)
+	var modules := OrganicPathScript.build_chain(snapped, {
+		"smoothing": _organic_smoothing,
+		"spacing": spacing,
+		"nominal_length": nominal,
+		"nominal_depth": depth,
+	})
+	if modules.is_empty():
+		_set_status("Tracé organique : geste trop court.")
+		return ids
+	var label := "%s (organique)" % _organic_style_label()
+	doc.begin_transaction()
+	for module_variant in modules:
+		var module: Dictionary = module_variant
+		var id: String = doc.add_element({
+			"x": float(module["x"]), "y": float(module["y"]),
+			"w": float(module["length"]), "h": depth,
+			"sizeX": float(module["length"]), "sizeY": height, "sizeZ": depth,
+			"asset": asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": label, "layer": 1,
+			"display": {"rotation": float(module["rotation"]), "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Tracé organique")
+		ids.append(id)
+	doc.set_selection(ids)
+	doc.commit_transaction()
+	return ids
+
+func _finish_organic_stroke() -> void:
+	var points: Array = _organic_points.duplicate()
+	_organic_points.clear()
+	_overlay.polygon_points.clear()
+	_press_mode = "none"
+	if points.size() < 2:
+		_set_status("Tracé organique : geste trop court (clic-glissez pour dessiner).")
+		_refresh_overlay()
+		return
+	var length := OrganicPathScript.total_length(points)
+	if length < 0.8:
+		_set_status("Tracé organique : %.2f case — tracé trop court." % length)
+		_refresh_overlay()
+		return
+	var ids := _build_organic_chain(points)
+	if not ids.is_empty():
+		_set_status("Tracé organique : %d module(s) · %.2f case(s) · %s." % [
+			ids.size(), length, _organic_style_label()])
+		_sync_engine()
+	_refresh_panels()
+	_refresh_overlay()
+
+func _preview_organic_status() -> void:
+	var length := OrganicPathScript.total_length(_organic_points)
+	_set_status("Tracé organique : %d point(s) · %.2f case(s) · relâchez pour construire." % [
+		_organic_points.size(), length])
+
+# ===========================================================================
+# Décor auto / végétation au pinceau
+# ===========================================================================
+
+func _scatter_assets() -> Array:
+	return OrganicScatterScript.mode_asset_paths(_scatter_mode)
+
+func _scatter_cell_key(cell: Vector2i) -> String:
+	return OrganicScatterScript.cell_key(cell)
+
+func _scatter_cell_is_water(cell: Vector2i) -> bool:
+	var water := float(doc.map_data.get("waterLevel", -1.0))
+	if water < 0.0:
+		return false
+	var heights_variant = doc.map_data.get("terrainHeights", [])
+	if not heights_variant is Array:
+		return false
+	var width := int(doc.map_data.get("width", 0))
+	var heights: Array = heights_variant
+	var index := cell.y * width + cell.x
+	if index < 0 or index >= heights.size():
+		return false
+	return float(heights[index]) < water - 0.001
+
+func _scatter_cell_available(cell: Vector2i) -> bool:
+	var width := int(doc.map_data.get("width", 0))
+	var height := int(doc.map_data.get("height", 0))
+	if cell.x < 0 or cell.y < 0 or cell.x >= width or cell.y >= height:
+		return false
+	if _scatter_occupied.has(_scatter_cell_key(cell)):
+		return false
+	if _scatter_cell_is_water(cell):
+		return false
+	return true
+
+## Prépare un trait : graine déterministe, cases déjà occupées (doc + eau).
+func _scatter_prepare_stroke() -> void:
+	_scatter_active = true
+	_scatter_ids = []
+	_scatter_occupied.clear()
+	for elem_variant in doc.elements_of_kind(DocumentScript.KIND_MESH):
+		var elem: Dictionary = elem_variant
+		var cell := Vector2i(int(round(float(elem.get("x", 0.0)))),
+			int(round(float(elem.get("y", 0.0)))))
+		_scatter_occupied[_scatter_cell_key(cell)] = true
+	_scatter_rng = RandomNumberGenerator.new()
+	var seed_value := _scatter_seed
+	if seed_value == 0:
+		seed_value = int(Time.get_ticks_usec())
+	_scatter_rng.seed = seed_value
+
+func _start_scatter_stroke(grid: Vector2) -> void:
+	_scatter_prepare_stroke()
+	_scatter_last_point = grid
+	doc.begin_transaction()
+	_scatter_stamp(grid)
+	_set_status("Décor auto : %s — glissez pour disperser (%d objet(s))." % [
+		OrganicScatterScript.mode_label(_scatter_mode), _scatter_ids.size()])
+
+func _continue_scatter_stroke(grid: Vector2) -> void:
+	if not _scatter_active:
+		return
+	_scatter_walk(_scatter_last_point, grid)
+	_set_status("Décor auto : %d objet(s) — relâchez pour terminer." % _scatter_ids.size())
+
+func _scatter_walk(from: Vector2, to: Vector2) -> void:
+	var distance := from.distance_to(to)
+	if distance < 0.01:
+		return
+	var step := maxf(0.2, 0.75 / clampf(_scatter_density, 0.2, 4.0))
+	var stamps := maxi(1, int(ceil(distance / step)))
+	for i in range(1, stamps + 1):
+		_scatter_stamp(from.lerp(to, float(i) / float(stamps)))
+	_scatter_last_point = to
+
+func _scatter_stamp(point: Vector2) -> void:
+	if _scatter_assets().is_empty():
+		return
+	if _scatter_zone_mode:
+		_scatter_stamp_zone(point)
+		return
+	var per_stamp := maxi(1, int(round(_scatter_density * 0.8)))
+	for _i in range(per_stamp):
+		var angle := _scatter_rng.randf_range(0.0, TAU)
+		var radius := sqrt(_scatter_rng.randf()) * maxf(0.0, _scatter_radius)
+		_scatter_try_place(point + Vector2(cos(angle), sin(angle)) * radius, point)
+
+## Mode « dans la zone » : remplit un disque de cases autour du pinceau.
+func _scatter_stamp_zone(point: Vector2) -> void:
+	var center := Vector2i(int(round(point.x)), int(round(point.y)))
+	var radius := maxf(1.0, _scatter_radius)
+	var reach := int(ceil(radius))
+	var chance := clampf(_scatter_density * 0.35, 0.05, 0.9)
+	for dx in range(-reach, reach + 1):
+		for dy in range(-reach, reach + 1):
+			if Vector2(float(dx), float(dy)).length() > radius:
+				continue
+			if _scatter_rng.randf() > chance:
+				continue
+			var jitter := Vector2(_scatter_rng.randf_range(-0.4, 0.4),
+				_scatter_rng.randf_range(-0.4, 0.4))
+			_scatter_try_place(Vector2(center.x + dx, center.y + dy) + jitter, point)
+
+func _scatter_try_place(position: Vector2, _anchor: Vector2) -> void:
+	var cell := Vector2i(int(round(position.x)), int(round(position.y)))
+	if not _scatter_cell_available(cell):
+		return
+	var assets := _scatter_assets()
+	if assets.is_empty():
+		return
+	var asset := str(assets[_scatter_rng.randi_range(0, assets.size() - 1)])
+	var scale := maxf(0.2, _scatter_size * _scatter_rng.randf_range(0.85, 1.15))
+	var rotation := _scatter_rng.randf_range(0.0, 360.0)
+	var id := _place_scatter_item(asset, position, rotation, scale)
+	if id.is_empty():
+		return
+	_scatter_occupied[_scatter_cell_key(cell)] = true
+	_scatter_ids.append(id)
+
+func _place_scatter_item(asset: String, position: Vector2, rotation: float,
+		scale: float) -> String:
+	if not ResourceLoader.exists(asset) \
+			and not FileAccess.file_exists(ProjectSettings.globalize_path(asset)):
+		return ""
+	var natural := _mesh_bounds_cells(asset, 1.0)
+	var width := maxf(0.2, natural.x * scale)
+	var depth := maxf(0.2, natural.z * scale)
+	var label := asset.get_file().get_basename().replace("_", " ").capitalize()
+	var id: String = doc.add_element({
+		"x": position.x, "y": position.y,
+		"w": width, "h": depth,
+		"sizeX": maxf(0.05, natural.x), "sizeY": maxf(0.05, natural.y),
+		"sizeZ": maxf(0.05, natural.z),
+		"asset": asset,
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": label, "layer": 1,
+		"display": {"rotation": rotation, "scale": scale},
+	}, DocumentScript.KIND_MESH, "Décor auto")
+	return id
+
+func _finish_scatter_stroke() -> void:
+	if not _scatter_active:
+		_press_mode = "none"
+		return
+	_scatter_active = false
+	doc.commit_transaction()
+	_press_mode = "none"
+	var count := _scatter_ids.size()
+	_scatter_ids = []
+	if count > 0:
+		_set_status("Décor auto : %d objet(s) · %s · annulable en un geste." % [
+			count, OrganicScatterScript.mode_label(_scatter_mode)])
+		_sync_engine()
+	else:
+		_set_status("Décor auto : aucun objet posé (cases occupées, eau ou hors carte).")
+	_refresh_overlay()
+
+## Trait complet sur une polyligne (démo + tests) : une seule transaction.
+func _scatter_stroke_points(points: Array) -> Array:
+	var ids: Array = []
+	if points.is_empty():
+		return ids
+	_scatter_prepare_stroke()
+	doc.begin_transaction()
+	_scatter_last_point = points[0]
+	_scatter_stamp(points[0])
+	for i in range(1, points.size()):
+		_scatter_walk(points[i - 1], points[i])
+	ids = _scatter_ids.duplicate()
+	_finish_scatter_stroke()
+	return ids
+
 ## Pose un escalier extérieur, adossé au mur 3D le plus proche si possible.
 func _insert_stairs(grid: Vector2) -> void:
 	var wall: Dictionary = {}
@@ -3769,7 +4109,17 @@ func _refresh_ghost() -> void:
 	if not _editable:
 		_overlay.ghost.clear()
 		return
-	if _tool == ToolsScript.PROP and not _prop_asset.is_empty():
+	if _tool == ToolsScript.SCATTER:
+		# Pinceau de dispersion : cercle de rayon réglable autour du curseur.
+		var brush_radius := maxf(0.3, _scatter_radius) * 2.0
+		_overlay.ghost = {
+			"x": _overlay.hover_grid.x,
+			"y": _overlay.hover_grid.y,
+			"w": brush_radius, "h": brush_radius,
+			"icon": "🌿", "kind": "ground_material",
+			"color": Color(0.55, 0.85, 0.45, 0.9),
+		}
+	elif _tool == ToolsScript.PROP and not _prop_asset.is_empty():
 		var ratio := AssetLibraryScript.aspect_ratio(_prop_asset)
 		var snapped := _snap(_overlay.hover_grid)
 		_overlay.ghost = {
@@ -4607,6 +4957,40 @@ func _rebuild_tool_options() -> void:
 		path_opt.item_selected.connect(func(index: int): _path_material = int(path_opt.get_item_metadata(index)))
 		_tool_options.add_child(path_opt)
 		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
+	elif _tool == ToolsScript.ORGANIC:
+		var organic_opt := OptionButton.new()
+		for i in range(ORGANIC_STYLES.size()):
+			var organic_style: Dictionary = ORGANIC_STYLES[i]
+			organic_opt.add_item(str(organic_style["label"]), i)
+			organic_opt.set_item_metadata(i, str(organic_style["path"]))
+			if str(organic_style["path"]) == _organic_asset:
+				organic_opt.select(i)
+		organic_opt.item_selected.connect(func(index: int):
+			_organic_asset = str(organic_opt.get_item_metadata(index))
+		)
+		_tool_options.add_child(organic_opt)
+		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
+		_spin(_hbox(_tool_options), "Lissage", 1, 10, float(_organic_smoothing), 1, func(v): _organic_smoothing = int(v))
+		_spin(_hbox(_tool_options), "Espacement", 0.0, 6.0, _organic_spacing, 0.1, func(v): _organic_spacing = v)
+		_option_note("Clic-glisser libre : courbe lissée (Catmull-Rom), modules orientés sur la tangente, sans trou. Relâchez pour construire (un seul undo).")
+	elif _tool == ToolsScript.SCATTER:
+		var scatter_opt := OptionButton.new()
+		for i in range(OrganicScatterScript.MODE_ORDER.size()):
+			var mode_id := str(OrganicScatterScript.MODE_ORDER[i])
+			scatter_opt.add_item(OrganicScatterScript.mode_label(mode_id), i)
+			scatter_opt.set_item_metadata(i, mode_id)
+			if mode_id == _scatter_mode:
+				scatter_opt.select(i)
+		scatter_opt.item_selected.connect(func(index: int):
+			_scatter_mode = str(scatter_opt.get_item_metadata(index))
+		)
+		_tool_options.add_child(scatter_opt)
+		_spin(_hbox(_tool_options), "Densité", 0.2, 4.0, _scatter_density, 0.1, func(v): _scatter_density = v)
+		_spin(_hbox(_tool_options), "Taille", 0.3, 3.0, _scatter_size, 0.1, func(v): _scatter_size = v)
+		_spin(_hbox(_tool_options), "Rayon", 0.3, 5.0, _scatter_radius, 0.1, func(v): _scatter_radius = v)
+		_checkbox(_tool_options, "Remplir la zone (sinon bordure du tracé)", _scatter_zone_mode,
+			func(on): _scatter_zone_mode = on)
+		_option_note("Clic-glisser : disperse %s autour du trait (rotations/échelles variées, sans doublon de case, eau évitée). Un seul undo par trait." % OrganicScatterScript.mode_label(_scatter_mode).to_lower())
 	elif _tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
 	elif _tool == ToolsScript.EFFECT:

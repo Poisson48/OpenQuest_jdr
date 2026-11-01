@@ -146,6 +146,38 @@ func _ready() -> void:
 	_place_prop(editor, "lanterne", 7.4, 12.4, 0.0)
 	_place_prop(editor, "lanterne", 20.5, 9.0, 0.0)
 
+	# --- 6. Tracé organique + végétation (Tiny Glade) ------------------------
+	# Courbe freehand lissée (Catmull-Rom) en palissade, puis décor dispersé au
+	# pinceau le long du tracé : buissons, arbres et rochers variés.
+	editor._organic_asset = "res://assets/objects3d/props/palissade.glb"
+	editor._wall_height = 1.2
+	editor._organic_smoothing = 5
+	editor._organic_spacing = 0.0
+	editor._build_organic_chain([
+		Vector2(10.0, 17.0), Vector2(11.5, 15.6), Vector2(13.5, 16.2), Vector2(15.5, 17.0),
+	])
+	editor._scatter_mode = "mix"
+	editor._scatter_density = 1.4
+	editor._scatter_size = 0.9
+	editor._scatter_radius = 1.4
+	editor._scatter_zone_mode = false
+	editor._scatter_seed = 2026
+	editor._scatter_stroke_points([
+		Vector2(10.0, 17.0), Vector2(12.0, 16.0), Vector2(15.5, 17.0),
+	])
+	# Rideau d'arbres le long du chemin est-ouest.
+	editor._scatter_mode = "arbre"
+	editor._scatter_density = 0.7
+	editor._scatter_size = 1.1
+	editor._scatter_radius = 1.1
+	editor._scatter_seed = 77
+	editor._scatter_stroke_points([Vector2(6.0, 8.5), Vector2(15.0, 8.5)])
+	editor._scatter_mode = "mix"
+	editor._scatter_density = 1.0
+	editor._scatter_size = 1.0
+	editor._scatter_radius = 1.4
+	editor._organic_asset = "res://assets/objects3d/buildings/mur.glb"
+
 	# Lieu + carte intérieure liés à la porte de la première maison.
 	editor._create_interior_at(Vector2(6.0, 7.0))
 	await get_tree().process_frame
@@ -153,10 +185,10 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	editor.doc.clear_selection()
-	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 21.0, 16.0))
+	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 22.5, 17.0))
 
 	var hint := Label.new()
-	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier en cours · 1 enceinte raccordée (coins L et jonction T automatiques, fenêtre et porte percées) · 1 intérieur lié (porte de la maison de gauche, à tester en session). Palette « Placer » à gauche. Poignée sur un mur : étirer une extrémité, les murs alignés suivent."
+	hint.text = "DÉMO CONSTRUCTION À LA SIMS — 2 maisons finies · 1 maison sans toit meublée · 1 chantier · 1 enceinte raccordée (coins L, jonction T, fenêtre et porte) · 1 palissade organique courbe + végétation dispersée (Tiny Glade) · 1 intérieur lié. Palette « Placer » à gauche. Outils 🌀 Tracé organique et 🌿 Végétation : clic-glisser libre."
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_top = 44
 	hint.offset_left = 240
@@ -171,6 +203,8 @@ func _ready() -> void:
 	add_child(hint)
 	var wall_count := 0
 	var corner_count := 0
+	var organic_count := 0
+	var vegetation_count := 0
 	for elem_variant in editor.doc.elements_sorted():
 		var elem: Dictionary = elem_variant
 		var asset_path := str(elem.get("asset", ""))
@@ -178,8 +212,15 @@ func _ready() -> void:
 			wall_count += 1
 		elif asset_path.ends_with("mur_coin.glb"):
 			corner_count += 1
+		if str(elem.get("label", "")).ends_with("(organique)"):
+			organic_count += 1
+		if asset_path.contains("/objects3d/vegetation/") \
+				or asset_path.contains("/objects3d/terrain/"):
+			vegetation_count += 1
 	print("[CONSTRUCTION DEMO] Carte prête : ", map_id,
-		" · murs 3D : ", wall_count, " · coins L : ", corner_count, " (réseau continu)")
+		" · murs 3D : ", wall_count, " · coins L : ", corner_count,
+		" · modules organiques : ", organic_count,
+		" · végétation : ", vegetation_count)
 
 func _place_prop(editor: Control, asset_name: String, x: float, y: float, rotation: float) -> void:
 	var path := "res://assets/objects3d/props/%s.glb" % asset_name
