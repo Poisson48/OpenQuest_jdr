@@ -16,14 +16,14 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BadgeLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "⚔️ 0×0 · 0 carrés"
 
 [node name="LblTitle" type="Label" parent="VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 17
 text = "Sans titre"
 autowrap_mode = 3
 
@@ -32,7 +32,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Scénario :"
 autowrap_mode = 3
 
@@ -41,7 +41,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = ""
 autowrap_mode = 3
 
@@ -49,14 +49,14 @@ autowrap_mode = 3
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "▦ Simple"
 
 [node name="LblMeta" type="Label" parent="VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "0 marqueur(s)"
 
 [node name="Actions" type="HBoxContainer" parent="VBox"]

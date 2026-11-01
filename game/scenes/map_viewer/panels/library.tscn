@@ -11,7 +11,7 @@ script = ExtResource("1_script")
 [node name="LblTiles" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🖌 Tuiles"
 
 [node name="TileScroll" type="ScrollContainer" parent="."]
@@ -27,7 +27,7 @@ theme_override_constants/separation = 4
 [node name="LblMarkers" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "📍 Marqueurs"
 
 [node name="MarkerScroll" type="ScrollContainer" parent="."]
@@ -43,7 +43,7 @@ theme_override_constants/separation = 4
 [node name="LblProps" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🏚 Décors"
 
 [node name="PropCategoryRow" type="HBoxContainer" parent="."]

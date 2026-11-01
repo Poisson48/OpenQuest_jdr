@@ -35,7 +35,7 @@ theme_override_constants/separation = 6
 [node name="LblLinkHint" type="Label" parent="LinkPanel"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "Relie une case du monde à une scène locale (ex. taverne, donjon)."
 autowrap_mode = 3
 
@@ -73,14 +73,14 @@ theme_override_constants/separation = 6
 [node name="LblIntTitle" type="Label" parent="IntegrationPanel"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "🌍 Intégration dans une carte monde"
 
 [node name="LblIntegrationStatus" type="Label" parent="IntegrationPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = ""
 autowrap_mode = 3
 

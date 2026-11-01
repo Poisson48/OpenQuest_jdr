@@ -24,7 +24,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.509804, 0.588235, 0.847059, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = ""
 autowrap_mode = 3
 
@@ -36,7 +36,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 mouse_filter = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "(contenu vide)"
 autowrap_mode = 3
 
@@ -46,7 +46,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 16
 text = "⚑ Fin de branche"
 autowrap_mode = 3
 
@@ -56,5 +56,5 @@ visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.698039, 0.227451, 0.282353, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 16
 text = "⚠ Inatteignable"

@@ -53,7 +53,7 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Titre de la carte"
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 17
 
 [node name="MapTitle" type="Label" parent="VBox/TopBar"]
 unique_name_in_owner = true
@@ -104,7 +104,7 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = ""
 autowrap_mode = 3
 

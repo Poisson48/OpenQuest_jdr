@@ -251,15 +251,15 @@ text = "Valider"
 [node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.305882, 0.619608, 0.541176, 1)
 text = "✓ Graphe"
 autowrap_mode = 3
 
 [node name="LblGraphLegend" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  clic scène → éditer  ·  glisser le fond → vue  ·  glisser un nœud → déplacer  ·  coin → redimensionner  ·  glisser un port → branche  ·  clic droit → aller à une scène"
 autowrap_mode = 3
 
@@ -311,7 +311,7 @@ theme_override_constants/separation = 8
 [node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "★ Scène"
 
@@ -323,7 +323,7 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
 text = "id: —"
 
@@ -341,8 +341,8 @@ text = "Supprimer"
 
 [node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "Titre"
 
 [node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -352,8 +352,8 @@ placeholder_text = "Titre de la scène"
 
 [node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "Tags"
 
 [node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -363,8 +363,8 @@ placeholder_text = "acte-1, carrefour, fin"
 
 [node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "Cartes liées"
 
 [node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -376,15 +376,15 @@ allow_reselect = true
 
 [node name="LblSceneMapsHint" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "Clique pour lier/délier une carte. La première cochée devient la carte active en jeu."
 autowrap_mode = 3
 
 [node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.639216, 0.576471, 0.498039, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 text = "Narration"
 
 [node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]

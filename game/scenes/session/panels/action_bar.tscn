@@ -18,9 +18,11 @@ theme_override_constants/separation = 6
 [node name="LblTurn" type="Label" parent="Col"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_type_variation = &"HeadingLabel"
 text = "Tour en cours"
-clip_text = true
+autowrap_mode = 3
+max_lines_visible = 2
 
 [node name="LblHint" type="Label" parent="Col"]
 unique_name_in_owner = true

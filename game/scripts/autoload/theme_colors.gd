@@ -14,8 +14,8 @@ const BG_INPUT: Color = Color("171320")     # champ de saisie
 const BORDER: Color = Color("3c3252")       # bordure
 const GOLD: Color = Color("c9a44c")         # or antique (accent)
 const GOLD_LIGHT: Color = Color("f2d98a")   # or clair (titres)
-const TEXT: Color = Color("ece0c4")         # parchemin
-const TEXT_MUTED: Color = Color("a3937f")   # parchemin estompé
+const TEXT: Color = Color("f6eeda")         # parchemin
+const TEXT_MUTED: Color = Color("c3b4a1")   # parchemin estompé
 const DANGER: Color = Color("b23a48")       # sceau de cire
 const SUCCESS: Color = Color("4e9e8a")      # vert-de-gris
 const INVESTIGATION_ACCENT: Color = Color("8296d8")  # bleu arcanique
@@ -60,9 +60,9 @@ const BTN_HEIGHT_COMPACT: int = 32   # Outil compact (dés, zoom)
 # ---------------------------------------------------------------------------
 # HUD joueur immersif — sorties du codage en dur des scènes
 # ---------------------------------------------------------------------------
-const HUD_TITLE: Color = Color("ece0c4")
+const HUD_TITLE: Color = Color("f6eeda")
 const HUD_TURN: Color = Color("f2d98a")
-const HUD_HERO_SUB: Color = Color("a3937f")
+const HUD_HERO_SUB: Color = Color("c3b4a1")
 const HUD_HP: Color = Color("e06070")
 const DANGER_SEP: Color = Color("5a2028")
 

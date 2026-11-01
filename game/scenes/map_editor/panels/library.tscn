@@ -11,7 +11,7 @@ script = ExtResource("1_script")
 [node name="LblAssets" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🏚 Décors à poser"
 
 [node name="LblAssetHint" type="Label" parent="."]
@@ -56,7 +56,7 @@ text = "⟳"
 [node name="LblTokens" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🧍 Tokens"
 
 [node name="MemberGrid" type="GridContainer" parent="."]
@@ -68,7 +68,7 @@ columns = 6
 [node name="LblMarkers" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "📍 Marqueurs"
 
 [node name="MarkerBox" type="VBoxContainer" parent="."]
@@ -79,7 +79,7 @@ theme_override_constants/separation = 2
 [node name="LblEffects" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "✨ Effets"
 
 [node name="EffectGrid" type="GridContainer" parent="."]
@@ -102,7 +102,7 @@ theme_override_constants/separation = 2
 [node name="LblTerrain" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🎨 Terrain"
 
 [node name="TileBox" type="VBoxContainer" parent="."]
@@ -113,7 +113,7 @@ theme_override_constants/separation = 2
 [node name="LblTemplates" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🧩 Templates"
 
 [node name="TplActions" type="HBoxContainer" parent="."]

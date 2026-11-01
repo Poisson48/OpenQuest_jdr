@@ -83,7 +83,7 @@ text = "AVENTURIER"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "?  ·  ?"
 
 [node name="BtnClose" type="Button" parent="Frame/Root/Left/LeftBody/Top"]
@@ -205,7 +205,7 @@ theme_type_variation = &"InsetPanel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 16
 text = "« … »"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -254,7 +254,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 16
 text = "Surveille toujours les sorties."
 autowrap_mode = 3
 

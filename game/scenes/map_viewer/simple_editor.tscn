@@ -57,7 +57,7 @@ theme_override_constants/separation = 6
 [node name="LblToolOptions" type="Label" parent="SplitOuter/LeftScroll/LeftPanel"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "⚙️ Options"
 
 [node name="ToolOptions" type="VBoxContainer" parent="SplitOuter/LeftScroll/LeftPanel"]
@@ -68,7 +68,7 @@ theme_override_constants/separation = 4
 [node name="LblSnap" type="Label" parent="SplitOuter/LeftScroll/LeftPanel"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "🧲 Aimantation"
 
 [node name="SnapOption" type="OptionButton" parent="SplitOuter/LeftScroll/LeftPanel"]

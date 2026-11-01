@@ -266,7 +266,14 @@ pour l'enquête. Chaque teinte a un rôle unique.
 - ⚠️ Les couleurs restent écrites **en dur** dans les `.tscn` (dette §3.3) — mais plus aucune teinte hors palette
 
 ### 5.2 Typographie
-- ✅ Hiérarchie H1 24 / H2 20 / H3 16 cohérente entre pages
+- ✅ Hiérarchie H1 24 / H2 20 / H3 17 cohérente entre pages
+- ✅ Tailles relevées pour la lisibilité avec Ringbearer : les corps ≤ 13 px
+  passent à 14 px, 14 → 16, 16 → 17 ; base du thème 16 → 17
+- ✅ Contraste du texte relevé : `TEXT` `#ece0c4` → `#f6eeda`, `TEXT_MUTED`
+  `#a3937f` → `#c3b4a1`
+- ✅ Points de coupe corrigés après agrandissement : cartes de groupe 104 → 136 px,
+  barre d'outils de carte 38 → 58 px, titre de tour sur 2 lignes,
+  « Fin définitive » sur une ligne
 - ❌ aucune police embarquée (§3.2)
 - ⚠️ 90 tailles en override au lieu des variations du thème (§3.3)
 
