@@ -22,26 +22,25 @@ scènes) et de finitions d'usage.
 
 | # | Point | Gravité | Effort |
 |---|-------|---------|--------|
-| 1 | 99 overrides de style encore en dur (219 au départ) | Moyen | Élevé |
-| 2 | Pas de composant `Card` générique | Faible | Moyen |
+| 1 | 53 overrides de style encore en dur (219 au départ) | Moyen | Moyen |
 
 ---
 
-## 1 · MOYEN — 99 overrides de style encore écrits en dur
+## 1 · MOYEN — 53 overrides de style encore écrits en dur
 
 **Où** : toutes les scènes de `game/scenes/`
 **Constat** (comptage à date) :
 
 | Type | Occurrences |
 |------|-------------|
-| `theme_override_font_sizes/font_size` | **79** |
-| `theme_override_colors/font_color` | **20** |
+| `theme_override_font_sizes/font_size` | **34** |
+| `theme_override_colors/font_color` | **19** |
 
 Les valeurs sont alignées sur la palette (aucune teinte hors charte), mais elles
 restent dupliquées dans les scènes : changer une couleur ou une taille demande
 encore d'éditer les fichiers un par un, et le thème ne fait plus autorité.
 
-**Fait** : 219 → 99. Les 34 titres de section qui étaient des `HeadingLabel`
+**Fait** : 219 → 53 (la migration des 4 cartes sur `CardBase` a supprimé les overrides qu'elles portaient). Les 34 titres de section qui étaient des `HeadingLabel`
 forcés à 14 px sont passés en `SectionLabel` (hiérarchie rétablie), et 59 couleurs
 de palette ont été remplacées par trois variations dédiées (`MutedLabel`,
 `GoldLabel`, `InvestigationLabel`).
@@ -64,26 +63,12 @@ de palette ont été remplacées par trois variations dédiées (`MutedLabel`,
 
 ---
 
-## 2 · FAIBLE — Pas de composant `Card` générique
-
-**Constat** : quatre cartes coexistent avec des structures divergentes :
-
-| Carte | Boutons | Contenu |
-|-------|---------|---------|
-| `character_card` | 2 | nom + tier + roster + méta + stats |
-| `bot_card` | 1 | nom + mode + méta + tag + traits + stats |
-| `scenario_card` | 6 | titre + badge + synopsis + méta |
-| `map_card` | 6 | badge + titre + scénario + mode + méta |
-
-**Impact** : chaque évolution de style doit être répétée quatre fois.
-**Action** : carte de base (en-tête, corps, barre d'actions) + variations.
 
 ---
 
 ## Ordre d'attaque suggéré
 
-1. **§1 — overrides restants** (79 tailles + 20 couleurs)
-2. **§2 — composant Card** (lors de la prochaine refonte des cartes)
+1. **§1 — overrides restants** (34 tailles + 19 couleurs)
 
 
 ---

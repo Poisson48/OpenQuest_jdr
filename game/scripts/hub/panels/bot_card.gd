@@ -21,6 +21,7 @@ func setup(bot: Dictionary) -> void:
 	if not is_node_ready():
 		await ready
 	_bot = bot.duplicate(true)
+	reset_card()
 	_bot_id = str(bot.get("id", ""))
 	_bot_name = str(bot.get("name", "Bot"))
 	set_title("🤖 " + _bot_name)

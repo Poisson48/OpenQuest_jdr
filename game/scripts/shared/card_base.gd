@@ -37,6 +37,24 @@ func set_meta_line(text: String) -> void:
 	_meta.text = text
 	_meta.visible = not text.is_empty()
 
+## Vide le corps (remplissage idempotent : `setup()` peut être rappelé).
+func clear_body() -> void:
+	for child in _body.get_children():
+		_body.remove_child(child)
+		child.queue_free()
+
+## Vide la barre d'actions.
+func clear_actions() -> void:
+	for child in _actions.get_children():
+		_actions.remove_child(child)
+		child.queue_free()
+
+## Remet la carte à zéro avant de la remplir.
+func reset_card() -> void:
+	clear_body()
+	clear_actions()
+	_actions.visible = true
+
 ## Ajoute une ligne de texte au corps de la carte.
 ## `variation` : "" (défaut), "CaptionLabel", "MutedLabel", "SectionLabel"…
 func add_body(text: String, variation: String = "") -> Label:

@@ -20,6 +20,7 @@ func setup(c: Dictionary) -> void:
 	if not is_node_ready():
 		await ready
 	_entry = c.duplicate(true)
+	reset_card()
 	_is_bot = str(c.get("_entityKind", "")) == "bot"
 	var r: String = str(c.get("roster", "general"))
 	var investigation := r == "investigation"
