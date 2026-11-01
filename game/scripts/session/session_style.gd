@@ -72,7 +72,7 @@ static func tool_button(glyph: String, tooltip: String, toggle: bool = true) -> 
 	btn.text = glyph
 	btn.tooltip_text = tooltip
 	btn.toggle_mode = toggle
-	btn.focus_mode = Control.FOCUS_NONE
+	btn.focus_mode = Control.FOCUS_ALL
 	btn.custom_minimum_size = Vector2(TOOL_MIN_WIDTH, TOOL_HEIGHT)
 	return btn
 

@@ -1,5 +1,7 @@
 extends Control
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const GraphNodeScene := preload("res://scenes/scenario_editor/panels/graph_node.tscn")
 const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
@@ -1245,6 +1247,17 @@ func _validate_scenario(scenario: Dictionary) -> String:
 	if not errors.is_empty():
 		return str(errors[0])
 	return ""
+
+func _unhandled_input(event: InputEvent) -> void:
+	var vp := get_viewport()
+	if UiShortcuts.is_cancel(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_back_pressed()
+	elif UiShortcuts.is_submit(event) or UiShortcuts.is_save(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_save_pressed()
 
 func _on_back_pressed() -> void:
 	if _dirty:

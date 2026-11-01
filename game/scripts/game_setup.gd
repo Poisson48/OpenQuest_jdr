@@ -1,5 +1,7 @@
 extends Control
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 const SetupToggleRowScene := preload("res://scenes/hub/panels/setup_toggle_row.tscn")
 
@@ -491,6 +493,17 @@ func _on_joiner_register_pressed() -> void:
 		return
 	MultiplayerManager.register_character(_build_character_from_option(opt_joiner_char))
 	%LblJoinerHint.text = "✓ Personnage enregistré — en attente du lancement par le MJ."
+
+func _unhandled_input(event: InputEvent) -> void:
+	var vp := get_viewport()
+	if UiShortcuts.is_cancel(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_back_pressed()
+	elif UiShortcuts.is_submit(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_start_game_pressed()
 
 func _on_start_game_pressed() -> void:
 	if _is_joiner:

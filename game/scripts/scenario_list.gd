@@ -1,5 +1,7 @@
 extends Control
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 const ScenarioCardScene := preload("res://scenes/hub/panels/scenario_card.tscn")
 
 @onready var scenario_sections_root: VBoxContainer = %ScenarioSectionsRoot
@@ -480,6 +482,17 @@ func _on_new_scenario_pressed() -> void:
 	_library_tab = "draft"
 	_sync_library_tab_buttons()
 	_open_scenario_editor("")
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not UiShortcuts.is_cancel(event):
+		return
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
+	if detail_panel.visible:
+		detail_panel.visible = false
+	else:
+		_on_back_pressed()
 
 func _on_back_pressed() -> void:
 	var hub_tab := "Enquête" if _current_mode_filter() == "investigation" else "Aventures"

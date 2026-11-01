@@ -181,11 +181,18 @@ Alors que `UiLayout.MIN_BUTTON_HEIGHT = 44`, `MIN_CTA_HEIGHT = 48` et
 
 ---
 
-### 3.9 · FAIBLE — Accessibilité clavier quasi absente
+### 3.9 · ✅ CORRIGÉ — Accessibilité clavier
 
-**Constat** : dans toute l'interface, un seul `focus_mode` explicite (`interactive_map.gd:82`). Aucun `shortcut`, aucun `focus_neighbor`, aucun `ui_accept`/`ui_cancel` branché sur les dialogues.
-**Impact** : navigation clavier imprévisible ; `Échap` ne ferme pas les panneaux de formulaire.
-**Action** : `focus_mode = FOCUS_ALL` sur les actions de formulaire, `Échap` → annuler/fermer, `Ctrl+Entrée` déjà présent dans la console MJ (à généraliser).
+**Ancien constat** : un seul `focus_mode` explicite, `Échap` sans effet sur les formulaires, `Ctrl+Entrée` limité à la console MJ, et `session_style.gd` forçait `focus_mode = FOCUS_NONE` sur les boutons d'outils (focus clavier impossible).
+
+**Corrigé** :
+- `scripts/shared/ui_shortcuts.gd` : helpers partagés `is_cancel` / `is_submit` / `is_save` / `is_accept`.
+- `Échap` contextuel — éditeur de personnages (ferme le picker, puis le formulaire, puis retour hub), éditeur de scénario (retour avec confirmation), liste de scénarios (ferme le détail), configuration (retour), session (ferme fiche de personnage → dialogue → inventaire, sans quitter).
+- `Ctrl+Entrée` généralisé : valide dans les formulaires, envoie l'action du joueur (`action_bar`), lance les dés (`dice_tray`), démarre la partie (`game_setup`).
+- `Ctrl+S` : enregistre dans les deux éditeurs.
+- `session_style.gd` : boutons d'outils remis en `FOCUS_ALL`.
+- L'événement est consommé **avant** l'action (un changement de scène rend `get_viewport()` nul).
+- Test de non-régression ajouté : `scripts/tests/keyboard_nav_test.gd` → **[KEYBOARD NAV] PASS** (4 scénarios).
 
 ---
 
@@ -268,7 +275,7 @@ Dans ces pages, il occupe ~120 px avant la TopBar, sur des écrans de travail de
 8. **Appliquer les 3 hauteurs de boutons canoniques** (48/40/32).
 9. **Variante compacte de l'en-tête** pour les pages internes.
 10. **Styliser les infobulles**.
-11. **Accessibilité clavier** : `Échap` pour annuler/fermer, focus explicite, raccourcis.
+11. ~~**Accessibilité clavier**~~ → fait (voir §3.9).
 
 ---
 
@@ -285,6 +292,8 @@ Dans ces pages, il occupe ~120 px avant la TopBar, sur des écrans de travail de
 | Pages utilisant `AppHeader` | 6 |
 | Pages utilisant `AppTopBar` | **0** |
 | Pages responsive | 1 (`game_setup`) |
+| Raccourcis clavier globaux | Échap, Ctrl+Entrée, Ctrl+S |
+| Test clavier | `keyboard_nav_test` → PASS |
 | Journal MJ (session) | 877 px de haut, minimums dock 417 px |
 | Police définie dans le thème | **aucune** |
 | Styles `SplitContainer` | **aucun** (constantes seules) |

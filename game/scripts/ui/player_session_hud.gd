@@ -305,6 +305,14 @@ func _on_my_sheet() -> void:
 		return
 	open_character.emit(_me.duplicate(true))
 
+## Ferme le panneau le plus haut (inventaire). Renvoie true si quelque chose
+## a été fermé — utilisé par Échap dans la session.
+func close_topmost_overlay() -> bool:
+	if _inv_panel != null and _inv_panel.visible:
+		_inv_panel.visible = false
+		return true
+	return false
+
 func _toggle_inventory() -> void:
 	_inv_panel.visible = not _inv_panel.visible
 	if _inv_panel.visible:

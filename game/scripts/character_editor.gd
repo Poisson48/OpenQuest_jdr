@@ -1,6 +1,7 @@
 extends Control
 
 const CharacterCardScene := preload("res://scenes/hub/panels/character_card.tscn")
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 
 @onready var char_list_container: GridContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
@@ -110,6 +111,27 @@ func _ready() -> void:
 	refresh_list()
 	form_panel.visible = false
 	_set_tier_picker_visible(false)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if UiShortcuts.is_cancel(event):
+		# Consommer AVANT d'agir : _on_back_pressed() change de scène et
+		# get_viewport() devient nul juste après.
+		_consume_input()
+		if tier_picker_panel.visible:
+			_set_tier_picker_visible(false)
+		elif form_panel.visible:
+			_on_cancel_pressed()
+		else:
+			_on_back_pressed()
+		return
+	if form_panel.visible and (UiShortcuts.is_submit(event) or UiShortcuts.is_save(event)):
+		_consume_input()
+		_on_save_pressed()
+
+func _consume_input() -> void:
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
 
 func _configure_panels() -> void:
 	var style := StyleBoxFlat.new()

@@ -9,6 +9,7 @@ extends Control
 
 const PlayerHudScene = preload("res://scenes/session/panels/player_hud.tscn")
 const CharacterSheetScene = preload("res://scenes/session/panels/character_sheet.tscn")
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 
 @onready var _margins: MarginContainer = %Margins
 @onready var _header: SessionHeaderPanel = %SessionHeader
@@ -50,6 +51,32 @@ func _ready() -> void:
 	_connect_panels()
 	model.bind()
 	model.refresh(true)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not UiShortcuts.is_cancel(event):
+		return
+	var vp := get_viewport()
+	# Échap ferme le panneau le plus haut, sans quitter la session.
+	if _character_sheet != null and is_instance_valid(_character_sheet) and _character_sheet.visible:
+		if _character_sheet.has_method("close"):
+			_character_sheet.close()
+		else:
+			_character_sheet.visible = false
+		if vp != null:
+			vp.set_input_as_handled()
+		return
+	if _speaker_dialogue != null and is_instance_valid(_speaker_dialogue) and _speaker_dialogue.visible:
+		if _speaker_dialogue.has_method("clear"):
+			_speaker_dialogue.clear()
+		else:
+			_speaker_dialogue.visible = false
+		if vp != null:
+			vp.set_input_as_handled()
+		return
+	if _player_hud != null and is_instance_valid(_player_hud) and _player_hud.visible:
+		if _player_hud.has_method("close_topmost_overlay") and _player_hud.close_topmost_overlay():
+			if vp != null:
+				vp.set_input_as_handled()
 
 func _exit_tree() -> void:
 	if model != null:
