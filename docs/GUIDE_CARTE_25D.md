@@ -103,6 +103,9 @@ Outils terrain :
   (salle commune, chambre, comptoir, campement) aligné au sol.
 - **Outil 🪵 Clôture** : glisse le long d'une limite ; pose une clôture
   modulaire (**barrière / clôture basse / palissade**) alignée au terrain.
+- **Outil 💡 Lumière** : pose une torche/lampe ; sur terrain 3D elle éclaire avec
+  ombres douces, vacille et se combine aux presets d'ambiance (Jour / Matin /
+  Coucher / Nuit / Donjon) dans **Carte → Ambiance lumineuse**.
 - **Outil 🛤 Chemin** : glisse un tracé ; peint un chemin au sol (matière au
   choix, largeur réglable) pour relier bâtiments et zones.
   La démo du village montre une porte à auvent et une fenêtre à volets posées

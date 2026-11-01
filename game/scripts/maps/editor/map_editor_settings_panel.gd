@@ -56,6 +56,7 @@ func _ready() -> void:
 	widgets["light_enabled"] = %ChkLight
 	widgets["light_dir"] = %OptLightDir
 	widgets["light_intensity"] = %SpinLightIntensity
+	widgets["light_preset"] = %OptLightPreset
 	widgets["night_mode"] = %ChkNight
 	widgets["night_ambient"] = %SpinNightAmbient
 
@@ -76,6 +77,11 @@ func _ready() -> void:
 		["sw", "Sud-Ouest"],
 		["se", "Sud-Est"],
 	])
+	var lighting_presets: Array = []
+	for preset_id in MapData.LIGHTING_PRESET_ORDER:
+		var preset: Dictionary = MapData.get_lighting_preset(preset_id)
+		lighting_presets.append([preset_id, str(preset.get("label", preset_id))])
+	_fill_option(%OptLightPreset, lighting_presets)
 	_fill_option(%OptSavePolicy, [
 		[SAVE_MANUAL, "Manuelle"],
 		[SAVE_ON_CHANGE, "À chaque modification"],
@@ -157,6 +163,7 @@ func _ready() -> void:
 	%SpinAtmoVignette.value_changed.connect(func(_v): atmosphere_changed.emit())
 	%ChkLight.toggled.connect(func(_on): lighting_changed.emit())
 	%OptLightDir.item_selected.connect(func(_i): lighting_changed.emit())
+	%OptLightPreset.item_selected.connect(func(_i): lighting_changed.emit())
 	%SpinLightIntensity.value_changed.connect(func(_v): lighting_changed.emit())
 	%ChkNight.toggled.connect(func(_on): night_mode_changed.emit())
 	%SpinNightAmbient.value_changed.connect(func(_v): night_mode_changed.emit())

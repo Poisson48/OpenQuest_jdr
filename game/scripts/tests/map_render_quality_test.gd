@@ -24,6 +24,19 @@ func _run() -> void:
 	_assert("render_glow", env.glow_enabled and env.glow_intensity > 0.0)
 	_assert("render_adjustments", env.adjustment_enabled and env.adjustment_contrast > 1.0)
 	_assert("render_sun_shadows", engine._sun != null and engine._sun.shadow_enabled)
+	_assert("render_tonemap_aces", env.tonemap_mode == Environment.TONE_MAPPER_ACES)
+	_assert("render_sun_warm", engine._sun.light_color.r > engine._sun.light_color.b)
+	_assert("render_ambient", env.ambient_light_energy > 0.2)
+	# Changement de preset : nuit bleutée, ambiance plus basse.
+	var night_map: Dictionary = village.duplicate(true)
+	var night_light: Dictionary = md.get_lighting_config(night_map)
+	night_light["preset"] = "nuit"
+	night_map["lighting"] = night_light
+	engine.configure(night_map, [], [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(6):
+		await process_frame
+	_assert("render_night_preset", engine._sun.light_color.b > engine._sun.light_color.r)
+	_assert("render_night_ambient", engine._world_env.environment.ambient_light_energy < 0.4)
 	engine.queue_free()
 	await process_frame
 	if _failed:

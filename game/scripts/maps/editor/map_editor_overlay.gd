@@ -29,6 +29,7 @@ var link_source_id: String = ""
 var show_links: bool = true
 var show_ids: bool = false
 var show_vision: bool = false
+var show_light_radii: bool = true
 var vision_cells: Dictionary = {}
 var vision_origin: Vector2 = Vector2.ZERO
 var has_vision_origin: bool = false
@@ -130,7 +131,8 @@ func _draw() -> void:
 	if not player_preview:
 		_draw_band()
 	_draw_measure()
-	_draw_light_radii()
+	if show_light_radii:
+		_draw_light_radii()
 
 ## Aperçu du champ de vision : les cases atteintes sont éclaircies, la source
 ## est marquée. Ce que le calque ne peint pas est dans l'ombre d'un mur.

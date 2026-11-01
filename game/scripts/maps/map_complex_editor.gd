@@ -3653,6 +3653,7 @@ func _sync_settings_ui() -> void:
 	_set_check("night_mode", bool(light.get("nightMode", false)))
 	_set_spin("night_ambient", float(light.get("nightAmbient", 0.22)))
 	_select_metadata("light_dir", str(light.get("direction", "nw")))
+	_select_metadata("light_preset", str(light.get("preset", "jour")))
 	_select_metadata("perspective", MapData.get_perspective(doc.map_data))
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
 	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
@@ -3769,6 +3770,15 @@ func _on_lighting_changed() -> void:
 	var option: OptionButton = _settings_widgets.get("light_dir")
 	if option and option.selected >= 0:
 		light["direction"] = str(option.get_item_metadata(option.selected))
+	var preset_option: OptionButton = _settings_widgets.get("light_preset")
+	if preset_option and preset_option.selected >= 0:
+		var preset_id := str(preset_option.get_item_metadata(preset_option.selected))
+		var preset: Dictionary = MapData.get_lighting_preset(preset_id)
+		light["preset"] = preset_id
+		for key in ["sunColor", "sunEnergy", "sunAngle", "sunYaw",
+				"ambientColor", "ambientEnergy", "exposure", "fogDensity"]:
+			if preset.has(key):
+				light[key] = preset[key]
 	# Preserve night fields when editing directional lighting.
 	light["nightMode"] = _get_check("night_mode") if _settings_widgets.has("night_mode") else bool(light.get("nightMode", false))
 	light["nightAmbient"] = _get_spin("night_ambient") if _settings_widgets.has("night_ambient") else float(light.get("nightAmbient", 0.22))

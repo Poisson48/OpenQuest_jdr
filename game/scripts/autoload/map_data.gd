@@ -25,11 +25,45 @@ const DEFAULT_GRID_CONFIG := {
 	"color": "#ffffff",
 	"enabled": true,
 }
+const LIGHTING_PRESET_ORDER := ["jour", "matin", "coucher", "nuit", "donjon"]
+const LIGHTING_PRESETS := {
+	"jour": {
+		"label": "☀ Jour clair", "sunColor": "#fff1d8", "sunEnergy": 1.25,
+		"sunAngle": -58.0, "sunYaw": 38.0, "ambientColor": "#9fb4d4",
+		"ambientEnergy": 0.58, "background": "#10151c", "exposure": 1.0,
+		"fogDensity": 0.0, "glow": 0.28,
+	},
+	"matin": {
+		"label": "🌅 Matin", "sunColor": "#ffd9a8", "sunEnergy": 1.05,
+		"sunAngle": -46.0, "sunYaw": -58.0, "ambientColor": "#aebfd8",
+		"ambientEnergy": 0.50, "background": "#151b22", "exposure": 1.02,
+		"fogDensity": 0.004, "glow": 0.32,
+	},
+	"coucher": {
+		"label": "🌇 Coucher de soleil", "sunColor": "#ffab5f", "sunEnergy": 1.2,
+		"sunAngle": -32.0, "sunYaw": -98.0, "ambientColor": "#7887b0",
+		"ambientEnergy": 0.40, "background": "#1b1418", "exposure": 1.04,
+		"fogDensity": 0.008, "glow": 0.42,
+	},
+	"nuit": {
+		"label": "🌙 Nuit claire", "sunColor": "#8ba8d8", "sunEnergy": 0.34,
+		"sunAngle": -52.0, "sunYaw": -35.0, "ambientColor": "#2d3854",
+		"ambientEnergy": 0.26, "background": "#070a12", "exposure": 1.08,
+		"fogDensity": 0.012, "glow": 0.55,
+	},
+	"donjon": {
+		"label": "🕯 Donjon", "sunColor": "#aebcff", "sunEnergy": 0.22,
+		"sunAngle": -62.0, "sunYaw": 15.0, "ambientColor": "#171b2a",
+		"ambientEnergy": 0.20, "background": "#05060a", "exposure": 1.12,
+		"fogDensity": 0.02, "glow": 0.65,
+	},
+}
 const DEFAULT_LIGHTING_CONFIG := {
 	"enabled": false,
 	"direction": "nw",
 	"intensity": 0.35,
 	"ambient": "#121018",
+	"preset": "jour",
 	"sources": [],
 	## Mode nuit façon brouillard : base = image nuit, lumières révèlent le jour.
 	"nightMode": false,
@@ -603,6 +637,11 @@ func get_lighting_config(map_data: Dictionary) -> Dictionary:
 
 func is_night_mode(map_data: Dictionary) -> bool:
 	return bool(get_lighting_config(map_data).get("nightMode", false))
+
+static func get_lighting_preset(preset_id: String) -> Dictionary:
+	if LIGHTING_PRESETS.has(preset_id):
+		return LIGHTING_PRESETS[preset_id]
+	return LIGHTING_PRESETS["jour"]
 
 ## Chemin nuit explicite, sinon `<stem>_night.png` à côté du fond jour.
 func resolve_night_image_path(map_data: Dictionary) -> String:

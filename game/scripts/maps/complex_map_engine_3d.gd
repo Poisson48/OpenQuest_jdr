@@ -959,6 +959,26 @@ func _apply_camera_perspective() -> void:
 
 func _apply_lighting() -> void:
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
+	var terrain3d := _ground_mode == MapData.GROUND_TERRAIN3D
+	var preset_id := str(_lighting_config.get("preset", "jour"))
+	var preset: Dictionary = MapData.get_lighting_preset(preset_id)
+	var sun_color := Color.html(str(_lighting_config.get("sunColor", preset.get("sunColor", "#fff1d8"))))
+	var ambient_color := Color.html(str(_lighting_config.get("ambientColor", preset.get("ambientColor", "#9fb4d4"))))
+	var sun_energy := float(_lighting_config.get("sunEnergy", preset.get("sunEnergy", 1.25)))
+	var ambient_energy := float(_lighting_config.get("ambientEnergy", preset.get("ambientEnergy", 0.58)))
+	var exposure := float(_lighting_config.get("exposure", preset.get("exposure", 1.0)))
+	var fog_density := float(_lighting_config.get("fogDensity", preset.get("fogDensity", 0.0)))
+	var yaw := float(_lighting_config.get("sunYaw", preset.get("sunYaw", 38.0)))
+	var pitch := float(_lighting_config.get("sunAngle", preset.get("sunAngle", -58.0)))
+	if bool(_lighting_config.get("enabled", false)):
+		match str(_lighting_config.get("direction", "nw")):
+			"ne": yaw = 35.0
+			"sw": yaw = -145.0
+			"se": yaw = 145.0
+			_: yaw = -35.0
+		sun_energy *= clampf(0.75 + float(_lighting_config.get("intensity", 0.35)) * 0.6, 0.7, 1.5)
+	if _sun == null:
+		return
 	if table_view:
 		# Salle intérieure : le soleil devient un fill doux, la suspension
 		# de la table éclaire le plateau (TableEnvironment3D).
@@ -968,37 +988,26 @@ func _apply_lighting() -> void:
 		_sun.light_color = Color(1.0, 0.88, 0.72)
 		_sun.rotation_degrees = Vector3(-62.0, 25.0, 0.0)
 		return
-	if not bool(cfg.get("shadows", true)):
-		# Diorama / 2.5D : pas d'ombres portées. Soft fill pour ne pas noircir les
-		# matériaux encore éclairés. Avec un vrai terrain 3D, on éclaire un peu
-		# plus pour retrouver la luminosité d'une carte peinte façon Dofus.
-		var terrain3d := MapData.get_ground_mode(map_data) == MapData.GROUND_TERRAIN3D
-		_sun.visible = true
-		_sun.shadow_enabled = false
-		_sun.light_energy = 1.0 if terrain3d else 0.55
-		_sun.rotation_degrees = Vector3(-58.0, 25.0, 0.0)
-		if _world_env != null and _world_env.environment != null:
-			_world_env.environment.ambient_light_energy = 0.8 if terrain3d else 0.55
-			if terrain3d:
-				_world_env.environment.background_color = Color(0.10, 0.13, 0.17)
-		return
 	_sun.visible = true
-	_sun.shadow_enabled = true
-	if _lighting_config.get("enabled", false):
-		var dir: String = str(_lighting_config.get("direction", "nw"))
-		match dir:
-			"ne":
-				_sun.rotation_degrees = Vector3(-55.0, 35.0, 0.0)
-			"sw":
-				_sun.rotation_degrees = Vector3(-55.0, -145.0, 0.0)
-			"se":
-				_sun.rotation_degrees = Vector3(-55.0, 145.0, 0.0)
-			_:
-				_sun.rotation_degrees = Vector3(-58.0, -35.0, 0.0)
-		_sun.light_energy = 0.85 + float(_lighting_config.get("intensity", 0.35))
-	else:
-		_sun.rotation_degrees = Vector3(-58.0, 38.0, 0.0)
-		_sun.light_energy = 1.15
+	_sun.light_color = sun_color
+	_sun.light_energy = sun_energy
+	_sun.rotation_degrees = Vector3(pitch, yaw, 0.0)
+	# Le style 2.5D coupait les ombres ; sur un vrai terrain 3D on les garde pour
+	# asseoir les constructions. Les cartes illustrées restent sans ombres.
+	_sun.shadow_enabled = terrain3d and bool(cfg.get("shadows", false))
+	if _world_env != null and _world_env.environment != null:
+		var env: Environment = _world_env.environment
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = ambient_color
+		env.ambient_light_energy = ambient_energy
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color.html(str(preset.get("background", "#10151c")))
+		env.tonemap_mode = Environment.TONE_MAPPER_ACES
+		env.tonemap_exposure = exposure
+		env.fog_enabled = terrain3d and fog_density > 0.0001
+		env.fog_light_color = Color.html(str(preset.get("fogColor", "#2b3445")))
+		env.fog_density = fog_density
+		env.fog_sky_affect = 0.0
 
 func _apply_atmosphere() -> void:
 	if _atmosphere == null or _vignette == null:

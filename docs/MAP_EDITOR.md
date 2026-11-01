@@ -445,8 +445,12 @@ Onglet **Carte** :
 - **Perspective** : vue de dessus, isométrique, perspective inclinée (surtout
   utile en VTT ; le diorama force sa propre inclinaison).
 - **Atmosphère** : teinte d'ambiance, opacité, vignettage.
-- **Éclairage global** : lumière directionnelle, direction, intensité (coupé
-  en diorama ; les torches restent des lumières douces sans ombres).
+- **Ambiance lumineuse** : presets **Jour clair / Matin / Coucher de soleil /
+  Nuit claire / Donjon**. Chaque preset règle couleur et énergie du soleil,
+  couleur/énergie d'ambiance, exposition, brouillard de profondeur et glow.
+- **Éclairage global** : lumière directionnelle (Nord-Ouest, Nord-Est, Sud-Ouest,
+  Sud-Est), intensité ; les 💡 torches/lanternes ajoutent leurs sources chaudes
+  et vacillantes (ombres réelles sur terrain 3D, douces en diorama).
 - **Affichage éditeur** : afficher les liens, afficher les noms.
 - **Sauvegarde** : politique **Manuelle**, **À chaque modification** ou
   **Périodique (30 s)**.

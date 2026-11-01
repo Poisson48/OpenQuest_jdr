@@ -25,6 +25,22 @@ func _ready() -> void:
 	map["fogEnabled"] = false
 	map["ambientFx"] = "leaves"
 	map["worldId"] = MONDE
+	map["lighting"] = {
+		"enabled": true,
+		"preset": "matin",
+		"direction": "sw",
+		"intensity": 0.35,
+		"sources": [
+			{"id": "lamp-h1-l", "x": 4.8, "y": 7.2, "elevation": 1.7, "color": "#ffd9a8", "energy": 0.9, "radius": 2.8, "flicker": true, "shadows": true},
+			{"id": "lamp-h1-r", "x": 7.2, "y": 7.2, "elevation": 1.7, "color": "#ffd9a8", "energy": 0.9, "radius": 2.8, "flicker": true, "shadows": true},
+			{"id": "lamp-h2-l", "x": 13.6, "y": 7.2, "elevation": 1.7, "color": "#ffcf87", "energy": 0.8, "radius": 2.6, "flicker": true, "shadows": true},
+			{"id": "lamp-h2-r", "x": 15.6, "y": 7.2, "elevation": 1.7, "color": "#ffcf87", "energy": 0.8, "radius": 2.6, "flicker": true, "shadows": true},
+			{"id": "lamp-cutaway-a", "x": 13.8, "y": 11.8, "elevation": 2.0, "color": "#ffd9a8", "energy": 1.1, "radius": 3.0, "flicker": true, "shadows": true},
+			{"id": "lamp-cutaway-b", "x": 16.4, "y": 12.6, "elevation": 2.0, "color": "#ffd9a8", "energy": 1.0, "radius": 2.8, "flicker": true, "shadows": true},
+			{"id": "lamp-site", "x": 7.4, "y": 12.4, "elevation": 1.5, "color": "#ffbf7a", "energy": 1.2, "radius": 3.2, "flicker": true, "shadows": true},
+			{"id": "lamp-well", "x": 20.5, "y": 9.0, "elevation": 1.3, "color": "#ffd9a8", "energy": 0.6, "radius": 2.4, "flicker": true, "shadows": true},
+		],
+	}
 	md.update_map(map)
 	md.preview_map_id = map_id
 
@@ -35,6 +51,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	editor.load_map(md.get_by_id(map_id))
 	await get_tree().process_frame
+	editor._overlay.show_light_radii = false
 
 	# --- 1. Maison finie, toit tuiles, dallage pierre -------------------------
 	editor._wall_height = 2.2
@@ -106,6 +123,14 @@ func _ready() -> void:
 	_place_prop(editor, "caisse", 10.2, 10.1, 18.0)
 	_place_prop(editor, "puits", 20.5, 9.0, 0.0)
 	_place_prop(editor, "banc", 20.3, 10.2, 90.0)
+	_place_prop(editor, "lanterne", 4.8, 7.2, 0.0)
+	_place_prop(editor, "lanterne", 7.2, 7.2, 0.0)
+	_place_prop(editor, "lanterne", 13.6, 7.2, 0.0)
+	_place_prop(editor, "lanterne", 15.6, 7.2, 0.0)
+	_place_prop(editor, "lanterne", 13.8, 11.8, 0.0)
+	_place_prop(editor, "lanterne", 16.4, 12.6, 0.0)
+	_place_prop(editor, "lanterne", 7.4, 12.4, 0.0)
+	_place_prop(editor, "lanterne", 20.5, 9.0, 0.0)
 
 	# Lieu + carte intérieure liés à la porte de la première maison.
 	editor._create_interior_at(Vector2(6.0, 7.0))
