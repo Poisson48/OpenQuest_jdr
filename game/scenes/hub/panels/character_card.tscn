@@ -33,7 +33,6 @@ text = "Classique"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BadgeLabel"
-theme_override_font_sizes/font_size = 16
 text = "Aventure"
 
 [node name="LblMeta" type="Label" parent="VBox"]

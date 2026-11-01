@@ -54,9 +54,9 @@ clip_text = true
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 16
 text = "En attente…"
 horizontal_alignment = 2
@@ -141,8 +141,8 @@ layout_mode = 2
 
 [node name="LblJournalTitle" type="Label" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 16
 text = "Histoire"
 
@@ -291,8 +291,8 @@ layout_mode = 2
 
 [node name="LblInvTitle" type="Label" parent="InventoryPanel/InvCol/InvHeader"]
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 17
 text = "Inventaire"
 

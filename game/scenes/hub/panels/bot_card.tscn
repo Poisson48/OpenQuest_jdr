@@ -15,7 +15,6 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 17
 text = "🤖 Compagnon"
 autowrap_mode = 3
 
@@ -38,7 +37,6 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"BadgeLabel"
 theme_override_colors/font_color = Color(0.560784, 0.823529, 0.917647, 1)
-theme_override_font_sizes/font_size = 16
 text = "PERSONNALITÉ"
 
 [node name="LblTraits" type="Label" parent="VBox"]

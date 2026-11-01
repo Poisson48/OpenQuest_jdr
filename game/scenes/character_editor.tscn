@@ -44,6 +44,7 @@ compact = true
 [node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
+crumb_text = "Hub › Personnages"
 back_text = "← Retour"
 title_text = "👥 Fiches de Personnages"
 
@@ -116,14 +117,14 @@ theme_override_constants/separation = 12
 
 [node name="TierPickerTitle" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
+theme_type_variation = &"HeadingLabel"
 theme_override_font_sizes/font_size = 17
 text = "Choisir la complexité de la fiche"
 horizontal_alignment = 1
 
 [node name="TierPickerHint" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
+theme_type_variation = &"MutedLabel"
 text = "Style Naheulbeuk, JDR classique ou fiche D&D complète."
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -203,9 +204,9 @@ theme_override_constants/separation = 8
 [node name="FormTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
 size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 19
 text = "Éditer le Personnage"
 autowrap_mode = 3
@@ -296,7 +297,7 @@ layout_mode = 2
 [node name="LblSimpleStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 text = "Stats simplifiées (Naheulbeuk) :"
 
 [node name="GridSimpleStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -370,7 +371,7 @@ layout_mode = 2
 [node name="LblStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 text = "Caractéristiques (1-30) :"
 
 [node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -502,7 +503,7 @@ layout_mode = 2
 [node name="LblMediumExtraTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 text = "Compétences & personnalité :"
 
 [node name="LblSkills" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -545,7 +546,7 @@ layout_mode = 2
 [node name="LblCompleteTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 text = "Fiche avancée (D&D) :"
 
 [node name="GridComplete" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -630,7 +631,7 @@ size_flags_horizontal = 3
 [node name="LblModifiers" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
+theme_type_variation = &"MutedLabel"
 text = "Modificateurs : FOR +0 | DEX +0 | CON +0 | INT +0 | SAG +0 | CHA +0"
 autowrap_mode = 3
 

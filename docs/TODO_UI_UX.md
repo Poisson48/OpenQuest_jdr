@@ -7,10 +7,8 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ## Priorité 1 — structure
 
-- [ ] **Responsive hub / menu** — seul `game_setup` gère l'étroit ; les 5 onglets du hub et les grilles 2 colonnes ne se replient pas sous 960 px
-- [ ] **Fil d'Ariane** — absent des pages d'interface (existant uniquement côté cartes)
 - [ ] **Composant `Card` générique** — 4 cartes divergentes (`character`, `bot`, `scenario`, `map`) à factoriser
-- [ ] **Réduire les 219 overrides de style** — 139 tailles de police + 80 couleurs en dur dans les `.tscn` ; chantier long, page par page
+- [ ] **Réduire les 99 overrides restants** — 79 tailles + 20 couleurs encore en dur (219 au départ)
 
 ## Priorité 2 — carte et session (périmètre Poisson48)
 
@@ -25,6 +23,9 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ## Vérifié récemment (ne plus traiter)
 
+- [x] Responsive hub / menu : grilles repliées sous 960 px, boutons hero en flux
+- [x] Fil d'Ariane dans l'AppTopBar (5 pages : Hub › …)
+- [x] 219 → 99 overrides de style (34 titres corrigés, 59 couleurs → variations)
 - [x] Cartes scénario : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
 - [x] Cartes de carte : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
 - [x] Barre d'outils Cartes : 5 boutons de création → menu « ＋ Nouvelle carte »

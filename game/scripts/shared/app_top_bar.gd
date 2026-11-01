@@ -8,6 +8,7 @@ signal back_pressed
 
 @onready var btn_back: Button = %BtnBack
 @onready var title: Label = %Title
+@onready var crumb: Label = %Crumb
 @onready var actions: HBoxContainer = %Actions
 
 ## Texte du bouton retour (défaut : "← Retour").
@@ -24,9 +25,21 @@ signal back_pressed
 		if is_node_ready():
 			title.text = value
 
+## Fil d'Ariane affiché au-dessus du titre (ex. « Hub › Scénarios › Éditeur »).
+@export var crumb_text: String = "":
+	set(value):
+		crumb_text = value
+		if is_node_ready():
+			_apply_crumb()
+
+func _apply_crumb() -> void:
+	crumb.text = crumb_text
+	crumb.visible = not crumb_text.is_empty()
+
 func _ready() -> void:
 	btn_back.text = back_text
 	title.text = title_text
+	_apply_crumb()
 	btn_back.pressed.connect(func(): back_pressed.emit())
 
 ## Met à jour le titre (pages dont le titre est dynamique).

@@ -65,6 +65,17 @@ func _ready() -> void:
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+	get_tree().root.size_changed.connect(_apply_responsive_layout)
+	_apply_responsive_layout()
+
+## Replie les grilles d'action du hub quand la fenêtre est étroite.
+func _apply_responsive_layout() -> void:
+	var narrow := UiLayout.is_narrow_viewport()
+	for grid in tab_container.find_children("*", "GridContainer", true, false):
+		grid.columns = 1 if narrow else 2
+	for btn in tab_nav.get_children():
+		if btn is Button:
+			(btn as Button).clip_text = true
 
 func _on_locale_changed(_locale: String) -> void:
 	_setup_bots_filter()

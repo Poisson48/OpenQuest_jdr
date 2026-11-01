@@ -44,12 +44,13 @@ compact = true
 [node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
+crumb_text = "Hub › Scénarios"
 back_text = "← Retour"
 title_text = "📜 Bibliothèque de Scénarios"
 
 [node name="LblModeFilter" type="Label" parent="MainLayout/TopBar/Actions"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 theme_override_font_sizes/font_size = 17
 text = "Mode :"
 
@@ -67,7 +68,7 @@ text = "+ Nouveau scénario"
 [node name="ScenariosCountLabel" type="Label" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
+theme_type_variation = &"MutedLabel"
 theme_override_font_sizes/font_size = 17
 text = "0 scénario(s)"
 
@@ -133,8 +134,8 @@ size_flags_horizontal = 3
 [node name="DetailTitle" type="Label" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 24
 text = "Titre du Scénario"
 autowrap_mode = 3

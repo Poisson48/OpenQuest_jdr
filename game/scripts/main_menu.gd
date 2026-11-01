@@ -20,6 +20,8 @@ func _ready() -> void:
 	%ConfirmDeleteResume.confirmed.connect(_on_confirm_delete_resume)
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
 
+	get_tree().root.size_changed.connect(_apply_responsive_layout)
+	_apply_responsive_layout()
 	_apply_static_translations()
 	_show_home_page()
 	_render_saved_games()
@@ -35,6 +37,10 @@ func _apply_static_translations() -> void:
 	%ConfirmDeleteResume.ok_button_text = tr("Effacer")
 	%ConfirmDeleteResume.cancel_button_text = tr("Annuler")
 	%ConfirmDeleteResume.dialog_text = tr("Effacer cette partie ? Toute la progression sera perdue.")
+
+func _apply_responsive_layout() -> void:
+	var grid := get_node_or_null("%ModesGrid") as GridContainer
+	UiLayout.apply_grid_columns(grid, 2, 1)
 
 func _on_play_pressed() -> void:
 	GameData.go_to_game_setup()

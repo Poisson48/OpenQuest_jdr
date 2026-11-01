@@ -48,7 +48,7 @@ theme_override_constants/separation = 20
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="HeroActions" type="HFlowContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
@@ -104,8 +104,8 @@ text = "← Accueil"
 [node name="PlayStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/OngoingPage/OngoingVBox/OngoingHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 theme_override_font_sizes/font_size = 19
 text = "Partie en cours"
 
@@ -129,7 +129,7 @@ theme_override_constants/separation = 8
 
 [node name="LblStepsTitle" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/StepsPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 theme_override_font_sizes/font_size = 19
 text = "Comment ça marche ?"
 
@@ -155,6 +155,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="ModesGrid" type="GridContainer" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 16
@@ -172,14 +173,14 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.643137, 0.298039, 1)
+theme_type_variation = &"GoldLabel"
 theme_override_font_sizes/font_size = 17
 text = "⚔️ Aventure"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
+theme_type_variation = &"MutedLabel"
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 theme_override_font_sizes/font_size = 16
 text = "One-shots en une session (3–4 h) ou campagnes longues sur plusieurs chapitres — exploration, combat et arcs narratifs."
 autowrap_mode = 3
@@ -195,14 +196,14 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.509804, 0.588235, 0.847059, 1)
+theme_type_variation = &"InvestigationLabel"
 theme_override_font_sizes/font_size = 17
 text = "🔍 Enquête"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
+theme_type_variation = &"MutedLabel"
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.764706, 0.705882, 0.631373, 1)
 theme_override_font_sizes/font_size = 16
 text = "Mystères urbains, interrogatoires, indices cachés et déductions policières en mode polar."
 autowrap_mode = 3

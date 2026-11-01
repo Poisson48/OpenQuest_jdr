@@ -22,28 +22,31 @@ scènes) et de finitions d'usage.
 
 | # | Point | Gravité | Effort |
 |---|-------|---------|--------|
-| 1 | 219 overrides de style en dur dans les `.tscn` | Moyen | Élevé |
-| 2 | Responsive limité à une seule page | Moyen | Moyen |
-| 3 | Pas de fil d'Ariane dans l'interface | Faible | Moyen |
-| 4 | Pas de composant `Card` générique | Faible | Moyen |
+| 1 | 99 overrides de style encore en dur (219 au départ) | Moyen | Élevé |
+| 2 | Pas de composant `Card` générique | Faible | Moyen |
 
 ---
 
-## 1 · MOYEN — 219 overrides de style écrits en dur dans les scènes
+## 1 · MOYEN — 99 overrides de style encore écrits en dur
 
 **Où** : toutes les scènes de `game/scenes/`
 **Constat** (comptage à date) :
 
 | Type | Occurrences |
 |------|-------------|
-| `theme_override_font_sizes/font_size` | **139** |
-| `theme_override_colors/font_color` | **80** |
+| `theme_override_font_sizes/font_size` | **79** |
+| `theme_override_colors/font_color` | **20** |
 
 Les valeurs sont alignées sur la palette (aucune teinte hors charte), mais elles
 restent dupliquées dans les scènes : changer une couleur ou une taille demande
 encore d'éditer les fichiers un par un, et le thème ne fait plus autorité.
 
-**Action** : remplacer progressivement les overrides par les variations du thème
+**Fait** : 219 → 99. Les 34 titres de section qui étaient des `HeadingLabel`
+forcés à 14 px sont passés en `SectionLabel` (hiérarchie rétablie), et 59 couleurs
+de palette ont été remplacées par trois variations dédiées (`MutedLabel`,
+`GoldLabel`, `InvestigationLabel`).
+
+**Action restante** : achever avec les variations du thème
 (`TitleLabel`, `HeadingLabel`, `SectionLabel`, `CaptionLabel`, `BadgeLabel`,
 `AccentButton`…), en commençant par les pages les plus stables (menu, hub).
 
@@ -52,41 +55,16 @@ encore d'éditer les fichiers un par un, et le thème ne fait plus autorité.
 
 ---
 
-## 2 · MOYEN — Responsive limité à une seule page
-
-**Constat** :
-
-```
-$ grep -rn "is_narrow_viewport\|is_compact_viewport" game/scripts | grep -v ui_layout | wc -l
-1        # game_setup.gd uniquement
-```
-
-- Hub : 5 onglets sur une ligne, aucun repli sous 960 px.
-- Menu : 3 boutons hero de 200 px + `ModesGrid columns=2` → débordement sous ~700 px.
-- Les seuils `BREAKPOINT_NARROW = 960` / `BREAKPOINT_COMPACT = 800` existent dans
-  `UiLayout` mais ne servent qu'à `game_setup`.
-
-**Action** : helper `UiLayout.apply_grid_columns(grid, min_cols)` appelé sur
-`resized`, et barre d'onglets du hub dans un `ScrollContainer` horizontal.
-
----
-
-## 3 · FAIBLE — Pas de fil d'Ariane dans l'interface
-
-**Constat** : le fil d'Ariane n'existe que côté cartes
-(`MapData.get_map_breadcrumb`, `map_complex_editor`, `map_workspace`, `map_navigator`).
-Aucune page d'interface n'en affiche.
-
-**Impact** : dans *Hub → Scénarios → Éditeur*, la profondeur n'est lisible que par
-le libellé du bouton retour.
-**Action** : ligne `Hub › Scénarios › Éditeur` sous le titre de la barre partagée.
 
 ---
 
 
 ---
 
-## 4 · FAIBLE — Pas de composant `Card` générique
+
+---
+
+## 2 · FAIBLE — Pas de composant `Card` générique
 
 **Constat** : quatre cartes coexistent avec des structures divergentes :
 
@@ -104,10 +82,9 @@ le libellé du bouton retour.
 
 ## Ordre d'attaque suggéré
 
-1. **§2 — responsive** (structure, une seule page gère l'étroit aujourd'hui)
-2. **§3 — fil d'Ariane**
-3. **§1 — dette de style** (chantier long, page par page)
-4. **§4 — composant Card** (lors de la prochaine refonte des cartes)
+1. **§1 — overrides restants** (79 tailles + 20 couleurs)
+2. **§2 — composant Card** (lors de la prochaine refonte des cartes)
+
 
 ---
 
