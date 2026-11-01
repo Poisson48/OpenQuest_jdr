@@ -51,7 +51,7 @@ title_text = "📜 Bibliothèque de Scénarios"
 [node name="LblModeFilter" type="Label" parent="MainLayout/TopBar/Actions"]
 layout_mode = 2
 theme_type_variation = &"GoldLabel"
-theme_override_font_sizes/font_size = 17
+
 text = "Mode :"
 
 [node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar/Actions"]

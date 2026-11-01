@@ -52,7 +52,7 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Titre de la carte"
-theme_override_font_sizes/font_size = 17
+
 
 [node name="BtnSave" type="Button" parent="VBox/TopBar/Actions"]
 unique_name_in_owner = true

@@ -7,8 +7,8 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ## Priorité 1 — structure
 
-- [ ] **Composant `Card` générique** — 4 cartes divergentes (`character`, `bot`, `scenario`, `map`) à factoriser
-- [ ] **Réduire les 99 overrides restants** — 79 tailles + 20 couleurs encore en dur (219 au départ)
+- [ ] **Migrer `scenario_card` et `map_card` sur `CardBase`** — la coquille générique existe (`scenes/shared/card_base.tscn`), les cartes personnage et bot l'utilisent déjà ; restent ces deux cartes (elles ont un menu « ⋯ » à rebrancher sur `add_overflow`)
+- [ ] **Réduire les 38 overrides de taille + 20 de couleur restants**
 
 ## Priorité 2 — carte et session (périmètre Poisson48)
 
@@ -25,7 +25,8 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 - [x] Responsive hub / menu : grilles repliées sous 960 px, boutons hero en flux
 - [x] Fil d'Ariane dans l'AppTopBar (5 pages : Hub › …)
-- [x] 219 → 99 overrides de style (34 titres corrigés, 59 couleurs → variations)
+- [x] 219 → 58 overrides de style (tailles 139 → 38, couleurs 79 → 20)
+- [x] `CardBase` : composant de carte générique (en-tête, badge, méta, corps, actions, menu « ⋯ ») — `character_card` et `bot_card` migrés
 - [x] Cartes scénario : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
 - [x] Cartes de carte : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)
 - [x] Barre d'outils Cartes : 5 boutons de création → menu « ＋ Nouvelle carte »

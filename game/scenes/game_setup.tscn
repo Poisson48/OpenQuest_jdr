@@ -127,7 +127,7 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 16
+
 text = "○ Serveur non connecté"
 
 [node name="PanelMaps" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
@@ -257,5 +257,5 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 20
 text = "🚀 Lancer l'Aventure !"

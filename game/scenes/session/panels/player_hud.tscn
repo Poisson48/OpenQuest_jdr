@@ -215,7 +215,7 @@ theme_override_constants/separation = 2
 [node name="LblHeroName" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 17
+
 text = "—"
 
 [node name="LblHeroSub" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]

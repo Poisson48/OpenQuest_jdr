@@ -1,23 +1,15 @@
-extends PanelContainer
+extends CardBase
 class_name BotCard
 
-## Carte compagnon du hub. Structure dans `scenes/hub/panels/bot_card.tscn`.
+## Carte compagnon du hub. Enveloppe : `scenes/shared/card_base.tscn`.
 
 signal delete_pressed(bot_id: String, bot_name: String)
-
-@onready var _name: Label = %LblName
-@onready var _mode: Label = %LblMode
-@onready var _meta: Label = %LblMeta
-@onready var _tag: Label = %LblTag
-@onready var _traits: Label = %LblTraits
-@onready var _stats: Label = %LblStats
 
 var _bot_id: String = ""
 var _bot_name: String = ""
 var _bot: Dictionary = {}
 
 func _ready() -> void:
-	%BtnDelete.pressed.connect(func(): delete_pressed.emit(_bot_id, _bot_name))
 	if not LocaleSettings.locale_changed.is_connected(_on_locale_changed):
 		LocaleSettings.locale_changed.connect(_on_locale_changed)
 
@@ -31,24 +23,27 @@ func setup(bot: Dictionary) -> void:
 	_bot = bot.duplicate(true)
 	_bot_id = str(bot.get("id", ""))
 	_bot_name = str(bot.get("name", "Bot"))
-	_name.text = "🤖 " + _bot_name
-	if GameData.is_investigation_bot(bot):
-		_mode.text = tr("🔍 Enquête")
-		_mode.add_theme_color_override("font_color", ThemeColors.INVESTIGATION_ACCENT)
-	else:
-		_mode.text = tr("⚔️ Aventure")
-		_mode.add_theme_color_override("font_color", ThemeColors.ONESHOT_ACCENT)
-	_meta.text = "%s · %s" % [bot.get("race", ""), bot.get("class", "")]
-	_tag.text = _personality_label(str(bot.get("personality", ""))).to_upper()
+	set_title("🤖 " + _bot_name)
+	var investigation := GameData.is_investigation_bot(bot)
+	set_badge(
+		tr("🔍 Enquête") if investigation else tr("⚔️ Aventure"),
+		ThemeColors.INVESTIGATION_ACCENT if investigation else ThemeColors.ONESHOT_ACCENT
+	)
+	set_meta_line("%s · %s" % [bot.get("race", ""), bot.get("class", "")])
+	var personality := _personality_label(str(bot.get("personality", "")))
+	if not personality.is_empty():
+		add_body(personality.to_upper(), "BadgeLabel")
 	var traits: Array = bot.get("traits", [])
-	_traits.visible = not traits.is_empty()
-	var localized_traits: PackedStringArray = []
-	for trait_value in traits:
-		localized_traits.append(tr(str(trait_value)))
-	_traits.text = ", ".join(localized_traits)
+	if not traits.is_empty():
+		var localized := PackedStringArray()
+		for trait_value in traits:
+			localized.append(tr(str(trait_value)))
+		add_body(", ".join(localized))
 	var stats: Dictionary = bot.get("stats", {})
-	_stats.text = tr("PV %d · CA %d · FOR %d") % [bot.get("hp", 10), bot.get("ac", 10), stats.get("str", 10)]
-	%BtnDelete.text = tr("Supprimer")
+	add_body(tr("PV %d · CA %d · FOR %d") % [bot.get("hp", 10), bot.get("ac", 10), stats.get("str", 10)], "MutedLabel")
+
+	var del := add_action(tr("Supprimer"), "DangerButton")
+	del.pressed.connect(func(): delete_pressed.emit(_bot_id, _bot_name))
 
 func _personality_label(code: String) -> String:
 	match code.strip_edges().to_lower():

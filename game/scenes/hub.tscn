@@ -91,7 +91,7 @@ theme_override_constants/separation = 8
 [node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 19
+
 text = "⚔️ Aventures & Campagnes Fantastiques"
 
 [node name="AdvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/HeroCard/HeroVBox"]
@@ -157,7 +157,7 @@ theme_override_constants/separation = 8
 [node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
 theme_type_variation = &"InvestigationLabel"
-theme_override_font_sizes/font_size = 19
+theme_override_font_sizes/font_size = 20
 text = "🔍 Mode Enquête & Polar"
 
 [node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
@@ -217,13 +217,13 @@ theme_override_constants/separation = 6
 [node name="Title" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/PanelInfo/VBox"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 19
+
 text = "🗺️ Cartes du Monde & Lieux tactiques"
 
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/PanelInfo/VBox"]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 16
+
 autowrap_mode = 3
 text = "Crée et gère les cartes pour tes campagnes et enquêtes. Les nouvelles cartes vont dans Brouillons ; publie-les pour les retrouver dans le Catalogue."
 
@@ -241,7 +241,7 @@ theme_override_constants/separation = 8
 [node name="SortLabel" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 16
+
 text = "Trier :"
 
 [node name="MapsSort" type="OptionButton" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
@@ -252,7 +252,7 @@ layout_mode = 2
 [node name="MapsModeLabel" type="Label" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 16
+
 text = "Mode :"
 
 [node name="MapsModeFilter" type="OptionButton" parent="MainLayout/TabContainer/Cartes/VBox/MapsToolbar"]
@@ -329,13 +329,13 @@ layout_mode = 2
 [node name="Lbl" type="Label" parent="MainLayout/TabContainer/Bots/VBox/PanelHeader/VBox"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 19
+
 text = "🤖 Archétypes de Compagnons Bots"
 
 [node name="Desc" type="Label" parent="MainLayout/TabContainer/Bots/VBox/PanelHeader/VBox"]
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 16
+
 text = "Compagnons IA classés par mode de jeu — aventure, one-shot ou enquête."
 
 [node name="BotsToolbar" type="HBoxContainer" parent="MainLayout/TabContainer/Bots/VBox"]
@@ -359,7 +359,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 16
+
 text = "0 compagnon(s)"
 
 [node name="BotsScroll" type="ScrollContainer" parent="MainLayout/TabContainer/Bots/VBox"]
