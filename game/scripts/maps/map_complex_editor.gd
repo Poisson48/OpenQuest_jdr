@@ -16,6 +16,8 @@ signal open_map_requested(map_id: String)
 const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine_3d.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 const ConstructionScript := preload("res://scripts/maps/editor/map_editor_construction.gd")
+const EditOpsScript := preload("res://scripts/maps/editor/map_editor_edit_ops.gd")
+const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_options.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -875,423 +877,53 @@ func _set_tool(tool_id: String) -> void:
 	_update_hint()
 	_refresh_overlay()
 
+
+# --- Édition (pointeurs / sélection / poignées) : module extrait ---------------
+var _edit_ops = EditOpsScript.new()
+
+## Wrapper de compatibilité → MapEditorEditOps.
 func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dictionary) -> void:
-	if not _editable:
-		return
-	if button == MOUSE_BUTTON_RIGHT:
-		_handle_right_click(grid)
-		return
-	_press_start_grid = grid
-	_press_start_screen = screen
-	_press_moved = false
-	_painted_cells.clear()
+	_edit_ops._on_pointer_pressed(grid, screen, button, mods)
 
-	if _space_held or _tool == ToolsScript.PAN:
-		_press_mode = "pan"
-		_engine.begin_view_pan(screen)
-		return
-
-	var wants_select := _tool == ToolsScript.SELECT or bool(mods.get("ctrl", false)) or bool(mods.get("shift", false))
-	if wants_select:
-		_begin_select_or_move(grid, screen, mods)
-		return
-
-	if _tool == ToolsScript.ORGANIC:
-		if not _in_bounds(grid):
-			_set_status("Tracé organique : commencez dans la carte.")
-			return
-		_press_mode = "organic"
-		_organic_points = [grid]
-		_overlay.polygon_points = [grid]
-		_refresh_overlay()
-		_set_status("Tracé organique : glissez librement, relâchez pour construire.")
-		return
-	if _tool == ToolsScript.SCATTER:
-		if not _in_bounds(grid):
-			return
-		_press_mode = "scatter"
-		_construction._start_scatter_stroke(grid)
-		return
-	if ToolsScript.is_pose_tool(_tool):
-		_place_pose_element(_snap(grid))
-		_press_mode = "none"
-		return
-	if ToolsScript.is_drag_tool(_tool):
-		_press_mode = "draw"
-		var preview_from := _snap(grid)
-		# Mur 3D : l'aperçu part déjà de l'extrémité accrochée au réseau.
-		if _tool == ToolsScript.MESH_WALL:
-			preview_from = _construction._snap_wall_point(preview_from).get("point", preview_from)
-		_overlay.drag_preview = {
-			"mode": _drag_preview_mode(),
-			"from": preview_from,
-			"to": preview_from,
-		}
-		_refresh_overlay()
-		return
-	if _tool == ToolsScript.ZONE_POLY:
-		_overlay.polygon_points.append(_snap(grid))
-		_press_mode = "none"
-		_refresh_overlay()
-		return
-	if _tool == ToolsScript.PAINT:
-		_press_mode = "paint"
-		_paint_terrain(grid)
-		return
-	if _tool == ToolsScript.TERRAIN_HEIGHT:
-		_press_mode = "relief"
-		doc.begin_transaction()
-		_paint_relief(grid)
-		return
-	if _tool == ToolsScript.GROUND_MATERIAL:
-		_press_mode = "ground_material"
-		doc.begin_transaction()
-		_paint_ground_material(grid)
-		return
-	if _tool == ToolsScript.BUCKET:
-		doc.bucket_fill(int(roundf(grid.x)), int(roundf(grid.y)), _paint_tile)
-		_press_mode = "none"
-		return
-	if _tool == ToolsScript.FOG_REVEAL or _tool == ToolsScript.FOG_HIDE:
-		_press_mode = "paint"
-		_paint_fog(grid)
-		return
-	if _tool == ToolsScript.ERASE:
-		_erase_at(screen)
-		_press_mode = "none"
-		return
-	if _tool == ToolsScript.LINK:
-		_handle_link_click(screen)
-		_press_mode = "none"
-		return
-	if _tool == ToolsScript.TEMPLATE:
-		_place_template(_snap(grid))
-		_press_mode = "none"
-		return
-	_press_mode = "none"
-
+## Wrapper de compatibilité → MapEditorEditOps.
 func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> void:
-	# Poignées d'un décor déjà sélectionné : resize / rotate avant le hit-test.
-	var handle: Dictionary = _overlay.handle_at_screen(screen)
-	if not handle.is_empty():
-		var hid := str(handle.get("id", ""))
-		var handle_elem: Dictionary = doc.get_element(hid)
-		if not handle_elem.is_empty():
-			doc.select_only(hid)
-			_press_mode = str(handle.get("kind", "resize"))
-			_drag_ids = [hid]
-			var display: Dictionary = handle_elem.get("display", {}) if handle_elem.get("display") is Dictionary else {}
-			var handle_w := float(handle_elem.get("w", 1.0))
-			var handle_h := float(handle_elem.get("h", 1.0))
-			var mesh_dims := Vector3.ZERO
-			if str(handle_elem.get("kind", "")) == DocumentScript.KIND_MESH:
-				mesh_dims = _mesh_actual_dimensions(handle_elem)
-				handle_w = mesh_dims.x
-				handle_h = mesh_dims.z
-			_handle_state = {
-				"id": hid,
-				"corner": int(handle.get("corner", 0)),
-				"x": float(handle_elem.get("x", 0.0)),
-				"y": float(handle_elem.get("y", 0.0)),
-				"w": handle_w,
-				"h": handle_h,
-				"mesh_dims": mesh_dims,
-				"rotation": float(display.get("rotation", 0.0)),
-				"start_grid": grid,
-			}
-			# Mur 3D : les murs raccordés partagent l'extrémité tirée, ils doivent
-			# donc être commités/revertis avec lui pendant le drag.
-			if str(handle_elem.get("kind", "")) == DocumentScript.KIND_MESH and _construction._is_wall_mesh(handle_elem):
-				for attached_id in _construction._wall_attached_ids(handle_elem):
-					if not _drag_ids.has(attached_id):
-						_drag_ids.append(attached_id)
-			_refresh_overlay()
-			return
+	_edit_ops._begin_select_or_move(grid, screen, mods)
 
-	var additive := bool(mods.get("ctrl", false)) or bool(mods.get("shift", false))
-	# GIMP / Meownopoly : si le clic touche la sélection courante, on déplace
-	# celle-ci même si un autre élément est empilé par-dessus.
-	if not additive and not doc.selection().is_empty():
-		var sticky: String = _overlay.selected_element_at_screen(screen)
-		if not sticky.is_empty():
-			var movable: Array = doc.movable_selection_ids()
-			if movable.is_empty():
-				_press_mode = "none"
-				_set_status("Sélection verrouillée — déverrouillez l'élément ou le calque.")
-				_refresh_overlay()
-				return
-			if bool(mods.get("alt", false)):
-				doc.duplicate_selection()
-				movable = doc.movable_selection_ids()
-			_start_move_drag(movable)
-			return
-
-	var hit: String = _overlay.element_at_screen(screen)
-	if hit.is_empty():
-		var blocked: String = _overlay.blocked_element_at_screen(screen)
-		if not blocked.is_empty() and not additive:
-			_press_mode = "none"
-			_set_status("Élément verrouillé — impossible de le sélectionner.")
-			_refresh_overlay()
-			return
-		_press_mode = "band"
-		_overlay.band_active = true
-		_overlay.band_start = screen
-		_overlay.band_end = screen
-		# Ctrl/Maj : le rectangle s'ajoute à la sélection existante.
-		_band_base_selection = doc.selection() if additive else []
-		if not additive:
-			doc.clear_selection()
-		_refresh_overlay()
-		return
-	if bool(mods.get("ctrl", false)):
-		doc.toggle_selection(hit)
-	elif bool(mods.get("shift", false)):
-		doc.add_to_selection([hit])
-	elif not doc.is_selected(hit):
-		doc.select_only(hit)
-	doc.expand_selection_to_groups()
-	if bool(mods.get("alt", false)):
-		doc.duplicate_selection()
-	var movable_hit: Array = doc.movable_selection_ids()
-	if movable_hit.is_empty():
-		_press_mode = "none"
-		_set_status("Sélection verrouillée — déverrouillez l'élément ou le calque.")
-		_refresh_overlay()
-		return
-	_start_move_drag(movable_hit)
-
+## Wrapper de compatibilité → MapEditorEditOps.
 func _start_move_drag(ids: Array) -> void:
-	_press_mode = "move"
-	_drag_ids = ids.duplicate()
-	_drag_origins.clear()
-	for id_variant in _drag_ids:
-		var elem: Dictionary = doc.get_element(str(id_variant))
-		_drag_origins[str(id_variant)] = Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
-	_refresh_overlay()
+	_edit_ops._start_move_drag(ids)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void:
-	_overlay.hover_grid = grid
-	_overlay.hover_valid = _in_bounds(grid)
-	_update_status_position(grid)
-	match _press_mode:
-		"pan":
-			_engine.update_view_pan(screen)
-		"band":
-			_overlay.band_end = screen
-			_press_moved = true
-			var ids: Array = _band_base_selection.duplicate()
-			for id in _overlay.elements_in_band(Rect2(_overlay.band_start, screen - _overlay.band_start)):
-				if not ids.has(id):
-					ids.append(id)
-			doc.set_selection(ids)
-		"move":
-			_press_moved = true
-			var delta := grid - _press_start_grid
-			var moved_light := false
-			for id_variant in _drag_ids:
-				var id := str(id_variant)
-				var origin: Vector2 = _drag_origins.get(id, Vector2.ZERO)
-				var target := _snap(origin + delta)
-				doc.set_live_position(id, target.x, target.y)
-				_engine.set_element_position(id, target.x, target.y)
-				if str(doc.get_element(id).get("kind", "")) == DocumentScript.KIND_LIGHT:
-					moved_light = true
-			if moved_light:
-				_refresh_light_mask_live()
-		"resize":
-			_press_moved = true
-			_apply_handle_resize(grid)
-		"rotate":
-			_press_moved = true
-			_apply_handle_rotate(grid)
-		"organic":
-			_press_moved = true
-			var last_point: Vector2 = (_organic_points[_organic_points.size() - 1] as Vector2) \
-				if not _organic_points.is_empty() else grid
-			if last_point.distance_to(grid) >= 0.15:
-				_organic_points.append(grid)
-				_overlay.polygon_points = _organic_points.duplicate()
-				_construction._preview_organic_status()
-		"scatter":
-			_press_moved = true
-			_construction._continue_scatter_stroke(grid)
-		"draw":
-			_press_moved = true
-			var to := _snap(grid)
-			if bool(mods.get("shift", false)) and _tool == ToolsScript.WALL:
-				to = _constrain_axis(_press_start_grid, to)
-			_overlay.drag_preview["to"] = to
-			# Mur 3D : aperçu aimanté sur le réseau + retour de construction.
-			if _tool == ToolsScript.MESH_WALL:
-				var preview_from: Vector2 = _overlay.drag_preview.get("from", _press_start_grid)
-				var snapped_to := _construction._snap_wall_point(to)
-				_overlay.drag_preview["to"] = snapped_to.get("point", to)
-				_construction._update_wall_draw_status(preview_from, snapped_to.get("point", to))
-		"paint":
-			if _tool == ToolsScript.PAINT:
-				_paint_terrain(grid)
-			else:
-				_paint_fog(grid)
-		"relief":
-			_paint_relief(grid)
-		"ground_material":
-			_paint_ground_material(grid)
-	_refresh_ghost()
-	_refresh_overlay()
+	_edit_ops._on_pointer_moved(grid, screen, mods)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: Dictionary) -> void:
-	if button != MOUSE_BUTTON_LEFT:
-		return
-	var was_live := _press_mode in ["move", "resize", "rotate"]
-	match _press_mode:
-		"pan":
-			_engine.end_view_pan()
-		"band":
-			_overlay.band_active = false
-			_band_base_selection.clear()
-		"move":
-			if _press_moved:
-				doc.commit_live_edit(_drag_ids, "Déplacement")
-				_rebuild_lights_illumination(_drag_ids)
-				_sync_engine()
-			_drag_ids.clear()
-			_drag_origins.clear()
-		"resize":
-			if _press_moved:
-				doc.commit_live_edit(_drag_ids, "Redimensionnement")
-				_rebuild_lights_illumination(_drag_ids)
-				_sync_engine()
-			_drag_ids.clear()
-			_handle_state.clear()
-		"rotate":
-			if _press_moved:
-				doc.commit_live_edit(_drag_ids, "Rotation")
-				_sync_engine()
-			_drag_ids.clear()
-			_handle_state.clear()
-		"draw":
-			_finish_draw(_snap(grid))
-		"organic":
-			_construction._finish_organic_stroke()
-		"scatter":
-			_construction._finish_scatter_stroke()
-		"paint":
-			_painted_cells.clear()
-		"relief":
-			doc.commit_transaction()
-			_sync_engine()
-			_set_status("Relief appliqué — les objets 3D s'adaptent à la hauteur.")
-		"ground_material":
-			doc.commit_transaction()
-			_sync_engine()
-			_set_status("Sol peint — matière enregistrée avec la carte.")
-	_press_mode = "none"
-	_overlay.drag_preview.clear()
-	if was_live:
-		_refresh_panels()
-	_refresh_overlay()
+	_edit_ops._on_pointer_released(grid, _screen, button, _mods)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _handle_right_click(grid: Vector2) -> void:
-	# Tracé organique en cours : le clic droit annule le trait (pas de polygone).
-	if _press_mode == "organic" or _press_mode == "scatter":
-		_cancel_action()
-		return
-	if not _overlay.polygon_points.is_empty():
-		_close_polygon()
-		return
-	if _press_mode != "none":
-		_cancel_action()
-		return
-	# Clic droit sur le vide : recadrage rapide façon « focus ».
-	if _in_bounds(grid):
-		_set_status("Position (%.1f, %.1f) — %s" % [grid.x, grid.y, doc.get_tile_at(int(roundf(grid.x)), int(roundf(grid.y)))])
+	_edit_ops._handle_right_click(grid)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _cancel_action() -> void:
-	if _press_mode == "organic":
-		_organic_points.clear()
-		_press_mode = "none"
-		_overlay.clear_transient()
-		_refresh_overlay()
-		_set_status("Tracé organique annulé.")
-		return
-	if _press_mode == "scatter":
-		# Le trait est déjà en cours de pose : on le valide (undo global possible).
-		_construction._finish_scatter_stroke()
-		return
-	if _press_mode in ["move", "resize", "rotate"] and not _drag_ids.is_empty():
-		doc.revert_live_edit(_drag_ids)
-		_sync_engine()
-	_press_mode = "none"
-	_drag_ids.clear()
-	_drag_origins.clear()
-	_handle_state.clear()
-	_overlay.clear_transient()
-	_link_source = ""
-	_refresh_panels()
-	_set_status("Action annulée.")
+	_edit_ops._cancel_action()
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _apply_handle_resize(grid: Vector2) -> void:
-	if _handle_state.is_empty():
-		return
-	var id := str(_handle_state.get("id", ""))
-	var resized_elem: Dictionary = doc.get_element(id)
-	# Mur 3D : étirement le long de l'axe, extrémité opposée fixe et raccords suivis.
-	if _construction._is_wall_mesh(resized_elem):
-		_construction._apply_wall_handle_resize(id, resized_elem, grid)
-		return
-	var center := Vector2(float(_handle_state.get("x", 0.0)), float(_handle_state.get("y", 0.0)))
-	var start: Vector2 = _handle_state.get("start_grid", _press_start_grid)
-	var start_dist := maxf(0.15, start.distance_to(center))
-	var scale := clampf(grid.distance_to(center) / start_dist, 0.15, 8.0)
-	var w := maxf(0.25, float(_handle_state.get("w", 1.0)) * scale)
-	var h := maxf(0.25, float(_handle_state.get("h", 1.0)) * scale)
-	var fields: Dictionary = {"w": w, "h": h}
-	var kind := str(resized_elem.get("kind", ""))
-	if kind == DocumentScript.KIND_MESH:
-		# Objet 3D : redimensionnement uniforme à partir des dimensions réelles
-		# (pas de la case occupée) pour ne pas écraser la hauteur d'un objet posé
-		# sans sizeY, et sans cumuler les échelles pendant le drag.
-		var base_dims: Vector3 = _handle_state.get("mesh_dims", Vector3.ONE)
-		var new_dims := Vector3(maxf(0.05, base_dims.x * scale),
-			maxf(0.05, base_dims.y * scale), maxf(0.05, base_dims.z * scale))
-		fields = {
-			"w": new_dims.x, "h": new_dims.z,
-			"sizeX": new_dims.x, "sizeY": new_dims.y, "sizeZ": new_dims.z,
-			"display": {"scale": 1.0},
-		}
-		doc.set_live_fields(id, fields)
-		return
-	if str(resized_elem.get("kind", "")) == DocumentScript.KIND_LIGHT:
-		var radius := maxf(0.5, maxf(w, h) * 0.5)
-		fields["radius"] = radius
-		doc.set_live_fields(id, fields)
-		if _engine and _engine.has_method("set_element_light_radius"):
-			_engine.set_element_light_radius(id, radius)
-		_refresh_light_mask_live()
-		return
-	doc.set_live_fields(id, fields)
+	_edit_ops._apply_handle_resize(grid)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _apply_handle_rotate(grid: Vector2) -> void:
-	if _handle_state.is_empty():
-		return
-	var id := str(_handle_state.get("id", ""))
-	var center := Vector2(float(_handle_state.get("x", 0.0)), float(_handle_state.get("y", 0.0)))
-	var start: Vector2 = _handle_state.get("start_grid", _press_start_grid)
-	var start_angle := (start - center).angle()
-	var cur_angle := (grid - center).angle()
-	var rot := float(_handle_state.get("rotation", 0.0)) + rad_to_deg(cur_angle - start_angle)
-	doc.set_live_fields(id, {"display": {"rotation": rot}})
+	_edit_ops._apply_handle_rotate(grid)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _constrain_axis(from: Vector2, to: Vector2) -> Vector2:
-	if absf(to.x - from.x) >= absf(to.y - from.y):
-		return Vector2(to.x, from.y)
-	return Vector2(from.x, to.y)
+	return _edit_ops._constrain_axis(from, to)
 
+## Wrapper de compatibilité → MapEditorEditOps.
 func _drag_preview_mode() -> String:
-	if _tool == ToolsScript.WALL or _tool == ToolsScript.MESH_WALL or _tool == ToolsScript.MEASURE:
-		return "line"
-	return "rect"
+	return _edit_ops._drag_preview_mode()
 
 func _finish_draw(to: Vector2) -> void:
 	var from: Vector2 = _press_start_grid
@@ -1518,6 +1150,8 @@ var _construction = ConstructionScript.new()
 
 func _init() -> void:
 	_construction.setup(self)
+	_edit_ops.setup(self)
+	_tool_opts.setup(self)
 
 ## Wrapper de compatibilité → MapEditorConstruction.
 func _wall_endpoints(elem: Dictionary) -> Array:
@@ -3413,290 +3047,12 @@ func _rebuild_palettes() -> void:
 			)
 			tile_box.add_child(btn)
 
+# --- Options d'outils : module extrait ---------------------------------------
+var _tool_opts = ToolOptionsScript.new()
+
+## Wrapper de compatibilité → MapEditorToolOptions.
 func _rebuild_tool_options() -> void:
-	if _tool_options == null:
-		return
-	for child in _tool_options.get_children():
-		child.queue_free()
-	if _tool == ToolsScript.TOKEN:
-		_spin(_hbox(_tool_options), "Taille", 0.5, 6.0, _token_size, 0.5, func(v): _token_size = v)
-		_line_row(_hbox(_tool_options), "Nom", _token_label, func(text): _token_label = text)
-		var kind_col := VBoxContainer.new()
-		kind_col.add_theme_constant_override("separation", 1)
-		kind_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_hbox(_tool_options).add_child(kind_col)
-		var kind_lbl := Label.new()
-		kind_lbl.text = "Type"
-		kind_lbl.add_theme_font_size_override("font_size", 10)
-		kind_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		kind_col.add_child(kind_lbl)
-		var kind_opt := OptionButton.new()
-		for kind_entry in [["member", "Joueur"], ["npc", "PNJ"], ["monster", "Monstre"]]:
-			var idx := kind_opt.item_count
-			kind_opt.add_item(str(kind_entry[1]), idx)
-			kind_opt.set_item_metadata(idx, str(kind_entry[0]))
-			if str(kind_entry[0]) == _token_kind:
-				kind_opt.select(idx)
-		kind_opt.item_selected.connect(func(index: int):
-			_token_kind = str(kind_opt.get_item_metadata(index))
-			_rebuild_tool_options()
-		)
-		kind_col.add_child(kind_opt)
-		if _token_kind == "npc":
-			_line_row(_hbox(_tool_options), "Dialogue", _token_dialogue, func(text): _token_dialogue = text)
-	elif _tool == ToolsScript.MESH_WALL:
-		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
-		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
-	elif _tool == ToolsScript.ROOM_3D:
-		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
-		_option_note("Glissez un rectangle : 4 murs pour une pièce fermée. Ajoutez ensuite dallage, portes, fenêtres et toit.")
-	elif _tool == ToolsScript.ROOF_3D:
-		var roof_opt := OptionButton.new()
-		for i in range(ConstructionScript.ROOF_STYLES.size()):
-			var roof_style: Dictionary = ConstructionScript.ROOF_STYLES[i]
-			roof_opt.add_item(str(roof_style["label"]), i)
-			roof_opt.set_item_metadata(i, str(roof_style["path"]))
-			if str(roof_style["path"]) == _roof_asset:
-				roof_opt.select(i)
-		roof_opt.item_selected.connect(func(index: int): _roof_asset = str(roof_opt.get_item_metadata(index)))
-		_tool_options.add_child(roof_opt)
-		_spin(_hbox(_tool_options), "Hauteur", 0.2, 10.0, _roof_height, 0.1, func(v): _roof_height = v)
-		_option_note("Glissez un rectangle au-dessus d'une pièce : génère une grille de tuiles de toit 2 pans.")
-	elif _tool == ToolsScript.FLOOR_3D:
-		var floor_opt := OptionButton.new()
-		for i in range(ConstructionScript.FLOOR_MATERIALS.size()):
-			var floor_mat: Dictionary = ConstructionScript.FLOOR_MATERIALS[i]
-			floor_opt.add_item(str(floor_mat["label"]), i)
-			floor_opt.set_item_metadata(i, int(floor_mat["id"]))
-			if int(floor_mat["id"]) == _floor_material:
-				floor_opt.select(i)
-		floor_opt.item_selected.connect(func(index: int): _floor_material = int(floor_opt.get_item_metadata(index)))
-		_tool_options.add_child(floor_opt)
-		var flatten_chk := CheckBox.new()
-		flatten_chk.text = "Niveler le sol"
-		flatten_chk.button_pressed = _floor_flatten
-		flatten_chk.toggled.connect(func(on): _floor_flatten = on)
-		_tool_options.add_child(flatten_chk)
-		_option_note("Glissez un rectangle à l'intérieur d'une pièce : dallage de pierre (matière 2) et sol à plat.")
-	elif _tool == ToolsScript.HOUSE_3D:
-		_spin(_hbox(_tool_options), "Hauteur murs", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
-		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, en une seule action.")
-	elif _tool == ToolsScript.WINDOW_3D:
-		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
-	elif _tool == ToolsScript.FURNISH_3D:
-		var furnish_opt := OptionButton.new()
-		for i in range(ConstructionScript.FURNITURE_PRESETS.size()):
-			var furn: Dictionary = ConstructionScript.FURNITURE_PRESETS[i]
-			furnish_opt.add_item(str(furn["label"]), i)
-			furnish_opt.set_item_metadata(i, str(furn["id"]))
-			if str(furn["id"]) == _furnish_preset:
-				furnish_opt.select(i)
-		furnish_opt.item_selected.connect(func(index: int):
-			_furnish_preset = str(furnish_opt.get_item_metadata(index))
-		)
-		_tool_options.add_child(furnish_opt)
-		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
-	elif _tool == ToolsScript.STAIRS_3D:
-		_option_note("Cliquez près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre.")
-	elif _tool == ToolsScript.INTERIOR_3D:
-		_option_note("Cliquez sur une porte 3D : crée un lieu + une carte intérieure indépendante (12 × 9, pièce de départ), puis l'ouvre.")
-	elif _tool == ToolsScript.FENCE_3D:
-		var fence_opt := OptionButton.new()
-		for i in range(ConstructionScript.FENCE_STYLES.size()):
-			var fence_style: Dictionary = ConstructionScript.FENCE_STYLES[i]
-			fence_opt.add_item(str(fence_style["label"]), i)
-			fence_opt.set_item_metadata(i, str(fence_style["path"]))
-			if str(fence_style["path"]) == _fence_asset:
-				fence_opt.select(i)
-		fence_opt.item_selected.connect(func(index: int): _fence_asset = str(fence_opt.get_item_metadata(index)))
-		_tool_options.add_child(fence_opt)
-		_option_note("Glissez le long d'une limite : clôture modulaire alignée au terrain.")
-	elif _tool == ToolsScript.PATH_3D:
-		_spin(_hbox(_tool_options), "Largeur", 1, 4, float(_path_width), 1, func(v): _path_width = int(v))
-		var path_opt := OptionButton.new()
-		for i in range(ConstructionScript.FLOOR_MATERIALS.size()):
-			var path_mat: Dictionary = ConstructionScript.FLOOR_MATERIALS[i]
-			path_opt.add_item(str(path_mat["label"]), i)
-			path_opt.set_item_metadata(i, int(path_mat["id"]))
-			if int(path_mat["id"]) == _path_material:
-				path_opt.select(i)
-		path_opt.item_selected.connect(func(index: int): _path_material = int(path_opt.get_item_metadata(index)))
-		_tool_options.add_child(path_opt)
-		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
-	elif _tool == ToolsScript.ORGANIC:
-		var organic_opt := OptionButton.new()
-		for i in range(ConstructionScript.ORGANIC_STYLES.size()):
-			var organic_style: Dictionary = ConstructionScript.ORGANIC_STYLES[i]
-			organic_opt.add_item(str(organic_style["label"]), i)
-			organic_opt.set_item_metadata(i, str(organic_style["path"]))
-			if str(organic_style["path"]) == _organic_asset:
-				organic_opt.select(i)
-		organic_opt.item_selected.connect(func(index: int):
-			_organic_asset = str(organic_opt.get_item_metadata(index))
-		)
-		_tool_options.add_child(organic_opt)
-		_spin(_hbox(_tool_options), "Hauteur", 0.5, 5.0, _wall_height, 0.1, func(v): _wall_height = v)
-		_spin(_hbox(_tool_options), "Lissage", 1, 10, float(_organic_smoothing), 1, func(v): _organic_smoothing = int(v))
-		_spin(_hbox(_tool_options), "Espacement", 0.0, 6.0, _organic_spacing, 0.1, func(v): _organic_spacing = v)
-		_option_note("Clic-glisser libre : courbe lissée (Catmull-Rom), modules orientés sur la tangente, sans trou. Relâchez pour construire (un seul undo).")
-	elif _tool == ToolsScript.SCATTER:
-		var scatter_opt := OptionButton.new()
-		for i in range(OrganicScatterScript.MODE_ORDER.size()):
-			var mode_id := str(OrganicScatterScript.MODE_ORDER[i])
-			scatter_opt.add_item(OrganicScatterScript.mode_label(mode_id), i)
-			scatter_opt.set_item_metadata(i, mode_id)
-			if mode_id == _scatter_mode:
-				scatter_opt.select(i)
-		scatter_opt.item_selected.connect(func(index: int):
-			_scatter_mode = str(scatter_opt.get_item_metadata(index))
-		)
-		_tool_options.add_child(scatter_opt)
-		_spin(_hbox(_tool_options), "Densité", 0.2, 4.0, _scatter_density, 0.1, func(v): _scatter_density = v)
-		_spin(_hbox(_tool_options), "Taille", 0.3, 3.0, _scatter_size, 0.1, func(v): _scatter_size = v)
-		_spin(_hbox(_tool_options), "Rayon", 0.3, 5.0, _scatter_radius, 0.1, func(v): _scatter_radius = v)
-		_checkbox(_tool_options, "Remplir la zone (sinon bordure du tracé)", _scatter_zone_mode,
-			func(on): _scatter_zone_mode = on)
-		_option_note("Clic-glisser : disperse %s autour du trait (rotations/échelles variées, sans doublon de case, eau évitée). Un seul undo par trait." % OrganicScatterScript.mode_label(_scatter_mode).to_lower())
-	elif _tool == ToolsScript.MARKER:
-		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_marker_type), MapData.get_marker_label(_marker_type)])
-	elif _tool == ToolsScript.EFFECT:
-		_spin(_hbox(_tool_options), "Rayon", 0.25, 8.0, _effect_radius, 0.25, func(v): _effect_radius = v)
-		_option_note("Preset : %s" % _effect_preset)
-	elif _tool in [ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY]:
-		_spin(_hbox(_tool_options), "Rayon", 0.25, 12.0, _zone_radius, 0.25, func(v): _zone_radius = v)
-		_line_row(_hbox(_tool_options), "Nom", _zone_label, func(text): _zone_label = text)
-	elif _tool == ToolsScript.PROP:
-		if _prop_asset.is_empty():
-			_option_note("Aucun décor sélectionné. Ouvrez l'onglet Biblio pour en choisir un.")
-		else:
-			_option_note("Décor : %s" % _prop_asset.get_file())
-		_spin(_hbox(_tool_options), "Taille (cases)", 0.25, 40.0, _prop_size, 0.25, func(v):
-			_prop_size = v
-			_refresh_ghost()
-		)
-		_checkbox(_tool_options, "Dressé face caméra", _prop_standing, func(on):
-			_prop_standing = on
-			_refresh_ghost()
-		)
-		_option_note("Rotation : %d° (R pour pivoter)" % int(_prop_rotation))
-	elif _tool == ToolsScript.MESH:
-		if _mesh_asset.is_empty():
-			_option_note("Aucun objet 3D sélectionné. Ouvrez l'onglet Biblio → Objets 3D.")
-		else:
-			_option_note("Objet 3D : %s" % _mesh_asset.get_file())
-		_spin(_hbox(_tool_options), "Échelle", 0.1, 10.0, _mesh_scale, 0.1, func(v):
-			_mesh_scale = v
-			_refresh_ghost()
-		)
-		var snap_chk := CheckBox.new()
-		snap_chk.text = "Aimantation aux bâtiments"
-		snap_chk.button_pressed = _mesh_snap_modules
-		snap_chk.tooltip_text = "Toits et façades se posent automatiquement sur le bâtiment le plus proche."
-		snap_chk.toggled.connect(func(on): _mesh_snap_modules = on)
-		_tool_options.add_child(snap_chk)
-		_option_note("Rotation : %d° (R pour pivoter)" % int(_mesh_rotation))
-	elif _tool == ToolsScript.AREA:
-		_line_row(_hbox(_tool_options), "Nom du lieu", _area_label, func(text): _area_label = text)
-		var cat := OptionButton.new()
-		for i in range(MapData.AREA_CATEGORIES.size()):
-			var category: Dictionary = MapData.AREA_CATEGORIES[i]
-			cat.add_item("%s %s" % [category["icon"], category["label"]], i)
-			cat.set_item_metadata(i, str(category["id"]))
-			if str(category["id"]) == _area_category:
-				cat.select(i)
-		cat.item_selected.connect(func(index): _area_category = str(cat.get_item_metadata(index)))
-		_tool_options.add_child(cat)
-		_option_note("Glissez pour délimiter le lieu, puis reliez-lui une carte depuis l'inspecteur.")
-	elif _tool == ToolsScript.PAINT:
-		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_brush_size), 1, func(v): _brush_size = int(v))
-		_option_note("Tuile : %s" % _paint_tile)
-	elif _tool == ToolsScript.TERRAIN_HEIGHT:
-		var mode_opt := OptionButton.new()
-		var relief_modes := [
-			["raise", "Monter"], ["lower", "Baisser"],
-			["flatten", "Aplatir"], ["smooth", "Lisser"],
-		]
-		for i in range(relief_modes.size()):
-			mode_opt.add_item(str(relief_modes[i][1]), i)
-			mode_opt.set_item_metadata(i, str(relief_modes[i][0]))
-			if str(relief_modes[i][0]) == _relief_mode:
-				mode_opt.select(i)
-		mode_opt.item_selected.connect(func(index):
-			_relief_mode = str(mode_opt.get_item_metadata(index))
-		)
-		_tool_options.add_child(mode_opt)
-		_spin(_hbox(_tool_options), "Pinceau (cases)", 0.5, 8.0, _relief_radius, 0.5, func(v):
-			_relief_radius = v
-			_refresh_ghost()
-		)
-		_spin(_hbox(_tool_options), "Force (cases)", 0.05, 2.0, _relief_strength, 0.05, func(v):
-			_relief_strength = v
-		)
-		var flatten_btn := Button.new()
-		flatten_btn.text = "Niveler tout"
-		flatten_btn.tooltip_text = "Remet toutes les hauteurs à zéro (annulable)."
-		flatten_btn.add_theme_font_size_override("font_size", 10)
-		flatten_btn.pressed.connect(func():
-			doc.clear_all_terrain()
-			_sync_engine()
-			_set_status("Relief nivelé à zéro.")
-		)
-		_tool_options.add_child(flatten_btn)
-		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
-	elif _tool == ToolsScript.GROUND_MATERIAL:
-		var mat_opt := OptionButton.new()
-		var materials := [
-			[DocumentScript.MATERIAL_GRASS, "Herbe", "🌿"],
-			[DocumentScript.MATERIAL_DIRT, "Terre / chemin", "🟫"],
-			[DocumentScript.MATERIAL_STONE, "Pierre / pavé", "🪨"],
-			[DocumentScript.MATERIAL_SNOW, "Neige", "❄️"],
-			[DocumentScript.MATERIAL_SAND, "Sable", "🏖️"],
-		]
-		for i in range(materials.size()):
-			mat_opt.add_item("%s %s" % [materials[i][2], materials[i][1]], int(materials[i][0]))
-			mat_opt.set_item_metadata(i, int(materials[i][0]))
-			if int(materials[i][0]) == _material_id:
-				mat_opt.select(i)
-		mat_opt.item_selected.connect(func(index):
-			_material_id = int(mat_opt.get_item_metadata(index))
-		)
-		_tool_options.add_child(mat_opt)
-		_spin(_hbox(_tool_options), "Pinceau (cases)", 0.5, 8.0, _material_radius, 0.5, func(v):
-			_material_radius = v
-			_refresh_ghost()
-		)
-		var fill_mat_btn := Button.new()
-		fill_mat_btn.text = "Remplir tout"
-		fill_mat_btn.tooltip_text = "Applique la matière choisie à toute la carte (annulable)."
-		fill_mat_btn.add_theme_font_size_override("font_size", 10)
-		fill_mat_btn.pressed.connect(func():
-			doc.fill_all_material(_material_id)
-			_sync_engine()
-			_set_status("Sol entièrement repeint.")
-		)
-		_tool_options.add_child(fill_mat_btn)
-		_option_note("Peint la matière du sol. La carte doit être en mode sol 3D (terrain3d). Matière enregistrée avec la carte.")
-	elif _tool == ToolsScript.FOG_REVEAL or _tool == ToolsScript.FOG_HIDE:
-		_spin(_hbox(_tool_options), "Pinceau", 0, 6, float(_fog_brush), 1, func(v): _fog_brush = int(v))
-	elif _tool == ToolsScript.TEMPLATE:
-		_option_note("Template : %s (rotation %d°)" % [
-			_selected_template if not _selected_template.is_empty() else "aucun",
-			_template_rotation * 90,
-		])
-	else:
-		_option_note(ToolsScript.hint(_tool))
-
-func _option_note(text: String) -> void:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_tool_options.add_child(lbl)
-
-# ===========================================================================
-# Statut & aide
-# ===========================================================================
+	_tool_opts._rebuild_tool_options()
 
 func _set_status(text: String) -> void:
 	if _status_lbl:
