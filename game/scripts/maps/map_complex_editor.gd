@@ -117,6 +117,7 @@ var _proc_roof_overhang: float = 0.35
 var _proc_roof_style: String = "gable"
 var _proc_fence_height: float = 0.9
 var _proc_fence_spacing: float = 1.1
+var _proc_wall_color: String = "#a89d88"
 var _proc_path_width: float = 1.2
 var _proc_path_color: String = "#8a7654"
 var _auto_stack: bool = true

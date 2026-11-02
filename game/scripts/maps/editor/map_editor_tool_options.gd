@@ -156,9 +156,23 @@ func _rebuild_tool_options() -> void:
 		_ed._tool_options.add_child(path_opt)
 		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
 	elif _ed._tool == ToolsScript.PROC_WALL:
+		var wall_style_opt := OptionButton.new()
+		var wall_styles := [
+			["#a89d88", "Pierre claire"],
+			["#8f8674", "Pierre grise"],
+			["#b8a98b", "Chaux"],
+			["#7b5c3d", "Bois"],
+		]
+		for i in range(wall_styles.size()):
+			wall_style_opt.add_item(str(wall_styles[i][1]), i)
+			wall_style_opt.set_item_metadata(i, str(wall_styles[i][0]))
+			if str(wall_styles[i][0]) == _ed._proc_wall_color:
+				wall_style_opt.select(i)
+		wall_style_opt.item_selected.connect(func(index: int): _ed._proc_wall_color = str(wall_style_opt.get_item_metadata(index)))
+		_ed._tool_options.add_child(wall_style_opt)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
-		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Pas de couture visible aux angles.")
+		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Style, hauteur et lissage réglables.")
 	elif _ed._tool == ToolsScript.PROC_FENCE:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 2.5, _ed._proc_fence_height, 0.1, func(v): _ed._proc_fence_height = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)

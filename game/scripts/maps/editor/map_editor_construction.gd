@@ -769,7 +769,7 @@ func _build_procedural_wall(raw_points: Array) -> String:
 		"height": maxf(0.5, _ed._wall_height),
 		"thickness": 0.7,
 		"bevel": 0.12,
-		"color": "#a89d88",
+		"color": _ed._proc_wall_color,
 		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
 		"label": "Mur procédural", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
