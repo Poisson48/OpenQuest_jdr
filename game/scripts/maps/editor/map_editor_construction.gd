@@ -18,6 +18,7 @@ const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const OrganicPathScript := preload("res://scripts/maps/construction/organic_path.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
+const WaveFunctionCollapseScript := preload("res://scripts/maps/construction/wave_function_collapse.gd")
 const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
 
 const ROOF_STYLES := [
@@ -1879,6 +1880,72 @@ func _create_prop(grid: Vector2) -> void:
 ## Génère une scène complète (village/forêt/camp) à partir d'une graine.
 ## Les chemins sont peints, les maisons construites avec l'outil Maison rapide,
 ## le décor posé comme objets 3D.
+## Peint des plaques de sol organiques (herbe / terre / pierre) avec WFC.
+## Donne immédiatement une carte moins « damier » avant la génération de scène.
+func apply_wfc_ground(style_id: String) -> int:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	if width < 4 or height < 4:
+		return 0
+	var weights := [8.0, 2.0, 0.6] if style_id == "village" else ([7.0, 2.0, 1.4] if style_id == "forest" else [5.0, 3.0, 1.2])
+	# 0 herbe, 1 terre, 2 pierre — règles symétriques.
+	var adjacency := [
+		[[0, 1], [0, 1, 2], [1, 2]],
+		[[0, 1], [0, 1, 2], [1, 2]],
+		[[0, 1], [0, 1, 2], [1, 2]],
+		[[0, 1], [0, 1, 2], [1, 2]],
+	]
+	var wfc = WaveFunctionCollapseScript.new()
+	wfc.configure(weights, adjacency, _ed._scene_seed + 73)
+	var grid: Array = wfc.generate(width, height)
+	if grid.is_empty():
+		return 0
+	var changed := 0
+	_ed.doc.begin_transaction()
+	for y in range(height):
+		for x in range(width):
+			if _ed.doc.terrain_material(x, y) != DocumentScript.MATERIAL_GRASS:
+				continue
+			var tile := int(grid[y * width + x])
+			if tile == 1:
+				_ed.doc.set_terrain_material(x, y, DocumentScript.MATERIAL_DIRT, "WFC")
+				changed += 1
+			elif tile == 2:
+				_ed.doc.set_terrain_material(x, y, DocumentScript.MATERIAL_STONE, "WFC")
+				changed += 1
+	_ed.doc.commit_transaction()
+	return changed
+
+## Ajoute des rochers Marching Cubes autour de la scène (décor organique).
+func add_procedural_rocks(count: int = 4) -> int:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	if width < 4 or height < 4 or count <= 0:
+		return 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ed._scene_seed + 991
+	var added := 0
+	_ed.doc.begin_transaction()
+	for _i in range(count):
+		var x := rng.randf_range(1.5, float(width) - 1.5)
+		var y := rng.randf_range(1.5, float(height) - 1.5)
+		var id: String = _ed.doc.add_element({
+			"x": x, "y": y, "w": 1.4, "h": 1.4,
+			"asset": "procedural://rock",
+			"seed": rng.randi() % 100000,
+			"detail": 12,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Rocher procédural", "layer": 1,
+			"display": {
+				"rotation": rng.randf_range(0.0, 360.0),
+				"scale": rng.randf_range(0.75, 1.25),
+			},
+		}, DocumentScript.KIND_MESH, "Rocher procédural")
+		if not id.is_empty():
+			added += 1
+	_ed.doc.commit_transaction()
+	return added
+
 func _generate_scene(_grid: Vector2) -> void:
 	var width := int(_ed.doc.map_data.get("width", 0))
 	var height := int(_ed.doc.map_data.get("height", 0))

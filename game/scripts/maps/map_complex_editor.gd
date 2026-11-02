@@ -2932,8 +2932,10 @@ func _on_quick_start(index: int) -> void:
 		_scene_style = styles[index]
 		_apply_quick_visuals(_scene_style)
 		_scene_seed = (int(Time.get_unix_time_from_system()) + randi()) % 1000000
+		var wfc_patches: int = _construction.apply_wfc_ground(_scene_style)
 		_construction._generate_scene(Vector2.ZERO)
-		_set_status("Démarrage rapide : %s généré avec une ambiance prête à jouer." % ProceduralSceneGeneratorScript.style_label(_scene_style))
+		var rocks: int = _construction.add_procedural_rocks(4)
+		_set_status("Démarrage rapide : %s généré avec %d plaque(s) WFC, %d rocher(s) Marching Cubes et une ambiance prête." % [ProceduralSceneGeneratorScript.style_label(_scene_style), wfc_patches, rocks])
 	else:
 		_apply_quick_visuals("house")
 		var center := Vector2(float(width) * 0.5, float(height) * 0.5)

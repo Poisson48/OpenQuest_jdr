@@ -60,6 +60,7 @@ const ProceduralPathMeshScript := preload("res://scripts/maps/construction/proce
 const ProceduralTentMeshScript := preload("res://scripts/maps/construction/procedural_tent_mesh.gd")
 const ProceduralCampfireMeshScript := preload("res://scripts/maps/construction/procedural_campfire_mesh.gd")
 const ProceduralPolyRoofScript := preload("res://scripts/maps/construction/procedural_poly_roof.gd")
+const ProceduralRockMeshScript := preload("res://scripts/maps/construction/procedural_rock_mesh.gd")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -305,7 +306,15 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 	var mesh_instance := MeshInstance3D.new()
 	var asset := str(mesh.get("asset", ""))
 	var material := StandardMaterial3D.new()
-	if asset == "procedural://poly_roof":
+	if asset == "procedural://rock":
+		mesh_instance.name = "ProceduralRock"
+		mesh_instance.mesh = ProceduralRockMeshScript.build(
+			int(mesh.get("seed", 1)), int(mesh.get("detail", 14))
+		)
+		material.albedo_color = Color("#7d7668")
+		material.roughness = 0.98
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	elif asset == "procedural://poly_roof":
 		mesh_instance.name = "ProceduralPolyRoof"
 		mesh_instance.mesh = ProceduralPolyRoofScript.build_from_element(mesh)
 		material.vertex_color_use_as_albedo = true
