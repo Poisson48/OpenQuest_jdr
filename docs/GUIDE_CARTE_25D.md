@@ -126,6 +126,8 @@ Outils terrain :
   ([PLAN_PROCEDURAL.md](PLAN_PROCEDURAL.md)).
 - **Outil 🪵 Clôture procédurale** : clic-glisser libre ; poteaux et lisses en un
   seul mesh, hauteur et espacement réglables.
+- **Outil 🛤 Chemin procédural** : clic-glisser libre ; ruban de chemin continu
+  avec bords biseautés et largeur réglable.
 - **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
   pans avec débord et pignons, adapté à l'emprise, sans tuiles à recaler.
   La démo du village montre une porte à auvent et une fenêtre à volets posées

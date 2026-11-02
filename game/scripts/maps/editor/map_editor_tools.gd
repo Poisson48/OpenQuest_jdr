@@ -32,6 +32,7 @@ const PATH_3D := "path_3d"
 const ORGANIC := "organic"
 const PROC_WALL := "proc_wall"
 const PROC_FENCE := "proc_fence"
+const PROC_PATH := "proc_path"
 const SCATTER := "scatter"
 const FLOWER_ZONE := "flower_zone"
 const CONTEXT_DECOR := "context_decor"
@@ -168,6 +169,10 @@ const DEFS := [
 	{
 		"id": PROC_FENCE, "icon": "🪵", "label": "Clôture procédurale", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser libre : poteaux et lisses générés en un seul mesh le long de la courbe. Hauteur et espacement réglables.",
+	},
+	{
+		"id": PROC_PATH, "icon": "🛤", "label": "Chemin procédural", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser libre : ruban de chemin continu avec bords biseautés, largeur réglable. Complète le chemin peint pour les routes surélevées.",
 	},
 	{
 		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",

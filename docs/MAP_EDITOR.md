@@ -243,6 +243,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🌀 Tracé organique | — | Clic-glisser libre : **courbe lissée Catmull-Rom** construite en modules continus (mur/clôture/palissade/barrière), orientés tangente, hauteur/lissage/espacement |
 | Placer | 🪄 Mur procédural | — | Clic-glisser libre : un **seul mesh continu à mitres** généré depuis la courbe (étape 1 du plan procédural) |
 | Placer | 🪵 Clôture procédurale | — | Clic-glisser libre : poteaux + lisses en **un seul mesh** le long de la courbe |
+| Placer | 🛤 Chemin procédural | — | Clic-glisser libre : ruban de chemin continu biseauté, largeur réglable |
 | Placer | 🌿 Végétation | — | Clic-glisser : **dispersion automatique** de buissons/haies/roseaux/arbres/bosquets/rochers, densité/taille/rayon, sans doublon de case |
 | Placer | 🌸 Zone fleurie | — | Clic-glisser pour dessiner une zone fermée : fleurs procédurales du type choisi (coquelicots, marguerites, lavande, bleues, mélange), densité/taille |
 | Placer | 🍂 Décor contextuel | — | Clic près d'un mur : sème buissons, rochers et haies le long de ses abords (rayon/densité, graine, un undo) |

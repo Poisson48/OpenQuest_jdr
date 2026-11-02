@@ -100,6 +100,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - v2 : crête biseautée, face supérieure plate entre deux chanfreins.
 - v3 : matière procédurale (pierre, variation, mousse au pied), sans texture.
 - **Clôture procédurale** : poteaux + lisses en un seul mesh le long d'une courbe.
+- **Chemin procédural** : ruban biseauté continu, largeur réglable.
 
 ## Étape 2 — Terrain déformable façon Tiny Glade (socle livré)
 - Heightfield sculptable : monter, baisser, lisser, aplatir.
@@ -252,7 +253,7 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 ## État actuel
 
 - Étape 1 terminée : mur procédural continu, v3 avec crête biseautée et matière
-  procédurale ; **clôture procédurale** (poteaux + lisses).
+  procédurale ; **clôture** et **chemin** procéduraux.
 - Étape 2 en cours : relief déformable par tracé (crête/vallée/aplatir/lisser)
   implémenté côté document, éditeur et test ; la démo visuelle est calibrée pour
   révéler le relief malgré la texture.
