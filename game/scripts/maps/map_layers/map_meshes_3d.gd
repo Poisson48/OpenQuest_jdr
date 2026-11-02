@@ -447,7 +447,6 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 	if source == null:
 		return
 	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
-	var center_h := _terrain_height_at(center.x, center.y)
 	var result := ArrayMesh.new()
 	for s in range(source.get_surface_count()):
 		var arrays: Array = source.surface_get_arrays(s)
@@ -473,7 +472,8 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 				var v := vertices[vi]
 				var gx := center.x + v.x
 				var gy := center.y + v.z
-				v.y += _terrain_height_at(gx, gy) - center_h
+				# Hauteur absolue du terrain : la racine sera posée à y=0.
+				v.y = _terrain_height_at(gx, gy) + v.y
 				if vi < colors.size():
 					st.set_color(colors[vi])
 				else:
@@ -482,6 +482,7 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 		st.generate_normals()
 		st.commit(result)
 	mesh_instance.mesh = result
+	mesh_instance.set_meta("terrain_baked", true)
 
 func _is_occludable_asset(asset: String) -> bool:
 	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:
@@ -531,9 +532,11 @@ func _place_root(root: Node3D, mesh: Dictionary) -> void:
 	var gx := float(mesh.get("x", 0.0))
 	var gy := float(mesh.get("y", 0.0))
 	var elevation := float(mesh.get("elevation", 0.0)) * _cell_size
-	var base_y := _terrain_base_y(mesh) if _follows_terrain(mesh) else 0.0
+	var visual_node: Node = root.get_meta("visual", null) if root.has_meta("visual") else null
+	var terrain_baked := visual_node != null and visual_node.has_meta("terrain_baked")
+	var base_y := 0.0 if terrain_baked else (_terrain_base_y(mesh) if _follows_terrain(mesh) else 0.0)
 	var yaw := -float(display.get("rotation", 0.0))
-	var visual: Node = root.get_meta("visual", null) if root.has_meta("visual") else null
+	var visual: Node = visual_node
 	var dimensions := _mesh_dimensions(mesh, visual) if visual != null else Vector3.ZERO
 	var scale_vec: Vector3
 	if dimensions == Vector3.ZERO:

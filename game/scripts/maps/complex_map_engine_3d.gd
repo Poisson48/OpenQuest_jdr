@@ -1280,7 +1280,7 @@ func _update_camera_debug() -> void:
 		return
 	if _camera_debug_lbl == null:
 		_camera_debug_lbl = Label.new()
-		_camera_debug_lbl.position = Vector2(12, 12)
+		_camera_debug_lbl.position = Vector2(12, 74)
 		_camera_debug_lbl.z_index = 100
 		_camera_debug_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_camera_debug_lbl.add_theme_font_size_override("font_size", 11)
