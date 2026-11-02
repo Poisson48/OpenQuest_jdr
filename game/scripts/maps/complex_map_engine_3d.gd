@@ -48,7 +48,7 @@ const TableEnvironmentScript := preload("res://scripts/maps/map_layers/table_env
 const TableDice3DScript := preload("res://scripts/maps/map_layers/table_dice_3d.gd")
 
 const MIN_ZOOM := 0.25
-const MAX_ZOOM := 4.0
+const MAX_ZOOM := 12.0
 ## Seuil sous lequel une case de relief est considérée comme plate.
 const TERRAIN_RELIEF_EPSILON := 0.001
 const DRAG_THRESHOLD := 4.0
