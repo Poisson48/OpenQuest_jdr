@@ -219,6 +219,25 @@ func _rebuild_tool_options() -> void:
 	elif _ed._tool == ToolsScript.PAINT:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
+	elif _ed._tool == ToolsScript.TERRAIN_SPLINE:
+		var spline_mode_opt := OptionButton.new()
+		var spline_modes := [
+			["ridge", "Crête"], ["valley", "Vallée"],
+			["flatten", "Aplatir"], ["smooth", "Lisser"],
+		]
+		for i in range(spline_modes.size()):
+			spline_mode_opt.add_item(str(spline_modes[i][1]), i)
+			spline_mode_opt.set_item_metadata(i, str(spline_modes[i][0]))
+			if str(spline_modes[i][0]) == _ed._terrain_spline_mode:
+				spline_mode_opt.select(i)
+		spline_mode_opt.item_selected.connect(func(index):
+			_ed._terrain_spline_mode = str(spline_mode_opt.get_item_metadata(index))
+		)
+		_ed._tool_options.add_child(spline_mode_opt)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 0.5, 10.0, _ed._terrain_spline_width, 0.5, func(v): _ed._terrain_spline_width = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Force", 0.05, 2.0, _ed._terrain_spline_strength, 0.05, func(v): _ed._terrain_spline_strength = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._terrain_spline_smoothing), 1, func(v): _ed._terrain_spline_smoothing = int(v))
+		_option_note("Clic-glisser libre : déforme le terrain le long du tracé. Crête/vallée pour les collines, aplatir pour une plateforme, lisser pour adoucir.")
 	elif _ed._tool == ToolsScript.TERRAIN_HEIGHT:
 		var mode_opt := OptionButton.new()
 		var relief_modes := [

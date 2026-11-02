@@ -63,6 +63,12 @@ var _brush_size: int = 0
 var _relief_radius: float = 1.5
 var _relief_strength: float = 0.35
 var _relief_mode: String = "raise"
+## Relief tracé : courbe, largeur, force, lissage, mode.
+var _terrain_spline_points: Array = []
+var _terrain_spline_width: float = 2.0
+var _terrain_spline_strength: float = 0.5
+var _terrain_spline_smoothing: int = 4
+var _terrain_spline_mode: String = "ridge"
 ## Sol : matière peinte (0 herbe, 1 terre, 2 pierre) + rayon du pinceau.
 var _material_id: int = 0
 var _material_radius: float = 1.5
@@ -1344,6 +1350,53 @@ func _paint_relief(grid: Vector2) -> void:
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
 	_refresh_overlay()
+
+func _finish_terrain_spline() -> void:
+	var raw_points: Array = _terrain_spline_points.duplicate()
+	_terrain_spline_points.clear()
+	_overlay.polygon_points.clear()
+	_press_mode = "none"
+	if raw_points.size() < 2:
+		_set_status("Relief tracé : geste trop court (clic-glissez).")
+		_refresh_overlay()
+		return
+	var curve := OrganicPathScript.path_points(raw_points, {
+		"smoothing": _terrain_spline_smoothing,
+		"spacing": 0.4,
+		"nominal_length": 0.5,
+	})
+	if curve.size() < 2:
+		_refresh_overlay()
+		return
+	doc.begin_transaction()
+	doc.paint_terrain_spline(
+		curve, _terrain_spline_width, _terrain_spline_strength,
+		_terrain_spline_mode, "Relief tracé"
+	)
+	doc.commit_transaction()
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	_sync_engine()
+	_set_status("Relief tracé : %s · largeur %.1f · force %.2f." % [
+		_terrain_spline_mode_label(), _terrain_spline_width, _terrain_spline_strength])
+	_refresh_panels()
+	_refresh_overlay()
+
+func _preview_terrain_spline() -> void:
+	var length := OrganicPathScript.total_length(_terrain_spline_points)
+	_set_status("Relief tracé : %d point(s) · %.2f case(s) · %s · relâchez pour appliquer." % [
+		_terrain_spline_points.size(), length, _terrain_spline_mode_label()])
+
+func _terrain_spline_mode_label() -> String:
+	match _terrain_spline_mode:
+		"valley":
+			return "Vallée"
+		"flatten":
+			return "Aplatir"
+		"smooth":
+			return "Lisser"
+		_:
+			return "Crête"
 
 ## Peint la matière du sol (herbe / terre / pierre) sous le curseur.
 func _paint_ground_material(grid: Vector2) -> void:

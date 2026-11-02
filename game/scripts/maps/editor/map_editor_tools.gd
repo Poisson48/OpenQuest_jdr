@@ -36,6 +36,7 @@ const LIGHT := "light"
 const PAINT := "paint"
 const BUCKET := "bucket"
 const TERRAIN_HEIGHT := "terrain_height"
+const TERRAIN_SPLINE := "terrain_spline"
 const GROUND_MATERIAL := "ground_material"
 const FOG_REVEAL := "fog"
 const FOG_HIDE := "fog_hide"
@@ -190,6 +191,10 @@ const DEFS := [
 	{
 		"id": TERRAIN_HEIGHT, "icon": "⛰", "label": "Relief", "shortcut": "U", "group": "terrain",
 		"hint": "Clic ou glisser : monter/baisser le terrain. Les objets 3D posés s'adaptent à la hauteur. Mode, pinceau et force dans les options.",
+	},
+	{
+		"id": TERRAIN_SPLINE, "icon": "🏔", "label": "Relief tracé", "shortcut": "", "group": "terrain",
+		"hint": "Clic-glisser libre : déforme le terrain le long d'une courbe (crête, vallée, aplatir, lisser). Largeur et force réglables ; idéal pour collines, berges et chemins creusés.",
 	},
 	{
 		"id": GROUND_MATERIAL, "icon": "🟫", "label": "Sol", "shortcut": "Y", "group": "terrain",

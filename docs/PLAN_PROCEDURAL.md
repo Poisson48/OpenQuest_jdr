@@ -227,7 +227,13 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 
 ## État actuel
 
-- Éditeur refactoré, construction, UI, lumière, végétation.
-- Étape 1 en cours : mur procédural continu (mesh + outil + démo).
-- Terrain déformable : planifié étape 2, priorité haute.
-- Assets procéduraux : étape 4, mais déjà préparés par le pipeline Blender existant.
+- Étape 1 terminée : mur procédural continu (mesh + outil + démo).
+- Étape 2 en cours : relief déformable par tracé (crête/vallée/aplatir/lisser)
+  implémenté côté document, éditeur et test ; la démo visuelle est calibrée pour
+  révéler le relief malgré la texture.
+- Terrain déformable : pinceau existant + tracé + plateformes ; prochaine
+  itération sur les berges, empreintes de bâtiments et mesh de terrain.
+- Étape 5 : zones fleuries au pinceau prévues (choix du type de fleur).
+- Assets procéduraux : étape 4, pipeline Blender offline.
+- La végétation procédurale automatique est désactivée par défaut pour des
+  captures propres ; elle sera remplacée par des zones peintes.

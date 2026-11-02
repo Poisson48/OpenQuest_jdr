@@ -52,6 +52,21 @@ func _test_data(base: Dictionary) -> void:
 	doc.paint_terrain_brush(Vector2(6.0, 5.0), 2.0, 1.0, "flatten")
 	_assert("brush_flatten", absf(doc.terrain_height(6, 5) - doc.terrain_height(7, 6)) < 1.2)
 
+	# Relief tracé : crête le long d'une courbe, avec retombée sur les bords.
+	var ridge_before := float(doc.terrain_height(3, 8))
+	doc.paint_terrain_spline(
+		[Vector2(1.0, 8.0), Vector2(5.0, 7.0), Vector2(10.0, 8.0)],
+		2.0, 0.8, "ridge", "Test relief tracé"
+	)
+	_assert("spline_ridge_raised", doc.terrain_height(5, 7) > ridge_before + 0.2)
+	_assert("spline_falloff", doc.terrain_height(5, 7) > doc.terrain_height(5, 10))
+	var valley_before := float(doc.terrain_height(5, 7))
+	doc.paint_terrain_spline(
+		[Vector2(1.0, 8.0), Vector2(5.0, 7.0), Vector2(10.0, 8.0)],
+		2.0, 0.5, "valley", "Test vallée"
+	)
+	_assert("spline_valley_lowered", doc.terrain_height(5, 7) < valley_before)
+
 	# Matières du sol : herbe par défaut, puis terre / pierre.
 	_assert("material_buffer_size", doc.terrain_materials().size() == 12 * 10)
 	_assert("material_default_grass", doc.terrain_material(0, 0) == 0)

@@ -37,6 +37,16 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_begin_select_or_move(grid, screen, mods)
 		return
 
+	if _ed._tool == ToolsScript.TERRAIN_SPLINE:
+		if not _ed._in_bounds(grid):
+			_ed._set_status("Relief tracé : commencez dans la carte.")
+			return
+		_ed._press_mode = "terrain_spline"
+		_ed._terrain_spline_points = [grid]
+		_ed._overlay.polygon_points = [grid]
+		_ed._refresh_overlay()
+		_ed._set_status("Relief tracé : glissez pour dessiner la crête/vallée.")
+		return
 	if _ed._tool == ToolsScript.ORGANIC or _ed._tool == ToolsScript.PROC_WALL:
 		if not _ed._in_bounds(grid):
 			_ed._set_status("Tracé organique : commencez dans la carte.")
@@ -254,6 +264,14 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				_ed._organic_points.append(grid)
 				_ed._overlay.polygon_points = _ed._organic_points.duplicate()
 				_ed._construction._preview_organic_status()
+		"terrain_spline":
+			_ed._press_moved = true
+			var last_spline_point: Vector2 = (_ed._terrain_spline_points[_ed._terrain_spline_points.size() - 1] as Vector2) \
+				if not _ed._terrain_spline_points.is_empty() else grid
+			if last_spline_point.distance_to(grid) >= 0.2:
+				_ed._terrain_spline_points.append(grid)
+				_ed._overlay.polygon_points = _ed._terrain_spline_points.duplicate()
+				_ed._preview_terrain_spline()
 		"scatter":
 			_ed._press_moved = true
 			_ed._construction._continue_scatter_stroke(grid)
@@ -315,6 +333,8 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._finish_draw(_ed._snap(grid))
 		"organic":
 			_ed._construction._finish_organic_stroke()
+		"terrain_spline":
+			_ed._finish_terrain_spline()
 		"scatter":
 			_ed._construction._finish_scatter_stroke()
 		"paint":
@@ -335,7 +355,7 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 
 func _handle_right_click(grid: Vector2) -> void:
 	# Tracé organique en cours : le clic droit annule le trait (pas de polygone).
-	if _ed._press_mode == "organic" or _ed._press_mode == "scatter":
+	if _ed._press_mode == "organic" or _ed._press_mode == "scatter" or _ed._press_mode == "terrain_spline":
 		_cancel_action()
 		return
 	if not _ed._overlay.polygon_points.is_empty():
@@ -349,6 +369,13 @@ func _handle_right_click(grid: Vector2) -> void:
 		_ed._set_status("Position (%.1f, %.1f) — %s" % [grid.x, grid.y, _ed.doc.get_tile_at(int(roundf(grid.x)), int(roundf(grid.y)))])
 
 func _cancel_action() -> void:
+	if _ed._press_mode == "terrain_spline":
+		_ed._terrain_spline_points.clear()
+		_ed._press_mode = "none"
+		_ed._overlay.clear_transient()
+		_ed._refresh_overlay()
+		_ed._set_status("Relief tracé annulé.")
+		return
 	if _ed._press_mode == "organic":
 		_ed._organic_points.clear()
 		_ed._press_mode = "none"

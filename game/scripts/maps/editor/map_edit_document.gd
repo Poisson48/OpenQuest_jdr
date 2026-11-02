@@ -1166,6 +1166,81 @@ func paint_terrain_brush(center: Vector2, radius: float, strength: float,
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
 
+## Déformation du relief le long d'un tracé (crête, vallée, aplatissement,
+## lissage). Les points sont en cases, déjà lissés/ré-échantillonnés par
+## l'éditeur. Le relief est modifié dans une seule étape d'undo.
+func paint_terrain_spline(points: Array, width: float, strength: float,
+		mode: String = "ridge", note: String = "Relief (tracé)") -> void:
+	if points.size() < 2:
+		return
+	var size := terrain_size()
+	var heights := _terrain_buffer()
+	var w := maxf(0.5, width)
+	var min_x := size.x - 1
+	var max_x := 0
+	var min_y := size.y - 1
+	var max_y := 0
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		min_x = mini(min_x, int(floor(p.x - w)))
+		max_x = maxi(max_x, int(ceil(p.x + w)))
+		min_y = mini(min_y, int(floor(p.y - w)))
+		max_y = maxi(max_y, int(ceil(p.y + w)))
+	min_x = maxi(0, min_x)
+	max_x = mini(size.x - 1, max_x)
+	min_y = maxi(0, min_y)
+	max_y = mini(size.y - 1, max_y)
+	if min_x > max_x or min_y > max_y:
+		return
+	var target := 0.0
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		target += terrain_height(int(round(p.x)), int(round(p.y)))
+	target /= float(points.size())
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			var best := INF
+			for i in range(points.size() - 1):
+				var a: Vector2 = points[i]
+				var b: Vector2 = points[i + 1]
+				best = minf(best, _distance_point_segment(Vector2(cx, cy), a, b))
+			if best > w:
+				continue
+			var mask := pow(clampf(1.0 - best / w, 0.0, 1.0), 2.0)
+			var idx: int = cy * size.x + cx
+			var current := float(heights[idx])
+			var next := current
+			match mode:
+				"valley":
+					next = current - strength * mask
+				"flatten":
+					next = lerpf(current, target, clampf(mask * 0.7, 0.0, 1.0))
+				"smooth":
+					next = lerpf(current, _terrain_neighbor_average(heights, size, cx, cy), clampf(mask * 0.75, 0.0, 1.0))
+				_:
+					next = current + strength * mask
+			next = clampf(next, -2.0, 12.0)
+			if absf(next - current) < 0.001:
+				continue
+			before[str(idx)] = current
+			after[str(idx)] = next
+			heights[idx] = next
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+
+static func _distance_point_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var len_sq := ab.length_squared()
+	if len_sq < 0.000001:
+		return p.distance_to(a)
+	var t := clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
 ## Nivelle tout le relief à zéro (une seule étape d'undo).
 func clear_all_terrain(note: String = "Nivellement") -> void:
 	var heights := _terrain_buffer()
