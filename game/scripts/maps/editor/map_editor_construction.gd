@@ -580,6 +580,10 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	for floor_index in range(1, _ed._house_floors):
 		var floor_elevation: float = _ed._wall_height * float(floor_index)
 		_create_mesh_room(from, to, floor_elevation)
+		if _ed._house_auto_windows:
+			var mid_y := (y0 + y1) * 0.5
+			_insert_window(Vector2(x0, mid_y), floor_elevation)
+			_insert_window(Vector2(x1, mid_y), floor_elevation)
 		var slab_id: String = _ed.doc.add_element({
 			"x": (x0 + x1) * 0.5, "y": (y0 + y1) * 0.5,
 			"w": maxf(1.0, x1 - x0), "h": maxf(1.0, y1 - y0),
@@ -1302,7 +1306,7 @@ func _insert_furniture(grid: Vector2) -> void:
 	_ed.doc.set_selection(ids)
 	_ed.doc.commit_transaction()
 	_ed._set_status("Meublé : %s (%d objets)." % [str(preset["label"]), ids.size()])
-func _insert_window(grid: Vector2) -> void:
+func _insert_window(grid: Vector2, target_elevation: float = -9999.0) -> void:
 	var wall: Dictionary = {}
 	var best := 2.5
 	for elem_variant in _ed.doc.elements_sorted():
@@ -1310,6 +1314,9 @@ func _insert_window(grid: Vector2) -> void:
 		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
 			continue
 		if not str(elem.get("asset", "")).ends_with("mur.glb"):
+			continue
+		if target_elevation > -9998.0 \
+				and absf(float(elem.get("elevation", 0.0)) - target_elevation) > 0.2:
 			continue
 		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
 		var distance := center.distance_to(grid)
@@ -1339,6 +1346,7 @@ func _insert_window(grid: Vector2) -> void:
 	var center := Vector2(float(wall.get("x", grid.x)), float(wall.get("y", grid.y)))
 	var offset := depth * 0.5 + back_offset
 	var wall_asset := str(wall.get("asset", ""))
+	var wall_elevation := float(wall.get("elevation", 0.0))
 	var wall_length := float(wall.get("sizeX", 0.0))
 	if wall_length <= 0.0:
 		wall_length = natural.x
@@ -1391,7 +1399,7 @@ func _insert_window(grid: Vector2) -> void:
 	var id: String = _ed.doc.add_element({
 		"x": center.x + front.x * offset, "y": center.y + front.y * offset,
 		"w": win_bounds.size.x, "h": win_bounds.size.z,
-		"asset": window_asset, "elevation": window_bottom - win_bounds.position.y if can_cut else 0.0,
+		"asset": window_asset, "elevation": wall_elevation + window_bottom - win_bounds.position.y if can_cut else wall_elevation,
 		"followTerrain": bool(wall.get("followTerrain", true)), "tiltToTerrain": false,
 		"label": "Fenêtre à volets", "layer": int(wall.get("layer", 1)),
 		"display": {"rotation": rotation, "scale": 1.0},
