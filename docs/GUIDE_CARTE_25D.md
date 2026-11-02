@@ -149,6 +149,8 @@ Outils terrain :
   recalculé quand on les déplace ou les redimensionne.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
+- En session, la caméra **recadre le personnage** après un déplacement et à
+  l'arrivée dans une zone voisine.
 - Élévation réglable pour les modules posés librement.
 
 Conventions des assets : 1 unité Blender = 1 case, origine au pied, avant `+Z`,
