@@ -54,7 +54,7 @@ func _run() -> void:
 	editor._sync_engine()
 	await process_frame
 	var sync_distance: float = engine._camera.position.distance_to(before_sync)
-	_assert("sync_stable", sync_distance < 2.0, "moved=%.2f" % sync_distance)
+	_assert("sync_stable", sync_distance < 2.0, "moved=%.2f before=%s after=%s" % [sync_distance, before_sync, engine._camera.position])
 
 	# Une orbite doit survivre à une synchro (peinture juste après rotation).
 	engine._camera.rotation_degrees = Vector3(-38.0, 24.0, 0.0)

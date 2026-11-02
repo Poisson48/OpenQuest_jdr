@@ -1295,7 +1295,9 @@ func _ensure_camera_above_terrain() -> void:
 		return
 	var focus := _ground_focus()
 	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
-	var min_y := ground + maxf(2.0, _style_camera_height() * 0.6)
+	# Ne remonter que si la caméra est réellement sous/dans le terrain. Utiliser
+	# une hauteur « de style » ici écrasait le zoom courant à chaque peinture.
+	var min_y := ground + 1.2
 	if _camera.position.y < min_y:
 		_camera.position.y = min_y
 		_clamp_camera()
