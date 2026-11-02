@@ -39,6 +39,7 @@ func _run() -> void:
 
 	var forest: Dictionary = GenScript.generate("foret", 30, 20, 7, 1.0)
 	_assert("forest_props", (forest["props"] as Array).size() > 5)
+	_assert("forest_clearing_path", (forest["paths"] as Array).size() > 0)
 	var camp: Dictionary = GenScript.generate("camp", 30, 20, 7, 1.0)
 	_assert("camp_props", (camp["props"] as Array).size() > 0)
 	_assert("invalid_small", (GenScript.generate("village", 4, 4, 1).get("houses", []) as Array).is_empty())

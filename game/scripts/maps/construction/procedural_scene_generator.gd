@@ -86,9 +86,13 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 
 static func _generate_forest(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
+	var center := Vector2(width * 0.5, height * 0.5)
+	result["paths"].append({"from": center, "to": Vector2(width - 2, center.y), "width": 1})
 	var count: int = clampi(int(round(float(width * height) * 0.035 * density)), 4, 80)
 	for _i in range(count):
 		var pos := Vector2(rng.randf_range(1.5, width - 1.5), rng.randf_range(1.5, height - 1.5))
+		if pos.distance_to(center) < 3.0:
+			continue
 		var clear := false
 		for h in result["houses"]:
 			if (h as Rect2).grow(0.8).has_point(pos):
@@ -100,6 +104,14 @@ static func _generate_forest(result: Dictionary, width: int, height: int,
 			"asset": "res://assets/objects3d/vegetation/arbre.glb" if rng.randf() < 0.55
 				else "res://assets/objects3d/vegetation/buisson.glb",
 			"x": pos.x, "y": pos.y, "scale": rng.randf_range(0.7, 1.35),
+		})
+	# Clairière : quelques rochers et fleurs autour du centre.
+	for i in range(4):
+		var angle := TAU * float(i) / 4.0 + rng.randf_range(-0.3, 0.3)
+		result["props"].append({
+			"asset": "res://assets/objects3d/terrain/rocher.glb",
+			"x": center.x + cos(angle) * 2.6, "y": center.y + sin(angle) * 2.6,
+			"scale": rng.randf_range(0.7, 1.1),
 		})
 
 static func _generate_camp(result: Dictionary, width: int, height: int,
