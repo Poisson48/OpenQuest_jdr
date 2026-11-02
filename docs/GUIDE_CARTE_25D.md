@@ -129,7 +129,8 @@ Outils terrain :
 - **Outil 🛤 Chemin procédural** : clic-glisser libre ; ruban de chemin continu
   avec bords biseautés et largeur réglable.
 - **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
-  pans avec débord et pignons, adapté à l'emprise, sans tuiles à recaler.
+  pans ou à croupe, avec débord et pignons, adapté à l'emprise, sans tuiles à
+  recaler.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - **Empilement automatique** : avec l'outil Objet 3D, l'option « Empilement

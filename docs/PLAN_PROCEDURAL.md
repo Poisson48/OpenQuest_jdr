@@ -121,6 +121,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - v1 : toit à deux pans procédural, emprise rectangulaire, outil dédié.
 - v2 : rangs de tuiles colorés, faîtage sombre, pignons et débord.
 - v3 : matière procédurale des tuiles (variation par rangées, sans texture).
+- v4 : **toit à croupe** en plus du deux pans, option dans l'outil.
 
 ## Étape 4 — Générateur Blender paramétrique v1 (livré et audité)
 - Recettes + scripts + manifest.

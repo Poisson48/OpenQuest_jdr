@@ -317,7 +317,15 @@ func _rebuild_tool_options() -> void:
 		)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur du toit", 0.3, 3.0, _ed._proc_roof_height, 0.1, func(v): _ed._proc_roof_height = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Débord", 0.0, 1.5, _ed._proc_roof_overhang, 0.05, func(v): _ed._proc_roof_overhang = v)
-		_option_note("Clic-glisser un rectangle : un seul mesh à deux pans (débord + pignons), adapté à l'emprise. Pas de tuiles à recaler.")
+		var roof_style_opt := OptionButton.new()
+		roof_style_opt.add_item("Deux pans", 0)
+		roof_style_opt.set_item_metadata(0, "gable")
+		roof_style_opt.add_item("Croupe", 1)
+		roof_style_opt.set_item_metadata(1, "hip")
+		roof_style_opt.select(0 if _ed._proc_roof_style == "gable" else 1)
+		roof_style_opt.item_selected.connect(func(index: int): _ed._proc_roof_style = str(roof_style_opt.get_item_metadata(index)))
+		_ed._tool_options.add_child(roof_style_opt)
+		_option_note("Clic-glisser un rectangle : un seul mesh à deux pans ou à croupe (débord + pignons), adapté à l'emprise.")
 	elif _ed._tool == ToolsScript.TERRAIN_SPLINE:
 		var spline_mode_opt := OptionButton.new()
 		var spline_modes := [

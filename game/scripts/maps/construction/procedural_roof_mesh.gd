@@ -14,11 +14,11 @@ static func build_from_element(elem: Dictionary) -> ArrayMesh:
 	var d := maxf(MIN_SIZE, float(elem.get("h", 2.0)))
 	var height := maxf(0.2, float(elem.get("roofHeight", DEFAULT_HEIGHT)))
 	var overhang := maxf(0.0, float(elem.get("overhang", DEFAULT_OVERHANG)))
-	return build(w, d, height, overhang)
+	return build(w, d, height, overhang, str(elem.get("roofStyle", "gable")))
 
 ## Construit le toit en unités « cases », centré sur l'origine.
 static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
-		overhang: float = DEFAULT_OVERHANG) -> ArrayMesh:
+		overhang: float = DEFAULT_OVERHANG, style: String = "gable") -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var span_x := maxf(MIN_SIZE, w) + overhang * 2.0
 	var span_z := maxf(MIN_SIZE, d) + overhang * 2.0
@@ -30,6 +30,26 @@ static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
 	var slope_a := Color("#b85a45")
 	var slope_b := Color("#cf7058")
 	var gable := Color("#8f4738")
+	if style == "hip":
+		# Toit à croupe : faîtage plus court, quatre pans.
+		var hip_length := maxf(0.0, span_x - span_z) if span_x >= span_z else maxf(0.0, span_z - span_x)
+		var half_hip := hip_length * 0.5
+		if span_x >= span_z:
+			var ridge_a := Vector3(-half_hip, h, 0.0)
+			var ridge_b := Vector3(half_hip, h, 0.0)
+			_quad(st, Vector3(-half_x, 0.0, -half_z), Vector3(half_x, 0.0, -half_z), ridge_b, ridge_a, slope_a)
+			_quad(st, ridge_a, ridge_b, Vector3(half_x, 0.0, half_z), Vector3(-half_x, 0.0, half_z), slope_b)
+			_tri(st, Vector3(-half_x, 0.0, half_z), ridge_a, Vector3(-half_x, 0.0, -half_z), gable)
+			_tri(st, Vector3(half_x, 0.0, -half_z), ridge_b, Vector3(half_x, 0.0, half_z), gable)
+		else:
+			var ridge_a := Vector3(0.0, h, -half_hip)
+			var ridge_b := Vector3(0.0, h, half_hip)
+			_quad(st, Vector3(-half_x, 0.0, -half_z), Vector3(-half_x, 0.0, half_z), ridge_b, ridge_a, slope_a)
+			_quad(st, ridge_a, ridge_b, Vector3(half_x, 0.0, half_z), Vector3(half_x, 0.0, -half_z), slope_b)
+			_tri(st, Vector3(-half_x, 0.0, -half_z), ridge_a, Vector3(half_x, 0.0, -half_z), gable)
+			_tri(st, Vector3(half_x, 0.0, half_z), ridge_b, Vector3(-half_x, 0.0, half_z), gable)
+		st.generate_normals()
+		return st.commit()
 	if span_x >= span_z:
 		# Faîtage le long de X, pans vers ±Z, en rangs de tuiles.
 		var ridge_a := Vector3(-half_x, h, 0.0)

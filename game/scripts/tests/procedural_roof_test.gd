@@ -26,6 +26,9 @@ func _run() -> void:
 	}
 	var element_mesh = RoofScript.build_from_element(element)
 	_assert("roof_element", element_mesh.get_surface_count() > 0)
+	var hip = RoofScript.build(5.0, 3.0, 1.2, 0.3, "hip")
+	_assert("roof_hip", hip.get_surface_count() > 0)
+	_assert("roof_hip_height", absf(hip.get_aabb().end.y - 1.2) < 0.1)
 
 	if _failed:
 		print("procedural_roof_test:FAIL")
