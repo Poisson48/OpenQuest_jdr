@@ -18,7 +18,7 @@ func _run() -> void:
 	await process_frame
 	editor.load_map(map)
 	await process_frame
-	editor.doc.add_element({
+	var wall_id: String = editor.doc.add_element({
 		"x": 7.0, "y": 6.0, "w": 4.0, "h": 0.8,
 		"sizeX": 4.0, "sizeY": 1.3, "sizeZ": 0.8,
 		"asset": "res://assets/objects3d/buildings/mur.glb",
@@ -39,6 +39,18 @@ func _run() -> void:
 	_assert("context_decor_has_variation", decor.size() >= 2)
 	var first_x := float(decor[0].get("x", 0.0))
 	_assert("context_decor_off_wall", absf(first_x - 7.0) > 0.1 or decor.size() > 1)
+
+	# Recalcul après déplacement du mur : l'ancien décor est remplacé.
+	var old_decor_id := str(decor[0].get("id", ""))
+	editor.doc.move_elements_by([wall_id], 1.5, 0.5, "Test déplacement")
+	editor._construction._refresh_context_decor_for_walls([wall_id])
+	_assert("context_decor_refresh_removes_old", editor.doc.get_element(old_decor_id).is_empty())
+	var refreshed: Array = []
+	for elem_variant in editor.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("label", "")) == "Décor contextuel" and str(elem.get("decorSource", "")) == wall_id:
+			refreshed.append(elem)
+	_assert("context_decor_refresh_recreates", refreshed.size() > 0, "count=%d" % refreshed.size())
 
 	# Décor de berge : une case d'eau entourée de terre.
 	editor.doc.map_data["waterLevel"] = 0.0

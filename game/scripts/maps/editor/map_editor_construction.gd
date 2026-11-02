@@ -1548,17 +1548,22 @@ func _decorate_context(grid: Vector2) -> void:
 			return
 		_ed._set_status("Décor contextuel : aucun mur, chemin ou berge à proximité.")
 		return
+	_decorate_wall_context(wall)
+
+## Sème le décor d'un mur identifié et renvoie le nombre d'éléments créés.
+func _decorate_wall_context(wall: Dictionary) -> int:
 	var endpoints := _wall_endpoints(wall)
 	if endpoints.size() < 2:
-		return
+		return 0
 	var a: Vector2 = endpoints[0]
 	var b: Vector2 = endpoints[1]
 	var length := a.distance_to(b)
 	if length < 0.5:
-		return
+		return 0
 	var dir := (b - a).normalized()
 	var normal := Vector2(-dir.y, dir.x)
 	var thickness := maxf(0.35, float(wall.get("h", 0.7)))
+	var wall_id := str(wall.get("id", ""))
 	var assets := [
 		"res://assets/objects3d/vegetation/buisson.glb",
 		"res://assets/objects3d/terrain/rocher.glb",
@@ -1591,6 +1596,7 @@ func _decorate_context(grid: Vector2) -> void:
 			"asset": asset,
 			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
 			"label": "Décor contextuel", "layer": 1,
+			"decorSource": wall_id,
 			"display": {
 				"rotation": rng.randf_range(0.0, 360.0),
 				"scale": rng.randf_range(0.75, 1.15),
@@ -1600,6 +1606,32 @@ func _decorate_context(grid: Vector2) -> void:
 	_ed.doc.commit_transaction()
 	_ed.doc.set_selection(ids)
 	_ed._set_status("Décor contextuel : %d élément(s) semés le long du mur." % ids.size())
+	return ids.size()
+
+## Recalcule le décor associé à des murs déplacés/redimensionnés.
+func _refresh_context_decor_for_walls(wall_ids: Array) -> void:
+	var wanted: Dictionary = {}
+	for id_variant in wall_ids:
+		wanted[str(id_variant)] = true
+	if wanted.is_empty():
+		return
+	var old_decor: Array = []
+	for elem_variant in _ed.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		var source := str(elem.get("decorSource", ""))
+		if wanted.has(source):
+			old_decor.append(str(elem.get("id", "")))
+	if old_decor.is_empty():
+		return
+	_ed.doc.remove_elements(old_decor)
+	for id_variant in wall_ids:
+		var wall: Dictionary = _ed.doc.get_element(str(id_variant))
+		if wall.is_empty():
+			continue
+		var asset := str(wall.get("asset", "")).to_lower()
+		if asset.contains("mur") or asset.contains("wall"):
+			_decorate_wall_context(wall)
+	_ed._set_status("Décor contextuel recalculé pour %d mur(s)." % wall_ids.size())
 
 ## Décor de chemin : cherche une bordure de terre/chemin et sème herbes hautes
 ## (buissons, rochers, haies) côté prairie.

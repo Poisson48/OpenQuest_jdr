@@ -330,6 +330,7 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 		"move":
 			if _ed._press_moved:
 				_ed.doc.commit_live_edit(_ed._drag_ids, "Déplacement")
+				_ed._construction._refresh_context_decor_for_walls(_ed._drag_ids)
 				_ed._rebuild_lights_illumination(_ed._drag_ids)
 				_ed._sync_engine()
 			_ed._drag_ids.clear()
@@ -337,6 +338,7 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 		"resize":
 			if _ed._press_moved:
 				_ed.doc.commit_live_edit(_ed._drag_ids, "Redimensionnement")
+				_ed._construction._refresh_context_decor_for_walls(_ed._drag_ids)
 				_ed._rebuild_lights_illumination(_ed._drag_ids)
 				_ed._sync_engine()
 			_ed._drag_ids.clear()

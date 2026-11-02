@@ -139,7 +139,8 @@ Outils terrain :
   chaque mur latéral (murs assez hauts requis).
 - **Décor contextuel** : clic près d'un mur, d'un chemin ou d'une berge ;
   buissons/rochers/haies le long du mur ou du chemin, roseaux/nénuphars près de
-  l'eau. Rayon, densité et graine réglables, un seul undo.
+  l'eau. Rayon, densité et graine réglables, un seul undo. Le décor des murs est
+  recalculé quand on les déplace ou les redimensionne.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - Élévation réglable pour les modules posés librement.
