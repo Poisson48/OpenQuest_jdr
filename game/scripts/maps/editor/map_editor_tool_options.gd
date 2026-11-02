@@ -185,6 +185,19 @@ func _rebuild_tool_options() -> void:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Idéal pour les enclos organiques.")
 	elif _ed._tool == ToolsScript.PROC_PATH:
+		var path_color_opt := OptionButton.new()
+		var path_colors := [
+			["#8a7654", "Terre"],
+			["#c9b47e", "Sable"],
+			["#8d8a80", "Pierre"],
+		]
+		for i in range(path_colors.size()):
+			path_color_opt.add_item(str(path_colors[i][1]), i)
+			path_color_opt.set_item_metadata(i, str(path_colors[i][0]))
+			if str(path_colors[i][0]) == _ed._proc_path_color:
+				path_color_opt.select(i)
+		path_color_opt.item_selected.connect(func(index: int): _ed._proc_path_color = str(path_color_opt.get_item_metadata(index)))
+		_ed._tool_options.add_child(path_color_opt)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 0.3, 4.0, _ed._proc_path_width, 0.1, func(v): _ed._proc_path_width = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : ruban de chemin continu avec bords biseautés. Utile pour les routes surélevées, quais et chemins de jardin.")
