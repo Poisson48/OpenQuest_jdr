@@ -180,6 +180,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Ciel, lumière, GI, brume, matériaux, végétation.
 - Captures « hero ».
 - Critère : ambiance crédible avec les assets procéduraux.
+- v1 : capture **hero** du village généré sans docks latéraux
+  (`generated_village_hero.png`).
 
 ## Étape 10 — RPG / Dofus (v1 partielle)
 - Marche inter-zones continue.
@@ -283,10 +285,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
   décor, **tentes procédurales**), outil dédié, test d'application réelle, démo
   et capture.
-- Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
-  avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre en douceur**
-  le personnage après déplacement et à l'arrivée dans une zone voisine ;
-  transitions de zone à consolider.
+- Étape 9 v1 : capture **hero** du village généré (docks masqués), pour juger le
+  rendu sans bruit d'interface.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
   terrain.
