@@ -267,6 +267,11 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 
 ## État actuel
 
+**V1 du plan livrée.** Voir
+[LIVRAISON_PLAN_PROCEDURAL.md](LIVRAISON_PLAN_PROCEDURAL.md) pour le périmètre,
+les démos, les tests et le backlog (traversée inter-zones continue, pentes du
+toit libre, LOD/profiling, passe de sol).
+
 - Étape 1 terminée : mur procédural continu, v3 avec crête biseautée et matière
   procédurale ; **clôture** et **chemin** procéduraux ; **porte ouvrable** dans
   un mur procédural.
