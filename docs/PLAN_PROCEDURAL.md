@@ -139,7 +139,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 ## Étape 5 — Décor facile et contextuel (zones fleuries livrées)
 - Pinceau végétation.
 - **Zone fleurie au pinceau** : dessiner une zone, choisir le **type de fleur**
-  (coquelicot, marguerite, lavande, fleur bleue, fleur sauvage…) et la densité ;
+  (coquelicot, marguerite, lavande, fleur bleue, herbe, mélange…) et la densité ;
   les fleurs choisies apparaissent uniquement dans la zone. **Livré.**
 - Les herbes/fleurs/buissons procéduraux ne sont **pas affichés par défaut**
   (captures propres) ; tout décor de sol est peint explicitement. **Livré.**

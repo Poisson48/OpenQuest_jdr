@@ -14,6 +14,7 @@ const FLOWER_TYPES := [
 	{"id": "marguerite", "label": "Marguerites", "colors": ["#f5f0df", "#fff7e8", "#e8dfc5"]},
 	{"id": "lavande", "label": "Lavande", "colors": ["#8d6bb5", "#a184c7", "#74559f"]},
 	{"id": "bleue", "label": "Fleurs bleues", "colors": ["#5d8fd0", "#77a5df", "#4b78b7"]},
+	{"id": "herbe", "label": "Herbe / touffes", "colors": ["#6d8a4a", "#7d9a55", "#5b7539"]},
 	{"id": "mix", "label": "Mélange sauvage", "colors": ["#f5f0df", "#d9472e", "#8d6bb5", "#e4c34c"]},
 ]
 const DEFAULT_TYPE := "marguerite"
