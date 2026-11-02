@@ -668,8 +668,8 @@ func _build_empty_state() -> void:
 		_add_tool_row(tool_id)
 
 	_section("🧭 Navigation 3D")
-	_add_note("Molette : zoom · clic milieu : orbite autour du point visé.")
-	_add_note("Maj + clic milieu : déplacer la vue · F : recadrer · Échap : annuler.")
+	_add_note("Clic droit glissé : déplacer la vue · Maj + clic droit : orbite autour du point visé.")
+	_add_note("Molette : zoom · F : recadrer · Échap : annuler.")
 	_add_note("Clic : sélectionner · glisser : rectangle de sélection · Ctrl+clic : ajouter/retirer.")
 
 	_section("💡 Recettes express")

@@ -2552,17 +2552,19 @@ func _editor_gui_input(event: InputEvent) -> void:
 					and motion.position.distance_to(_right_nav_start) >= 4.0:
 				_right_nav_dragging = true
 				if _right_nav_shift:
+					# Maj + clic droit : orbite.
+					_pan_dragging = false
+					_begin_orbit_drag(_right_nav_start)
+				else:
+					# Clic droit glissé : déplacer la vue (pan).
 					_pan_dragging = true
 					_orbit_dragging = false
 					_begin_view_drag(_right_nav_start, true)
-				else:
-					_pan_dragging = false
-					_begin_orbit_drag(_right_nav_start)
 			if _right_nav_dragging:
 				if _right_nav_shift:
-					_pan_from_motion(motion)
-				else:
 					_update_orbit_drag(motion.position)
+				else:
+					_pan_from_motion(motion)
 				accept_event()
 				return
 			if not _right_nav_dragging:
@@ -3122,6 +3124,10 @@ func _notification(what: int) -> void:
 		if map_data.is_empty() or _camera == null or _map_extent == Vector2.ZERO:
 			return
 		var keep := get_view_state()
+		var saved_position := _camera.position
 		_update_fit_base()
 		_apply_view_state(keep)
+		# Le changement de largeur des docks ne doit pas téléporter la caméra.
+		_camera.position = saved_position
+		_ensure_camera_above_terrain()
 		_clamp_camera()

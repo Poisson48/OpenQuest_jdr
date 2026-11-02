@@ -466,7 +466,7 @@ func _build_action_bar() -> void:
 			_engine.reset_zoom()
 	)
 	_icon_button(bar, "🎯", "Recadrer sur la sélection (F)", func(): _focus_selection())
-	_icon_button(bar, "🧭", "Vue 3D : réinitialiser l'orbite (clic milieu = orbite, Maj+clic milieu = déplacer)", func():
+	_icon_button(bar, "🧭", "Vue 3D : réinitialiser l'orbite (clic droit glissé = déplacer, Maj+clic droit = orbite, molette = zoom)", func():
 		if _engine.has_method("reset_editor_camera"):
 			_engine.reset_editor_camera()
 		else:
@@ -3236,9 +3236,9 @@ func _update_hint() -> void:
 	if _hint_lbl == null:
 		return
 	if not _editable:
-		_hint_lbl.text = "Aperçu 3D — molette pour zoomer, clic milieu pour déplacer la vue."
+		_hint_lbl.text = "Aperçu 3D — molette pour zoomer, clic droit glissé pour déplacer la vue."
 		return
-	_hint_lbl.text = "%s %s — %s · Molette : zoom · clic milieu : orbite 3D · Maj+clic milieu : déplacer" % [
+	_hint_lbl.text = "%s %s — %s · Molette : zoom · clic droit glissé : déplacer · Maj+clic droit : orbite" % [
 		ToolsScript.icon(_tool), ToolsScript.label(_tool), ToolsScript.hint(_tool)]
 
 func _update_zoom_label() -> void:

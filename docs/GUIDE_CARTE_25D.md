@@ -158,6 +158,8 @@ Outils terrain :
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - En session, la caméra **recadre le personnage** après un déplacement et à
   l'arrivée dans une zone voisine.
+- Navigation éditeur : **clic droit glissé = déplacer la vue**, `Maj` + clic
+  droit = orbite, molette = zoom.
 - Élévation réglable pour les modules posés librement.
 
 Conventions des assets : 1 unité Blender = 1 case, origine au pied, avant `+Z`,

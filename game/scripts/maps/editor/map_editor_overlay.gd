@@ -250,8 +250,8 @@ func _draw_navigation_help() -> void:
 	if font == null:
 		return
 	var lines := PackedStringArray([
-		"Molette : zoom · clic milieu : orbite 3D",
-		"Maj + clic milieu : déplacer la vue · Échap : annuler",
+		"Molette : zoom · clic droit glissé : déplacer",
+		"Maj + clic droit : orbite · Échap : annuler",
 		"Clic : sélectionner · glisser : rectangle · F : recadrer",
 	])
 	var font_size := 11

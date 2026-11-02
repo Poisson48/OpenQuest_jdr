@@ -380,7 +380,7 @@ const SHORTCUTS := [
 	{"keys": "Y", "action": "Peinture du sol (herbe / terre / pierre)"},
 	{"keys": "Échap", "action": "Annuler l'action en cours / menu éditeur"},
 	{"keys": "Flèches", "action": "Décaler la sélection (Maj : 1 case)"},
-	{"keys": "Molette", "action": "Zoom · Clic milieu : déplacer la vue"},
+	{"keys": "Molette", "action": "Zoom · clic droit glissé : déplacer · Maj+clic droit : orbite"},
 	{"keys": "Espace maintenu", "action": "Navigation temporaire"},
 	{"keys": "Ctrl+clic", "action": "Ajouter/retirer de la sélection"},
 	{"keys": "Maj+clic", "action": "Ajouter à la sélection"},
