@@ -31,6 +31,7 @@ const PATH_3D := "path_3d"
 const ORGANIC := "organic"
 const PROC_WALL := "proc_wall"
 const SCATTER := "scatter"
+const FLOWER_ZONE := "flower_zone"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -159,6 +160,10 @@ const DEFS := [
 	{
 		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser : disperse automatiquement buissons, haies, roseaux, arbres, bosquets ou rochers autour du tracé (densité, taille, rayon). Rotations et échelles variées, sans doublon sur une case, eau évitée, un seul undo par trait.",
+	},
+	{
+		"id": FLOWER_ZONE, "icon": "🌸", "label": "Zone fleurie", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser pour dessiner une zone fermée : des fleurs procédurales du type choisi (coquelicots, marguerites, lavande, bleues, mélange) apparaissent uniquement dans cette zone.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",

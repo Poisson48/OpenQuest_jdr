@@ -34,6 +34,7 @@ const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const OrganicPathScript := preload("res://scripts/maps/construction/organic_path.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
+const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
 
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
@@ -134,6 +135,12 @@ var _scatter_active: bool = false
 var _scatter_occupied: Dictionary = {}
 var _scatter_ids: Array = []
 var _scatter_last_point: Vector2 = Vector2.ZERO
+## Zones fleuries peintes au pinceau : type, densité, taille, graine.
+var _flower_zone_points: Array = []
+var _flower_zone_type: String = "marguerite"
+var _flower_zone_density: float = 3.0
+var _flower_zone_size: float = 0.22
+var _flower_zone_seed: int = 1
 var _scatter_rng := RandomNumberGenerator.new()
 
 # --- Interaction --------------------------------------------------------------
@@ -1386,6 +1393,56 @@ func _preview_terrain_spline() -> void:
 	var length := OrganicPathScript.total_length(_terrain_spline_points)
 	_set_status("Relief tracé : %d point(s) · %.2f case(s) · %s · relâchez pour appliquer." % [
 		_terrain_spline_points.size(), length, _terrain_spline_mode_label()])
+
+func _finish_flower_zone() -> void:
+	var points: Array = _flower_zone_points.duplicate()
+	_flower_zone_points.clear()
+	_overlay.polygon_points.clear()
+	_press_mode = "none"
+	if points.size() < 3:
+		_set_status("Zone fleurie : dessinez une zone fermée (au moins 3 points).")
+		_refresh_overlay()
+		return
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var center := (min_p + max_p) * 0.5
+	var local: Array = []
+	for p_variant in points:
+		var p: Vector2 = (p_variant as Vector2) - center
+		local.append([p.x, p.y])
+	_flower_zone_seed = (_flower_zone_seed * 1664525 + 1013904223) % 2147483647
+	var id: String = doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": maxf(0.5, max_p.x - min_p.x),
+		"h": maxf(0.5, max_p.y - min_p.y),
+		"asset": "procedural://flower_zone",
+		"points": local,
+		"flowerType": _flower_zone_type,
+		"density": _flower_zone_density,
+		"size": _flower_zone_size,
+		"seed": _flower_zone_seed,
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": "Zone fleurie — %s" % _flower_zone_label(),
+		"layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Zone fleurie")
+	doc.select_only(id)
+	_set_status("Zone fleurie : %s · densité %.1f · %d point(s)." % [
+		_flower_zone_label(), _flower_zone_density, points.size()])
+	_sync_engine()
+	_refresh_panels()
+	_refresh_overlay()
+
+func _preview_flower_zone() -> void:
+	_set_status("Zone fleurie : %d point(s) · %s · relâchez pour semer." % [
+		_flower_zone_points.size(), _flower_zone_label()])
+
+func _flower_zone_label() -> String:
+	return ProceduralFlowerZoneScript.type_label(_flower_zone_type)
 
 func _terrain_spline_mode_label() -> String:
 	match _terrain_spline_mode:

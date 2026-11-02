@@ -10,6 +10,7 @@ extends RefCounted
 const ConstructionScript := preload("res://scripts/maps/editor/map_editor_construction.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
+const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 
 ## Éditeur propriétaire (Control) — non typé pour éviter le cycle de preload.
@@ -166,6 +167,21 @@ func _rebuild_tool_options() -> void:
 		_ed._checkbox(_ed._tool_options, "Remplir la zone (sinon bordure du tracé)", _ed._scatter_zone_mode,
 			func(on): _ed._scatter_zone_mode = on)
 		_option_note("Clic-glisser : disperse %s autour du trait (rotations/échelles variées, sans doublon de case, eau évitée). Un seul undo par trait." % OrganicScatterScript.mode_label(_ed._scatter_mode).to_lower())
+	elif _ed._tool == ToolsScript.FLOWER_ZONE:
+		var flower_opt := OptionButton.new()
+		for i in range(ProceduralFlowerZoneScript.FLOWER_TYPES.size()):
+			var entry: Dictionary = ProceduralFlowerZoneScript.FLOWER_TYPES[i]
+			flower_opt.add_item(str(entry["label"]), i)
+			flower_opt.set_item_metadata(i, str(entry["id"]))
+			if str(entry["id"]) == _ed._flower_zone_type:
+				flower_opt.select(i)
+		flower_opt.item_selected.connect(func(index: int):
+			_ed._flower_zone_type = str(flower_opt.get_item_metadata(index))
+		)
+		_ed._tool_options.add_child(flower_opt)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.5, 8.0, _ed._flower_zone_density, 0.5, func(v): _ed._flower_zone_density = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Taille", 0.08, 0.6, _ed._flower_zone_size, 0.02, func(v): _ed._flower_zone_size = v)
+		_option_note("Clic-glisser pour dessiner une zone fermée : les fleurs du type choisi apparaissent uniquement dedans. Aucune herbe automatique.")
 	elif _ed._tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_ed._marker_type), MapData.get_marker_label(_ed._marker_type)])
 	elif _ed._tool == ToolsScript.EFFECT:

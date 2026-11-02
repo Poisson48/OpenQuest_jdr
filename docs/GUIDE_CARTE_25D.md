@@ -114,6 +114,10 @@ Outils terrain :
 - **Outil 🌿 Végétation** : clic-glisser ; disperse automatiquement buissons,
   haies, roseaux, arbres, bosquets ou rochers avec densité/taille/rayon. Un seul
   undo par trait, pas de doublon de case, eau évitée.
+- **Outil 🌸 Zone fleurie** : clic-glisser pour dessiner une zone fermée, puis
+  choisir le type (marguerites, coquelicots, lavande, fleurs bleues, mélange) et
+  la densité. Les fleurs n'apparaissent que dans la zone ; aucune herbe
+  automatique.
 - **Outil 🪄 Mur procédural** : clic-glisser libre ; génère un **unique mesh
   continu à mitres** depuis la courbe. Première brique du plan procédural
   ([PLAN_PROCEDURAL.md](PLAN_PROCEDURAL.md)).

@@ -57,6 +57,16 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_ed._refresh_overlay()
 		_ed._set_status("Tracé organique : glissez librement, relâchez pour construire.")
 		return
+	if _ed._tool == ToolsScript.FLOWER_ZONE:
+		if not _ed._in_bounds(grid):
+			_ed._set_status("Zone fleurie : commencez dans la carte.")
+			return
+		_ed._press_mode = "flower_zone"
+		_ed._flower_zone_points = [grid]
+		_ed._overlay.polygon_points = [grid]
+		_ed._refresh_overlay()
+		_ed._set_status("Zone fleurie : dessinez la zone, relâchez pour semer.")
+		return
 	if _ed._tool == ToolsScript.SCATTER:
 		if not _ed._in_bounds(grid):
 			return
@@ -275,6 +285,14 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 		"scatter":
 			_ed._press_moved = true
 			_ed._construction._continue_scatter_stroke(grid)
+		"flower_zone":
+			_ed._press_moved = true
+			var last_flower_point: Vector2 = (_ed._flower_zone_points[_ed._flower_zone_points.size() - 1] as Vector2) \
+				if not _ed._flower_zone_points.is_empty() else grid
+			if last_flower_point.distance_to(grid) >= 0.2:
+				_ed._flower_zone_points.append(grid)
+				_ed._overlay.polygon_points = _ed._flower_zone_points.duplicate()
+				_ed._preview_flower_zone()
 		"draw":
 			_ed._press_moved = true
 			var to = _ed._snap(grid)
@@ -337,6 +355,8 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._finish_terrain_spline()
 		"scatter":
 			_ed._construction._finish_scatter_stroke()
+		"flower_zone":
+			_ed._finish_flower_zone()
 		"paint":
 			_ed._painted_cells.clear()
 		"relief":
@@ -355,7 +375,7 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 
 func _handle_right_click(grid: Vector2) -> void:
 	# Tracé organique en cours : le clic droit annule le trait (pas de polygone).
-	if _ed._press_mode == "organic" or _ed._press_mode == "scatter" or _ed._press_mode == "terrain_spline":
+	if _ed._press_mode == "organic" or _ed._press_mode == "scatter" or _ed._press_mode == "terrain_spline" or _ed._press_mode == "flower_zone":
 		_cancel_action()
 		return
 	if not _ed._overlay.polygon_points.is_empty():
@@ -369,6 +389,13 @@ func _handle_right_click(grid: Vector2) -> void:
 		_ed._set_status("Position (%.1f, %.1f) — %s" % [grid.x, grid.y, _ed.doc.get_tile_at(int(roundf(grid.x)), int(roundf(grid.y)))])
 
 func _cancel_action() -> void:
+	if _ed._press_mode == "flower_zone":
+		_ed._flower_zone_points.clear()
+		_ed._press_mode = "none"
+		_ed._overlay.clear_transient()
+		_ed._refresh_overlay()
+		_ed._set_status("Zone fleurie annulée.")
+		return
 	if _ed._press_mode == "terrain_spline":
 		_ed._terrain_spline_points.clear()
 		_ed._press_mode = "none"
