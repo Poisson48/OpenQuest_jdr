@@ -863,7 +863,40 @@ func _cell_blocked_by_building(map_id: String, gx: float, gy: float) -> bool:
 		var local_y := absf(offset.dot(front))
 		if local_x <= width * 0.5 + 0.15 and local_y <= depth * 0.5 + 0.15:
 			return true
+	# Murs procéduraux : blocage le long du tracé, épaisseur comprise.
+	for mesh_variant in map.get("meshes", []):
+		if not mesh_variant is Dictionary:
+			continue
+		var mesh: Dictionary = mesh_variant
+		if str(mesh.get("asset", "")) != "procedural://wall":
+			continue
+		var points: Array = mesh.get("points", [])
+		if points.size() < 2:
+			continue
+		var origin := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+		var radius := maxf(0.3, float(mesh.get("thickness", 0.7)) * 0.5 + 0.25)
+		for i in range(points.size() - 1):
+			var a := origin + _mesh_point_to_vector(points[i])
+			var b := origin + _mesh_point_to_vector(points[i + 1])
+			if _distance_to_segment(Vector2(gx, gy), a, b) <= radius:
+				return true
 	return false
+
+func _mesh_point_to_vector(value) -> Vector2:
+	if value is Vector2:
+		return value
+	if value is Array and (value as Array).size() >= 2:
+		return Vector2(float(value[0]), float(value[1]))
+	return Vector2.ZERO
+
+func _distance_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var len_sq := ab.length_squared()
+	if len_sq < 0.000001:
+		return p.distance_to(a)
+	var t := clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
 func _cell_has_other_token(map_id: String, gx: float, gy: float, exclude_id: String) -> bool:
 	for tok_variant in GameData.get_map_play_tokens(map_id):
 		if not tok_variant is Dictionary:

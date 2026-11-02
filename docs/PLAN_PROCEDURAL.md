@@ -293,7 +293,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
   avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre en douceur**
   le personnage après déplacement et à l'arrivée dans une zone voisine ;
-  transitions de zone à consolider.
+  **collision des murs procéduraux** (test dédié) ; transitions de zone à
+  consolider.
 - Étape 11 v1 partielle : **culling de distance** des décors procéduraux ;
   LOD/profiling à compléter.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
