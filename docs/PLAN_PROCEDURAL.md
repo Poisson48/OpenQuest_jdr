@@ -259,7 +259,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   **intérieur lié automatique** et **fenêtres automatiques** ; étages/ouvertures
   irrégulières à compléter.
 - Étape 8 v1 livrée : **générateur de scène** village/forêt/camp (plan
-  déterministe, chemins, maisons, décor), outil dédié et test.
+  déterministe, chemins, maisons, décor), outil dédié, test d'application réelle,
+  démo et capture.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
   terrain.
