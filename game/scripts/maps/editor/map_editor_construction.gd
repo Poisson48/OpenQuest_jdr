@@ -2203,7 +2203,8 @@ func _decorate_water_context(grid: Vector2) -> bool:
 			"x": pos.x, "y": pos.y,
 			"w": footprint.x, "h": footprint.y,
 			"asset": asset,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"elevation": 0.0, "followTerrain": true,
+			"tiltToTerrain": asset.contains("roseaux"),
 			"label": "Décor contextuel", "layer": 1,
 			"display": {
 				"rotation": rng.randf_range(0.0, 360.0),
