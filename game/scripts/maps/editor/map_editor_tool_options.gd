@@ -98,6 +98,12 @@ func _rebuild_tool_options() -> void:
 		house_flatten.tooltip_text = "Nivelle le sol sous la maison avant murs, dallage et toit."
 		house_flatten.toggled.connect(func(on): _ed._flatten_build_footprint = on)
 		_ed._tool_options.add_child(house_flatten)
+		var auto_interior := CheckBox.new()
+		auto_interior.text = "Intérieur lié automatique"
+		auto_interior.button_pressed = _ed._house_auto_interior
+		auto_interior.tooltip_text = "Crée une carte intérieure liée derrière la porte, avec le mobilier de base."
+		auto_interior.toggled.connect(func(on): _ed._house_auto_interior = on)
+		_ed._tool_options.add_child(auto_interior)
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")

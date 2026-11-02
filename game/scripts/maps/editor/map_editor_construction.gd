@@ -70,6 +70,7 @@ const WALL_JOIN_EPS := 0.4
 ## Longueur minimale d'un module / d'une rangée de murs (cases).
 const WALL_MIN_LENGTH := 0.5
 const WALL_MIN_SEGMENT := 0.4
+const STACK_EPSILON := 0.012
 ## Longueur maximale d'un module étiré à la poignée (garde-fou, cases).
 const WALL_MAX_SEGMENT := 120.0
 
@@ -575,8 +576,11 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_create_mesh_roof(from, to)
 	# Porte au centre du mur avant (côté +Y).
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))
+	if _ed._house_auto_interior:
+		_create_interior_at(Vector2((x0 + x1) * 0.5, y1))
 	_ed._roof_height = previous_roof
-	_ed._set_status("Maison rapide construite : murs, dallage, toit et porte.")
+	_ed._set_status("Maison rapide construite : murs, dallage, toit%s." % (
+		", porte et intérieur lié" if _ed._house_auto_interior else " et porte"))
 
 ## Chemin de terre : peint les cases le long du tracé, largeur réglable.
 func _create_path(from: Vector2, to: Vector2) -> void:
@@ -1726,7 +1730,7 @@ func _create_mesh(grid: Vector2) -> void:
 			footprint
 		)
 		if stack_top > float(placement.get("elevation", 0.0)) + 0.02:
-			placement["elevation"] = stack_top
+			placement["elevation"] = stack_top + STACK_EPSILON
 	var id: String = _ed.doc.add_element({
 		"x": placement["x"], "y": placement["y"],
 		"w": footprint.x, "h": footprint.y,

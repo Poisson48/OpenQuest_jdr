@@ -130,6 +130,8 @@ Outils terrain :
   emprise (lanterne sur table, caisse sur caisse).
 - **Aplatir l'emprise** : option sur Pièce 3D / Maison rapide pour niveler le sol
   sous le bâtiment (moyenne des hauteurs) avant de poser murs et toit.
+- **Intérieur lié automatique** : option sur Maison rapide pour créer directement
+  la carte intérieure derrière la porte.
 - **Décor contextuel** : clic près d'un mur, d'un chemin ou d'une berge ;
   buissons/rochers/haies le long du mur ou du chemin, roseaux/nénuphars près de
   l'eau. Rayon, densité et graine réglables, un seul undo.

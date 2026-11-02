@@ -115,6 +115,7 @@ var _roof_height: float = 1.1
 var _proc_roof_height: float = 1.1
 var _proc_roof_overhang: float = 0.35
 var _auto_stack: bool = true
+var _house_auto_interior: bool = false
 var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
 var _floor_flatten: bool = true
