@@ -1465,6 +1465,15 @@ func _create_mesh(grid: Vector2) -> void:
 		var snapped = _snap_module_placement(_ed._mesh_asset, grid)
 		if not snapped.is_empty():
 			placement = snapped
+	# Empilement automatique : si l'emprise touche le dessus d'un objet posé,
+	# le nouvel objet se pose à sa hauteur (table -> lanterne, caisse -> caisse).
+	if _ed._auto_stack:
+		var stack_top := _stack_top_at(
+			Vector2(float(placement["x"]), float(placement["y"])),
+			footprint
+		)
+		if stack_top > float(placement.get("elevation", 0.0)) + 0.02:
+			placement["elevation"] = stack_top
 	var id: String = _ed.doc.add_element({
 		"x": placement["x"], "y": placement["y"],
 		"w": footprint.x, "h": footprint.y,
@@ -1478,8 +1487,42 @@ func _create_mesh(grid: Vector2) -> void:
 		"display": {"rotation": float(placement.get("rotation", _ed._mesh_rotation)), "scale": _ed._mesh_scale},
 	}, DocumentScript.KIND_MESH, "Objet 3D")
 	_ed.doc.select_only(id)
-	if placement.has("snapped_to"):
+	if float(placement.get("elevation", 0.0)) > 0.1:
+		_ed._set_status("Objet empilé à %.2f case(s)." % float(placement["elevation"]))
+	elif placement.has("snapped_to"):
 		_ed._set_status("Module aimanté sur « %s »." % str(placement.get("snapped_to", "bâtiment")))
+
+## Dessus de l'objet posé qui recouvre le plus l'emprise donnée (en cases).
+## Sert à l'empilement automatique : une lanterne se pose sur une table, une
+## caisse sur une autre sans réglage manuel de l'élévation.
+func _stack_top_at(pos: Vector2, footprint: Vector2) -> float:
+	var rect := Rect2(pos - footprint * 0.5, footprint)
+	var best := 0.0
+	for elem_variant in _ed.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		var asset := str(elem.get("asset", ""))
+		if asset.begins_with("procedural://"):
+			continue
+		if asset.contains("mur") or asset.contains("toit") or asset.contains("fenetre") or asset.contains("porte"):
+			continue
+		var ew := maxf(0.1, float(elem.get("w", 1.0)))
+		var eh := maxf(0.1, float(elem.get("h", 1.0)))
+		var er := Rect2(
+			Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0))) - Vector2(ew, eh) * 0.5,
+			Vector2(ew, eh)
+		)
+		if not rect.intersects(er):
+			continue
+		var height := float(elem.get("sizeY", 0.0))
+		if height <= 0.0:
+			height = _mesh_bounds_cells(asset, 1.0).y
+		var display: Dictionary = elem.get("display", {}) if elem.get("display") is Dictionary else {}
+		var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
+		var top := float(elem.get("elevation", 0.0)) + maxf(0.2, height) * display_scale
+		best = maxf(best, top)
+	return best
 
 ## Positionne automatiquement un module de toit/façade sur le bâtiment le plus
 ## proche (manifeste Blender : anchor `roof` / `wall`, dimensions, hauteur).

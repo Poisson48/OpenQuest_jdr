@@ -125,6 +125,9 @@ Outils terrain :
   pans avec débord et pignons, adapté à l'emprise, sans tuiles à recaler.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
+- **Empilement automatique** : avec l'outil Objet 3D, l'option « Empilement
+  automatique » pose l'objet sur le dessus d'un objet existant qui recouvre son
+  emprise (lanterne sur table, caisse sur caisse).
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - Élévation réglable pour les modules posés librement.

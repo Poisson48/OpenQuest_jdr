@@ -135,9 +135,11 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Recalcul lors du déplacement.
 - Critère : décor vivant en 2–3 gestes, sans bruit visuel par défaut.
 
-## Étape 6 — Empilement et placement intelligent
-- Raycast vertical, élévation auto.
-- Ghost à la hauteur, snap, anti-z-fighting.
+## Étape 6 — Empilement et placement intelligent (v1 livrée)
+- Empilement automatique : un objet posé sur l'emprise d'un autre prend son
+  élévation (table → lanterne, caisse → caisse), case activable.
+- Raycast vertical, ghost à la hauteur, snap et anti-z-fighting : itération
+  suivante.
 - Critère : poser une lanterne sur un mur, un tonneau sur une table.
 
 ## Étape 7 — Bâtiments et intérieurs génératifs
@@ -241,6 +243,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
   densité et taille ; mesh procédural déterministe, test dédié, démo et capture.
+- Étape 6 v1 livrée : **empilement automatique** d'objets 3D (option activable,
+  test dédié) ; ghost/raycast vertical à compléter.
 - Terrain déformable : pinceau existant + tracé + plateformes ; prochaine
   itération sur les berges, empreintes de bâtiments et mesh de terrain.
 - La végétation procédurale automatique est désactivée par défaut pour des

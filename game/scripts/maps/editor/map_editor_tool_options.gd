@@ -219,6 +219,12 @@ func _rebuild_tool_options() -> void:
 		snap_chk.tooltip_text = "Toits et façades se posent automatiquement sur le bâtiment le plus proche."
 		snap_chk.toggled.connect(func(on): _ed._mesh_snap_modules = on)
 		_ed._tool_options.add_child(snap_chk)
+		var stack_chk := CheckBox.new()
+		stack_chk.text = "Empilement automatique"
+		stack_chk.button_pressed = _ed._auto_stack
+		stack_chk.tooltip_text = "Pose l'objet sur le dessus d'un objet existant qui recouvre son emprise."
+		stack_chk.toggled.connect(func(on): _ed._auto_stack = on)
+		_ed._tool_options.add_child(stack_chk)
 		_option_note("Rotation : %d° (R pour pivoter)" % int(_ed._mesh_rotation))
 	elif _ed._tool == ToolsScript.AREA:
 		_ed._line_row(_ed._hbox(_ed._tool_options), "Nom du lieu", _ed._area_label, func(text): _ed._area_label = text)
