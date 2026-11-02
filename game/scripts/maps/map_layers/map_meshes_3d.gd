@@ -53,6 +53,7 @@ const ProceduralWallMeshScript := preload("res://scripts/maps/construction/proce
 const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
 const ProceduralRoofMeshScript := preload("res://scripts/maps/construction/procedural_roof_mesh.gd")
 const ProceduralWallShader := preload("res://shaders/procedural_wall.gdshader")
+const ProceduralRoofShader := preload("res://shaders/procedural_roof.gdshader")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -288,11 +289,11 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 	elif asset == "procedural://roof":
 		mesh_instance.name = "ProceduralRoof"
 		mesh_instance.mesh = ProceduralRoofMeshScript.build_from_element(mesh)
-		material.vertex_color_use_as_albedo = true
-		material.albedo_color = Color.WHITE
-		material.roughness = 0.82
-		material.metallic = 0.0
-		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var roof_material := ShaderMaterial.new()
+		roof_material.shader = ProceduralRoofShader
+		mesh_instance.material_override = roof_material
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return mesh_instance
 	else:
 		mesh_instance.name = "ProceduralWall"
 		mesh_instance.mesh = ProceduralWallMeshScript.build_from_element(mesh)
