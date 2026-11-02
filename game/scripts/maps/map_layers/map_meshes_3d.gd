@@ -362,6 +362,10 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		return mesh_instance
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Petits décors procéduraux : culling de distance pour les grandes cartes.
+	if asset in ["procedural://flower_zone", "procedural://tent", "procedural://campfire"]:
+		mesh_instance.visibility_range_end = 70.0
+		mesh_instance.visibility_range_end_margin = 5.0
 	return mesh_instance
 
 ## Estompe les murs/bâtiments situés entre la caméra et le personnage, pour

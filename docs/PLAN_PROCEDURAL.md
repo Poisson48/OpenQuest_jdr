@@ -294,8 +294,7 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre en douceur**
   le personnage après déplacement et à l'arrivée dans une zone voisine ;
   transitions de zone à consolider.
-- Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
-  d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
-  terrain.
+- Étape 11 v1 partielle : **culling de distance** des décors procéduraux ;
+  LOD/profiling à compléter.
 - La végétation procédurale automatique est désactivée par défaut pour des
   captures propres ; elle est remplacée par des zones peintes.
