@@ -1624,6 +1624,32 @@ func _generate_scene(_grid: Vector2) -> void:
 		var rect: Rect2 = rect_variant
 		_create_mesh_house(rect.position, rect.end)
 		house_count += 1
+	var fence_count := 0
+	for fence_variant in plan.get("fences", []):
+		var points: Array = fence_variant
+		if points.size() < 2:
+			continue
+		var min_p: Vector2 = points[0]
+		var max_p: Vector2 = points[0]
+		for p_variant in points:
+			var p: Vector2 = p_variant
+			min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+			max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+		var fence_center := (min_p + max_p) * 0.5
+		var local: Array = []
+		for p_variant in points:
+			var p: Vector2 = (p_variant as Vector2) - fence_center
+			local.append([p.x, p.y])
+		_ed.doc.add_element({
+			"x": fence_center.x, "y": fence_center.y,
+			"w": maxf(0.5, max_p.x - min_p.x), "h": maxf(0.5, max_p.y - min_p.y),
+			"asset": "procedural://fence",
+			"points": local, "height": 0.8, "spacing": 0.9,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Clôture de scène", "layer": 1,
+			"display": {"rotation": 0.0, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Clôture de scène")
+		fence_count += 1
 	var prop_count := 0
 	for prop_variant in plan.get("props", []):
 		var prop: Dictionary = prop_variant
@@ -1647,8 +1673,8 @@ func _generate_scene(_grid: Vector2) -> void:
 			"display": {"rotation": 0.0, "scale": scale_v},
 		}, DocumentScript.KIND_MESH, "Décor de scène")
 		prop_count += 1
-	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d décor(s)." % [
-		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, prop_count])
+	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d décor(s)." % [
+		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, fence_count, prop_count])
 	_ed._sync_engine()
 
 func _decorate_context(grid: Vector2) -> void:

@@ -23,7 +23,7 @@ static func generate(style_id: String, width: int, height: int, seed: int,
 		density: float = 1.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	var result := {"houses": [], "paths": [], "props": [], "style": style_id}
+	var result := {"houses": [], "paths": [], "props": [], "fences": [], "style": style_id}
 	if width < 8 or height < 8:
 		return result
 	match style_id:
@@ -79,12 +79,10 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 				"scale": rng.randf_range(0.8, 1.2),
 			})
 			# Petite clôture basse devant la façade côté route.
-			result["props"].append({
-				"asset": "res://assets/objects3d/props/cloture_basse.glb",
-				"x": rect.position.x + rect.size.x * 0.5,
-				"y": rect.end.y + 0.4 if side > 0.0 else rect.position.y - 0.4,
-				"scale": 1.0,
-			})
+			result["fences"].append([
+				Vector2(rect.position.x + 0.3, rect.end.y + 0.5),
+				Vector2(rect.end.x - 0.3, rect.end.y + 0.5),
+			])
 
 static func _generate_forest(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:

@@ -169,8 +169,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Critère : village généré puis retouché rapidement.
 - v2 : place centrale avec puits/fontaine, clôtures, arbres, chemins ;
   **tentes, feu de camp, tonneaux, bannière et charrette procéduraux** pour le
-  camp ; `ProceduralSceneGenerator`, outil « Générer scène », test d'application
-  réelle, démo et capture.
+  camp, **clôtures procédurales** devant les maisons ; `ProceduralSceneGenerator`,
+  outil « Générer scène », test d'application réelle, démo et capture.
 
 ## Étape 9 — Rendu Tiny Glade
 - Ciel, lumière, GI, brume, matériaux, végétation.

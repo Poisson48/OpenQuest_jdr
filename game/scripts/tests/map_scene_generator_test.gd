@@ -15,6 +15,7 @@ func _run() -> void:
 	var houses: Array = village["houses"]
 	_assert("village_houses", houses.size() >= 2, "count=%d" % houses.size())
 	_assert("village_paths", (village["paths"] as Array).size() > 0)
+	_assert("village_fences", (village["fences"] as Array).size() > 0)
 	_assert("village_props", (village["props"] as Array).size() > 0)
 	var within := true
 	for rect_variant in houses:
