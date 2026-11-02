@@ -1955,7 +1955,37 @@ func _generate_scene(_grid: Vector2) -> void:
 	var plan: Dictionary = ProceduralSceneGeneratorScript.generate(
 		_ed._scene_style, width, height, _ed._scene_seed, _ed._scene_density
 	)
-	var path_count := 0
+	_apply_scene_plan(plan)
+
+## Applique un plan généré (scène complète ou zone).
+func _apply_scene_plan(plan: Dictionary) -> Dictionary:
+	var counts := {
+		"paths": _apply_scene_paths(plan),
+		"houses": _apply_scene_houses(plan),
+		"fences": _apply_scene_fences(plan),
+		"flowers": _apply_scene_flower_zones(plan),
+		"props": _apply_scene_props(plan),
+	}
+	_finalize_scene_status(counts)
+	return counts
+
+func _generate_scene_area(from: Vector2, to: Vector2) -> void:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	var area := Rect2(Vector2(minf(from.x, to.x), minf(from.y, to.y)),
+		Vector2(absf(to.x - from.x), absf(to.y - from.y)))
+	if area.size.x < 8.0 or area.size.y < 8.0:
+		_ed._set_status("Esquisse : dessinez une zone d'au moins 8 × 8 cases.")
+		return
+	var plan: Dictionary = ProceduralSceneGeneratorScript.generate_in_area(
+		_ed._scene_style, width, height, area, _ed._scene_seed, _ed._scene_density
+	)
+	_apply_scene_plan(plan)
+
+func _apply_scene_paths(plan: Dictionary) -> int:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	var count := 0
 	for path_variant in plan.get("paths", []):
 		var path_data: Dictionary = path_variant
 		var from: Vector2 = path_data.get("from", Vector2.ZERO)
@@ -1966,13 +1996,19 @@ func _generate_scene(_grid: Vector2) -> void:
 			var cell := Vector2(round(lerpf(from.x, to.x, t)), round(lerpf(from.y, to.y, t)))
 			if cell.x >= 0.0 and cell.y >= 0.0 and cell.x < width and cell.y < height:
 				_ed.doc.set_terrain_material(int(cell.x), int(cell.y), DocumentScript.MATERIAL_DIRT, "Scène")
-				path_count += 1
-	var house_count := 0
+				count += 1
+	return count
+
+func _apply_scene_houses(plan: Dictionary) -> int:
+	var count := 0
 	for rect_variant in plan.get("houses", []):
 		var rect: Rect2 = rect_variant
 		_create_mesh_house(rect.position, rect.end)
-		house_count += 1
-	var fence_count := 0
+		count += 1
+	return count
+
+func _apply_scene_fences(plan: Dictionary) -> int:
+	var count := 0
 	for fence_variant in plan.get("fences", []):
 		var points: Array = fence_variant
 		if points.size() < 2:
@@ -1997,8 +2033,11 @@ func _generate_scene(_grid: Vector2) -> void:
 			"label": "Clôture de scène", "layer": 1,
 			"display": {"rotation": 0.0, "scale": 1.0},
 		}, DocumentScript.KIND_MESH, "Clôture de scène")
-		fence_count += 1
-	var flower_zone_count := 0
+		count += 1
+	return count
+
+func _apply_scene_flower_zones(plan: Dictionary) -> int:
+	var count := 0
 	for zone_variant in plan.get("flowerZones", []):
 		var zone: Dictionary = zone_variant
 		var rect: Rect2 = zone.get("rect", Rect2())
@@ -2018,13 +2057,16 @@ func _generate_scene(_grid: Vector2) -> void:
 			"points": local,
 			"flowerType": str(zone.get("type", "marguerite")),
 			"density": float(zone.get("density", 4.0)),
-			"size": 0.3, "seed": _ed._scene_seed + flower_zone_count,
+			"size": 0.3, "seed": _ed._scene_seed + count,
 			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
 			"label": "Zone fleurie de scène", "layer": 1,
 			"display": {"rotation": 0.0, "scale": 1.0},
 		}, DocumentScript.KIND_MESH, "Zone fleurie de scène")
-		flower_zone_count += 1
-	var prop_count := 0
+		count += 1
+	return count
+
+func _apply_scene_props(plan: Dictionary) -> int:
+	var count := 0
 	for prop_variant in plan.get("props", []):
 		var prop: Dictionary = prop_variant
 		var asset := str(prop.get("asset", ""))
@@ -2046,9 +2088,15 @@ func _generate_scene(_grid: Vector2) -> void:
 			"label": "Décor de scène", "layer": 1,
 			"display": {"rotation": 0.0, "scale": scale_v},
 		}, DocumentScript.KIND_MESH, "Décor de scène")
-		prop_count += 1
+		count += 1
+	return count
+
+func _finalize_scene_status(counts: Dictionary) -> void:
 	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d zone(s) fleurie(s), %d décor(s)." % [
-		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, fence_count, flower_zone_count, prop_count])
+		ProceduralSceneGeneratorScript.style_label(_ed._scene_style),
+		int(counts.get("houses", 0)), int(counts.get("paths", 0)),
+		int(counts.get("fences", 0)), int(counts.get("flowers", 0)),
+		int(counts.get("props", 0))])
 	_ed._sync_engine()
 
 func _decorate_context(grid: Vector2) -> void:

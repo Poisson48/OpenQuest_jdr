@@ -20,7 +20,7 @@ static func style_label(style_id: String) -> String:
 
 ## Renvoie {houses: Array[Rect2], paths: Array[Dictionary], props: Array[Dictionary]}.
 static func generate(style_id: String, width: int, height: int, seed: int,
-		density: float = 1.0) -> Dictionary:
+		density: float = 1.0, origin: Vector2 = Vector2.ZERO) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var result := {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [], "style": style_id}
@@ -33,7 +33,42 @@ static func generate(style_id: String, width: int, height: int, seed: int,
 			_generate_camp(result, width, height, rng, density)
 		_:
 			_generate_village(result, width, height, rng, density)
+	_offset_plan(result, origin)
 	return result
+
+## Génère une scène complète à l'intérieur d'une zone dessinée par le MJ.
+static func generate_in_area(style_id: String, map_width: int, map_height: int,
+		area: Rect2, seed: int, density: float = 1.0) -> Dictionary:
+	var clipped := area.intersection(Rect2(0, 0, float(map_width), float(map_height)))
+	var w := int(round(clipped.size.x))
+	var h := int(round(clipped.size.y))
+	if w < 8 or h < 8:
+		return {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [], "style": style_id}
+	return generate(style_id, w, h, seed, density, clipped.position)
+
+static func _offset_plan(result: Dictionary, origin: Vector2) -> void:
+	if origin == Vector2.ZERO:
+		return
+	var houses: Array = result.get("houses", [])
+	for i in range(houses.size()):
+		var rect: Rect2 = houses[i]
+		houses[i] = Rect2(rect.position + origin, rect.size)
+	for path_variant in result.get("paths", []):
+		var path: Dictionary = path_variant
+		path["from"] = (path.get("from", Vector2.ZERO) as Vector2) + origin
+		path["to"] = (path.get("to", Vector2.ZERO) as Vector2) + origin
+	for prop_variant in result.get("props", []):
+		var prop: Dictionary = prop_variant
+		prop["x"] = float(prop.get("x", 0.0)) + origin.x
+		prop["y"] = float(prop.get("y", 0.0)) + origin.y
+	for fence_variant in result.get("fences", []):
+		var points: Array = fence_variant
+		for i in range(points.size()):
+			points[i] = (points[i] as Vector2) + origin
+	for zone_variant in result.get("flowerZones", []):
+		var zone: Dictionary = zone_variant
+		var rect: Rect2 = zone.get("rect", Rect2())
+		zone["rect"] = Rect2(rect.position + origin, rect.size)
 
 static func _generate_village(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:

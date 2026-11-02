@@ -167,6 +167,9 @@ var _context_decor_seed: int = 1
 var _scene_style: String = "village"
 var _quick_menu: PopupMenu = null
 var _lighting_menu: PopupMenu = null
+var _gen_panel: PanelContainer = null
+var _gen_label: Label = null
+var _gen_bar: ProgressBar = null
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -247,6 +250,7 @@ func _ready() -> void:
 	doc.history_changed.connect(_on_history_changed)
 	doc.dirty_changed.connect(_on_dirty_changed)
 	_bind_ui()
+	_build_generation_overlay()
 	resized.connect(_on_editor_resized)
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_size_changed):
@@ -408,6 +412,54 @@ func _create_engine(stack: Control) -> void:
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_overlay.set_context(_engine, doc)
 	stack.add_child(_overlay)
+
+func _build_generation_overlay() -> void:
+	_gen_panel = PanelContainer.new()
+	_gen_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_gen_panel.custom_minimum_size = Vector2(480, 104)
+	_gen_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_gen_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_gen_panel.z_index = 300
+	_gen_panel.visible = false
+	_gen_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_gen_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_gen_panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	margin.add_child(box)
+	_gen_label = Label.new()
+	_gen_label.text = "Génération…"
+	_gen_label.add_theme_font_size_override("font_size", 13)
+	_gen_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72))
+	box.add_child(_gen_label)
+	_gen_bar = ProgressBar.new()
+	_gen_bar.min_value = 0
+	_gen_bar.max_value = 100
+	_gen_bar.value = 0
+	_gen_bar.show_percentage = true
+	box.add_child(_gen_bar)
+
+func _show_generation(title: String) -> void:
+	if _gen_panel == null:
+		return
+	_gen_label.text = title
+	_gen_bar.value = 0
+	_gen_panel.visible = true
+
+func _update_generation(value: float, label: String) -> void:
+	if _gen_panel == null or not _gen_panel.visible:
+		return
+	_gen_bar.value = clampf(value, 0.0, 100.0)
+	_gen_label.text = label
+
+func _hide_generation() -> void:
+	if _gen_panel != null:
+		_gen_panel.visible = false
 
 func _build_action_bar() -> void:
 	var bar: HBoxContainer = %ActionBar
@@ -1038,6 +1090,9 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_fence(from, to)
 	elif _tool == ToolsScript.PATH_3D:
 		_create_path(from, to)
+	elif _tool == ToolsScript.SCENE_ZONE:
+		_generate_scene_area_live(from, to)
+		return
 	elif _tool == ToolsScript.MEASURE:
 		var cells := from.distance_to(to)
 		if cells < 0.15:
@@ -2922,31 +2977,109 @@ func _on_atmosphere_changed() -> void:
 
 ## Démarrage rapide : une carte agréable sans passer par dix outils.
 func _on_quick_start(index: int) -> void:
+	_run_quick_start(index)
+
+func _run_quick_start(index: int) -> void:
 	var width := int(doc.map_data.get("width", 0))
 	var height := int(doc.map_data.get("height", 0))
 	if width < 8 or height < 8:
 		_set_status("Démarrage rapide : carte trop petite (8 × 8 minimum).")
 		return
 	var styles := ["village", "forest", "camp"]
+	_show_generation("Préparation de la carte…")
+	await get_tree().process_frame
 	if index >= 0 and index < styles.size():
 		_scene_style = styles[index]
 		_apply_quick_visuals(_scene_style)
 		_scene_seed = (int(Time.get_unix_time_from_system()) + randi()) % 1000000
+		_update_generation(8, "WFC : plaques de sol…")
+		await get_tree().process_frame
 		var wfc_patches: int = _construction.apply_wfc_ground(_scene_style)
-		_construction._generate_scene(Vector2.ZERO)
+		_update_generation(18, "Plan de scène…")
+		await get_tree().process_frame
+		var plan: Dictionary = ProceduralSceneGeneratorScript.generate(
+			_scene_style, width, height, _scene_seed, _scene_density
+		)
+		var counts: Dictionary = await _apply_plan_progressive(plan)
+		_update_generation(94, "Rochers Marching Cubes…")
+		await get_tree().process_frame
 		var rocks: int = _construction.add_procedural_rocks(4)
-		_set_status("Démarrage rapide : %s généré avec %d plaque(s) WFC, %d rocher(s) Marching Cubes et une ambiance prête." % [ProceduralSceneGeneratorScript.style_label(_scene_style), wfc_patches, rocks])
+		_set_status("Démarrage rapide : %s généré avec %d plaque(s) WFC, %d rocher(s) MC." % [
+			ProceduralSceneGeneratorScript.style_label(_scene_style), wfc_patches, rocks])
 	else:
 		_apply_quick_visuals("house")
+		_update_generation(30, "Maison rapide…")
+		await get_tree().process_frame
 		var center := Vector2(float(width) * 0.5, float(height) * 0.5)
 		_house_floors = 1
 		_house_auto_windows = true
 		_house_proc_roof = false
 		_construction._create_mesh_house(center - Vector2(2.2, 1.8), center + Vector2(2.2, 1.8))
+		_update_generation(85, "Lumière et finitions…")
+		await get_tree().process_frame
 		_set_status("Démarrage rapide : maison prête, à toi de l'habiller.")
+	_update_generation(100, "Prêt.")
+	await get_tree().process_frame
+	_hide_generation()
 	if _engine != null and _engine.has_method("request_fit_to_view"):
 		_engine.request_fit_to_view()
 	_sync_engine()
+	_refresh_panels()
+
+## Applique un plan étape par étape avec une vraie barre de progression.
+func _apply_plan_progressive(plan: Dictionary) -> Dictionary:
+	var counts := {"paths": 0, "houses": 0, "fences": 0, "flowers": 0, "props": 0}
+	_update_generation(24, "Chemins…")
+	await get_tree().process_frame
+	counts["paths"] = _construction._apply_scene_paths(plan)
+
+	var houses: Array = plan.get("houses", [])
+	_update_generation(32, "Maisons…")
+	for i in range(houses.size()):
+		var rect: Rect2 = houses[i]
+		_construction._create_mesh_house(rect.position, rect.end)
+		counts["houses"] = int(counts["houses"]) + 1
+		_update_generation(32.0 + 36.0 * float(i + 1) / float(maxi(1, houses.size())),
+			"Maison %d / %d…" % [i + 1, houses.size()])
+		await get_tree().process_frame
+
+	_update_generation(70, "Clôtures…")
+	await get_tree().process_frame
+	counts["fences"] = _construction._apply_scene_fences(plan)
+
+	_update_generation(78, "Zones fleuries…")
+	await get_tree().process_frame
+	counts["flowers"] = _construction._apply_scene_flower_zones(plan)
+
+	_update_generation(86, "Décor…")
+	await get_tree().process_frame
+	counts["props"] = _construction._apply_scene_props(plan)
+
+	_update_generation(92, "Finalisation…")
+	await get_tree().process_frame
+	_construction._finalize_scene_status(counts)
+	return counts
+
+## Génération à l'intérieur d'une zone dessinée (grandes lignes du MJ).
+func _generate_scene_area_live(from: Vector2, to: Vector2) -> void:
+	var width := int(doc.map_data.get("width", 0))
+	var height := int(doc.map_data.get("height", 0))
+	var area := Rect2(Vector2(minf(from.x, to.x), minf(from.y, to.y)),
+		Vector2(absf(to.x - from.x), absf(to.y - from.y)))
+	if area.size.x < 8.0 or area.size.y < 8.0:
+		_set_status("Esquisse : dessinez une zone d'au moins 8 × 8 cases.")
+		return
+	_show_generation("Esquisse de scène…")
+	await get_tree().process_frame
+	var plan: Dictionary = ProceduralSceneGeneratorScript.generate_in_area(
+		_scene_style, width, height, area, _scene_seed, _scene_density
+	)
+	await _apply_plan_progressive(plan)
+	_update_generation(100, "Zone complétée.")
+	await get_tree().process_frame
+	_hide_generation()
+	if _engine != null and _engine.has_method("request_fit_to_view"):
+		_engine.request_fit_to_view()
 	_refresh_panels()
 
 func _on_quick_lighting(index: int) -> void:

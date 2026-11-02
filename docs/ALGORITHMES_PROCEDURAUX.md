@@ -129,12 +129,38 @@ Dans l’éditeur, bouton **✨ Démarrage** :
 
 Bouton **☀** : applique un preset de lumière.
 
+### Voir la génération en direct
+
+La génération est **progressive** : une barre de progression affiche :
+
+1. préparation ;
+2. WFC ;
+3. plan de scène ;
+4. chemins ;
+5. maisons (une par frame) ;
+6. clôtures ;
+7. zones fleuries ;
+8. décor ;
+9. rochers ;
+10. finalisation.
+
+### Esquisser une scène (semi-automatique)
+
+Outil **✏️ Esquisser une scène** :
+
+- clic-glisser un rectangle sur la carte ;
+- l’algorithme génère village/forêt/camp **uniquement dans cette zone** ;
+- les grandes lignes viennent du MJ, le procédural remplit les détails.
+
+Style, graine et densité sont réglables dans les options de l’outil.
+
 ### Vérifications
 
 - `wave_function_collapse_test` → PASS
 - `marching_cubes_test` → PASS
 - `procedural_rock_test` → PASS
 - `map_quick_start_test` → PASS
+- `map_scene_zone_test` → PASS
 - `map_editor_test` → PASS
 - `map_scene_apply_test` → PASS
 - `map_render_quality_test` → PASS

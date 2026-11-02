@@ -38,6 +38,7 @@ const SCATTER := "scatter"
 const FLOWER_ZONE := "flower_zone"
 const CONTEXT_DECOR := "context_decor"
 const SCENE_GEN := "scene_gen"
+const SCENE_ZONE := "scene_zone"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -59,7 +60,7 @@ const MESH := "mesh"
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D, INTERIOR_3D, CONTEXT_DECOR, SCENE_GEN]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA, SCENE_ZONE]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -194,6 +195,10 @@ const DEFS := [
 	{
 		"id": SCENE_GEN, "icon": "🏘", "label": "Générer scène", "shortcut": "", "group": "place",
 		"hint": "Clic : génère un village, une forêt ou un camp sur toute la carte, avec chemins, bâtiments et décor. Style, graine et densité réglables.",
+	},
+	{
+		"id": SCENE_ZONE, "icon": "✏️", "label": "Esquisser une scène", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser une zone : l'algorithme complète village/forêt/camp uniquement dans cette zone. Donne les grandes lignes, le procédural fait le détail.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",

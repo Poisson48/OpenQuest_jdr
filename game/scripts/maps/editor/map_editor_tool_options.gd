@@ -271,7 +271,7 @@ func _rebuild_tool_options() -> void:
 		)
 		_ed._tool_options.add_child(reseed_btn)
 		_option_note("Cliquez près d'un mur : buissons, rochers et haies sont semés le long de ses abords. Un seul undo, variations déterministes.")
-	elif _ed._tool == ToolsScript.SCENE_GEN:
+	elif _ed._tool == ToolsScript.SCENE_GEN or _ed._tool == ToolsScript.SCENE_ZONE:
 		var style_opt := OptionButton.new()
 		for i in range(ProceduralSceneGeneratorScript.STYLES.size()):
 			var style_id := str(ProceduralSceneGeneratorScript.STYLES[i])
@@ -293,7 +293,7 @@ func _rebuild_tool_options() -> void:
 			_ed._set_status("Scène : nouvelle graine %d." % _ed._scene_seed)
 		)
 		_ed._tool_options.add_child(regen_btn)
-		_option_note("Cliquez sur la carte : génère un %s complet (chemins, maisons, décor). Régénérez avec une autre graine, puis retouchez à la main." % ProceduralSceneGeneratorScript.style_label(_ed._scene_style).to_lower())
+		_option_note("Clic-glisser une zone : génère un %s uniquement dans cette zone. Les grandes lignes viennent du MJ, le procédural complète le reste." % ProceduralSceneGeneratorScript.style_label(_ed._scene_style).to_lower())
 	elif _ed._tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_ed._marker_type), MapData.get_marker_label(_ed._marker_type)])
 	elif _ed._tool == ToolsScript.EFFECT:
