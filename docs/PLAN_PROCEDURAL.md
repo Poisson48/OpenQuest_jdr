@@ -276,8 +276,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
   décor), outil dédié, test d'application réelle, démo et capture.
 - Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
-  avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre le
-  personnage** après déplacement et à l'arrivée dans une zone voisine ;
+  avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre en douceur**
+  le personnage après déplacement et à l'arrivée dans une zone voisine ;
   transitions de zone à consolider.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de

@@ -192,6 +192,7 @@ var _token_render_key: String = ""
 ## Pulsation d'arrivée (changement de zone) : état exposé aux tests/captures.
 var _arrival_pulse_active: bool = false
 var _arrival_tween: Tween = null
+var _focus_tween: Tween = null
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
@@ -1945,6 +1946,22 @@ func center_on_grid(gx: float, gy: float) -> void:
 		gy * _cell_size + _cell_size * 0.5
 	))
 	_clamp_camera()
+
+## Recadrage doux sur une case (caméra qui suit un personnage).
+func center_on_grid_smooth(gx: float, gy: float, duration: float = 0.32) -> void:
+	if _camera == null:
+		return
+	var before := _camera.position
+	center_on_grid(gx, gy)
+	var after := _camera.position
+	if after.distance_to(before) < 0.01:
+		return
+	_camera.position = before
+	if _focus_tween != null and _focus_tween.is_valid():
+		_focus_tween.kill()
+	_focus_tween = create_tween()
+	_focus_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_focus_tween.tween_property(_camera, "position", after, duration)
 
 ## Recadre la caméra sur un rectangle exprimé en cases.
 func focus_grid_rect(rect: Rect2, margin: float = 1.6) -> void:

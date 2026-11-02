@@ -263,6 +263,13 @@ func center_on_grid(gx: float, gy: float) -> void:
 	if renderer != null and renderer.has_method("center_on_grid"):
 		renderer.center_on_grid(gx, gy)
 
+func center_on_grid_smooth(gx: float, gy: float) -> void:
+	var renderer := active_renderer()
+	if renderer != null and renderer.has_method("center_on_grid_smooth"):
+		renderer.center_on_grid_smooth(gx, gy)
+	elif renderer != null and renderer.has_method("center_on_grid"):
+		renderer.center_on_grid(gx, gy)
+
 func speech_bubble_count() -> int:
 	return _bubbles.visible_count() if _bubbles else 0
 

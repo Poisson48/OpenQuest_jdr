@@ -905,7 +905,9 @@ func _on_token_moved(token_id: String, gx: float, gy: float) -> void:
 	GameData.save_map_view_state(map_id, stage.get_view_state())
 	refresh()
 	# Caméra qui suit le personnage déplacé (recadrage doux sur sa case).
-	if stage != null and stage.has_method("center_on_grid"):
+	if stage != null and stage.has_method("center_on_grid_smooth"):
+		stage.center_on_grid_smooth(gx, gy)
+	elif stage != null and stage.has_method("center_on_grid"):
 		stage.center_on_grid(gx, gy)
 
 ## Tente une transition par le bord du monde (zones façon Dofus). Renvoie vrai
@@ -944,7 +946,9 @@ func _start_zone_transition(target_id: String, token_id: String, position: Vecto
 		var title := str(target_map.get("title", "carte"))
 		notice_requested.emit("Changement de zone : %s" % title)
 		refresh()
-		if stage != null and stage.has_method("center_on_grid"):
+		if stage != null and stage.has_method("center_on_grid_smooth"):
+			stage.center_on_grid_smooth(position.x, position.y)
+		elif stage != null and stage.has_method("center_on_grid"):
 			stage.center_on_grid(position.x, position.y)
 		await _flash_zone_title(title, not was_known)
 	await _fade_to(0.0)
