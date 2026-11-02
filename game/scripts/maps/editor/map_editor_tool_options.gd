@@ -111,6 +111,12 @@ func _rebuild_tool_options() -> void:
 		auto_windows.tooltip_text = "Pose une fenêtre sur chaque mur latéral (murs assez hauts requis)."
 		auto_windows.toggled.connect(func(on): _ed._house_auto_windows = on)
 		_ed._tool_options.add_child(auto_windows)
+		var proc_roof_chk := CheckBox.new()
+		proc_roof_chk.text = "Toit procédural"
+		proc_roof_chk.button_pressed = _ed._house_proc_roof
+		proc_roof_chk.tooltip_text = "Utilise un seul mesh de toit (tuiles/ardoise/chaume) au lieu des modules."
+		proc_roof_chk.toggled.connect(func(on): _ed._house_proc_roof = on)
+		_ed._tool_options.add_child(proc_roof_chk)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Étages", 1, 3, float(_ed._house_floors), 1, func(v): _ed._house_floors = int(v))
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:

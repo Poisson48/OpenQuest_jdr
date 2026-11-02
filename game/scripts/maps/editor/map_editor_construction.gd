@@ -596,7 +596,11 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 		}, DocumentScript.KIND_MESH, "Dalle d'étage")
 		if slab_id.is_empty():
 			continue
-	_create_mesh_roof(from, to, _ed._wall_height * float(maxi(0, _ed._house_floors - 1)))
+	var roof_offset: float = _ed._wall_height * float(maxi(0, _ed._house_floors - 1))
+	if _ed._house_proc_roof:
+		_create_procedural_roof(from, to, roof_offset)
+	else:
+		_create_mesh_roof(from, to, roof_offset)
 	# Porte au centre du mur avant (côté +Y).
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))
 	if _ed._house_auto_windows:
@@ -1746,7 +1750,7 @@ func _create_mesh_roof(from: Vector2, to: Vector2, elevation_offset: float = 0.0
 	_ed._set_status("Toit 3D : %d tuile(s), hauteur %.2f." % [ids.size(), _ed._roof_height])
 
 ## Toit procédural : un seul mesh généré depuis l'emprise, avec débord.
-func _create_procedural_roof(from: Vector2, to: Vector2) -> void:
+func _create_procedural_roof(from: Vector2, to: Vector2, elevation_offset: float = 0.0) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
 	var y0 := minf(from.y, to.y)
@@ -1767,7 +1771,7 @@ func _create_procedural_roof(from: Vector2, to: Vector2) -> void:
 		"roofStyle": _ed._proc_roof_style,
 		"roofTone": _ed._proc_roof_tone,
 		"color": "#a84f3f",
-		"elevation": _ed._roof_height,
+		"elevation": _ed._roof_height + elevation_offset,
 		"followTerrain": false, "tiltToTerrain": false,
 		"label": "Toit procédural", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
