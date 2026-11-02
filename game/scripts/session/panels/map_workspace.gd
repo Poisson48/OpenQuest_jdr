@@ -965,8 +965,38 @@ func _try_edge_transition(token_id: String, gx: float, gy: float) -> bool:
 	if not bool(result.get("ok", false)):
 		return false
 	var target_id := str(result.get("target_map_id", ""))
-	_start_zone_transition(target_id, token_id, result.get("position", Vector2.ZERO))
+	var width := int(current_map.get("width", 1))
+	var height := int(current_map.get("height", 1))
+	var border := Vector2(clampf(gx, 0.0, float(width - 1)), clampf(gy, 0.0, float(height - 1)))
+	match side:
+		"west":
+			border.x = 0.0
+		"east":
+			border.x = float(width - 1)
+		"north":
+			border.y = 0.0
+		"south":
+			border.y = float(height - 1)
+	_begin_edge_walk(map_id, target_id, token_id, border, result.get("position", Vector2.ZERO))
 	return true
+
+## Petite marche vers le bord avant le fondu, pour éviter le saut sec.
+func _begin_edge_walk(map_id: String, target_id: String, token_id: String,
+		border: Vector2, arrival: Vector2) -> void:
+	if _transitioning:
+		return
+	_transitioning = true
+	GameData.submit_map_op(map_id, {
+		"type": GameData.MAP_OP_MOVE_TOKEN, "tokenId": token_id,
+		"x": border.x, "y": border.y,
+	})
+	GameData.save_map_view_state(map_id, stage.get_view_state())
+	refresh()
+	if stage != null and stage.has_method("center_on_grid_smooth"):
+		stage.center_on_grid_smooth(border.x, border.y)
+	await get_tree().create_timer(0.22).timeout
+	_transitioning = false
+	await _start_zone_transition(target_id, token_id, arrival)
 
 ## Change de zone avec fondu : le token est transféré pendant l'écran noir.
 func _start_zone_transition(target_id: String, token_id: String, position: Vector2) -> void:
