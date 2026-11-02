@@ -51,6 +51,7 @@ const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const ProceduralWallMeshScript := preload("res://scripts/maps/construction/procedural_wall_mesh.gd")
 const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
+const ProceduralRoofMeshScript := preload("res://scripts/maps/construction/procedural_roof_mesh.gd")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -282,6 +283,14 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		material.albedo_color = Color.WHITE
 		material.roughness = 0.9
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	elif asset == "procedural://roof":
+		mesh_instance.name = "ProceduralRoof"
+		mesh_instance.mesh = ProceduralRoofMeshScript.build_from_element(mesh)
+		material.vertex_color_use_as_albedo = true
+		material.albedo_color = Color.WHITE
+		material.roughness = 0.82
+		material.metallic = 0.0
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	else:
 		mesh_instance.name = "ProceduralWall"

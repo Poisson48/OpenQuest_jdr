@@ -92,13 +92,13 @@ le jeu doit rester léger et déterministe.
 Chaque étape majeure = une **démo courte** lancée à l'écran, remplacée à
 l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 
-## Étape 1 — Mur procédural continu (en cours)
+## Étape 1 — Mur procédural continu (livré)
 - Spline + mitres + mesh unique.
 - Outil **Mur procédural** dans l'éditeur.
 - Démo : courbe, T visuel, muret de jardin.
 - Critère : aucun escalier de modules ; angles continus.
 
-## Étape 2 — Terrain déformable façon Tiny Glade
+## Étape 2 — Terrain déformable façon Tiny Glade (socle livré)
 - Heightfield sculptable : monter, baisser, lisser, aplatir.
 - Pinceaux et splines de relief.
 - **Sculpture à la souris** avec rayon/force, aperçu.
@@ -108,11 +108,12 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Rives et eau adaptées.
 - Critère : créer une colline et une dépression sans quitter l'éditeur.
 
-## Étape 3 — Toits et pièces adaptatifs
+## Étape 3 — Toits et pièces adaptatifs (livré v1)
 - Détection d'emprise, toit qui suit la forme.
 - Faîtage, pignons, débords, lucarnes.
 - Raccord mur/toit.
 - Critère : pièce irrégulière couverte sans trou.
+- v1 : toit à deux pans procédural, emprise rectangulaire, outil dédié.
 
 ## Étape 4 — Générateur Blender paramétrique v1
 - Recettes + scripts + manifest.
@@ -120,13 +121,13 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Variantes, palettes, LOD.
 - Critère : scène complète avec assets générés, sans import manuel.
 
-## Étape 5 — Décor facile et contextuel
+## Étape 5 — Décor facile et contextuel (zones fleuries livrées)
 - Pinceau végétation.
 - **Zone fleurie au pinceau** : dessiner une zone, choisir le **type de fleur**
   (coquelicot, marguerite, lavande, fleur bleue, fleur sauvage…) et la densité ;
-  les fleurs choisies apparaissent uniquement dans la zone.
+  les fleurs choisies apparaissent uniquement dans la zone. **Livré.**
 - Les herbes/fleurs/buissons procéduraux ne sont **pas affichés par défaut**
-  (captures propres) ; tout décor de sol est peint explicitement.
+  (captures propres) ; tout décor de sol est peint explicitement. **Livré.**
 - Décor automatique le long des murs, chemins, eau.
 - Recalcul lors du déplacement.
 - Critère : décor vivant en 2–3 gestes, sans bruit visuel par défaut.
@@ -231,8 +232,10 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 2 en cours : relief déformable par tracé (crête/vallée/aplatir/lisser)
   implémenté côté document, éditeur et test ; la démo visuelle est calibrée pour
   révéler le relief malgré la texture.
-- Étape 3 livrée : **zones fleuries au pinceau** avec type de fleur, densité et
-  taille ; mesh procédural déterministe, test dédié, démo et capture.
+- Étape 3 livrée v1 : **toit procédural** à deux pans, débord, pignons, adaptation
+  à l'emprise, outil dédié, test et démo.
+- Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
+  densité et taille ; mesh procédural déterministe, test dédié, démo et capture.
 - Terrain déformable : pinceau existant + tracé + plateformes ; prochaine
   itération sur les berges, empreintes de bâtiments et mesh de terrain.
 - Assets procéduraux : étape 4, pipeline Blender offline.

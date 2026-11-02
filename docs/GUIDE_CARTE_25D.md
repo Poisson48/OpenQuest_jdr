@@ -121,6 +121,8 @@ Outils terrain :
 - **Outil 🪄 Mur procédural** : clic-glisser libre ; génère un **unique mesh
   continu à mitres** depuis la courbe. Première brique du plan procédural
   ([PLAN_PROCEDURAL.md](PLAN_PROCEDURAL.md)).
+- **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
+  pans avec débord et pignons, adapté à l'emprise, sans tuiles à recaler.
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

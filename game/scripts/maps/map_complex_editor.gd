@@ -112,6 +112,8 @@ var _player_view_btn: Button
 var _light_place_radius: float = 3.0
 var _wall_height: float = 1.3
 var _roof_height: float = 1.1
+var _proc_roof_height: float = 1.1
+var _proc_roof_overhang: float = 0.35
 var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
 var _floor_flatten: bool = true
@@ -959,6 +961,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_mesh_room(from, to)
 	elif _tool == ToolsScript.ROOF_3D:
 		_create_mesh_roof(from, to)
+	elif _tool == ToolsScript.PROC_ROOF:
+		_construction._create_procedural_roof(from, to)
 	elif _tool == ToolsScript.FLOOR_3D:
 		_create_floor(from, to)
 	elif _tool == ToolsScript.HOUSE_3D:

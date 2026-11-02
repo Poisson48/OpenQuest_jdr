@@ -1367,6 +1367,37 @@ func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
 	_ed.doc.commit_transaction()
 	_ed._set_status("Toit 3D : %d tuile(s), hauteur %.2f." % [ids.size(), _ed._roof_height])
 
+## Toit procédural : un seul mesh généré depuis l'emprise, avec débord.
+func _create_procedural_roof(from: Vector2, to: Vector2) -> void:
+	var x0 := minf(from.x, to.x)
+	var x1 := maxf(from.x, to.x)
+	var y0 := minf(from.y, to.y)
+	var y1 := maxf(from.y, to.y)
+	var width := x1 - x0
+	var depth := y1 - y0
+	if width < 1.0 or depth < 1.0:
+		_ed._set_status("Zone de toit trop petite.")
+		return
+	var center := Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5)
+	_ed.doc.begin_transaction()
+	var id: String = _ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": width, "h": depth,
+		"asset": "procedural://roof",
+		"roofHeight": _ed._proc_roof_height,
+		"overhang": _ed._proc_roof_overhang,
+		"color": "#a84f3f",
+		"elevation": _ed._roof_height,
+		"followTerrain": false, "tiltToTerrain": false,
+		"label": "Toit procédural", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Toit procédural")
+	_ed.doc.set_selection([id])
+	_ed.doc.commit_transaction()
+	_ed._sync_engine()
+	_ed._set_status("Toit procédural : %.1f × %.1f cases, hauteur %.2f." % [
+		width, depth, _ed._proc_roof_height])
+
 ## Dallage : peint le sol intérieur en pierre et le nivelle (option).
 func _create_floor(from: Vector2, to: Vector2) -> void:
 	var w = int(_ed.doc.map_data.get("width", 0))

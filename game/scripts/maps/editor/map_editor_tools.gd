@@ -19,6 +19,7 @@ const WALL := "wall"
 const MESH_WALL := "mesh_wall"
 const ROOM_3D := "room_3d"
 const ROOF_3D := "roof_3d"
+const PROC_ROOF := "proc_roof"
 const FLOOR_3D := "floor_3d"
 const DOOR_3D := "door_3d"
 const HOUSE_3D := "house_3d"
@@ -53,7 +54,7 @@ const MESH := "mesh"
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D, INTERIOR_3D]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -112,6 +113,10 @@ const DEFS := [
 	{
 		"id": ROOF_3D, "icon": "🛖", "label": "Toit 3D", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser un rectangle : couvre une pièce avec des tuiles de toit 2 pans à la hauteur choisie.",
+	},
+	{
+		"id": PROC_ROOF, "icon": "🏠", "label": "Toit procédural", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser un rectangle : un seul mesh de toit à deux pans, avec débord et pignons, adapté à l'emprise. Fini les rangées de tuiles à recaler.",
 	},
 	{
 		"id": FLOOR_3D, "icon": "▦", "label": "Dallage", "shortcut": "", "group": "place",

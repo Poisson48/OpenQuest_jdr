@@ -244,6 +244,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🪄 Mur procédural | — | Clic-glisser libre : un **seul mesh continu à mitres** généré depuis la courbe (étape 1 du plan procédural) |
 | Placer | 🌿 Végétation | — | Clic-glisser : **dispersion automatique** de buissons/haies/roseaux/arbres/bosquets/rochers, densité/taille/rayon, sans doublon de case |
 | Placer | 🌸 Zone fleurie | — | Clic-glisser pour dessiner une zone fermée : fleurs procédurales du type choisi (coquelicots, marguerites, lavande, bleues, mélange), densité/taille |
+| Placer | 🏠 Toit procédural | — | Clic-glisser un rectangle : **un seul mesh à deux pans**, débord et pignons, adapté à l'emprise |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
 | Placer | 🧊 Objet 3D | `O` | Pose un mesh 3D (GLB exporté de Blender) : bâtiment, tour, pont, rocher. `R` : pivoter · échelle dans les options. |
 | Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |
