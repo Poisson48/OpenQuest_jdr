@@ -1412,6 +1412,10 @@ func _insert_door(grid: Vector2) -> void:
 			best = distance
 			wall = elem
 	if wall.is_empty():
+		var proc_wall := _nearest_procedural_wall(grid)
+		if not proc_wall.is_empty():
+			_insert_door_procedural(proc_wall, grid)
+			return
 		_ed._set_status("Porte 3D : cliquez près d'un mur 3D.")
 		return
 	var display: Dictionary = wall.get("display", {}) if wall.get("display") is Dictionary else {}
@@ -1469,6 +1473,159 @@ func _insert_door(grid: Vector2) -> void:
 	_ed.doc.select_only(door_id)
 	_ed.doc.commit_transaction()
 	_ed._set_status("Porte 3D insérée : ouverture %.2f, deux montants." % gap)
+## --- Ouverture de porte dans un mur procédural ---------------------------
+func _nearest_procedural_wall(grid: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_distance := 2.5
+	for elem_variant in _ed.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		if str(elem.get("asset", "")) != "procedural://wall":
+			continue
+		var points := _procedural_world_points(elem)
+		if points.size() < 2:
+			continue
+		for i in range(points.size() - 1):
+			var distance := _distance_to_segment(grid, points[i], points[i + 1])
+			if distance < best_distance:
+				best_distance = distance
+				best = elem
+	return best
+
+func _procedural_world_points(elem: Dictionary) -> Array:
+	var origin := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+	var out: Array = []
+	for p in elem.get("points", []):
+		var local := Vector2.ZERO
+		if p is Vector2:
+			local = p
+		elif p is Array and (p as Array).size() >= 2:
+			local = Vector2(float(p[0]), float(p[1]))
+		out.append(origin + local)
+	return out
+
+func _insert_door_procedural(wall: Dictionary, grid: Vector2) -> void:
+	var points := _procedural_world_points(wall)
+	if points.size() < 2:
+		return
+	var total := 0.0
+	for i in range(points.size() - 1):
+		total += (points[i] as Vector2).distance_to(points[i + 1])
+	var door_asset := "res://assets/objects3d/buildings/porte_auvent.glb"
+	var door_bounds := _mesh_bounds_cells(door_asset, 1.0)
+	var gap := maxf(1.0, door_bounds.x)
+	if total < gap + 0.8:
+		_ed._set_status("Porte 3D : mur procédural trop court pour une ouverture.")
+		return
+	# Distance curviligne du point le plus proche du clic.
+	var best_s := 0.0
+	var best_d := INF
+	var walked := 0.0
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var ab := b - a
+		var len_sq := ab.length_squared()
+		if len_sq < 0.000001:
+			continue
+		var t := clampf((grid - a).dot(ab) / len_sq, 0.0, 1.0)
+		var closest := a + ab * t
+		var d := grid.distance_to(closest)
+		if d < best_d:
+			best_d = d
+			best_s = walked + sqrt(len_sq) * t
+		walked += sqrt(len_sq)
+	var start := clampf(best_s - gap * 0.5, 0.0, total)
+	var end := clampf(best_s + gap * 0.5, 0.0, total)
+	var left := _slice_polyline(points, 0.0, start)
+	var right := _slice_polyline(points, end, total)
+	var opening_center := _point_on_polyline(points, best_s)
+	var tangent := _point_on_polyline(points, minf(best_s + 0.1, total)) - _point_on_polyline(points, maxf(best_s - 0.1, 0.0))
+	var rotation := rad_to_deg(atan2(tangent.y, tangent.x))
+	_ed.doc.begin_transaction()
+	_ed.doc.remove_element(str(wall.get("id", "")))
+	_add_procedural_wall_run(left, wall)
+	_add_procedural_wall_run(right, wall)
+	var door_id: String = _ed.doc.add_element({
+		"x": opening_center.x, "y": opening_center.y,
+		"w": gap, "h": maxf(0.4, door_bounds.z),
+		"sizeX": door_bounds.x, "sizeY": minf(door_bounds.y, float(wall.get("height", 2.2)) * 0.82),
+		"sizeZ": door_bounds.z,
+		"asset": door_asset,
+		"elevation": float(wall.get("elevation", 0.0)),
+		"followTerrain": true, "tiltToTerrain": false,
+		"label": "Porte à auvent", "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Porte")
+	_ed.doc.select_only(door_id)
+	_ed.doc.commit_transaction()
+	_ed._sync_engine()
+	_ed._set_status("Porte 3D insérée dans le mur procédural : ouverture %.2f." % gap)
+
+func _add_procedural_wall_run(points: Array, template: Dictionary) -> void:
+	if points.size() < 2:
+		return
+	var min_p: Vector2 = points[0]
+	var max_p: Vector2 = points[0]
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var center := (min_p + max_p) * 0.5
+	var local: Array = []
+	for p_variant in points:
+		var p: Vector2 = (p_variant as Vector2) - center
+		local.append([p.x, p.y])
+	_ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": maxf(0.5, max_p.x - min_p.x), "h": maxf(0.5, max_p.y - min_p.y),
+		"asset": "procedural://wall", "points": local,
+		"height": float(template.get("height", 2.2)),
+		"thickness": float(template.get("thickness", 0.7)),
+		"bevel": float(template.get("bevel", 0.12)),
+		"color": str(template.get("color", "#a89d88")),
+		"elevation": float(template.get("elevation", 0.0)),
+		"followTerrain": true, "tiltToTerrain": false,
+		"label": "Mur procédural", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Mur procédural")
+
+func _slice_polyline(points: Array, start: float, end: float) -> Array:
+	if end <= start:
+		return []
+	var out: Array = []
+	var walked := 0.0
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var seg_len := a.distance_to(b)
+		if seg_len < 0.0001:
+			continue
+		var s0 := walked
+		var s1 := walked + seg_len
+		var from := maxf(start, s0)
+		var to := minf(end, s1)
+		if to > from:
+			var p0 := a.lerp(b, (from - s0) / seg_len)
+			var p1 := a.lerp(b, (to - s0) / seg_len)
+			if out.is_empty() or (out[out.size() - 1] as Vector2).distance_to(p0) > 0.001:
+				out.append(p0)
+			out.append(p1)
+		walked = s1
+	return out
+
+func _point_on_polyline(points: Array, distance: float) -> Vector2:
+	var walked := 0.0
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var seg_len := a.distance_to(b)
+		if distance <= walked + seg_len:
+			return a.lerp(b, clampf((distance - walked) / maxf(0.0001, seg_len), 0.0, 1.0))
+		walked += seg_len
+	return points[points.size() - 1]
+
 func _create_mesh_roof(from: Vector2, to: Vector2, elevation_offset: float = 0.0) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)

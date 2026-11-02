@@ -128,6 +128,8 @@ Outils terrain :
   seul mesh, hauteur et espacement réglables.
 - **Outil 🛤 Chemin procédural** : clic-glisser libre ; ruban de chemin continu
   avec bords biseautés et largeur réglable.
+- **Porte sur mur procédural** : cliquez près d'un mur procédural avec l'outil
+  Porte ; le mur est scindé en deux montants autour de l'ouverture.
 - **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
   pans ou à croupe, avec débord et pignons, adapté à l'emprise, sans tuiles à
   recaler.
