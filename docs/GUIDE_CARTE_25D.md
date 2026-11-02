@@ -114,6 +114,9 @@ Outils terrain :
 - **Outil 🌿 Végétation** : clic-glisser ; disperse automatiquement buissons,
   haies, roseaux, arbres, bosquets ou rochers avec densité/taille/rayon. Un seul
   undo par trait, pas de doublon de case, eau évitée.
+- **Outil 🪄 Mur procédural** : clic-glisser libre ; génère un **unique mesh
+  continu à mitres** depuis la courbe. Première brique du plan procédural
+  ([PLAN_PROCEDURAL.md](PLAN_PROCEDURAL.md)).
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées

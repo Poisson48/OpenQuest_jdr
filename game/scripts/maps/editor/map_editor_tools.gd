@@ -29,6 +29,7 @@ const STAIRS_3D := "stairs_3d"
 const INTERIOR_3D := "interior_3d"
 const PATH_3D := "path_3d"
 const ORGANIC := "organic"
+const PROC_WALL := "proc_wall"
 const SCATTER := "scatter"
 const NOTE := "note"
 const LIGHT := "light"
@@ -149,6 +150,10 @@ const DEFS := [
 	{
 		"id": ORGANIC, "icon": "🌀", "label": "Tracé organique", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser libre : dessine une courbe lissée (Catmull-Rom) et la construit en modules continus (mur, clôture, palissade) orientés sur la tangente. Relâchez pour construire : courbes, virages doux, diagonales. Options style / hauteur / lissage.",
+	},
+	{
+		"id": PROC_WALL, "icon": "🪄", "label": "Mur procédural", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser libre : génère un vrai mesh de mur continu (mitres, sans couture) à partir de la courbe. Hauteur et lissage réglables ; prochaine étape du plan Tiny Glade.",
 	},
 	{
 		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",

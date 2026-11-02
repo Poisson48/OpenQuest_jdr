@@ -49,6 +49,7 @@ const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 ## Chargement des objets 3D : GLB livrés (importés par Godot, via ResourceLoader)
 ## ET GLB utilisateur déposés dans user:// (non importés, via GLTFDocument).
 const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
+const ProceduralWallMeshScript := preload("res://scripts/maps/construction/procedural_wall_mesh.gd")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -237,7 +238,14 @@ func _basis_with_up(up: Vector3, yaw: float) -> Basis:
 func _build_mesh(mesh: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.name = str(mesh.get("id", "mesh")) if not str(mesh.get("id", "")).is_empty() else "Mesh"
-	var visual := _instantiate_asset(str(mesh.get("asset", "")))
+	var asset_path := str(mesh.get("asset", ""))
+	var visual: Node = null
+	if asset_path.begins_with("procedural://"):
+		var visual_mesh := _build_procedural_visual(mesh)
+		if visual_mesh != null:
+			visual = visual_mesh
+	else:
+		visual = _instantiate_asset(asset_path)
 	var fallback := visual == null
 	if fallback:
 		visual = _build_fallback()
@@ -261,6 +269,18 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	_add_contact_shadow(root, visual, _is_inclined(mesh))
 	root.set_meta("fallback", fallback)
 	return root
+
+func _build_procedural_visual(mesh: Dictionary) -> Node3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "ProceduralWall"
+	mesh_instance.mesh = ProceduralWallMeshScript.build_from_element(mesh)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color.html(str(mesh.get("color", "#a89d88")))
+	material.roughness = 0.92
+	material.metallic = 0.0
+	mesh_instance.material_override = material
+	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mesh_instance
 
 ## Facteurs d'échelle par axe pour obtenir les dimensions déclarées (en cases).
 ## `sizeX`/`sizeY`/`sizeZ` permettent de redimensionner un objet 3D par axe

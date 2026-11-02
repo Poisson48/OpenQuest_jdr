@@ -681,6 +681,43 @@ func _build_organic_chain(points: Array) -> Array:
 	_ed.doc.commit_transaction()
 	return ids
 
+## Mur procédural : une seule entrée de mesh dont le tracé devient un vrai
+## ruban maillé (mitres), au lieu d'une suite de modules GLB.
+func _build_procedural_wall(raw_points: Array) -> String:
+	var curve := OrganicPathScript.path_points(raw_points, {
+		"smoothing": _ed._organic_smoothing,
+		"spacing": 0.35,
+		"nominal_length": 0.5,
+	})
+	if curve.size() < 2:
+		return ""
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for point_variant in curve:
+		var p: Vector2 = point_variant
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var center := (min_p + max_p) * 0.5
+	var local: Array = []
+	for point_variant in curve:
+		var p: Vector2 = point_variant - center
+		local.append([p.x, p.y])
+	var id: String = _ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": maxf(0.5, max_p.x - min_p.x),
+		"h": maxf(0.5, max_p.y - min_p.y),
+		"asset": "procedural://wall",
+		"points": local,
+		"height": maxf(0.5, _ed._wall_height),
+		"thickness": 0.7,
+		"color": "#a89d88",
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": "Mur procédural", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Mur procédural")
+	_ed.doc.select_only(id)
+	return id
+
 func _finish_organic_stroke() -> void:
 	var points: Array = _ed._organic_points.duplicate()
 	_ed._organic_points.clear()
@@ -693,6 +730,14 @@ func _finish_organic_stroke() -> void:
 	var length := OrganicPathScript.total_length(points)
 	if length < 0.8:
 		_ed._set_status("Tracé organique : %.2f case — tracé trop court." % length)
+		_ed._refresh_overlay()
+		return
+	if _ed._tool == ToolsScript.PROC_WALL:
+		var proc_id := _build_procedural_wall(points)
+		if not proc_id.is_empty():
+			_ed._set_status("Mur procédural : %.2f case(s), mesh continu." % length)
+			_ed._sync_engine()
+		_ed._refresh_panels()
 		_ed._refresh_overlay()
 		return
 	var ids := _build_organic_chain(points)

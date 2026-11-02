@@ -128,6 +128,10 @@ func _rebuild_tool_options() -> void:
 		path_opt.item_selected.connect(func(index: int): _ed._path_material = int(path_opt.get_item_metadata(index)))
 		_ed._tool_options.add_child(path_opt)
 		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
+	elif _ed._tool == ToolsScript.PROC_WALL:
+		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Pas de couture visible aux angles.")
 	elif _ed._tool == ToolsScript.ORGANIC:
 		var organic_opt := OptionButton.new()
 		for i in range(ConstructionScript.ORGANIC_STYLES.size()):

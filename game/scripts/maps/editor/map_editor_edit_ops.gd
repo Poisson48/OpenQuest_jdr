@@ -37,7 +37,7 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_begin_select_or_move(grid, screen, mods)
 		return
 
-	if _ed._tool == ToolsScript.ORGANIC:
+	if _ed._tool == ToolsScript.ORGANIC or _ed._tool == ToolsScript.PROC_WALL:
 		if not _ed._in_bounds(grid):
 			_ed._set_status("Tracé organique : commencez dans la carte.")
 			return
