@@ -1276,9 +1276,14 @@ func _ensure_camera_above_terrain() -> void:
 		_clamp_camera()
 
 func _update_camera_debug() -> void:
-	if not OS.is_debug_build():
+	if _camera == null:
+		return
+	if not editor_mode and not OS.is_debug_build():
 		return
 	if _camera_debug_lbl == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 200
+		add_child(layer)
 		_camera_debug_lbl = Label.new()
 		_camera_debug_lbl.position = Vector2(12, 74)
 		_camera_debug_lbl.z_index = 100
@@ -1287,7 +1292,7 @@ func _update_camera_debug() -> void:
 		_camera_debug_lbl.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
 		_camera_debug_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 		_camera_debug_lbl.add_theme_constant_override("outline_size", 4)
-		add_child(_camera_debug_lbl)
+		layer.add_child(_camera_debug_lbl)
 	var focus := _ground_focus()
 	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
 	var span := _ground_span_per_pixel()
