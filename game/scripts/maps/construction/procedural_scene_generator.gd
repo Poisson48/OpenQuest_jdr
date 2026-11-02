@@ -39,6 +39,25 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
 	var road_y := height / 2
 	result["paths"].append({"from": Vector2(2, road_y), "to": Vector2(width - 2, road_y), "width": 1})
+	# Petite place centrale : puits + fontaine + arbres.
+	var plaza := Vector2(width * 0.5, road_y - 1.2)
+	result["paths"].append({"from": Vector2(plaza.x, road_y), "to": plaza, "width": 1})
+	result["props"].append({
+		"asset": "res://assets/objects3d/props/puits_couvert.glb",
+		"x": plaza.x - 1.0, "y": clampf(plaza.y, 1.0, float(height) - 1.0), "scale": 1.0,
+	})
+	if rng.randf() < 0.7:
+		result["props"].append({
+			"asset": "res://assets/objects3d/props/fontaine.glb",
+			"x": plaza.x + 1.3, "y": clampf(plaza.y + 0.6, 1.0, float(height) - 1.0), "scale": 0.9,
+		})
+	for i in range(2):
+		result["props"].append({
+			"asset": "res://assets/objects3d/vegetation/arbre.glb",
+			"x": clampf(plaza.x + (-3.5 if i == 0 else 3.5), 1.0, float(width) - 1.0),
+			"y": clampf(plaza.y - 1.5, 1.0, float(height) - 1.0),
+			"scale": rng.randf_range(0.9, 1.2),
+		})
 	var slots: int = clampi(int(round(float(width - 8) / 4.0 * density)), 1, 6)
 	for i in range(slots):
 		var cx := 4.0 + (float(width - 8) * (float(i) + 0.5) / float(slots))
@@ -58,6 +77,13 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 				"x": cx + rng.randf_range(-1.0, 1.0),
 				"y": road_y + side * rng.randf_range(3.8, 5.0),
 				"scale": rng.randf_range(0.8, 1.2),
+			})
+			# Petite clôture basse devant la façade côté route.
+			result["props"].append({
+				"asset": "res://assets/objects3d/props/cloture_basse.glb",
+				"x": rect.position.x + rect.size.x * 0.5,
+				"y": rect.end.y + 0.4 if side > 0.0 else rect.position.y - 0.4,
+				"scale": 1.0,
 			})
 
 static func _generate_forest(result: Dictionary, width: int, height: int,

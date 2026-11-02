@@ -153,12 +153,13 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Empilement : anti-z-fighting par epsilon vertical.
 - Critère : maison complète en un geste.
 
-## Étape 8 — Générateur de scène (v1 livrée)
+## Étape 8 — Générateur de scène (v2 livrée)
 - Village/forêt/camp : route, parcelles, clôtures, puits, arbres.
 - Graine, densité, style.
 - Critère : village généré puis retouché rapidement.
-- v1 : `ProceduralSceneGenerator` (village avec maisons/chemins/décor, forêt,
-  camp), outil « Générer scène », graine/densité, test dédié.
+- v2 : place centrale avec puits/fontaine, clôtures, arbres, chemins ;
+  `ProceduralSceneGenerator`, outil « Générer scène », test d'application réelle,
+  démo et capture.
 
 ## Étape 9 — Rendu Tiny Glade
 - Ciel, lumière, GI, brume, matériaux, végétation.
@@ -258,9 +259,9 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 7 v2 partielle : **maison rapide** avec toit, porte, option
   **intérieur lié automatique** et **fenêtres automatiques** ; étages/ouvertures
   irrégulières à compléter.
-- Étape 8 v1 livrée : **générateur de scène** village/forêt/camp (plan
-  déterministe, chemins, maisons, décor), outil dédié, test d'application réelle,
-  démo et capture.
+- Étape 8 v2 livrée : **générateur de scène** village/forêt/camp (plan
+  déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
+  décor), outil dédié, test d'application réelle, démo et capture.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
   terrain.
