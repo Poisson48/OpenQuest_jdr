@@ -3,6 +3,10 @@
 Liste simple et à jour (1er novembre 2026, branche `interface`).
 Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) · [RAPPORT_UI_UX_CARTES.md](RAPPORT_UI_UX_CARTES.md)
 
+> **L'interface est terminée** (aucun point ouvert, cf. rapport interface).
+> Tout ce qui reste ci-dessous relève du **périmètre cartes** et revient à
+> **Poisson48** : moteur de carte, éditeurs, tokens, session côté carte.
+
 ---
 
 ## Priorité 1 — carte et session (périmètre Poisson48)

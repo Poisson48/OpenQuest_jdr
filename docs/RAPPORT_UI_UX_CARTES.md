@@ -2,7 +2,7 @@
 
 **Date** : 4 octobre 2026  
 **Domaine** : Création de cartes, éditeurs, rendu, navigation carte  
-**Responsable** : Poisson48  
+**Responsable** : **Poisson48** — seul périmètre encore ouvert du projet  
 **Nature** : Audit de cohérence visuelle — **ÉTAT RESTANT**
 
 > **Note** : Ce rapport couvre uniquement le périmètre « cartes » — éditeurs, moteur de rendu,
