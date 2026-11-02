@@ -576,11 +576,17 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_create_mesh_roof(from, to)
 	# Porte au centre du mur avant (côté +Y).
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))
+	if _ed._house_auto_windows:
+		var mid_y := (y0 + y1) * 0.5
+		_insert_window(Vector2(x0, mid_y))
+		_insert_window(Vector2(x1, mid_y))
 	if _ed._house_auto_interior:
 		_create_interior_at(Vector2((x0 + x1) * 0.5, y1))
 	_ed._roof_height = previous_roof
 	_ed._set_status("Maison rapide construite : murs, dallage, toit%s." % (
-		", porte et intérieur lié" if _ed._house_auto_interior else " et porte"))
+		", porte, fenêtres et intérieur lié" if _ed._house_auto_interior and _ed._house_auto_windows
+		else (", porte et intérieur lié" if _ed._house_auto_interior
+		else (", porte et fenêtres" if _ed._house_auto_windows else " et porte"))))
 
 ## Chemin de terre : peint les cases le long du tracé, largeur réglable.
 func _create_path(from: Vector2, to: Vector2) -> void:

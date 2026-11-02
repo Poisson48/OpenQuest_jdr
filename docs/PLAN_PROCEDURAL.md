@@ -146,9 +146,10 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Raycast vertical, snap et anti-z-fighting : itération suivante.
 - Critère : poser une lanterne sur un mur, un tonneau sur une table.
 
-## Étape 7 — Bâtiments et intérieurs génératifs (v1 partielle)
+## Étape 7 — Bâtiments et intérieurs génératifs (v2 partielle)
 - Grammaire de bâtiment : emprise, étages, toit, ouvertures.
 - Intérieur lié généré : option « Intérieur lié automatique » sur Maison rapide.
+- **Fenêtres automatiques** : une fenêtre par mur latéral.
 - Empilement : anti-z-fighting par epsilon vertical.
 - Critère : maison complète en un geste.
 
@@ -252,8 +253,9 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 6 v1 livrée : **empilement automatique** d'objets 3D (option activable,
   test dédié) + **ghost d'élévation** + anti-z-fighting ; raycast vertical à
   compléter.
-- Étape 7 v1 partielle : **maison rapide** avec toit, porte et option
-  **intérieur lié automatique** ; étages/ouvertures génératives à compléter.
+- Étape 7 v2 partielle : **maison rapide** avec toit, porte, option
+  **intérieur lié automatique** et **fenêtres automatiques** ; étages/ouvertures
+  irrégulières à compléter.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
   terrain.

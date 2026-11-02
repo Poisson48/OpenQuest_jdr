@@ -132,6 +132,8 @@ Outils terrain :
   sous le bâtiment (moyenne des hauteurs) avant de poser murs et toit.
 - **Intérieur lié automatique** : option sur Maison rapide pour créer directement
   la carte intérieure derrière la porte.
+- **Fenêtres automatiques** : option sur Maison rapide pour poser une fenêtre sur
+  chaque mur latéral (murs assez hauts requis).
 - **Décor contextuel** : clic près d'un mur, d'un chemin ou d'une berge ;
   buissons/rochers/haies le long du mur ou du chemin, roseaux/nénuphars près de
   l'eau. Rayon, densité et graine réglables, un seul undo.

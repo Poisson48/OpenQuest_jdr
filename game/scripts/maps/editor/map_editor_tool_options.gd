@@ -104,6 +104,12 @@ func _rebuild_tool_options() -> void:
 		auto_interior.tooltip_text = "Crée une carte intérieure liée derrière la porte, avec le mobilier de base."
 		auto_interior.toggled.connect(func(on): _ed._house_auto_interior = on)
 		_ed._tool_options.add_child(auto_interior)
+		var auto_windows := CheckBox.new()
+		auto_windows.text = "Fenêtres automatiques"
+		auto_windows.button_pressed = _ed._house_auto_windows
+		auto_windows.tooltip_text = "Pose une fenêtre sur chaque mur latéral (murs assez hauts requis)."
+		auto_windows.toggled.connect(func(on): _ed._house_auto_windows = on)
+		_ed._tool_options.add_child(auto_windows)
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
