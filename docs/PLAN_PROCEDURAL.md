@@ -115,11 +115,14 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Critère : pièce irrégulière couverte sans trou.
 - v1 : toit à deux pans procédural, emprise rectangulaire, outil dédié.
 
-## Étape 4 — Générateur Blender paramétrique v1
+## Étape 4 — Générateur Blender paramétrique v1 (livré et audité)
 - Recettes + scripts + manifest.
 - Familles : murs, toits, portes/fenêtres, arbres, buissons, rochers, mobilier.
 - Variantes, palettes, LOD.
 - Critère : scène complète avec assets générés, sans import manuel.
+- Audit : `python tools/blender/audit_pipeline.py` → **80 assets, 5 variantes,
+  toutes catégories couvertes**.
+- Voir [BLENDER_PROCEDURAL.md](BLENDER_PROCEDURAL.md).
 
 ## Étape 5 — Décor facile et contextuel (zones fleuries livrées)
 - Pinceau végétation.
@@ -234,10 +237,11 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   révéler le relief malgré la texture.
 - Étape 3 livrée v1 : **toit procédural** à deux pans, débord, pignons, adaptation
   à l'emprise, outil dédié, test et démo.
+- Étape 4 livrée et auditée : **générateur Blender procédural** — 80 assets,
+  5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
   densité et taille ; mesh procédural déterministe, test dédié, démo et capture.
 - Terrain déformable : pinceau existant + tracé + plateformes ; prochaine
   itération sur les berges, empreintes de bâtiments et mesh de terrain.
-- Assets procéduraux : étape 4, pipeline Blender offline.
 - La végétation procédurale automatique est désactivée par défaut pour des
   captures propres ; elle est remplacée par des zones peintes.
