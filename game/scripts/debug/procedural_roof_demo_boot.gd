@@ -41,6 +41,10 @@ func _ready() -> void:
 	editor._construction._create_procedural_roof(Vector2(3.5, 5.0), Vector2(8.0, 8.5))
 	editor._create_mesh_room(Vector2(11.0, 4.0), Vector2(16.5, 8.0))
 	editor._construction._create_procedural_roof(Vector2(11.0, 4.0), Vector2(16.5, 8.0))
+	# Maison à étage : murs du niveau supérieur + dalle.
+	editor._wall_height = 1.3
+	editor._house_floors = 2
+	editor._create_mesh_house(Vector2(8.0, 10.0), Vector2(13.0, 13.0))
 	editor.doc.clear_selection()
 	editor._sync_engine()
 	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 20.0, 12.0))

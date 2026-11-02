@@ -578,7 +578,20 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_create_mesh_room(from, to)
 	_create_floor(from, to)
 	for floor_index in range(1, _ed._house_floors):
-		_create_mesh_room(from, to, _ed._wall_height * float(floor_index))
+		var floor_elevation: float = _ed._wall_height * float(floor_index)
+		_create_mesh_room(from, to, floor_elevation)
+		var slab_id: String = _ed.doc.add_element({
+			"x": (x0 + x1) * 0.5, "y": (y0 + y1) * 0.5,
+			"w": maxf(1.0, x1 - x0), "h": maxf(1.0, y1 - y0),
+			"asset": "procedural://floor",
+			"thickness": 0.14,
+			"elevation": floor_elevation - 0.14,
+			"followTerrain": false, "tiltToTerrain": false,
+			"label": "Dalle d'étage", "layer": 1,
+			"display": {"rotation": 0.0, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Dalle d'étage")
+		if slab_id.is_empty():
+			continue
 	_create_mesh_roof(from, to, _ed._wall_height * float(maxi(0, _ed._house_floors - 1)))
 	# Porte au centre du mur avant (côté +Y).
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))

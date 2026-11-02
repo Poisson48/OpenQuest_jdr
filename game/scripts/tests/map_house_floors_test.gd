@@ -26,8 +26,12 @@ func _run() -> void:
 	await process_frame
 	var upper_walls := 0
 	var ground_walls := 0
+	var slabs := 0
 	for elem_variant in editor.doc.elements_of_kind("mesh"):
 		var elem: Dictionary = elem_variant
+		if str(elem.get("asset", "")) == "procedural://floor":
+			slabs += 1
+			continue
 		if not str(elem.get("asset", "")).contains("mur"):
 			continue
 		if float(elem.get("elevation", 0.0)) > 0.5:
@@ -36,6 +40,7 @@ func _run() -> void:
 			ground_walls += 1
 	_assert("house_ground_walls", ground_walls > 0)
 	_assert("house_upper_walls", upper_walls > 0, "upper=%d" % upper_walls)
+	_assert("house_floor_slab", slabs > 0, "slabs=%d" % slabs)
 
 	if _failed:
 		print("map_house_floors_test:FAIL")
