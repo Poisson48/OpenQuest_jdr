@@ -1627,14 +1627,20 @@ func _generate_scene(_grid: Vector2) -> void:
 	for prop_variant in plan.get("props", []):
 		var prop: Dictionary = prop_variant
 		var asset := str(prop.get("asset", ""))
-		if asset.is_empty() or not ResourceLoader.exists(asset):
+		if asset.is_empty() or (not asset.begins_with("procedural://") and not ResourceLoader.exists(asset)):
 			continue
-		var bounds := _mesh_bounds_cells(asset, 1.0)
 		var scale_v := maxf(0.1, float(prop.get("scale", 1.0)))
+		var footprint: Vector2
+		if asset.begins_with("procedural://"):
+			footprint = Vector2(2.0, 2.0)
+		else:
+			var natural_bounds := _mesh_bounds_cells(asset, 1.0)
+			footprint = Vector2(maxf(0.3, natural_bounds.x), maxf(0.3, natural_bounds.z))
 		_ed.doc.add_element({
 			"x": float(prop.get("x", 0.0)), "y": float(prop.get("y", 0.0)),
-			"w": maxf(0.3, bounds.x * scale_v), "h": maxf(0.3, bounds.z * scale_v),
+			"w": footprint.x * scale_v, "h": footprint.y * scale_v,
 			"asset": asset,
+			"height": 1.8 if asset == "procedural://tent" else 1.0,
 			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
 			"label": "Décor de scène", "layer": 1,
 			"display": {"rotation": 0.0, "scale": scale_v},

@@ -167,8 +167,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Graine, densité, style.
 - Critère : village généré puis retouché rapidement.
 - v2 : place centrale avec puits/fontaine, clôtures, arbres, chemins ;
-  `ProceduralSceneGenerator`, outil « Générer scène », test d'application réelle,
-  démo et capture.
+  **tentes procédurales** pour le camp ; `ProceduralSceneGenerator`, outil
+  « Générer scène », test d'application réelle, démo et capture.
 
 ## Étape 9 — Rendu Tiny Glade
 - Ciel, lumière, GI, brume, matériaux, végétation.
@@ -274,7 +274,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   **dalles d'étage** ; ouvertures irrégulières à compléter.
 - Étape 8 v2 livrée : **générateur de scène** village/forêt/camp (plan
   déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
-  décor), outil dédié, test d'application réelle, démo et capture.
+  décor, **tentes procédurales**), outil dédié, test d'application réelle, démo
+  et capture.
 - Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
   avec fondu progressif (`map_occlusion_test`) ; **caméra qui recadre en douceur**
   le personnage après déplacement et à l'arrivée dans une zone voisine ;

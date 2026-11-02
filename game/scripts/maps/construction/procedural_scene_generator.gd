@@ -113,8 +113,8 @@ static func _generate_camp(result: Dictionary, width: int, height: int,
 		var angle := TAU * float(i) / float(tents)
 		var pos := center + Vector2(cos(angle), sin(angle)) * 3.2
 		result["props"].append({
-			"asset": "res://assets/objects3d/buildings/maison.glb",
-			"x": pos.x, "y": pos.y, "scale": 0.7,
+			"asset": "procedural://tent",
+			"x": pos.x, "y": pos.y, "scale": 0.75,
 		})
 		result["props"].append({
 			"asset": "res://assets/objects3d/props/caisse.glb",
