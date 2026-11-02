@@ -2368,6 +2368,8 @@ func _focus_element(element_id: String) -> void:
 func _sync_engine(reset_view: bool = false) -> void:
 	if _engine == null or doc.map_data.is_empty():
 		return
+	if _engine.has_method("start_camera_trace") and str(_engine.get("_trace_path")).is_empty():
+		_engine.call("start_camera_trace")
 	var snapshot: Dictionary = doc.to_map_data()
 	var defaults: Dictionary = snapshot.get("playDefaults", {})
 	var view_state: Dictionary = defaults.get("viewState", {}) if defaults.get("viewState") is Dictionary else {}
