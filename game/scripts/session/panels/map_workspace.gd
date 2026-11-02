@@ -868,13 +868,15 @@ func _cell_blocked_by_building(map_id: String, gx: float, gy: float) -> bool:
 		if not mesh_variant is Dictionary:
 			continue
 		var mesh: Dictionary = mesh_variant
-		if str(mesh.get("asset", "")) != "procedural://wall":
+		var proc_asset := str(mesh.get("asset", ""))
+		if proc_asset != "procedural://wall" and proc_asset != "procedural://fence":
 			continue
 		var points: Array = mesh.get("points", [])
 		if points.size() < 2:
 			continue
 		var origin := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
-		var radius := maxf(0.3, float(mesh.get("thickness", 0.7)) * 0.5 + 0.25)
+		var radius := maxf(0.25, float(mesh.get("thickness", 0.7)) * 0.5 + 0.25) \
+			if proc_asset == "procedural://wall" else 0.35
 		for i in range(points.size() - 1):
 			var a := origin + _mesh_point_to_vector(points[i])
 			var b := origin + _mesh_point_to_vector(points[i + 1])

@@ -28,6 +28,19 @@ func _run() -> void:
 	_assert("proc_wall_blocks", workspace._cell_blocked_by_building(map_id, 6.0, 6.0))
 	_assert("proc_wall_blocks_side", workspace._cell_blocked_by_building(map_id, 5.0, 6.1))
 	_assert("proc_wall_free", not workspace._cell_blocked_by_building(map_id, 6.0, 9.0))
+
+	# Une clôture procédurale bloque aussi.
+	map["meshes"] = [{
+		"id": "proc_fence_1", "kind": "mesh",
+		"x": 3.0, "y": 9.0, "w": 4.0, "h": 0.4,
+		"asset": "procedural://fence",
+		"points": [[-2.0, 0.0], [2.0, 0.0]],
+		"height": 0.8, "spacing": 1.0, "label": "Clôture", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}]
+	md.update_map(map)
+	_assert("proc_fence_blocks", workspace._cell_blocked_by_building(map_id, 3.0, 9.0))
+	_assert("proc_fence_free", not workspace._cell_blocked_by_building(map_id, 3.0, 11.0))
 	if _failed:
 		print("session_procedural_wall_block_test:FAIL")
 		quit(1)
