@@ -80,6 +80,9 @@ var _nodes: Dictionary = {}
 var _occlusion_alpha: Dictionary = {}
 ## id → cible de fondu d'occlusion.
 var _occlusion_targets: Dictionary = {}
+## Lumières de feu de camp à faire scintiller.
+var _fire_lights: Array = []
+var _fire_time: float = 0.0
 ## id → donnée source du mesh (pour reposer au sol sur relief en drag live).
 var _mesh_entries: Dictionary = {}
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
@@ -111,6 +114,7 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 		child.free()
 	_nodes.clear()
 	_mesh_entries.clear()
+	_fire_lights.clear()
 	for mesh_variant in meshes:
 		if not mesh_variant is Dictionary:
 			continue
@@ -303,6 +307,7 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		fire_light.omni_range = 3.2
 		fire_light.shadow_enabled = false
 		mesh_instance.add_child(fire_light)
+		_fire_lights.append(fire_light)
 	elif asset == "procedural://tent":
 		mesh_instance.name = "ProceduralTent"
 		mesh_instance.mesh = ProceduralTentMeshScript.build_from_element(mesh)
@@ -387,6 +392,13 @@ func set_occlusion_fade(camera_pos: Vector3, target_pos: Vector3) -> void:
 		_occlusion_targets[id] = alpha
 
 func _process(delta: float) -> void:
+	if not _fire_lights.is_empty():
+		_fire_time += delta
+		for i in range(_fire_lights.size()):
+			var light = _fire_lights[i]
+			if light == null or not is_instance_valid(light):
+				continue
+			light.light_energy = 1.35 + 0.22 * sin(_fire_time * 8.0 + float(i) * 1.7)
 	if _occlusion_targets.is_empty():
 		return
 	for id_variant in _occlusion_targets.keys():
