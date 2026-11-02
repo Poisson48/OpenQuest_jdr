@@ -808,6 +808,7 @@ func _build_procedural_fence(raw_points: Array) -> String:
 		"points": local,
 		"height": _ed._proc_fence_height,
 		"spacing": _ed._proc_fence_spacing,
+		"fenceTone": _ed._proc_fence_tone,
 		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
 		"label": "Clôture procédurale", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},

@@ -100,7 +100,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - v2 : crête biseautée, face supérieure plate entre deux chanfreins.
 - v3 : matière procédurale (pierre, variation, mousse au pied), sans texture.
 - **Styles de mur** dans l'outil : pierre claire, pierre grise, chaux, bois.
-- **Clôture procédurale** : poteaux + lisses en un seul mesh le long d'une courbe.
+- **Clôture procédurale** : poteaux + lisses en un seul mesh le long d'une courbe,
+  matières bois/bois clair/bois foncé/pierre.
 - **Chemin procédural** : ruban biseauté continu, largeur réglable.
 - **Ouverture de porte** dans un mur procédural : le mur est scindé en deux
   montants autour de la porte.

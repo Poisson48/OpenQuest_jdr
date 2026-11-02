@@ -19,11 +19,12 @@ static func build_from_element(elem: Dictionary) -> ArrayMesh:
 	return build(
 		points,
 		float(elem.get("height", DEFAULT_HEIGHT)),
-		float(elem.get("spacing", DEFAULT_SPACING))
+		float(elem.get("spacing", DEFAULT_SPACING)),
+		str(elem.get("fenceTone", "bois"))
 	)
 
 static func build(points: Array, height: float = DEFAULT_HEIGHT,
-		spacing: float = DEFAULT_SPACING) -> ArrayMesh:
+		spacing: float = DEFAULT_SPACING, tone: String = "bois") -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	if points.size() < MIN_POINTS:
 		return mesh
@@ -33,6 +34,16 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var color_post := Color("#6d4b32")
 	var color_rail := Color("#8a6242")
+	match tone:
+		"bois_clair":
+			color_post = Color("#8a6242")
+			color_rail = Color("#a07a52")
+		"bois_fonce":
+			color_post = Color("#4a3222")
+			color_rail = Color("#5d3f2a")
+		"pierre":
+			color_post = Color("#7e786d")
+			color_rail = Color("#9a9488")
 	# Poteaux le long de la courbe.
 	for i in range(points.size()):
 		var p: Vector2 = points[i]

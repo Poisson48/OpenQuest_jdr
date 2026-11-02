@@ -180,10 +180,19 @@ func _rebuild_tool_options() -> void:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Style, hauteur et lissage réglables.")
 	elif _ed._tool == ToolsScript.PROC_FENCE:
+		var fence_tone_opt := OptionButton.new()
+		var fence_tones := [["bois", "Bois"], ["bois_clair", "Bois clair"], ["bois_fonce", "Bois foncé"], ["pierre", "Pierre"]]
+		for i in range(fence_tones.size()):
+			fence_tone_opt.add_item(str(fence_tones[i][1]), i)
+			fence_tone_opt.set_item_metadata(i, str(fence_tones[i][0]))
+			if str(fence_tones[i][0]) == _ed._proc_fence_tone:
+				fence_tone_opt.select(i)
+		fence_tone_opt.item_selected.connect(func(index: int): _ed._proc_fence_tone = str(fence_tone_opt.get_item_metadata(index)))
+		_ed._tool_options.add_child(fence_tone_opt)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 2.5, _ed._proc_fence_height, 0.1, func(v): _ed._proc_fence_height = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
-		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Idéal pour les enclos organiques.")
+		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Matière, hauteur et espacement réglables.")
 	elif _ed._tool == ToolsScript.PROC_PATH:
 		var path_color_opt := OptionButton.new()
 		var path_colors := [
