@@ -108,6 +108,21 @@ static func _generate_camp(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
 	var center := Vector2(width * 0.5, height * 0.5)
 	result["paths"].append({"from": Vector2(2, center.y), "to": Vector2(width - 2, center.y), "width": 1})
+	# Feu central et réserve.
+	result["props"].append({"asset": "procedural://campfire", "x": center.x, "y": center.y, "scale": 1.0})
+	for offset in [Vector2(-2.0, 0.8), Vector2(2.1, 0.6), Vector2(0.8, 2.2), Vector2(-0.7, -2.2)]:
+		result["props"].append({
+			"asset": "res://assets/objects3d/props/tonneau.glb",
+			"x": center.x + offset.x, "y": center.y + offset.y, "scale": 0.85,
+		})
+	result["props"].append({
+		"asset": "res://assets/objects3d/props/banniere.glb",
+		"x": center.x - 2.8, "y": center.y - 2.0, "scale": 1.0,
+	})
+	result["props"].append({
+		"asset": "res://assets/objects3d/props/charrette.glb",
+		"x": center.x + 3.2, "y": center.y - 2.2, "scale": 0.9,
+	})
 	var tents: int = clampi(int(round(3.0 * density)), 1, 6)
 	for i in range(tents):
 		var angle := TAU * float(i) / float(tents)
