@@ -61,10 +61,21 @@ func _ready() -> void:
 	if editor._engine != null and editor._engine.has_method("refresh_terrain"):
 		editor._engine.call("refresh_terrain", updated)
 	editor._sync_engine()
+	# Preuve de conformité : clôture et mur procéduraux sur la colline.
+	editor._proc_fence_height = 0.9
+	editor._construction._build_procedural_fence([
+		Vector2(4.0, 10.0), Vector2(8.0, 7.0), Vector2(12.0, 8.0), Vector2(16.0, 6.0),
+	])
+	editor._wall_height = 1.6
+	editor._construction._build_procedural_wall([
+		Vector2(5.0, 12.0), Vector2(10.0, 11.5), Vector2(15.0, 12.5),
+	])
+	editor.doc.clear_selection()
+	editor._sync_engine()
 	editor._engine.focus_grid_rect(Rect2(1.0, 1.0, 22.0, 13.0))
 
 	var hint := Label.new()
-	hint.text = "ÉTAPE 2 — RELIEF DÉFORMABLE : colline, vallée et plateforme générées par tracé. Pas d'herbe automatique. La prochaine étape remplacera cette démo."
+	hint.text = "ÉTAPE 2 — RELIEF DÉFORMABLE : clôture et mur procéduraux posés sur la colline, ils suivent le relief sommet par sommet."
 	hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	hint.offset_top = 42
 	hint.offset_left = 240

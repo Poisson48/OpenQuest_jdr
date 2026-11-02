@@ -376,9 +376,11 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		wall_material.shader = ProceduralWallShader
 		wall_material.set_shader_parameter("base_color", Color.html(str(mesh.get("color", "#a89d88"))))
 		mesh_instance.material_override = wall_material
+		_conform_procedural_mesh(mesh_instance, mesh)
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return mesh_instance
 	mesh_instance.material_override = material
+	_conform_procedural_mesh(mesh_instance, mesh)
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Petits décors procéduraux : culling de distance pour les grandes cartes.
 	if asset in ["procedural://flower_zone", "procedural://tent", "procedural://campfire"]:
@@ -435,6 +437,51 @@ func _process(delta: float) -> void:
 		if absf(next - target) < 0.01:
 			next = target
 		_apply_visual_transparency(root, next)
+
+## Fait suivre le relief aux meshes procéduraux : chaque sommet est décalé à la
+## hauteur du terrain sous sa position, en conservant sa hauteur relative.
+func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -> void:
+	if not _follows_terrain(mesh) or not _terrain_relief:
+		return
+	var source := mesh_instance.mesh as ArrayMesh
+	if source == null:
+		return
+	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+	var center_h := _terrain_height_at(center.x, center.y)
+	var result := ArrayMesh.new()
+	for s in range(source.get_surface_count()):
+		var arrays: Array = source.surface_get_arrays(s)
+		if arrays.is_empty():
+			continue
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		if vertices.is_empty():
+			continue
+		var colors: PackedColorArray
+		if arrays[Mesh.ARRAY_COLOR] is PackedColorArray:
+			colors = arrays[Mesh.ARRAY_COLOR]
+		var indices: PackedInt32Array
+		if arrays[Mesh.ARRAY_INDEX] is PackedInt32Array:
+			indices = arrays[Mesh.ARRAY_INDEX]
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var tri_count := indices.size() if not indices.is_empty() else vertices.size()
+		for k in range(0, tri_count, 3):
+			for n in range(3):
+				var vi := indices[k + n] if not indices.is_empty() else k + n
+				if vi < 0 or vi >= vertices.size():
+					continue
+				var v := vertices[vi]
+				var gx := center.x + v.x
+				var gy := center.y + v.z
+				v.y += _terrain_height_at(gx, gy) - center_h
+				if vi < colors.size():
+					st.set_color(colors[vi])
+				else:
+					st.set_color(Color.WHITE)
+				st.add_vertex(v)
+		st.generate_normals()
+		st.commit(result)
+	mesh_instance.mesh = result
 
 func _is_occludable_asset(asset: String) -> bool:
 	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:
