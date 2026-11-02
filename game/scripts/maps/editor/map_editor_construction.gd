@@ -773,6 +773,40 @@ func _build_procedural_wall(raw_points: Array) -> String:
 	_ed.doc.select_only(id)
 	return id
 
+func _build_procedural_fence(raw_points: Array) -> String:
+	var curve := OrganicPathScript.path_points(raw_points, {
+		"smoothing": _ed._organic_smoothing,
+		"spacing": 0.3,
+		"nominal_length": 0.5,
+	})
+	if curve.size() < 2:
+		return ""
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for point_variant in curve:
+		var p: Vector2 = point_variant
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var center := (min_p + max_p) * 0.5
+	var local: Array = []
+	for point_variant in curve:
+		var p: Vector2 = point_variant - center
+		local.append([p.x, p.y])
+	var id: String = _ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": maxf(0.5, max_p.x - min_p.x),
+		"h": maxf(0.5, max_p.y - min_p.y),
+		"asset": "procedural://fence",
+		"points": local,
+		"height": _ed._proc_fence_height,
+		"spacing": _ed._proc_fence_spacing,
+		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"label": "Clôture procédurale", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Clôture procédurale")
+	_ed.doc.select_only(id)
+	return id
+
 func _finish_organic_stroke() -> void:
 	var points: Array = _ed._organic_points.duplicate()
 	_ed._organic_points.clear()
@@ -791,6 +825,14 @@ func _finish_organic_stroke() -> void:
 		var proc_id := _build_procedural_wall(points)
 		if not proc_id.is_empty():
 			_ed._set_status("Mur procédural : %.2f case(s), mesh continu." % length)
+			_ed._sync_engine()
+		_ed._refresh_panels()
+		_ed._refresh_overlay()
+		return
+	if _ed._tool == ToolsScript.PROC_FENCE:
+		var fence_id := _build_procedural_fence(points)
+		if not fence_id.is_empty():
+			_ed._set_status("Clôture procédurale : %.2f case(s), poteaux et lisses." % length)
 			_ed._sync_engine()
 		_ed._refresh_panels()
 		_ed._refresh_overlay()

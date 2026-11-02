@@ -159,6 +159,11 @@ func _rebuild_tool_options() -> void:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Pas de couture visible aux angles.")
+	elif _ed._tool == ToolsScript.PROC_FENCE:
+		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 2.5, _ed._proc_fence_height, 0.1, func(v): _ed._proc_fence_height = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Idéal pour les enclos organiques.")
 	elif _ed._tool == ToolsScript.ORGANIC:
 		var organic_opt := OptionButton.new()
 		for i in range(ConstructionScript.ORGANIC_STYLES.size()):

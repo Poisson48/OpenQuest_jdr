@@ -31,6 +31,7 @@ const INTERIOR_3D := "interior_3d"
 const PATH_3D := "path_3d"
 const ORGANIC := "organic"
 const PROC_WALL := "proc_wall"
+const PROC_FENCE := "proc_fence"
 const SCATTER := "scatter"
 const FLOWER_ZONE := "flower_zone"
 const CONTEXT_DECOR := "context_decor"
@@ -163,6 +164,10 @@ const DEFS := [
 	{
 		"id": PROC_WALL, "icon": "🪄", "label": "Mur procédural", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser libre : génère un vrai mesh de mur continu (mitres, sans couture) à partir de la courbe. Hauteur et lissage réglables ; prochaine étape du plan Tiny Glade.",
+	},
+	{
+		"id": PROC_FENCE, "icon": "🪵", "label": "Clôture procédurale", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser libre : poteaux et lisses générés en un seul mesh le long de la courbe. Hauteur et espacement réglables.",
 	},
 	{
 		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",
