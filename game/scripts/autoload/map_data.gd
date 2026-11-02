@@ -60,16 +60,16 @@ const LIGHTING_PRESETS := {
 	"tiny_glade": {
 		# Direction artistique Tiny Glade : ciel pastel, soleil chaud et doux,
 		# ambiance lumineuse, horizon crème, brume légère de profondeur.
-		"label": "🌤 Tiny Glade", "sunColor": "#ffe3b8", "sunEnergy": 1.55,
+		"label": "🌤 Tiny Glade", "sunColor": "#ffe3b8", "sunEnergy": 1.65,
 		"sunAngle": -42.0, "sunYaw": -52.0, "ambientColor": "#cfe6ff",
-		"ambientEnergy": 0.62, "background": "#bfe0ef", "exposure": 1.0,
-		"fogDensity": 0.002, "glow": 0.45,
+		"ambientEnergy": 0.55, "background": "#bfe0ef", "exposure": 0.94,
+		"fogDensity": 0.0025, "glow": 0.42,
 		"sky": true, "skyTop": "#9ccbe8", "skyHorizon": "#ffe6c2",
 		"skyGroundBottom": "#efe6d6", "sunGlow": 1.1, "skyEnergy": 1.0,
 		"fogSkyAffect": 0.20, "fogColor": "#f5e8d6", "shadowBlur": 1.7,
 		"backdropCenter": "#d6e2ad", "backdropMid": "#b8cfa3",
 		"backdropEdge": "#f2ead8",
-		"saturation": 1.20, "brightness": 1.02, "contrast": 1.08,
+		"saturation": 1.27, "brightness": 1.0, "contrast": 1.13,
 		# Rendu avancé : GI dynamique, réflexions, brume volumétrique, ambiante
 		# de ciel, ombres à pénombres douces (palliatif aux assets low-poly).
 		"gi": true, "giEnergy": 0.9, "ssil": true, "ssilIntensity": 0.9,

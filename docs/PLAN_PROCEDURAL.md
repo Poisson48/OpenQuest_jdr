@@ -182,7 +182,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Captures « hero ».
 - Critère : ambiance crédible avec les assets procéduraux.
 - v1 : capture **hero** du village généré sans docks latéraux
-  (`generated_village_hero.png`).
+  (`generated_village_hero.png`), étalonnage Tiny Glade renforcé (exposition,
+  contraste, saturation).
 
 ## Étape 10 — RPG / Dofus (v1 partielle)
 - Marche inter-zones continue.
