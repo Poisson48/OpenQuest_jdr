@@ -193,6 +193,7 @@ var _token_render_key: String = ""
 var _arrival_pulse_active: bool = false
 var _arrival_tween: Tween = null
 var _focus_tween: Tween = null
+var _camera_debug_lbl: Label = null
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
@@ -1260,6 +1261,39 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 			node.set_terrain_heights(_terrain_heights, map_size)
 	if _ground != null and _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
+	_ensure_camera_above_terrain()
+
+## Si le relief monte sous la caméra, on la remonte pour éviter une vue noire
+## (caméra enterrée dans la colline).
+func _ensure_camera_above_terrain() -> void:
+	if _camera == null or table_view:
+		return
+	var focus := _ground_focus()
+	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
+	var min_y := ground + maxf(2.0, _style_camera_height() * 0.6)
+	if _camera.position.y < min_y:
+		_camera.position.y = min_y
+		_clamp_camera()
+
+func _update_camera_debug() -> void:
+	if not OS.is_debug_build():
+		return
+	if _camera_debug_lbl == null:
+		_camera_debug_lbl = Label.new()
+		_camera_debug_lbl.position = Vector2(12, 12)
+		_camera_debug_lbl.z_index = 100
+		_camera_debug_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_camera_debug_lbl.add_theme_font_size_override("font_size", 11)
+		_camera_debug_lbl.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
+		_camera_debug_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		_camera_debug_lbl.add_theme_constant_override("outline_size", 4)
+		add_child(_camera_debug_lbl)
+	var focus := _ground_focus()
+	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
+	_camera_debug_lbl.text = "CAM  pos %.2f / %.2f / %.2f   rot %.1f°   focus %.1f / %.1f   sol %.2f" % [
+		_camera.position.x, _camera.position.y, _camera.position.z,
+		_camera.rotation_degrees.x, focus.x, focus.y, ground,
+	]
 
 func _apply_camera_perspective() -> void:
 	_orbit_dragging = false
@@ -2142,6 +2176,7 @@ func _is_token_node(node: Node) -> bool:
 	return node != null and node.get_script() == MapToken3DScript
 
 func _process(delta: float) -> void:
+	_update_camera_debug()
 	_update_occlusion_fade()
 	_sync_token_overlay_positions()
 	if _token_drag:
