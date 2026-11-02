@@ -111,6 +111,7 @@ func _rebuild_tool_options() -> void:
 		auto_windows.tooltip_text = "Pose une fenêtre sur chaque mur latéral (murs assez hauts requis)."
 		auto_windows.toggled.connect(func(on): _ed._house_auto_windows = on)
 		_ed._tool_options.add_child(auto_windows)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Étages", 1, 3, float(_ed._house_floors), 1, func(v): _ed._house_floors = int(v))
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")

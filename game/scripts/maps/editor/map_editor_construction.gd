@@ -254,7 +254,8 @@ func _wall_corner_rotation(dir_a: Vector2, dir_b: Vector2) -> float:
 	return best_rotation
 
 ## Pose (ou réutilise) un coin de mur à une jonction. Renvoie son id.
-func _add_wall_junction_corner(point: Vector2, dir_a: Vector2, dir_b: Vector2) -> String:
+func _add_wall_junction_corner(point: Vector2, dir_a: Vector2, dir_b: Vector2,
+		elevation: float = 0.0) -> String:
 	for elem_variant in _ed.doc.elements_sorted():
 		var elem: Dictionary = elem_variant
 		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
@@ -262,7 +263,8 @@ func _add_wall_junction_corner(point: Vector2, dir_a: Vector2, dir_b: Vector2) -
 		if not str(elem.get("asset", "")).ends_with("mur_coin.glb"):
 			continue
 		var center := Vector2(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
-		if center.distance_to(point) <= 0.2:
+		if center.distance_to(point) <= 0.2 \
+				and absf(float(elem.get("elevation", 0.0)) - elevation) <= 0.05:
 			return str(elem.get("id", ""))
 	var bounds := _mesh_bounds_cells(WALL_CORNER_ASSET, 1.0)
 	return _ed.doc.add_element({
@@ -270,7 +272,7 @@ func _add_wall_junction_corner(point: Vector2, dir_a: Vector2, dir_b: Vector2) -
 		"w": bounds.x, "h": bounds.z,
 		"sizeX": bounds.x, "sizeY": _ed._wall_height, "sizeZ": bounds.z,
 		"asset": WALL_CORNER_ASSET,
-		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"elevation": elevation, "followTerrain": true, "tiltToTerrain": false,
 		"label": "Coin de mur 3D", "layer": 1,
 		"display": {"rotation": _wall_corner_rotation(dir_a, dir_b), "scale": 1.0},
 	}, DocumentScript.KIND_MESH, "Coin de mur 3D")
@@ -327,7 +329,7 @@ func _wall_segment_overlaps(center: Vector2, rotation_deg: float, length: float,
 
 ## Mur continu lissé : un seul panneau étiré sur tout le tracé, sans les
 ## micro-segments qui donnaient un aspect « escalier » aux angles.
-func _create_mesh_wall_smooth(from: Vector2, to: Vector2) -> void:
+func _create_mesh_wall_smooth(from: Vector2, to: Vector2, elevation: float = 0.0) -> void:
 	var plan := _wall_chain_plan(from, to)
 	if not bool(plan.get("valid", false)):
 		_ed._set_status("Tracé de mur trop court.")
@@ -344,7 +346,7 @@ func _create_mesh_wall_smooth(from: Vector2, to: Vector2) -> void:
 		"w": total, "h": depth,
 		"sizeX": total, "sizeY": _ed._wall_height, "sizeZ": depth,
 		"asset": WALL_ASSET,
-		"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+		"elevation": elevation, "followTerrain": true, "tiltToTerrain": false,
 		"label": "Mur 3D", "layer": 1,
 		"display": {"rotation": rotation, "scale": 1.0},
 	}, DocumentScript.KIND_MESH, "Mur 3D")
@@ -352,7 +354,7 @@ func _create_mesh_wall_smooth(from: Vector2, to: Vector2) -> void:
 	for corner_variant in _wall_chain_corner_specs(plan):
 		var corner: Dictionary = corner_variant
 		var corner_id := _add_wall_junction_corner(
-			corner["point"], corner["dir_a"], corner["dir_b"])
+			corner["point"], corner["dir_a"], corner["dir_b"], elevation)
 		if not corner_id.is_empty() and not ids.has(corner_id):
 			ids.append(corner_id)
 	_ed.doc.set_selection(ids)
@@ -432,7 +434,7 @@ func _flatten_build_footprint(from: Vector2, to: Vector2) -> void:
 	var target := total / float(samples.size())
 	_ed.doc.flatten_terrain_rect(rect, target, "Emprise du bâtiment")
 
-func _create_mesh_room(from: Vector2, to: Vector2) -> void:
+func _create_mesh_room(from: Vector2, to: Vector2, elevation: float = 0.0) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
 	var y0 := minf(from.y, to.y)
@@ -440,15 +442,16 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	if x1 - x0 < 1.5 or y1 - y0 < 1.5:
 		_ed._set_status("Pièce trop petite (minimum 1,5 × 1,5).")
 		return
-	_flatten_build_footprint(from, to)
+	if elevation <= 0.01:
+		_flatten_build_footprint(from, to)
 	var ids: Array = []
-	_create_mesh_wall_smooth(Vector2(x0, y0), Vector2(x1, y0))
+	_create_mesh_wall_smooth(Vector2(x0, y0), Vector2(x1, y0), elevation)
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_smooth(Vector2(x1, y0), Vector2(x1, y1))
+	_create_mesh_wall_smooth(Vector2(x1, y0), Vector2(x1, y1), elevation)
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_smooth(Vector2(x1, y1), Vector2(x0, y1))
+	_create_mesh_wall_smooth(Vector2(x1, y1), Vector2(x0, y1), elevation)
 	ids.append_array(_ed.doc.selection())
-	_create_mesh_wall_smooth(Vector2(x0, y1), Vector2(x0, y0))
+	_create_mesh_wall_smooth(Vector2(x0, y1), Vector2(x0, y0), elevation)
 	ids.append_array(_ed.doc.selection())
 	_ed.doc.set_selection(ids)
 	_ed._set_status("Pièce 3D construite : 4 panneaux lissés + coins.")
@@ -574,7 +577,9 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	_ed._roof_height = maxf(_ed._roof_height, _ed._wall_height - 0.15)
 	_create_mesh_room(from, to)
 	_create_floor(from, to)
-	_create_mesh_roof(from, to)
+	for floor_index in range(1, _ed._house_floors):
+		_create_mesh_room(from, to, _ed._wall_height * float(floor_index))
+	_create_mesh_roof(from, to, _ed._wall_height * float(maxi(0, _ed._house_floors - 1)))
 	# Porte au centre du mur avant (côté +Y).
 	_insert_door(Vector2((x0 + x1) * 0.5, y1))
 	if _ed._house_auto_windows:
@@ -584,10 +589,12 @@ func _create_mesh_house(from: Vector2, to: Vector2) -> void:
 	if _ed._house_auto_interior:
 		_create_interior_at(Vector2((x0 + x1) * 0.5, y1))
 	_ed._roof_height = previous_roof
-	_ed._set_status("Maison rapide construite : murs, dallage, toit%s." % (
+	_ed._set_status("Maison rapide construite : %d étage(s), murs, dallage, toit%s." % [
+		_ed._house_floors,
 		", porte, fenêtres et intérieur lié" if _ed._house_auto_interior and _ed._house_auto_windows
 		else (", porte et intérieur lié" if _ed._house_auto_interior
-		else (", porte et fenêtres" if _ed._house_auto_windows else " et porte"))))
+		else (", porte et fenêtres" if _ed._house_auto_windows else " et porte")),
+	])
 
 ## Chemin de terre : peint les cases le long du tracé, largeur réglable.
 func _create_path(from: Vector2, to: Vector2) -> void:
@@ -1365,7 +1372,7 @@ func _insert_door(grid: Vector2) -> void:
 	_ed.doc.select_only(door_id)
 	_ed.doc.commit_transaction()
 	_ed._set_status("Porte 3D insérée : ouverture %.2f, deux montants." % gap)
-func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
+func _create_mesh_roof(from: Vector2, to: Vector2, elevation_offset: float = 0.0) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
 	var y0 := minf(from.y, to.y)
@@ -1393,7 +1400,7 @@ func _create_mesh_roof(from: Vector2, to: Vector2) -> void:
 				"x": pos.x, "y": pos.y,
 				"w": tile_w, "h": tile_d,
 				"asset": asset,
-				"elevation": _ed._roof_height, "followTerrain": false, "tiltToTerrain": false,
+				"elevation": _ed._roof_height + elevation_offset, "followTerrain": false, "tiltToTerrain": false,
 				"label": "Toit 3D", "layer": 1,
 				"display": {"rotation": 0.0, "scale": 1.0},
 			}, DocumentScript.KIND_MESH, "Toit 3D")

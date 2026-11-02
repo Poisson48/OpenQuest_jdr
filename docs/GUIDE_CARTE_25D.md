@@ -137,6 +137,8 @@ Outils terrain :
   la carte intérieure derrière la porte.
 - **Fenêtres automatiques** : option sur Maison rapide pour poser une fenêtre sur
   chaque mur latéral (murs assez hauts requis).
+- **Étages** : option sur Maison rapide (1–3) pour empiler des niveaux de murs et
+  poser le toit au sommet.
 - **Décor contextuel** : clic près d'un mur, d'un chemin ou d'une berge ;
   buissons/rochers/haies le long du mur ou du chemin, roseaux/nénuphars près de
   l'eau. Rayon, densité et graine réglables, un seul undo. Le décor des murs est
