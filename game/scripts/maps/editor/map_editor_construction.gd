@@ -1481,9 +1481,11 @@ func _create_prop(grid: Vector2) -> void:
 func _decorate_context(grid: Vector2) -> void:
 	var wall := _nearest_wall_element(grid, _ed._context_decor_radius)
 	if wall.is_empty():
+		if _decorate_path_context(grid):
+			return
 		if _decorate_water_context(grid):
 			return
-		_ed._set_status("Décor contextuel : aucun mur ou berge à proximité.")
+		_ed._set_status("Décor contextuel : aucun mur, chemin ou berge à proximité.")
 		return
 	var endpoints := _wall_endpoints(wall)
 	if endpoints.size() < 2:
@@ -1537,6 +1539,73 @@ func _decorate_context(grid: Vector2) -> void:
 	_ed.doc.commit_transaction()
 	_ed.doc.set_selection(ids)
 	_ed._set_status("Décor contextuel : %d élément(s) semés le long du mur." % ids.size())
+
+## Décor de chemin : cherche une bordure de terre/chemin et sème herbes hautes
+## (buissons, rochers, haies) côté prairie.
+func _decorate_path_context(grid: Vector2) -> bool:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	var best_cell := Vector2.INF
+	var best_distance: float = _ed._context_decor_radius
+	var radius := int(ceil(_ed._context_decor_radius))
+	for cy in range(int(floor(grid.y)) - radius, int(ceil(grid.y)) + radius + 1):
+		for cx in range(int(floor(grid.x)) - radius, int(ceil(grid.x)) + radius + 1):
+			if cx < 0 or cy < 0 or cx >= width or cy >= height:
+				continue
+			if _ed.doc.terrain_material(cx, cy) != DocumentScript.MATERIAL_DIRT:
+				continue
+			for offset in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var nx: int = cx + offset.x
+				var ny: int = cy + offset.y
+				if nx < 0 or ny < 0 or nx >= width or ny >= height:
+					continue
+				if _ed.doc.terrain_material(nx, ny) == DocumentScript.MATERIAL_DIRT:
+					continue
+				var candidate := Vector2(nx, ny)
+				var distance := candidate.distance_to(grid)
+				if distance < best_distance:
+					best_distance = distance
+					best_cell = candidate
+	if best_cell == Vector2.INF:
+		return false
+	var assets := [
+		"res://assets/objects3d/vegetation/buisson.glb",
+		"res://assets/objects3d/terrain/rocher.glb",
+		"res://assets/objects3d/vegetation/haie.glb",
+	]
+	var count := clampi(int(round(3.0 * _ed._context_decor_density)), 1, 6)
+	_ed._context_decor_seed = (_ed._context_decor_seed * 1664525 + 1013904223) % 2147483647
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ed._context_decor_seed
+	var ids: Array = []
+	_ed.doc.begin_transaction()
+	for _i in range(count):
+		var angle := rng.randf_range(0.0, TAU)
+		var distance := rng.randf_range(0.2, 0.9)
+		var pos := best_cell + Vector2(cos(angle), sin(angle)) * distance
+		if pos.x < 0.0 or pos.y < 0.0 or pos.x >= float(width) or pos.y >= float(height):
+			continue
+		var asset: String = str(assets[rng.randi() % assets.size()])
+		if not ResourceLoader.exists(asset):
+			continue
+		var bounds := _mesh_bounds_cells(asset, 1.0)
+		var footprint := Vector2(maxf(0.25, bounds.x), maxf(0.25, bounds.z))
+		var id: String = _ed.doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": footprint.x, "h": footprint.y,
+			"asset": asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
+			"label": "Décor contextuel", "layer": 1,
+			"display": {
+				"rotation": rng.randf_range(0.0, 360.0),
+				"scale": rng.randf_range(0.8, 1.15),
+			},
+		}, DocumentScript.KIND_MESH, "Décor de chemin")
+		ids.append(id)
+	_ed.doc.commit_transaction()
+	_ed.doc.set_selection(ids)
+	_ed._set_status("Décor contextuel : %d élément(s) semés sur le bord du chemin." % ids.size())
+	return true
 
 ## Décor de berge : si le clic est près d'une rive, sème roseaux et nénuphars.
 func _decorate_water_context(grid: Vector2) -> bool:

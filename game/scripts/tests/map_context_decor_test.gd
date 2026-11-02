@@ -53,6 +53,23 @@ func _run() -> void:
 			bank_decor.append(elem)
 	_assert("context_decor_bank", bank_decor.size() > 0, "count=%d" % bank_decor.size())
 
+	# Décor de chemin : bordure de terre entourée d'herbe.
+	editor.doc.set_terrain_material(10, 10, 1)
+	editor.doc.set_terrain_material(10, 11, 1)
+	editor.doc.set_terrain_material(9, 10, 1)
+	editor._context_decor_seed = 11
+	editor._construction._decorate_context(Vector2(10.0, 10.0))
+	var path_decor: Array = []
+	for elem_variant in editor.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("label", "")) == "Décor contextuel" and (
+			str(elem.get("asset", "")).contains("buisson")
+			or str(elem.get("asset", "")).contains("rocher")
+			or str(elem.get("asset", "")).contains("haie")
+		):
+			path_decor.append(elem)
+	_assert("context_decor_path", path_decor.size() > 0, "count=%d" % path_decor.size())
+
 	if _failed:
 		print("map_context_decor_test:FAIL")
 		quit(1)

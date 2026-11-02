@@ -132,9 +132,9 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
   les fleurs choisies apparaissent uniquement dans la zone. **Livré.**
 - Les herbes/fleurs/buissons procéduraux ne sont **pas affichés par défaut**
   (captures propres) ; tout décor de sol est peint explicitement. **Livré.**
-- Décor automatique le long des murs, chemins, eau. **Premier jet livré** :
-  outil « Décor contextuel » (buissons/rochers/haies le long d'un mur, graine,
-  rayon/densité) + **berges** (roseaux/nénuphars).
+- Décor automatique le long des murs, chemins, eau. **Livré v1** :
+  outil « Décor contextuel » (buissons/rochers/haies le long d'un mur ou d'un
+  chemin, roseaux/nénuphars sur les berges, graine, rayon/densité).
 - Recalcul lors du déplacement.
 - Critère : décor vivant en 2–3 gestes, sans bruit visuel par défaut.
 
@@ -246,9 +246,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 4 livrée et auditée : **générateur Blender procédural** — 80 assets,
   5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
-  densité et taille ; **décor contextuel** le long des murs (buissons, rochers,
-  haies) et des **berges** (roseaux, nénuphars), graine déterministe, tests
-  dédiés. Reste : décor le long des chemins, recalcul au déplacement.
+  densité et taille ; **décor contextuel** le long des murs, des chemins et des
+  berges, graine déterministe, tests dédiés. Reste : recalcul au déplacement.
 - Étape 6 v1 livrée : **empilement automatique** d'objets 3D (option activable,
   test dédié) + **ghost d'élévation** ; raycast vertical à compléter.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
