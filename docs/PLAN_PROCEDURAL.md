@@ -129,7 +129,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - v3 : matière procédurale des tuiles (variation par rangées, sans texture).
 - v4 : **toit à croupe** en plus du deux pans, option dans l'outil.
 - v5 : **toit libre** sur emprise polygonale (L, U, courbe) triangulé depuis un
-  sommet central.
+  sommet central ; démo `poly_roof_demo.tscn`.
 
 ## Étape 4 — Générateur Blender paramétrique v1 (livré et audité)
 - Recettes + scripts + manifest.
