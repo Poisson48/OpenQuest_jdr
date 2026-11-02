@@ -16,6 +16,7 @@ signal open_map_requested(map_id: String)
 const ComplexMapEngineScript := preload("res://scripts/maps/complex_map_engine_3d.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 const ConstructionScript := preload("res://scripts/maps/editor/map_editor_construction.gd")
+const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
 const EditOpsScript := preload("res://scripts/maps/editor/map_editor_edit_ops.gd")
 const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_options.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
@@ -164,6 +165,8 @@ var _context_decor_density: float = 0.7
 var _context_decor_seed: int = 1
 ## Générateur de scène : style, graine, densité.
 var _scene_style: String = "village"
+var _quick_menu: PopupMenu = null
+var _lighting_menu: PopupMenu = null
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -414,6 +417,42 @@ func _build_action_bar() -> void:
 	_icon_button(bar, "💾", "Enregistrer (Ctrl+S)", func(): save_now())
 	_icon_button(bar, "⧉", "Dupliquer la sélection (Ctrl+D)", func(): doc.duplicate_selection())
 	_icon_button(bar, "🗑", "Supprimer la sélection (Suppr)", func(): doc.remove_elements(doc.selection()))
+
+	bar.add_child(VSeparator.new())
+	var quick_btn := Button.new()
+	quick_btn.text = "✨ Démarrage"
+	quick_btn.tooltip_text = "Créer une carte agréable en un clic : village, forêt, camp ou maison, avec lumière et décor prêts."
+	quick_btn.add_theme_font_size_override("font_size", 11)
+	quick_btn.pressed.connect(func():
+		_quick_menu.position = Vector2i(quick_btn.global_position + Vector2(0, quick_btn.size.y))
+		_quick_menu.popup()
+	)
+	bar.add_child(quick_btn)
+	_quick_menu = PopupMenu.new()
+	_quick_menu.add_item("🏘  Village", 0)
+	_quick_menu.add_item("🌲  Forêt", 1)
+	_quick_menu.add_item("⛺  Camp", 2)
+	_quick_menu.add_item("🏡  Une maison", 3)
+	_quick_menu.id_pressed.connect(_on_quick_start)
+	add_child(_quick_menu)
+
+	var light_btn := Button.new()
+	light_btn.text = "☀"
+	light_btn.tooltip_text = "Ambiance rapide : applique un preset de lumière."
+	light_btn.add_theme_font_size_override("font_size", 13)
+	light_btn.pressed.connect(func():
+		_lighting_menu.position = Vector2i(light_btn.global_position + Vector2(0, light_btn.size.y))
+		_lighting_menu.popup()
+	)
+	bar.add_child(light_btn)
+	_lighting_menu = PopupMenu.new()
+	for preset_id in MapData.LIGHTING_PRESET_ORDER:
+		var preset: Dictionary = MapData.get_lighting_preset(str(preset_id))
+		var idx := _lighting_menu.item_count
+		_lighting_menu.add_item(str(preset.get("label", preset_id)), idx)
+		_lighting_menu.set_item_metadata(idx, str(preset_id))
+	_lighting_menu.id_pressed.connect(_on_quick_lighting)
+	add_child(_lighting_menu)
 
 	bar.add_child(VSeparator.new())
 	_icon_button(bar, "⬆", "Premier plan", func(): doc.bring_to_front())
@@ -2880,6 +2919,65 @@ func _on_atmosphere_changed() -> void:
 		"vignette": _get_spin("atmo_vignette"),
 	}}, "Atmosphère")
 	_sync_engine()
+
+## Démarrage rapide : une carte agréable sans passer par dix outils.
+func _on_quick_start(index: int) -> void:
+	var width := int(doc.map_data.get("width", 0))
+	var height := int(doc.map_data.get("height", 0))
+	if width < 8 or height < 8:
+		_set_status("Démarrage rapide : carte trop petite (8 × 8 minimum).")
+		return
+	var styles := ["village", "forest", "camp"]
+	if index >= 0 and index < styles.size():
+		_scene_style = styles[index]
+		_apply_quick_visuals(_scene_style)
+		_scene_seed = (int(Time.get_unix_time_from_system()) + randi()) % 1000000
+		_construction._generate_scene(Vector2.ZERO)
+		_set_status("Démarrage rapide : %s généré avec une ambiance prête à jouer." % ProceduralSceneGeneratorScript.style_label(_scene_style))
+	else:
+		_apply_quick_visuals("house")
+		var center := Vector2(float(width) * 0.5, float(height) * 0.5)
+		_house_floors = 1
+		_house_auto_windows = true
+		_house_proc_roof = false
+		_construction._create_mesh_house(center - Vector2(2.2, 1.8), center + Vector2(2.2, 1.8))
+		_set_status("Démarrage rapide : maison prête, à toi de l'habiller.")
+	if _engine != null and _engine.has_method("request_fit_to_view"):
+		_engine.request_fit_to_view()
+	_sync_engine()
+	_refresh_panels()
+
+func _on_quick_lighting(index: int) -> void:
+	if _lighting_menu == null:
+		return
+	var preset_id := str(_lighting_menu.get_item_metadata(index))
+	var preset: Dictionary = MapData.get_lighting_preset(preset_id)
+	var light: Dictionary = MapData.get_lighting_config(doc.map_data)
+	light["enabled"] = true
+	light["preset"] = preset_id
+	for key in preset.keys():
+		if key != "sources" and key != "id":
+			light[key] = preset[key]
+	doc.set_meta_values({"lighting": light}, "Ambiance rapide")
+	_sync_engine()
+	_set_status("Ambiance : %s." % str(preset.get("label", preset_id)))
+
+## Applique les défauts visuels qui rendent une carte immédiatement agréable.
+func _apply_quick_visuals(style_id: String) -> void:
+	var light: Dictionary = MapData.get_lighting_config(doc.map_data)
+	var preset: Dictionary = MapData.get_lighting_preset("tiny_glade")
+	light["enabled"] = true
+	light["preset"] = "tiny_glade"
+	for key in preset.keys():
+		if key != "sources" and key != "id":
+			light[key] = preset[key]
+	var fx := "leaves" if style_id == "forest" else ("fireflies" if style_id == "camp" else "leaves")
+	doc.set_meta_values({
+		"renderStyle": "2.5d",
+		"groundMode": "terrain3d",
+		"lighting": light,
+		"ambientFx": fx,
+	}, "Démarrage rapide")
 
 func _on_lighting_changed() -> void:
 	if _syncing:

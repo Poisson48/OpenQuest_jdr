@@ -19,11 +19,11 @@ render_mode cull_disabled, diffuse_burley;
 // Le shader reste **éclairé** (spatial) : la lumière de la scène module
 // l'albédo comme les autres objets 2.5D. `albedo_tint` porte la nuit.
 
-uniform sampler2D grass_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D dirt_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D stone_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D snow_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D sand_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D grass_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D stone_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D snow_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D sand_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D splat_tex : source_color, filter_linear, repeat_disable;
 uniform sampler2D splat2_tex : source_color, filter_linear, repeat_disable;
 uniform vec4 albedo_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
