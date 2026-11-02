@@ -134,7 +134,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
   (captures propres) ; tout décor de sol est peint explicitement. **Livré.**
 - Décor automatique le long des murs, chemins, eau. **Premier jet livré** :
   outil « Décor contextuel » (buissons/rochers/haies le long d'un mur, graine,
-  rayon/densité).
+  rayon/densité) + **berges** (roseaux/nénuphars).
 - Recalcul lors du déplacement.
 - Critère : décor vivant en 2–3 gestes, sans bruit visuel par défaut.
 
@@ -247,8 +247,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
   densité et taille ; **décor contextuel** le long des murs (buissons, rochers,
-  haies, graine) ; mesh procédural déterministe, tests dédiés, démos et captures.
-  Reste : décor le long des chemins et de l'eau, recalcul au déplacement.
+  haies) et des **berges** (roseaux, nénuphars), graine déterministe, tests
+  dédiés. Reste : décor le long des chemins, recalcul au déplacement.
 - Étape 6 v1 livrée : **empilement automatique** d'objets 3D (option activable,
   test dédié) + **ghost d'élévation** ; raycast vertical à compléter.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement

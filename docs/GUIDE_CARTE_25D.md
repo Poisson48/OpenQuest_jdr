@@ -130,6 +130,9 @@ Outils terrain :
   emprise (lanterne sur table, caisse sur caisse).
 - **Aplatir l'emprise** : option sur Pièce 3D / Maison rapide pour niveler le sol
   sous le bâtiment (moyenne des hauteurs) avant de poser murs et toit.
+- **Décor contextuel** : clic près d'un mur ou d'une berge ; buissons/rochers/
+  haies le long du mur, roseaux/nénuphars près de l'eau. Rayon, densité et
+  graine réglables, un seul undo.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - Élévation réglable pour les modules posés librement.

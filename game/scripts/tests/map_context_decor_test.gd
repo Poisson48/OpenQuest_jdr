@@ -40,6 +40,19 @@ func _run() -> void:
 	var first_x := float(decor[0].get("x", 0.0))
 	_assert("context_decor_off_wall", absf(first_x - 7.0) > 0.1 or decor.size() > 1)
 
+	# Décor de berge : une case d'eau entourée de terre.
+	editor.doc.map_data["waterLevel"] = 0.0
+	editor.doc.set_terrain_height(4, 11, -1.0)
+	editor.doc.set_terrain_height(5, 11, 0.0)
+	editor._context_decor_seed = 9
+	editor._construction._decorate_context(Vector2(5.0, 11.0))
+	var bank_decor: Array = []
+	for elem_variant in editor.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("asset", "")).contains("roseaux") or str(elem.get("asset", "")).contains("nenuphars"):
+			bank_decor.append(elem)
+	_assert("context_decor_bank", bank_decor.size() > 0, "count=%d" % bank_decor.size())
+
 	if _failed:
 		print("map_context_decor_test:FAIL")
 		quit(1)
