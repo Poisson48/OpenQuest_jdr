@@ -885,6 +885,10 @@ func _vegetation_wanted() -> bool:
 		return false
 	if table_view:
 		return false
+	# Nettoyage visuel : pas d'herbes/fleurs/buissons procéduraux par défaut.
+	# La végétation est peinte explicitement par zones (fleurs choisies).
+	if not bool(map_data.get("vegetationEnabled", false)):
+		return false
 	return MapRenderStyleScript.is_map_25d(map_data) or MapRenderStyleScript.is_diorama(map_data)
 
 ## Configure (ou retire) le calque de végétation.

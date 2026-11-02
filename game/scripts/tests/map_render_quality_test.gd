@@ -20,6 +20,9 @@ func _run() -> void:
 	var boot: GDScript = load("res://scripts/debug/carte_25d_boot.gd")
 	var demo: Dictionary = boot.build_demo(md)
 	var village: Dictionary = demo.get("map", {})
+	# La végétation procédurale est volontairement désactivée par défaut
+	# (captures propres) ; ce test l'active explicitement.
+	village["vegetationEnabled"] = true
 	var engine = (load("res://scripts/maps/complex_map_engine_3d.gd") as GDScript).new()
 	engine.size = Vector2(960, 540)
 	get_root().add_child(engine)

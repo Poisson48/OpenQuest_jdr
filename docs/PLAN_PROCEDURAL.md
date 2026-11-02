@@ -122,9 +122,14 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 
 ## Étape 5 — Décor facile et contextuel
 - Pinceau végétation.
+- **Zone fleurie au pinceau** : dessiner une zone, choisir le **type de fleur**
+  (coquelicot, marguerite, lavande, fleur bleue, fleur sauvage…) et la densité ;
+  les fleurs choisies apparaissent uniquement dans la zone.
+- Les herbes/fleurs/buissons procéduraux ne sont **pas affichés par défaut**
+  (captures propres) ; tout décor de sol est peint explicitement.
 - Décor automatique le long des murs, chemins, eau.
 - Recalcul lors du déplacement.
-- Critère : décor vivant en 2–3 gestes.
+- Critère : décor vivant en 2–3 gestes, sans bruit visuel par défaut.
 
 ## Étape 6 — Empilement et placement intelligent
 - Raycast vertical, élévation auto.
