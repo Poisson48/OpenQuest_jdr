@@ -130,6 +130,8 @@ Outils terrain :
   avec bords biseautés et largeur réglable.
 - **Porte sur mur procédural** : cliquez près d'un mur procédural avec l'outil
   Porte ; le mur est scindé en deux montants autour de l'ouverture.
+- **Fenêtre sur mur procédural** : même principe, avec appui et linteau générés
+  autour de la fenêtre.
 - **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
   pans ou à croupe, avec débord et pignons, adapté à l'emprise, sans tuiles à
   recaler.

@@ -1317,6 +1317,10 @@ func _insert_window(grid: Vector2) -> void:
 			best = distance
 			wall = elem
 	if wall.is_empty():
+		var proc_window := _nearest_procedural_wall(grid)
+		if not proc_window.is_empty():
+			_insert_window_procedural(proc_window, grid)
+			return
 		_ed._set_status("Fenêtre 3D : cliquez près d'un mur 3D.")
 		return
 	var display: Dictionary = wall.get("display", {}) if wall.get("display") is Dictionary else {}
@@ -1396,6 +1400,76 @@ func _insert_window(grid: Vector2) -> void:
 		_ed.doc.commit_transaction()
 	_ed.doc.select_only(id)
 	_ed._set_status("Fenêtre 3D posée%s." % (" avec ouverture réelle" if can_cut else " sur la façade (mur trop bas pour une ouverture)"))
+
+## Fenêtre dans un mur procédural : montants + appui + linteau procéduraux.
+func _insert_window_procedural(wall: Dictionary, grid: Vector2) -> void:
+	var points := _procedural_world_points(wall)
+	if points.size() < 2:
+		return
+	var total := 0.0
+	for i in range(points.size() - 1):
+		total += (points[i] as Vector2).distance_to(points[i + 1])
+	var window_asset := "res://assets/objects3d/buildings/fenetre_volets.glb"
+	var win_bounds := _mesh_aabb_cells(window_asset, 1.0)
+	var gap := win_bounds.size.x + 0.2
+	var wall_height := float(wall.get("height", 2.2))
+	var window_bottom := 1.0
+	var window_top := window_bottom + win_bounds.size.y
+	if wall_height < window_top + 0.15 or total < gap + 0.8:
+		_ed._set_status("Fenêtre 3D : mur procédural trop bas/court pour une ouverture.")
+		return
+	var best_s := 0.0
+	var best_d := INF
+	var walked := 0.0
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var ab := b - a
+		var len_sq := ab.length_squared()
+		if len_sq < 0.000001:
+			continue
+		var t := clampf((grid - a).dot(ab) / len_sq, 0.0, 1.0)
+		var d := grid.distance_to(a + ab * t)
+		if d < best_d:
+			best_d = d
+			best_s = walked + sqrt(len_sq) * t
+		walked += sqrt(len_sq)
+	var start := clampf(best_s - gap * 0.5, 0.0, total)
+	var end := clampf(best_s + gap * 0.5, 0.0, total)
+	var left := _slice_polyline(points, 0.0, start)
+	var right := _slice_polyline(points, end, total)
+	var opening_center := _point_on_polyline(points, best_s)
+	var tangent := _point_on_polyline(points, minf(best_s + 0.1, total)) - _point_on_polyline(points, maxf(best_s - 0.1, 0.0))
+	var rotation := rad_to_deg(atan2(tangent.y, tangent.x))
+	var sill_template: Dictionary = wall.duplicate(true)
+	sill_template["height"] = window_bottom
+	sill_template["elevation"] = float(wall.get("elevation", 0.0))
+	var lintel_template: Dictionary = wall.duplicate(true)
+	lintel_template["height"] = wall_height - window_top
+	lintel_template["elevation"] = float(wall.get("elevation", 0.0)) + window_top
+	_ed.doc.begin_transaction()
+	_ed.doc.remove_element(str(wall.get("id", "")))
+	_add_procedural_wall_run(left, wall)
+	_add_procedural_wall_run(right, wall)
+	_add_procedural_wall_run([
+		_point_on_polyline(points, start), _point_on_polyline(points, end),
+	], sill_template)
+	_add_procedural_wall_run([
+		_point_on_polyline(points, start), _point_on_polyline(points, end),
+	], lintel_template)
+	var window_id: String = _ed.doc.add_element({
+		"x": opening_center.x, "y": opening_center.y,
+		"w": win_bounds.size.x, "h": win_bounds.size.z,
+		"asset": window_asset,
+		"elevation": float(wall.get("elevation", 0.0)) + window_bottom - win_bounds.position.y,
+		"followTerrain": true, "tiltToTerrain": false,
+		"label": "Fenêtre à volets", "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Fenêtre")
+	_ed.doc.select_only(window_id)
+	_ed.doc.commit_transaction()
+	_ed._sync_engine()
+	_ed._set_status("Fenêtre 3D insérée dans le mur procédural : ouverture %.2f." % gap)
 
 func _insert_door(grid: Vector2) -> void:
 	var wall: Dictionary = {}

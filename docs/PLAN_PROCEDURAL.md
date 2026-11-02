@@ -103,6 +103,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - **Chemin procédural** : ruban biseauté continu, largeur réglable.
 - **Ouverture de porte** dans un mur procédural : le mur est scindé en deux
   montants autour de la porte.
+- **Ouverture de fenêtre** : montants + appui + linteau procéduraux autour de la
+  fenêtre.
 
 ## Étape 2 — Terrain déformable façon Tiny Glade (socle livré)
 - Heightfield sculptable : monter, baisser, lisser, aplatir.
