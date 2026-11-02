@@ -76,8 +76,7 @@ text = "d12"
 custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_type_variation = &"ToolButton"
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
+theme_type_variation = &"AccentButton"
 text = "d20"
 
 [node name="BtnD100" type="Button" parent="Col/QuickRow"]

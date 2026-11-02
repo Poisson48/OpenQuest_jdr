@@ -122,8 +122,8 @@ text = "📜 Bibliothèque de Scénarios"
 [node name="BtnAdvPlay" type="Button" parent="MainLayout/TabContainer/Aventures/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"AccentButton"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
 text = "🎮 Configurer une Partie d'Aventure"
 
 [node name="Enquêtes" type="MarginContainer" parent="MainLayout/TabContainer"]
@@ -156,8 +156,7 @@ theme_override_constants/separation = 8
 
 [node name="LblTitle" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
 layout_mode = 2
-theme_type_variation = &"InvestigationLabel"
-theme_override_font_sizes/font_size = 20
+theme_type_variation = &"HeadingLabel"
 text = "🔍 Mode Enquête & Polar"
 
 [node name="InvSummaryLabel" type="Label" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/HeroCard/HeroVBox"]
@@ -188,8 +187,8 @@ text = "📁 Dossiers d'Enquêtes & Mystères"
 [node name="BtnInvPlay" type="Button" parent="MainLayout/TabContainer/Enquêtes/TabScroll/VBox/ActionGrid"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"InvestigationButton"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.509804, 0.588235, 0.847059, 1)
 text = "🔍 Lancer une Enquête Policière"
 
 [node name="Cartes" type="MarginContainer" parent="MainLayout/TabContainer"]
@@ -345,14 +344,13 @@ theme_override_constants/separation = 12
 [node name="LblBotsFilter" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 layout_mode = 2
 theme_type_variation = &"GoldLabel"
-theme_override_font_sizes/font_size = 16
 text = "Afficher :"
 
 [node name="BotsFilter" type="OptionButton" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"SmallOption"
 custom_minimum_size = Vector2(220, 0)
-theme_override_font_sizes/font_size = 16
 
 [node name="BotsCountLabel" type="Label" parent="MainLayout/TabContainer/Bots/VBox/BotsToolbar"]
 unique_name_in_owner = true

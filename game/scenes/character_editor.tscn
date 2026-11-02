@@ -117,8 +117,7 @@ theme_override_constants/separation = 12
 
 [node name="TierPickerTitle" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 17
+theme_type_variation = &"SectionLabel"
 text = "Choisir la complexité de la fiche"
 horizontal_alignment = 1
 

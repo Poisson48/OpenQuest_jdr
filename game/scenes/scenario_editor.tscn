@@ -67,7 +67,7 @@ text = "+ PNJ"
 [node name="BtnSave" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
+theme_type_variation = &"AccentButton"
 text = "💾 Enregistrer"
 
 [node name="BodySplit" type="HSplitContainer" parent="MainLayout"]
@@ -244,15 +244,13 @@ text = "Valider"
 [node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.305882, 0.619608, 0.541176, 1)
+theme_type_variation = &"SuccessLabel"
 text = "✓ Graphe"
 autowrap_mode = 3
 
 [node name="LblGraphLegend" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  clic scène → éditer  ·  glisser le fond → vue  ·  glisser un nœud → déplacer  ·  coin → redimensionner  ·  glisser un port → branche  ·  clic droit → aller à une scène"
 autowrap_mode = 3
 
@@ -291,7 +289,7 @@ text = "📍 Scène sélectionnée"
 [node name="LblNoSelection" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_type_variation = &"MutedLabel"
 text = "Cliquez un nœud du graphe pour éditer la scène, ou ajoutez-en une avec « + Scène »."
 autowrap_mode = 3
 
@@ -304,8 +302,7 @@ theme_override_constants/separation = 8
 [node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"SectionLabel"
 text = "★ Scène"
 
 [node name="SceneIdRow" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -315,9 +312,8 @@ theme_override_constants/separation = 6
 [node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"MicroLabel"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
 text = "id: —"
 
 [node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
@@ -334,8 +330,7 @@ text = "Supprimer"
 
 [node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Titre"
 
 [node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -345,8 +340,7 @@ placeholder_text = "Titre de la scène"
 
 [node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Tags"
 
 [node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -356,8 +350,7 @@ placeholder_text = "acte-1, carrefour, fin"
 
 [node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Cartes liées"
 
 [node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -369,15 +362,13 @@ allow_reselect = true
 
 [node name="LblSceneMapsHint" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Clique pour lier/délier une carte. La première cochée devient la carte active en jeu."
 autowrap_mode = 3
 
 [node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Narration"
 
 [node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]

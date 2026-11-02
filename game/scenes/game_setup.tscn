@@ -145,9 +145,8 @@ text = "3. Cartes associées"
 [node name="MapsHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"MutedLabel"
+theme_type_variation = &"MicroLabel"
 autowrap_mode = 3
-theme_override_font_sizes/font_size = 14
 text = "Coche les cartes à inclure dans la partie (monde + scènes locales)."
 
 [node name="MapsScroll" type="ScrollContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
@@ -256,6 +255,5 @@ alignment = 1
 unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.949020, 0.850980, 0.541176, 1)
-theme_override_font_sizes/font_size = 20
+theme_type_variation = &"AccentButtonLarge"
 text = "🚀 Lancer l'Aventure !"

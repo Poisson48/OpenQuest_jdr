@@ -42,11 +42,10 @@ text = "← Quitter"
 [node name="LblTitle" type="Label" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.964706, 0.933333, 0.854902, 0.9)
-theme_override_font_sizes/font_size = 16
 text = ""
 clip_text = true
 
@@ -54,10 +53,9 @@ clip_text = true
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
+theme_type_variation = &"SectionLabel"
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_font_sizes/font_size = 16
 text = "En attente…"
 horizontal_alignment = 2
 
@@ -103,7 +101,6 @@ theme_type_variation = &"AlertPanel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_colors/font_color = Color(0.95, 0.86, 0.7, 1)
 text = "Sans lanterne, vous êtes aveugle"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -141,9 +138,8 @@ layout_mode = 2
 
 [node name="LblJournalTitle" type="Label" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 16
 text = "Histoire"
 
 [node name="BtnClearFocus" type="Button" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
@@ -221,15 +217,13 @@ text = "—"
 [node name="LblHeroSub" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.62, 0.5, 1)
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = ""
 
 [node name="LblHeroHp" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.878431, 0.376471, 0.439216, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"DangerLabel"
 text = "PV —"
 
 [node name="HeroHpBar" type="ProgressBar" parent="HeroDock/HeroPanel/HeroCol"]
@@ -243,8 +237,7 @@ value = 1.0
 [node name="LblInventoryPreview" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
-theme_override_font_sizes/font_size = 14
+theme_type_variation = &"MicroLabel"
 text = "Sac vide"
 autowrap_mode = 3
 
@@ -291,9 +284,8 @@ layout_mode = 2
 
 [node name="LblInvTitle" type="Label" parent="InventoryPanel/InvCol/InvHeader"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 17
 text = "Inventaire"
 
 [node name="BtnCloseInv" type="Button" parent="InventoryPanel/InvCol/InvHeader"]

@@ -5,11 +5,7 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 ---
 
-## Priorité 1 — structure
-
-- [ ] **Finir les 53 overrides restants** — 34 tailles + 19 couleurs (219 au départ)
-
-## Priorité 2 — carte et session (périmètre Poisson48)
+## Priorité 1 — carte et session (périmètre Poisson48)
 
 - [ ] **Vérifier le cadrage de Valbois** — cartouche, rose des vents, légende et bâtiments est/nord réputés invisibles (reporter : découpe de texture / caméra)
 - [ ] **Échelle des tokens en cases** — aujourd'hui exprimée en % de la hauteur de carte ; + dédoublonner le token Kael (party ↔ playDefaults)
@@ -24,7 +20,7 @@ Détails et preuves : [RAPPORT_UI_UX_INTERFACE.md](RAPPORT_UI_UX_INTERFACE.md) �
 
 - [x] Responsive hub / menu : grilles repliées sous 960 px, boutons hero en flux
 - [x] Fil d'Ariane dans l'AppTopBar (5 pages : Hub › …)
-- [x] 219 → 58 overrides de style (tailles 139 → 38, couleurs 79 → 20)
+- [x] **0 override de style** (219 au départ) : typographie et couleurs entièrement portées par le thème
 - [x] `CardBase` : composant de carte générique — **les 4 cartes migrées** (`character`, `bot`, `scenario`, `map`), leurs scènes ne sont plus qu'une instance
 - [x] Remplissage idempotent (`reset_card`) : un `setup()` rappelé ne duplique plus le contenu
 - [x] Cartes scénario : 6 → 2 actions visibles + menu « ⋯ » (4 entrées)

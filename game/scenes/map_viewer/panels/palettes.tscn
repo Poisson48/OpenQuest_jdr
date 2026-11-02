@@ -71,8 +71,7 @@ theme_override_constants/separation = 6
 
 [node name="LblIntTitle" type="Label" parent="IntegrationPanel"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"SectionLabel"
 text = "🌍 Intégration dans une carte monde"
 
 [node name="LblIntegrationStatus" type="Label" parent="IntegrationPanel"]
