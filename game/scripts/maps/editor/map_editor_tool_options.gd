@@ -339,7 +339,16 @@ func _rebuild_tool_options() -> void:
 		roof_style_opt.select(0 if _ed._proc_roof_style == "gable" else 1)
 		roof_style_opt.item_selected.connect(func(index: int): _ed._proc_roof_style = str(roof_style_opt.get_item_metadata(index)))
 		_ed._tool_options.add_child(roof_style_opt)
-		_option_note("Clic-glisser un rectangle : un seul mesh à deux pans ou à croupe (débord + pignons), adapté à l'emprise.")
+		var roof_tone_opt := OptionButton.new()
+		var roof_tones := [["tuiles", "Tuiles rouges"], ["ardoise", "Ardoise"], ["chaume", "Chaume"]]
+		for i in range(roof_tones.size()):
+			roof_tone_opt.add_item(str(roof_tones[i][1]), i)
+			roof_tone_opt.set_item_metadata(i, str(roof_tones[i][0]))
+			if str(roof_tones[i][0]) == _ed._proc_roof_tone:
+				roof_tone_opt.select(i)
+		roof_tone_opt.item_selected.connect(func(index: int): _ed._proc_roof_tone = str(roof_tone_opt.get_item_metadata(index)))
+		_ed._tool_options.add_child(roof_tone_opt)
+		_option_note("Clic-glisser un rectangle : un seul mesh à deux pans ou à croupe (débord + pignons), avec teinte tuiles/ardoise/chaume.")
 	elif _ed._tool == ToolsScript.TERRAIN_SPLINE:
 		var spline_mode_opt := OptionButton.new()
 		var spline_modes := [

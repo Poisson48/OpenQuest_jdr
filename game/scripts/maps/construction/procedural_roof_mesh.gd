@@ -14,11 +14,13 @@ static func build_from_element(elem: Dictionary) -> ArrayMesh:
 	var d := maxf(MIN_SIZE, float(elem.get("h", 2.0)))
 	var height := maxf(0.2, float(elem.get("roofHeight", DEFAULT_HEIGHT)))
 	var overhang := maxf(0.0, float(elem.get("overhang", DEFAULT_OVERHANG)))
-	return build(w, d, height, overhang, str(elem.get("roofStyle", "gable")))
+	return build(w, d, height, overhang, str(elem.get("roofStyle", "gable")),
+		str(elem.get("roofTone", "tuiles")))
 
 ## Construit le toit en unités « cases », centré sur l'origine.
 static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
-		overhang: float = DEFAULT_OVERHANG, style: String = "gable") -> ArrayMesh:
+		overhang: float = DEFAULT_OVERHANG, style: String = "gable",
+		tone: String = "tuiles") -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var span_x := maxf(MIN_SIZE, w) + overhang * 2.0
 	var span_z := maxf(MIN_SIZE, d) + overhang * 2.0
@@ -30,6 +32,18 @@ static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
 	var slope_a := Color("#b85a45")
 	var slope_b := Color("#cf7058")
 	var gable := Color("#8f4738")
+	var ridge_color := Color("#7a3a2e")
+	match tone:
+		"ardoise":
+			slope_a = Color("#4c5a66")
+			slope_b = Color("#5e7080")
+			gable = Color("#3b4650")
+			ridge_color = Color("#2e3740")
+		"chaume":
+			slope_a = Color("#b89a58")
+			slope_b = Color("#c7a965")
+			gable = Color("#8f743f")
+			ridge_color = Color("#6f5a32")
 	if style == "hip":
 		# Toit à croupe : faîtage plus court, quatre pans.
 		var hip_length := maxf(0.0, span_x - span_z) if span_x >= span_z else maxf(0.0, span_z - span_x)
@@ -75,7 +89,7 @@ static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
 				Vector3(-half_x, y1, z1), Vector3(half_x, y1, z1), color)
 		# Faîtage sombre.
 		_quad(st, ridge_a, ridge_b, ridge_b + Vector3(0, 0.02, 0.12),
-			ridge_a + Vector3(0, 0.02, 0.12), Color("#7a3a2e"))
+			ridge_a + Vector3(0, 0.02, 0.12), ridge_color)
 		# Pignons verticaux.
 		_tri(st, eave_a2, ridge_a, eave_a1, gable)
 		_tri(st, eave_b1, ridge_b, eave_b2, gable)
@@ -101,7 +115,7 @@ static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
 			_quad(st, Vector3(x0, y0, half_z), Vector3(x0, y0, -half_z),
 				Vector3(x1, y1, -half_z), Vector3(x1, y1, half_z), color)
 		_quad(st, ridge_a, ridge_b, ridge_b + Vector3(0.12, 0.02, 0),
-			ridge_a + Vector3(0.12, 0.02, 0), Color("#7a3a2e"))
+			ridge_a + Vector3(0.12, 0.02, 0), ridge_color)
 		_tri(st, eave_a1, ridge_a, eave_b1, gable)
 		_tri(st, eave_a2, eave_b2, ridge_b, gable)
 	st.generate_normals()

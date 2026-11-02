@@ -1765,6 +1765,7 @@ func _create_procedural_roof(from: Vector2, to: Vector2) -> void:
 		"roofHeight": _ed._proc_roof_height,
 		"overhang": _ed._proc_roof_overhang,
 		"roofStyle": _ed._proc_roof_style,
+		"roofTone": _ed._proc_roof_tone,
 		"color": "#a84f3f",
 		"elevation": _ed._roof_height,
 		"followTerrain": false, "tiltToTerrain": false,
