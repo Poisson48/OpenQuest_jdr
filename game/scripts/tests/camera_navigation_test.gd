@@ -65,6 +65,16 @@ func _run() -> void:
 	var rot_delta: float = (engine._camera.rotation - before_rot).length()
 	_assert("sync_keeps_orbit_rotation", rot_delta < 0.05, "delta=%.3f" % rot_delta)
 
+	# Peinture du sol avec une caméra basse : le refresh terrain ne doit pas la
+	# remonter à la hauteur « de style » (ancien saut y 4.6 -> 20.7).
+	editor._set_tool("ground_material")
+	engine._camera.position = Vector3(8.4, 4.63, 15.5)
+	var before_paint: Vector3 = engine._camera.position
+	editor._paint_ground_material(Vector2(8.0, 8.0))
+	await process_frame
+	var paint_delta: float = engine._camera.position.distance_to(before_paint)
+	_assert("ground_paint_keeps_camera", paint_delta < 1.0, "moved=%.2f y=%.2f" % [paint_delta, engine._camera.position.y])
+
 	if _failed:
 		print("camera_navigation_test:FAIL")
 		quit(1)
