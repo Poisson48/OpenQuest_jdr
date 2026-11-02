@@ -49,6 +49,13 @@ func _run() -> void:
 	var pan_distance: float = engine._camera.position.distance_to(before_pan)
 	_assert("right_drag_pans", pan_distance > 0.2, "moved=%.2f" % pan_distance)
 
+	# Une synchro de l'éditeur (peinture sol, sélection) ne recadre pas.
+	var before_sync: Vector3 = engine._camera.position
+	editor._sync_engine()
+	await process_frame
+	var sync_distance: float = engine._camera.position.distance_to(before_sync)
+	_assert("sync_stable", sync_distance < 2.0, "moved=%.2f" % sync_distance)
+
 	if _failed:
 		print("camera_navigation_test:FAIL")
 		quit(1)

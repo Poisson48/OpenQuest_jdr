@@ -450,6 +450,8 @@ func configure(
 		_build_viewport_tree()
 	var new_id: String = p_map.get("id", "")
 	var same_map := not new_id.is_empty() and new_id == _loaded_map_id
+	var saved_camera_position := _camera.position if _camera != null else Vector3.ZERO
+	var preserve_camera := same_map and _camera != null and p_view_state.is_empty()
 
 	map_data = p_map
 	_tokens = p_tokens
@@ -496,6 +498,10 @@ func configure(
 		_apply_view_state(keep)
 	else:
 		request_fit_to_view()
+	# Un simple clic d'édition (peinture sol, etc.) reconstruit des couches :
+	# cela ne doit jamais recadrer la caméra.
+	if preserve_camera:
+		_camera.position = saved_camera_position
 	_rebuild_layers()
 
 func request_fit_to_view() -> void:
