@@ -481,6 +481,10 @@ func _draw_ghost() -> void:
 		draw_texture_rect(texture, Rect2(-box * 0.5, box), false, tint)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		draw_polyline(_closed(pts), COL_GHOST, 1.5, true)
+		var ghost_elevation := float(ghost.get("elevation", 0.0))
+		if ghost_elevation > 0.01:
+			_draw_text_badge(center + Vector2(8, 6),
+				"↑ %.2f" % ghost_elevation, Color(0.95, 0.82, 0.45))
 		if standing:
 			var tip := center + Vector2(0, -box.y * 0.55)
 			draw_line(center, tip, Color(COL_GHOST.r, COL_GHOST.g, COL_GHOST.b, 0.55), 1.0, true)

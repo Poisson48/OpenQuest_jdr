@@ -2473,6 +2473,14 @@ func _refresh_ghost() -> void:
 					ghost["y"] = float(snap_preview.get("y", ghost["y"]))
 					ghost["rotation"] = float(snap_preview.get("rotation", 0.0))
 					ghost["snapped"] = true
+			# Aperçu de l'empilement : hauteur du dessus de l'objet survolé.
+			if _auto_stack and not _mesh_asset.is_empty():
+				var stack_top := _construction._stack_top_at(
+					Vector2(float(ghost["x"]), float(ghost["y"])),
+					mesh_footprint
+				)
+				if stack_top > 0.02:
+					ghost["elevation"] = stack_top
 		if _tool == ToolsScript.TOKEN:
 			ghost["color"] = MapData.MEMBER_COLOR_HEX[_member_index % MapData.MEMBER_COLOR_HEX.size()]
 		elif _tool == ToolsScript.EFFECT:
