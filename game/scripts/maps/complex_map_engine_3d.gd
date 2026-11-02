@@ -451,6 +451,12 @@ func configure(
 	var new_id: String = p_map.get("id", "")
 	var same_map := not new_id.is_empty() and new_id == _loaded_map_id
 	var saved_camera_position := _camera.position if _camera != null else Vector3.ZERO
+	var saved_camera_rotation := _camera.rotation if _camera != null else Vector3.ZERO
+	var saved_projection := _camera.projection if _camera != null else Camera3D.PROJECTION_PERSPECTIVE
+	var saved_fov := _camera.fov if _camera != null else 70.0
+	var saved_orbit_enabled := _orbit_enabled
+	var saved_orbit_target := _orbit_target
+	var saved_orbit_distance := _orbit_distance
 	var preserve_camera := same_map and _camera != null and p_view_state.is_empty()
 
 	map_data = p_map
@@ -502,6 +508,12 @@ func configure(
 	# cela ne doit jamais recadrer la caméra.
 	if preserve_camera:
 		_camera.position = saved_camera_position
+		_camera.rotation = saved_camera_rotation
+		_camera.projection = saved_projection
+		_camera.fov = saved_fov
+		_orbit_enabled = saved_orbit_enabled
+		_orbit_target = saved_orbit_target
+		_orbit_distance = saved_orbit_distance
 	_rebuild_layers()
 
 func request_fit_to_view() -> void:

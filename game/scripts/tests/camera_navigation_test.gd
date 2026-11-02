@@ -56,6 +56,15 @@ func _run() -> void:
 	var sync_distance: float = engine._camera.position.distance_to(before_sync)
 	_assert("sync_stable", sync_distance < 2.0, "moved=%.2f" % sync_distance)
 
+	# Une orbite doit survivre à une synchro (peinture juste après rotation).
+	engine._camera.rotation_degrees = Vector3(-38.0, 24.0, 0.0)
+	engine._orbit_enabled = true
+	var before_rot: Vector3 = engine._camera.rotation
+	editor._sync_engine()
+	await process_frame
+	var rot_delta: float = (engine._camera.rotation - before_rot).length()
+	_assert("sync_keeps_orbit_rotation", rot_delta < 0.05, "delta=%.3f" % rot_delta)
+
 	if _failed:
 		print("camera_navigation_test:FAIL")
 		quit(1)
