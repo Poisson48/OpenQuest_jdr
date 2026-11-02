@@ -52,9 +52,12 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 	bevel = clampf(bevel, 0.0, thickness * 0.45)
 
 	# Sections : gauche/droite avec mitre. On garde aussi la position de base
-	# pour les faces d'extrémité.
+	# pour les faces d'extrémité et une crête biseautée.
 	var left: Array[Vector2] = []
 	var right: Array[Vector2] = []
+	var inner_left: Array[Vector2] = []
+	var inner_right: Array[Vector2] = []
+	var bevel_amount := minf(bevel, thickness * 0.4)
 	for i in range(pts.size()):
 		var dir := _segment_dirs(pts, i)
 		var n_left := Vector2(-dir.y, dir.x)
@@ -73,10 +76,14 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 				right_pt = pts[i] - offset
 		left.append(left_pt)
 		right.append(right_pt)
+		var inward := (right_pt - left_pt).normalized() * bevel_amount
+		inner_left.append(left_pt + inward)
+		inner_right.append(right_pt - inward)
 
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var distance := 0.0
+	var side_top := maxf(0.05, height - bevel_amount)
 	for i in range(pts.size()):
 		if i > 0:
 			distance += pts[i].distance_to(pts[i - 1])
@@ -84,19 +91,27 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 		var top := height
 		var lb := Vector3(left[i].x, 0.0, left[i].y)
 		var rb := Vector3(right[i].x, 0.0, right[i].y)
-		var lt := Vector3(left[i].x, top, left[i].y)
-		var rt := Vector3(right[i].x, top, right[i].y)
+		var lt := Vector3(left[i].x, side_top, left[i].y)
+		var rt := Vector3(right[i].x, side_top, right[i].y)
 		# Faces latérales.
 		if i < pts.size() - 1:
 			var j := i + 1
 			var lb2 := Vector3(left[j].x, 0.0, left[j].y)
 			var rb2 := Vector3(right[j].x, 0.0, right[j].y)
-			var lt2 := Vector3(left[j].x, top, left[j].y)
-			var rt2 := Vector3(right[j].x, top, right[j].y)
-			_quad(st, lb, lt, lt2, lb2, u, _u(j, pts, thickness), 0.0, top)
-			_quad(st, rb2, rt2, rt, rb, _u(j, pts, thickness), u, 0.0, top)
-			# Dessus.
-			_quad(st, lt, lt2, rt2, rt, u, _u(j, pts, thickness), 0.0, top)
+			var lt2 := Vector3(left[j].x, side_top, left[j].y)
+			var rt2 := Vector3(right[j].x, side_top, right[j].y)
+			_quad(st, lb, lt, lt2, lb2, u, _u(j, pts, thickness), 0.0, side_top)
+			_quad(st, rb2, rt2, rt, rb, _u(j, pts, thickness), u, 0.0, side_top)
+			if bevel_amount > 0.01:
+				var il := Vector3(inner_left[i].x, top, inner_left[i].y)
+				var ir := Vector3(inner_right[i].x, top, inner_right[i].y)
+				var il2 := Vector3(inner_left[j].x, top, inner_left[j].y)
+				var ir2 := Vector3(inner_right[j].x, top, inner_right[j].y)
+				_quad(st, lt, lt2, il2, il, u, _u(j, pts, thickness), side_top, top)
+				_quad(st, ir2, ir, rt, rt2, _u(j, pts, thickness), u, side_top, top)
+				_quad(st, il, il2, ir2, ir, u, _u(j, pts, thickness), top, top)
+			else:
+				_quad(st, lt, lt2, rt2, rt, u, _u(j, pts, thickness), side_top, side_top)
 	# Faces d'extrémité.
 	var last := pts.size() - 1
 	_end_face(st, left[0], right[0], height, true)
