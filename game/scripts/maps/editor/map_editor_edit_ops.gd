@@ -47,7 +47,7 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_ed._refresh_overlay()
 		_ed._set_status("Relief tracé : glissez pour dessiner la crête/vallée.")
 		return
-	if _ed._tool == ToolsScript.ORGANIC or _ed._tool == ToolsScript.PROC_WALL or _ed._tool == ToolsScript.PROC_FENCE or _ed._tool == ToolsScript.PROC_PATH:
+	if _ed._tool == ToolsScript.ORGANIC or _ed._tool == ToolsScript.PROC_WALL or _ed._tool == ToolsScript.PROC_FENCE or _ed._tool == ToolsScript.PROC_PATH or _ed._tool == ToolsScript.PROC_POLY_ROOF:
 		if not _ed._in_bounds(grid):
 			_ed._set_status("Tracé organique : commencez dans la carte.")
 			return

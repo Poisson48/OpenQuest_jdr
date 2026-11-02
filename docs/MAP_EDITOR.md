@@ -249,6 +249,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🍂 Décor contextuel | — | Clic près d'un mur : sème buissons, rochers et haies le long de ses abords (rayon/densité, graine, un undo) |
 | Placer | 🏘 Générer scène | — | Clic : village, forêt ou camp complet (chemins, maisons, décor) avec graine et densité |
 | Placer | 🏠 Toit procédural | — | Clic-glisser un rectangle : **un seul mesh à deux pans ou à croupe**, débord et pignons, adapté à l'emprise |
+| Placer | ⛺ Toit libre | — | Clic-glisser une emprise libre : toit triangulé sur forme irrégulière (L, U, courbe) |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
 | Placer | 🧊 Objet 3D | `O` | Pose un mesh 3D (GLB exporté de Blender) : bâtiment, tour, pont, rocher. `R` : pivoter · échelle dans les options. |
 | Placer | 🏠 Lieu | `A` | Délimite un lieu nommé, avec cartouche et carte enfant optionnelle |

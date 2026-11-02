@@ -116,6 +116,7 @@ var _proc_roof_height: float = 1.1
 var _proc_roof_overhang: float = 0.35
 var _proc_roof_style: String = "gable"
 var _proc_roof_tone: String = "tuiles"
+var _proc_poly_roof_height: float = 1.2
 var _proc_fence_height: float = 0.9
 var _proc_fence_spacing: float = 1.1
 var _proc_fence_tone: String = "bois"

@@ -135,6 +135,8 @@ Outils terrain :
 - **Outil 🏠 Toit procédural** : clic-glisser un rectangle ; un seul mesh à deux
   pans ou à croupe, avec débord et pignons, adapté à l'emprise, sans tuiles à
   recaler.
+- **Outil ⛺ Toit libre** : clic-glisser une emprise libre ; toit triangulé sur
+  forme irrégulière (L, U, courbe).
   La démo du village montre une porte à auvent et une fenêtre à volets posées
   ainsi sur les maisons.
 - **Empilement automatique** : avec l'outil Objet 3D, l'option « Empilement

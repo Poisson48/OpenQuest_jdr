@@ -20,6 +20,7 @@ const MESH_WALL := "mesh_wall"
 const ROOM_3D := "room_3d"
 const ROOF_3D := "roof_3d"
 const PROC_ROOF := "proc_roof"
+const PROC_POLY_ROOF := "proc_poly_roof"
 const FLOOR_3D := "floor_3d"
 const DOOR_3D := "door_3d"
 const HOUSE_3D := "house_3d"
@@ -121,6 +122,10 @@ const DEFS := [
 	{
 		"id": PROC_ROOF, "icon": "🏠", "label": "Toit procédural", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser un rectangle : un seul mesh de toit à deux pans, avec débord et pignons, adapté à l'emprise. Fini les rangées de tuiles à recaler.",
+	},
+	{
+		"id": PROC_POLY_ROOF, "icon": "⛺", "label": "Toit libre", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser pour dessiner une emprise libre : toit triangulé sur forme irrégulière (L, U, courbe). Hauteur réglable.",
 	},
 	{
 		"id": FLOOR_3D, "icon": "▦", "label": "Dallage", "shortcut": "", "group": "place",

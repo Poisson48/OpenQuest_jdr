@@ -353,6 +353,10 @@ func _rebuild_tool_options() -> void:
 	elif _ed._tool == ToolsScript.PAINT:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
+	elif _ed._tool == ToolsScript.PROC_POLY_ROOF:
+		_ed._spin(_ed._hbox(_ed._tool_options), "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 3.0, _ed._proc_poly_roof_height, 0.1, func(v): _ed._proc_poly_roof_height = v)
+		_option_note("Clic-glisser libre : dessinez l'emprise, le toit est triangulé depuis un sommet central. Couvre les formes irrégulières (L, U, courbes).")
 	elif _ed._tool == ToolsScript.PROC_ROOF:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v):
 			_ed._roof_height = v

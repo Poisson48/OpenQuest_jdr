@@ -850,6 +850,34 @@ func _build_procedural_path(raw_points: Array) -> String:
 	_ed.doc.select_only(id)
 	return id
 
+func _build_procedural_poly_roof(raw_points: Array) -> String:
+	if raw_points.size() < 3:
+		return ""
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for p_variant in raw_points:
+		var p: Vector2 = p_variant
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var center := (min_p + max_p) * 0.5
+	var local: Array = []
+	for p_variant in raw_points:
+		var p: Vector2 = (p_variant as Vector2) - center
+		local.append([p.x, p.y])
+	var id: String = _ed.doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": maxf(0.5, max_p.x - min_p.x), "h": maxf(0.5, max_p.y - min_p.y),
+		"asset": "procedural://poly_roof",
+		"points": local,
+		"height": _ed._proc_poly_roof_height,
+		"color": "#a84f3f",
+		"elevation": _ed._roof_height, "followTerrain": false, "tiltToTerrain": false,
+		"label": "Toit libre", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Toit libre")
+	_ed.doc.select_only(id)
+	return id
+
 func _finish_organic_stroke() -> void:
 	var points: Array = _ed._organic_points.duplicate()
 	_ed._organic_points.clear()
@@ -884,6 +912,14 @@ func _finish_organic_stroke() -> void:
 		var path_id := _build_procedural_path(points)
 		if not path_id.is_empty():
 			_ed._set_status("Chemin procédural : %.2f case(s), ruban continu." % length)
+			_ed._sync_engine()
+		_ed._refresh_panels()
+		_ed._refresh_overlay()
+		return
+	if _ed._tool == ToolsScript.PROC_POLY_ROOF:
+		var roof_id := _build_procedural_poly_roof(points)
+		if not roof_id.is_empty():
+			_ed._set_status("Toit libre : %d point(s), pans triangulés." % points.size())
 			_ed._sync_engine()
 		_ed._refresh_panels()
 		_ed._refresh_overlay()
