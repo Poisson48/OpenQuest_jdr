@@ -26,11 +26,15 @@ func _run() -> void:
 	await process_frame
 	var root = layer._nodes.get("wall1", null)
 	_assert("occlusion_wall_built", root != null)
-	# Mur entre caméra et personnage.
+	# Mur entre caméra et personnage : fondu progressif sur plusieurs frames.
 	layer.set_occlusion_fade(Vector3(5.5, 0.5, 0.0), Vector3(5.5, 0.5, 10.0))
+	for _i in range(12):
+		await process_frame
 	_assert("occlusion_faded", _max_transparency(root) > 0.2, "alpha=%s" % _max_transparency(root))
-	# Mur derrière la caméra.
+	# Mur derrière la caméra : retour progressif à l'opacité.
 	layer.set_occlusion_fade(Vector3(5.5, 0.5, 10.0), Vector3(5.5, 0.5, 20.0))
+	for _i in range(30):
+		await process_frame
 	_assert("occlusion_restored", _max_transparency(root) < 0.05, "alpha=%s" % _max_transparency(root))
 
 	if _failed:

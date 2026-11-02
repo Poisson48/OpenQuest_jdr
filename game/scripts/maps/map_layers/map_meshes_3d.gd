@@ -74,6 +74,8 @@ var _cell_size: float = 1.0
 var _nodes: Dictionary = {}
 ## id → transparence d'occlusion courante (pour éviter les changements inutiles).
 var _occlusion_alpha: Dictionary = {}
+## id → cible de fondu d'occlusion.
+var _occlusion_targets: Dictionary = {}
 ## id → donnée source du mesh (pour reposer au sol sur relief en drag live).
 var _mesh_entries: Dictionary = {}
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
@@ -334,15 +336,31 @@ func set_occlusion_fade(camera_pos: Vector3, target_pos: Vector3) -> void:
 			continue
 		var entry: Dictionary = _mesh_entries.get(id, {}) if _mesh_entries.get(id) is Dictionary else {}
 		var asset := str(entry.get("asset", "")).to_lower()
-		if not _is_occludable_asset(asset):
-			_apply_visual_transparency(root, 0.0)
+		var alpha := 0.0
+		if _is_occludable_asset(asset):
+			var center: Vector3 = root.global_position
+			var t := clampf((center - from).dot(segment) / length_sq, 0.0, 1.0)
+			var closest := from + segment * t
+			var distance := center.distance_to(closest)
+			if t > 0.04 and t < 0.96 and distance < 1.1:
+				alpha = 0.42
+		_occlusion_targets[id] = alpha
+
+func _process(delta: float) -> void:
+	if _occlusion_targets.is_empty():
+		return
+	for id_variant in _occlusion_targets.keys():
+		var id := str(id_variant)
+		var root = _nodes.get(id)
+		if root == null or not is_instance_valid(root):
+			_occlusion_targets.erase(id)
 			continue
-		var center: Vector3 = root.global_position
-		var t := clampf((center - from).dot(segment) / length_sq, 0.0, 1.0)
-		var closest := from + segment * t
-		var distance := center.distance_to(closest)
-		var alpha := 0.42 if (t > 0.04 and t < 0.96 and distance < 1.1) else 0.0
-		_apply_visual_transparency(root, alpha)
+		var target := float(_occlusion_targets[id])
+		var current := float(root.get_meta("occlusion_alpha", target))
+		var next := lerpf(current, target, clampf(delta * 10.0, 0.0, 1.0))
+		if absf(next - target) < 0.01:
+			next = target
+		_apply_visual_transparency(root, next)
 
 func _is_occludable_asset(asset: String) -> bool:
 	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:
