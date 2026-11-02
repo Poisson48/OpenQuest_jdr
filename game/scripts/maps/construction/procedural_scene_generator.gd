@@ -23,7 +23,7 @@ static func generate(style_id: String, width: int, height: int, seed: int,
 		density: float = 1.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	var result := {"houses": [], "paths": [], "props": [], "fences": [], "style": style_id}
+	var result := {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [], "style": style_id}
 	if width < 8 or height < 8:
 		return result
 	match style_id:
@@ -83,6 +83,11 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 				Vector2(rect.position.x + 0.3, rect.end.y + 0.5),
 				Vector2(rect.end.x - 0.3, rect.end.y + 0.5),
 			])
+			result["flowerZones"].append({
+				"rect": Rect2(rect.position.x + 0.5, rect.end.y + 0.9, maxf(1.0, rect.size.x - 1.0), 0.8),
+				"type": ["marguerite", "coquelicot", "lavande"][rng.randi() % 3],
+				"density": 4.0,
+			})
 
 static func _generate_forest(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:

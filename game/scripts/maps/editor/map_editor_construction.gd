@@ -1890,6 +1890,32 @@ func _generate_scene(_grid: Vector2) -> void:
 			"display": {"rotation": 0.0, "scale": 1.0},
 		}, DocumentScript.KIND_MESH, "Clôture de scène")
 		fence_count += 1
+	var flower_zone_count := 0
+	for zone_variant in plan.get("flowerZones", []):
+		var zone: Dictionary = zone_variant
+		var rect: Rect2 = zone.get("rect", Rect2())
+		if rect.size.x < 0.5 or rect.size.y < 0.5:
+			continue
+		var center := rect.get_center()
+		var local: Array = [
+			[rect.position.x - center.x, rect.position.y - center.y],
+			[rect.end.x - center.x, rect.position.y - center.y],
+			[rect.end.x - center.x, rect.end.y - center.y],
+			[rect.position.x - center.x, rect.end.y - center.y],
+		]
+		_ed.doc.add_element({
+			"x": center.x, "y": center.y,
+			"w": rect.size.x, "h": rect.size.y,
+			"asset": "procedural://flower_zone",
+			"points": local,
+			"flowerType": str(zone.get("type", "marguerite")),
+			"density": float(zone.get("density", 4.0)),
+			"size": 0.3, "seed": _ed._scene_seed + flower_zone_count,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
+			"label": "Zone fleurie de scène", "layer": 1,
+			"display": {"rotation": 0.0, "scale": 1.0},
+		}, DocumentScript.KIND_MESH, "Zone fleurie de scène")
+		flower_zone_count += 1
 	var prop_count := 0
 	for prop_variant in plan.get("props", []):
 		var prop: Dictionary = prop_variant
@@ -1913,8 +1939,8 @@ func _generate_scene(_grid: Vector2) -> void:
 			"display": {"rotation": 0.0, "scale": scale_v},
 		}, DocumentScript.KIND_MESH, "Décor de scène")
 		prop_count += 1
-	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d décor(s)." % [
-		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, fence_count, prop_count])
+	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d zone(s) fleurie(s), %d décor(s)." % [
+		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, fence_count, flower_zone_count, prop_count])
 	_ed._sync_engine()
 
 func _decorate_context(grid: Vector2) -> void:
