@@ -901,6 +901,8 @@ func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
 
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
+	if _engine != null and _engine.has_method("cancel_navigation_drag"):
+		_engine.call("cancel_navigation_drag")
 	for key in _tool_buttons:
 		(_tool_buttons[key] as Button).button_pressed = key == tool_id
 	if tool_id != ToolsScript.LINK:

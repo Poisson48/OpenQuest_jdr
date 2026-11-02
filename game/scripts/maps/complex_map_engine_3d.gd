@@ -1293,6 +1293,9 @@ func _update_camera_debug() -> void:
 		_camera_debug_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 		_camera_debug_lbl.add_theme_constant_override("outline_size", 4)
 		layer.add_child(_camera_debug_lbl)
+	# Placé dans le coin bas-gauche de la vue 3D, pas dans le bandeau de l'éditeur.
+	var view_rect := get_global_rect()
+	_camera_debug_lbl.position = view_rect.position + Vector2(14.0, maxf(14.0, view_rect.size.y - 28.0))
 	var focus := _ground_focus()
 	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
 	var span := _ground_span_per_pixel()
@@ -2502,6 +2505,14 @@ func _pan_from_motion(motion: InputEventMouseMotion) -> void:
 
 ## Entrée souris en mode éditeur : zoom et pan restent internes, tout le reste
 ## est relayé à l'éditeur sous forme de coordonnées grille.
+## Annule tout état de navigation en cours (changement d'outil, clic gauche).
+func cancel_navigation_drag() -> void:
+	_right_nav_down = false
+	_right_nav_dragging = false
+	_orbit_dragging = false
+	_pan_dragging = false
+	_pan_velocity = Vector2.ZERO
+
 func _editor_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
@@ -2530,6 +2541,9 @@ func _editor_gui_input(event: InputEvent) -> void:
 				accept_event()
 			MOUSE_BUTTON_LEFT:
 				if mb.pressed:
+					# Un clic gauche est une action d'édition : on ne doit jamais
+					# laisser un état de pan/orbite d'un clic droit précédent.
+					cancel_navigation_drag()
 					grab_focus()
 					editor_pointer_pressed.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
 				else:
