@@ -194,6 +194,11 @@ var _arrival_pulse_active: bool = false
 var _arrival_tween: Tween = null
 var _focus_tween: Tween = null
 var _camera_debug_lbl: Label = null
+var _trace_path: String = ""
+var _trace_tool: String = ""
+var _trace_last_position: Vector3 = Vector3.INF
+var _trace_last_rotation: Vector3 = Vector3.INF
+var _trace_last_write_msec: int = 0
 var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
@@ -457,7 +462,7 @@ func configure(
 	var saved_orbit_enabled := _orbit_enabled
 	var saved_orbit_target := _orbit_target
 	var saved_orbit_distance := _orbit_distance
-	var preserve_camera := same_map and _camera != null and p_view_state.is_empty()
+	var preserve_camera := same_map and _camera != null
 
 	map_data = p_map
 	_tokens = p_tokens
@@ -495,6 +500,7 @@ func configure(
 	_hovered_zone_id = ""
 	# Même carte : conserver zoom/pan (y compris cartes illustrées).
 	# Nouvelle carte : cadrer le PNG ou la grille entière.
+	trace_event("CONFIGURE", "same=%s preserve=%s view_state=%s" % [same_map, preserve_camera, not p_view_state.is_empty()])
 	if same_map and not p_view_state.is_empty():
 		_update_fit_base()
 		_apply_view_state(p_view_state)
@@ -514,6 +520,7 @@ func configure(
 		_orbit_enabled = saved_orbit_enabled
 		_orbit_target = saved_orbit_target
 		_orbit_distance = saved_orbit_distance
+	trace_event("CONFIGURE_AFTER", "same=%s preserve=%s" % [same_map, preserve_camera])
 	_rebuild_layers()
 
 func request_fit_to_view() -> void:
@@ -1293,9 +1300,59 @@ func _ensure_camera_above_terrain() -> void:
 		_camera.position.y = min_y
 		_clamp_camera()
 
+## Trace de diagnostic : clics, outils, synchros et changements de caméra.
+func start_camera_trace() -> void:
+	_trace_path = ProjectSettings.globalize_path("res://camera_trace.log")
+	var f := FileAccess.open(_trace_path, FileAccess.WRITE)
+	if f != null:
+		f.store_line("# OpenQuest camera trace — %s" % Time.get_datetime_string_from_system())
+		f.close()
+
+func trace_event(label: String, detail: String = "") -> void:
+	if _trace_path.is_empty():
+		start_camera_trace()
+	if _camera == null:
+		return
+	var f := FileAccess.open(_trace_path, FileAccess.READ_WRITE)
+	if f == null:
+		return
+	f.seek_end()
+	var focus := _ground_focus()
+	var span := _ground_span_per_pixel()
+	f.store_line("%s | %s | tool=%s %s | pos=(%.2f,%.2f,%.2f) rot=(%.1f,%.1f,%.1f) focus=(%.2f,%.2f) span=%.4f z=%.3f" % [
+		Time.get_time_string_from_system(true), label, _trace_tool, detail,
+		_camera.position.x, _camera.position.y, _camera.position.z,
+		_camera.rotation_degrees.x, _camera.rotation_degrees.y, _camera.rotation_degrees.z,
+		focus.x, focus.y, span.x, zoom,
+	])
+	f.close()
+
+func _trace_camera_changes() -> void:
+	if _camera == null:
+		return
+	var pos := _camera.position
+	var rot := _camera.rotation_degrees
+	var moved := _trace_last_position == Vector3.INF \
+		or _trace_last_position.distance_to(pos) > 0.05
+	var turned := _trace_last_rotation == Vector3.INF \
+		or (_trace_last_rotation - rot).length() > 0.2
+	if not moved and not turned:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _trace_last_write_msec < 80:
+		return
+	_trace_last_write_msec = now
+	_trace_last_position = pos
+	_trace_last_rotation = rot
+	trace_event("CAM_CHANGE")
+
+func _trace_after(label: String) -> void:
+	trace_event(label + "_AFTER")
+
 func _update_camera_debug() -> void:
 	if _camera == null:
 		return
+	_trace_camera_changes()
 	if not editor_mode and not OS.is_debug_build():
 		return
 	if _camera_debug_lbl == null:
@@ -2536,9 +2593,11 @@ func _editor_gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		match mb.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
+				trace_event("WHEEL_UP", "screen=%s" % mb.position)
 				_apply_zoom(1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_WHEEL_DOWN:
+				trace_event("WHEEL_DOWN", "screen=%s" % mb.position)
 				_apply_zoom(1.0 / 1.1, mb.position)
 				accept_event()
 			MOUSE_BUTTON_MIDDLE:
@@ -2559,16 +2618,21 @@ func _editor_gui_input(event: InputEvent) -> void:
 				accept_event()
 			MOUSE_BUTTON_LEFT:
 				if mb.pressed:
+					trace_event("LEFT_DOWN", "screen=%s grid=%s" % [mb.position, _screen_to_grid(mb.position)])
 					# Un clic gauche est une action d'édition : on ne doit jamais
 					# laisser un état de pan/orbite d'un clic droit précédent.
 					cancel_navigation_drag()
 					grab_focus()
 					editor_pointer_pressed.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
+					call_deferred("_trace_after", "LEFT_DOWN")
 				else:
+					trace_event("LEFT_UP", "screen=%s grid=%s" % [mb.position, _screen_to_grid(mb.position)])
 					editor_pointer_released.emit(_screen_to_grid(mb.position), mb.position, mb.button_index, _mods(mb))
+					call_deferred("_trace_after", "LEFT_UP")
 				accept_event()
 			MOUSE_BUTTON_RIGHT:
 				if mb.pressed:
+					trace_event("RIGHT_DOWN", "screen=%s grid=%s" % [mb.position, _screen_to_grid(mb.position)])
 					# Clic droit : glisser pour naviguer en 3D ; un simple clic
 					# (sans déplacement) ouvrira le menu contextuel au relâchement.
 					grab_focus()
@@ -2581,6 +2645,7 @@ func _editor_gui_input(event: InputEvent) -> void:
 					accept_event()
 				else:
 					var was_dragging := _right_nav_dragging
+					trace_event("RIGHT_UP", "dragged=%s screen=%s" % [was_dragging, mb.position])
 					_right_nav_down = false
 					_right_nav_dragging = false
 					_orbit_dragging = false

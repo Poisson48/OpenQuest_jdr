@@ -903,6 +903,9 @@ func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
 	if _engine != null and _engine.has_method("cancel_navigation_drag"):
 		_engine.call("cancel_navigation_drag")
+	if _engine != null and _engine.has_method("trace_event"):
+		_engine.set("_trace_tool", tool_id)
+		_engine.call("trace_event", "TOOL_CHANGE", tool_id)
 	for key in _tool_buttons:
 		(_tool_buttons[key] as Button).button_pressed = key == tool_id
 	if tool_id != ToolsScript.LINK:
@@ -2371,6 +2374,8 @@ func _sync_engine(reset_view: bool = false) -> void:
 	var tokens: Array = defaults.get("tokens", [])
 	_ensure_token_portraits(tokens)
 	_engine.set_snap_to_grid(_snap_mode == "cell")
+	if _engine.has_method("trace_event"):
+		_engine.call("trace_event", "SYNC_BEFORE", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
 	# Vue joueur : is_gm=false → brouillard joueur + présentation contrainte.
 	var as_gm := not _player_view
 	_engine.configure(
@@ -2385,6 +2390,8 @@ func _sync_engine(reset_view: bool = false) -> void:
 		{"mode": "select"},
 		view_state,
 	)
+	if _engine.has_method("trace_event"):
+		_engine.call("trace_event", "SYNC_AFTER", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
 	if reset_view and view_state.is_empty():
 		if _engine.has_method("request_fit_to_view"):
 			_engine.call_deferred("request_fit_to_view")
