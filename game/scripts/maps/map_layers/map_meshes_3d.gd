@@ -285,7 +285,17 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
 	_add_contact_shadow(root, visual, _is_inclined(mesh))
 	root.set_meta("fallback", fallback)
+	# Décor léger : culling de distance pour les grandes cartes.
+	if asset_path.contains("/vegetation/") or asset_path.contains("/props/"):
+		_set_visibility_range(visual, 90.0)
 	return root
+
+func _set_visibility_range(node: Node, distance: float) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).visibility_range_end = distance
+		(node as GeometryInstance3D).visibility_range_end_margin = 5.0
+	for child in node.get_children():
+		_set_visibility_range(child, distance)
 
 func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 	var mesh_instance := MeshInstance3D.new()
