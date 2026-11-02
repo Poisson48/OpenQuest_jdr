@@ -145,6 +145,9 @@ func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.Z
 		var entry: Dictionary = _mesh_entries.get(id, {})
 		if node == null or not is_instance_valid(node) or entry.is_empty():
 			continue
+		var visual: Node = node.get_meta("visual", null) if node.has_meta("visual") else null
+		if visual is MeshInstance3D and visual.has_meta("flat_mesh"):
+			_rebake_procedural_visual(visual as MeshInstance3D, entry)
 		_place_root(node, entry)
 		var shadow := _find_child_with_meta(node, "contact_shadow")
 		if shadow is Node3D:
@@ -443,9 +446,13 @@ func _process(delta: float) -> void:
 func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -> void:
 	if not _follows_terrain(mesh) or not _terrain_relief:
 		return
-	var source := mesh_instance.mesh as ArrayMesh
+	var source := mesh_instance.get_meta("flat_mesh", null) as ArrayMesh
+	if source == null:
+		source = mesh_instance.mesh as ArrayMesh
 	if source == null:
 		return
+	if not mesh_instance.has_meta("flat_mesh"):
+		mesh_instance.set_meta("flat_mesh", source)
 	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
 	var result := ArrayMesh.new()
 	for s in range(source.get_surface_count()):
@@ -483,6 +490,17 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 		st.commit(result)
 	mesh_instance.mesh = result
 	mesh_instance.set_meta("terrain_baked", true)
+
+## Après un changement de relief, repart du mesh plat d'origine puis le
+## reconforme aux nouvelles hauteurs (clôture qui reste posée sur la colline).
+func _rebake_procedural_visual(mesh_instance: MeshInstance3D, entry: Dictionary) -> void:
+	var flat := mesh_instance.get_meta("flat_mesh", null) as ArrayMesh
+	if flat == null:
+		return
+	mesh_instance.mesh = flat
+	mesh_instance.remove_meta("terrain_baked")
+	if _terrain_relief and _follows_terrain(entry):
+		_conform_procedural_mesh(mesh_instance, entry)
 
 func _is_occludable_asset(asset: String) -> bool:
 	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:

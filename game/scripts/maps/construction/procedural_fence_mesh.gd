@@ -8,6 +8,7 @@ const DEFAULT_HEIGHT := 0.9
 const DEFAULT_SPACING := 1.1
 const POST_WIDTH := 0.12
 const RAIL_THICKNESS := 0.08
+const RAIL_SUBDIV := 0.45
 const MIN_POINTS := 2
 
 static func build_from_element(elem: Dictionary) -> ArrayMesh:
@@ -53,7 +54,7 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 		var a: Vector2 = points[i]
 		var b: Vector2 = points[i + 1]
 		for level in [0.35, 0.72]:
-			_rail(st, a, b, h * level, color_rail)
+			_rail_segmented(st, a, b, h * level, color_rail)
 	# Poteaux intermédiaires pour les longs segments.
 	for i in range(points.size() - 1):
 		var a: Vector2 = points[i]
@@ -67,6 +68,17 @@ static func build(points: Array, height: float = DEFAULT_HEIGHT,
 			_box(st, Vector3(p.x, 0.0, p.y), Vector3(POST_WIDTH * 0.85, h, POST_WIDTH * 0.85), color_post)
 	st.generate_normals()
 	return st.commit()
+
+static func _rail_segmented(st: SurfaceTool, a: Vector2, b: Vector2,
+		y: float, color: Color) -> void:
+	# Découpe les lisses pour qu'elles épousent le relief : sinon une longue
+	# lisse reste une corde droite au-dessus/en travers de la colline.
+	var length := a.distance_to(b)
+	var pieces := maxi(1, ceili(length / RAIL_SUBDIV))
+	for i in range(pieces):
+		var pa := a.lerp(b, float(i) / float(pieces))
+		var pb := a.lerp(b, float(i + 1) / float(pieces))
+		_rail(st, pa, pb, y, color)
 
 static func _rail(st: SurfaceTool, a: Vector2, b: Vector2, y: float, color: Color) -> void:
 	var dir := (b - a)
