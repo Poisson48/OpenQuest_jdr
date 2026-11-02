@@ -296,6 +296,13 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		material.emission_enabled = true
 		material.emission = Color("#e07a2f")
 		material.emission_energy_multiplier = 0.6
+		var fire_light := OmniLight3D.new()
+		fire_light.position = Vector3(0.0, 0.55, 0.0)
+		fire_light.light_color = Color("#ff9a4a")
+		fire_light.light_energy = 1.5
+		fire_light.omni_range = 3.2
+		fire_light.shadow_enabled = false
+		mesh_instance.add_child(fire_light)
 	elif asset == "procedural://tent":
 		mesh_instance.name = "ProceduralTent"
 		mesh_instance.mesh = ProceduralTentMeshScript.build_from_element(mesh)
