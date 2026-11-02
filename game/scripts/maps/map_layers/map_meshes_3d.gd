@@ -72,6 +72,8 @@ const TERRAIN_RELIEF_EPSILON := 0.001
 var _cell_size: float = 1.0
 ## id → nœud racine (Node3D) du mesh, pour le déplacement live.
 var _nodes: Dictionary = {}
+## id → transparence d'occlusion courante (pour éviter les changements inutiles).
+var _occlusion_alpha: Dictionary = {}
 ## id → donnée source du mesh (pour reposer au sol sur relief en drag live).
 var _mesh_entries: Dictionary = {}
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
@@ -314,6 +316,51 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 	mesh_instance.material_override = material
 	mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mesh_instance
+
+## Estompe les murs/bâtiments situés entre la caméra et le personnage, pour
+## qu'il ne disparaisse pas derrière une façade. Approximation par distance au
+## segment caméra → personnage, sans raycast physique.
+func set_occlusion_fade(camera_pos: Vector3, target_pos: Vector3) -> void:
+	var from := camera_pos
+	var to := target_pos
+	var segment := to - from
+	var length_sq := segment.length_squared()
+	if length_sq < 0.01:
+		return
+	for id_variant in _nodes.keys():
+		var id := str(id_variant)
+		var root = _nodes.get(id)
+		if root == null or not is_instance_valid(root):
+			continue
+		var entry: Dictionary = _mesh_entries.get(id, {}) if _mesh_entries.get(id) is Dictionary else {}
+		var asset := str(entry.get("asset", "")).to_lower()
+		if not _is_occludable_asset(asset):
+			_apply_visual_transparency(root, 0.0)
+			continue
+		var center: Vector3 = root.global_position
+		var t := clampf((center - from).dot(segment) / length_sq, 0.0, 1.0)
+		var closest := from + segment * t
+		var distance := center.distance_to(closest)
+		var alpha := 0.42 if (t > 0.04 and t < 0.96 and distance < 1.1) else 0.0
+		_apply_visual_transparency(root, alpha)
+
+func _is_occludable_asset(asset: String) -> bool:
+	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:
+		if asset.contains(fragment):
+			return true
+	return false
+
+func _apply_visual_transparency(root: Node, alpha: float) -> void:
+	if root.has_meta("occlusion_alpha") and is_equal_approx(float(root.get_meta("occlusion_alpha")), alpha):
+		return
+	root.set_meta("occlusion_alpha", alpha)
+	_set_transparency_recursive(root, alpha)
+
+func _set_transparency_recursive(node: Node, alpha: float) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).transparency = alpha
+	for child in node.get_children():
+		_set_transparency_recursive(child, alpha)
 
 ## Facteurs d'échelle par axe pour obtenir les dimensions déclarées (en cases).
 ## `sizeX`/`sizeY`/`sizeZ` permettent de redimensionner un objet 3D par axe

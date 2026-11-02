@@ -2125,6 +2125,7 @@ func _is_token_node(node: Node) -> bool:
 	return node != null and node.get_script() == MapToken3DScript
 
 func _process(delta: float) -> void:
+	_update_occlusion_fade()
 	_sync_token_overlay_positions()
 	if _token_drag:
 		var world := _raycast_ground(_control_to_viewport(get_local_mouse_position()))
@@ -2143,6 +2144,21 @@ func _process(delta: float) -> void:
 	_clamp_camera()
 	if not editor_mode and _pan_velocity.length() < PAN_INERTIA_MIN:
 		_update_area_hover(get_local_mouse_position())
+
+func _update_occlusion_fade() -> void:
+	if _camera == null or _meshes_layer == null or not is_instance_valid(_meshes_layer):
+		return
+	if not _meshes_layer.has_method("set_occlusion_fade"):
+		return
+	var token_id := _selected_token_id
+	if token_id.is_empty() or not _token_nodes.has(token_id):
+		if _token_nodes.is_empty():
+			return
+		token_id = str(_token_nodes.keys()[0])
+	var node = _token_nodes.get(token_id)
+	if node == null or not is_instance_valid(node):
+		return
+	_meshes_layer.set_occlusion_fade(_camera.global_position, node.global_position)
 
 func _rebuild_token_overlay() -> void:
 	if _token_overlay == null:

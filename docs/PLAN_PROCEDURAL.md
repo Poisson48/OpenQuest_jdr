@@ -173,10 +173,11 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Captures « hero ».
 - Critère : ambiance crédible avec les assets procéduraux.
 
-## Étape 10 — RPG / Dofus
+## Étape 10 — RPG / Dofus (v1 partielle)
 - Marche inter-zones continue.
 - Caméra qui suit.
-- Occlusion et transparence des murs.
+- **Occlusion** : les murs/bâtiments entre la caméra et le personnage deviennent
+  semi-transparents (`MapMeshes3D.set_occlusion_fade`).
 - Critère : traverser un village sans coupure.
 
 ## Étape 11 — Performance et robustesse
@@ -249,13 +250,14 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 
 ## État actuel
 
-- Étape 1 terminée : mur procédural continu, v2 avec crête biseautée (mesh,
-  outil et démo).
+- Étape 1 terminée : mur procédural continu, v3 avec crête biseautée et matière
+  procédurale.
 - Étape 2 en cours : relief déformable par tracé (crête/vallée/aplatir/lisser)
   implémenté côté document, éditeur et test ; la démo visuelle est calibrée pour
   révéler le relief malgré la texture.
-- Étape 3 livrée v2 : **toit procédural** à deux pans, débord, pignons, rangs de
-  tuiles et faîtage, adaptation à l'emprise, outil dédié, test et démo.
+- Étape 3 livrée v3 : **toit procédural** à deux pans, débord, pignons, rangs de
+  tuiles, faîtage et matière procédurale, adaptation à l'emprise, outil dédié,
+  test et démo.
 - Étape 4 livrée et auditée : **générateur Blender procédural** — 80 assets,
   5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
@@ -271,6 +273,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 8 v2 livrée : **générateur de scène** village/forêt/camp (plan
   déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
   décor), outil dédié, test d'application réelle, démo et capture.
+- Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
+  (fondu automatique) ; transitions de zone et caméra continue à consolider.
 - Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
   d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
   terrain.
