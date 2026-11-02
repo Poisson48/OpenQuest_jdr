@@ -33,6 +33,7 @@ const ORGANIC := "organic"
 const PROC_WALL := "proc_wall"
 const SCATTER := "scatter"
 const FLOWER_ZONE := "flower_zone"
+const CONTEXT_DECOR := "context_decor"
 const NOTE := "note"
 const LIGHT := "light"
 const PAINT := "paint"
@@ -51,7 +52,7 @@ const PROP := "prop"
 const MESH := "mesh"
 
 ## Outils qui posent un nouvel élément au clic (mode EM_POSE).
-const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D, INTERIOR_3D]
+const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D, INTERIOR_3D, CONTEXT_DECOR]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
 const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA]
@@ -169,6 +170,10 @@ const DEFS := [
 	{
 		"id": FLOWER_ZONE, "icon": "🌸", "label": "Zone fleurie", "shortcut": "", "group": "place",
 		"hint": "Clic-glisser pour dessiner une zone fermée : des fleurs procédurales du type choisi (coquelicots, marguerites, lavande, bleues, mélange) apparaissent uniquement dans cette zone.",
+	},
+	{
+		"id": CONTEXT_DECOR, "icon": "🍂", "label": "Décor contextuel", "shortcut": "", "group": "place",
+		"hint": "Clic près d'un mur : pose automatiquement buissons, rochers et touffes le long de ses abords, avec variations déterministes. Un seul undo.",
 	},
 	{
 		"id": NOTE, "icon": "📝", "label": "Note MJ", "shortcut": "9", "group": "place",

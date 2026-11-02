@@ -1476,6 +1476,93 @@ func _create_prop(grid: Vector2) -> void:
 	_ed.doc.select_only(id)
 
 ## Pose un objet 3D générique (mesh GLB) sur la carte 2.5D.
+## Décor contextuel : clique près d'un mur, l'éditeur sème buissons/rochers le
+## long de ses abords, sur les deux faces, avec une graine déterministe.
+func _decorate_context(grid: Vector2) -> void:
+	var wall := _nearest_wall_element(grid, _ed._context_decor_radius)
+	if wall.is_empty():
+		_ed._set_status("Décor contextuel : aucun mur à proximité.")
+		return
+	var endpoints := _wall_endpoints(wall)
+	if endpoints.size() < 2:
+		return
+	var a: Vector2 = endpoints[0]
+	var b: Vector2 = endpoints[1]
+	var length := a.distance_to(b)
+	if length < 0.5:
+		return
+	var dir := (b - a).normalized()
+	var normal := Vector2(-dir.y, dir.x)
+	var thickness := maxf(0.35, float(wall.get("h", 0.7)))
+	var assets := [
+		"res://assets/objects3d/vegetation/buisson.glb",
+		"res://assets/objects3d/terrain/rocher.glb",
+		"res://assets/objects3d/vegetation/haie.glb",
+	]
+	var count := clampi(int(round(length * _ed._context_decor_density)), 1, 8)
+	_ed._context_decor_seed = (_ed._context_decor_seed * 1664525 + 1013904223) % 2147483647
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ed._context_decor_seed
+	var ids: Array = []
+	_ed.doc.begin_transaction()
+	for i in range(count):
+		var t := (float(i) + 0.5) / float(count)
+		var base := a.lerp(b, t)
+		var side := 1.0 if rng.randi() % 2 == 0 else -1.0
+		var offset := thickness * 0.5 + rng.randf_range(0.25, 0.9)
+		var pos := base + normal * side * offset
+		if pos.x < 0.0 or pos.y < 0.0 \
+				or pos.x >= float(_ed.doc.map_data.get("width", 0)) \
+				or pos.y >= float(_ed.doc.map_data.get("height", 0)):
+			continue
+		var asset: String = str(assets[rng.randi() % assets.size()])
+		if not ResourceLoader.exists(asset):
+			continue
+		var bounds := _mesh_bounds_cells(asset, 1.0)
+		var footprint := Vector2(maxf(0.3, bounds.x), maxf(0.3, bounds.z))
+		var id: String = _ed.doc.add_element({
+			"x": pos.x, "y": pos.y,
+			"w": footprint.x, "h": footprint.y,
+			"asset": asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
+			"label": "Décor contextuel", "layer": 1,
+			"display": {
+				"rotation": rng.randf_range(0.0, 360.0),
+				"scale": rng.randf_range(0.75, 1.15),
+			},
+		}, DocumentScript.KIND_MESH, "Décor contextuel")
+		ids.append(id)
+	_ed.doc.commit_transaction()
+	_ed.doc.set_selection(ids)
+	_ed._set_status("Décor contextuel : %d élément(s) semés le long du mur." % ids.size())
+
+func _nearest_wall_element(grid: Vector2, radius: float) -> Dictionary:
+	var best: Dictionary = {}
+	var best_distance := radius
+	for elem_variant in _ed.doc.elements_sorted():
+		var elem: Dictionary = elem_variant
+		if str(elem.get("kind", "")) != DocumentScript.KIND_MESH:
+			continue
+		var asset := str(elem.get("asset", "")).to_lower()
+		if not (asset.contains("mur") or asset.contains("wall")):
+			continue
+		var endpoints := _wall_endpoints(elem)
+		if endpoints.size() < 2:
+			continue
+		var distance: float = _distance_to_segment(grid, endpoints[0], endpoints[1])
+		if distance < best_distance:
+			best_distance = distance
+			best = elem
+	return best
+
+static func _distance_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var len_sq := ab.length_squared()
+	if len_sq < 0.000001:
+		return p.distance_to(a)
+	var t := clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
 func _create_mesh(grid: Vector2) -> void:
 	if _ed._mesh_asset.is_empty():
 		_ed._set_status("Choisissez d'abord un objet 3D dans la bibliothèque (onglet Biblio → Objets 3D).")

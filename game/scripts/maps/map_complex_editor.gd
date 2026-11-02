@@ -145,6 +145,10 @@ var _flower_zone_type: String = "marguerite"
 var _flower_zone_density: float = 3.0
 var _flower_zone_size: float = 0.22
 var _flower_zone_seed: int = 1
+## Décor contextuel : rayon de recherche du mur, densité, graine.
+var _context_decor_radius: float = 3.0
+var _context_decor_density: float = 0.7
+var _context_decor_seed: int = 1
 var _scatter_rng := RandomNumberGenerator.new()
 
 # --- Interaction --------------------------------------------------------------
@@ -1030,6 +1034,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_construction._create_prop(grid)
 	elif _tool == ToolsScript.MESH:
 		_create_mesh(grid)
+	elif _tool == ToolsScript.CONTEXT_DECOR:
+		_construction._decorate_context(grid)
 	_sync_engine()
 
 func _create_token(grid: Vector2) -> void:

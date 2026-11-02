@@ -194,6 +194,18 @@ func _rebuild_tool_options() -> void:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.5, 8.0, _ed._flower_zone_density, 0.5, func(v): _ed._flower_zone_density = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Taille", 0.08, 0.6, _ed._flower_zone_size, 0.02, func(v): _ed._flower_zone_size = v)
 		_option_note("Clic-glisser pour dessiner une zone fermée : les fleurs du type choisi apparaissent uniquement dedans. Aucune herbe automatique.")
+	elif _ed._tool == ToolsScript.CONTEXT_DECOR:
+		_ed._spin(_ed._hbox(_ed._tool_options), "Rayon", 0.5, 8.0, _ed._context_decor_radius, 0.5, func(v): _ed._context_decor_radius = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.1, 2.0, _ed._context_decor_density, 0.1, func(v): _ed._context_decor_density = v)
+		var reseed_btn := Button.new()
+		reseed_btn.text = "Nouvelle graine"
+		reseed_btn.add_theme_font_size_override("font_size", 10)
+		reseed_btn.pressed.connect(func():
+			_ed._context_decor_seed += 1
+			_ed._set_status("Décor contextuel : nouvelle graine.")
+		)
+		_ed._tool_options.add_child(reseed_btn)
+		_option_note("Cliquez près d'un mur : buissons, rochers et haies sont semés le long de ses abords. Un seul undo, variations déterministes.")
 	elif _ed._tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_ed._marker_type), MapData.get_marker_label(_ed._marker_type)])
 	elif _ed._tool == ToolsScript.EFFECT:
