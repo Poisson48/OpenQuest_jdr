@@ -1387,7 +1387,20 @@ func _paint_relief(grid: Vector2) -> void:
 	# Aperçu fluide : le moteur reconfigure seulement le sol + les objets posés.
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
+	var h := doc.terrain_height(int(round(grid.x)), int(round(grid.y)))
+	_set_status("Relief %s : hauteur %.2f case(s)." % [_relief_mode_label(), h])
 	_refresh_overlay()
+
+func _relief_mode_label() -> String:
+	match _relief_mode:
+		"lower":
+			return "baissé"
+		"flatten":
+			return "aplati"
+		"smooth":
+			return "lissé"
+		_:
+			return "monté"
 
 func _finish_terrain_spline() -> void:
 	var raw_points: Array = _terrain_spline_points.duplicate()

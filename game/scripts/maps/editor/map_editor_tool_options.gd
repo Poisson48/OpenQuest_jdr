@@ -432,6 +432,16 @@ func _rebuild_tool_options() -> void:
 			_ed._set_status("Relief nivelé à zéro.")
 		)
 		_ed._tool_options.add_child(flatten_btn)
+		var lower_btn := Button.new()
+		lower_btn.text = "Mode baisser"
+		lower_btn.tooltip_text = "Passe le pinceau en mode Baisser (creuser)."
+		lower_btn.add_theme_font_size_override("font_size", 10)
+		lower_btn.pressed.connect(func():
+			_ed._relief_mode = "lower"
+			_ed._set_status("Relief : mode Baisser — glissez pour creuser.")
+			_ed._rebuild_tool_options()
+		)
+		_ed._tool_options.add_child(lower_btn)
 		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _ed._tool == ToolsScript.GROUND_MATERIAL:
 		var mat_opt := OptionButton.new()
