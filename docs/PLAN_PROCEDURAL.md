@@ -286,8 +286,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   **étages 1–3** et **dalles d'étage** ; ouvertures irrégulières à compléter.
 - Étape 8 v2 livrée : **générateur de scène** village/forêt/camp (plan
   déterministe, place centrale, puits/fontaine, clôtures, chemins, maisons,
-  décor, **tentes procédurales**), outil dédié, test d'application réelle, démo
-  et capture.
+  décor, **tentes procédurales**), outil dédié, test d'application réelle, démos
+  village/camp/forêt et captures.
 - Étape 9 v1 : capture **hero** du village généré (docks masqués), pour juger le
   rendu sans bruit d'interface.
 - Étape 10 v1 partielle : **occlusion** des murs/bâtiments devant le personnage
