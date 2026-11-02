@@ -98,6 +98,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Démo : courbe, T visuel, muret de jardin.
 - Critère : aucun escalier de modules ; angles continus.
 - v2 : crête biseautée, face supérieure plate entre deux chanfreins.
+- v3 : matière procédurale (pierre, variation, mousse au pied), sans texture.
 
 ## Étape 2 — Terrain déformable façon Tiny Glade (socle livré)
 - Heightfield sculptable : monter, baisser, lisser, aplatir.
