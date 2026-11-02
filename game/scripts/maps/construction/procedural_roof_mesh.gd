@@ -31,28 +31,57 @@ static func build(w: float, d: float, height: float = DEFAULT_HEIGHT,
 	var slope_b := Color("#cf7058")
 	var gable := Color("#8f4738")
 	if span_x >= span_z:
-		# Faîtage le long de X, pans vers ±Z.
+		# Faîtage le long de X, pans vers ±Z, en rangs de tuiles.
 		var ridge_a := Vector3(-half_x, h, 0.0)
 		var ridge_b := Vector3(half_x, h, 0.0)
 		var eave_a1 := Vector3(-half_x, 0.0, -half_z)
 		var eave_b1 := Vector3(half_x, 0.0, -half_z)
 		var eave_a2 := Vector3(-half_x, 0.0, half_z)
 		var eave_b2 := Vector3(half_x, 0.0, half_z)
-		_quad(st, eave_a1, eave_b1, ridge_b, ridge_a, slope_a)
-		_quad(st, ridge_a, ridge_b, eave_b2, eave_a2, slope_b)
+		var rows := 6
+		for row in range(rows):
+			var t0 := float(row) / float(rows)
+			var t1 := float(row + 1) / float(rows)
+			var y0 := h * t0
+			var y1 := h * t1
+			var z0 := half_z * (1.0 - t0)
+			var z1 := half_z * (1.0 - t1)
+			var color := slope_a if row % 2 == 0 else slope_b
+			# Pan -Z.
+			_quad(st, Vector3(-half_x, y0, -z0), Vector3(half_x, y0, -z0),
+				Vector3(half_x, y1, -z1), Vector3(-half_x, y1, -z1), color)
+			# Pan +Z.
+			_quad(st, Vector3(half_x, y0, z0), Vector3(-half_x, y0, z0),
+				Vector3(-half_x, y1, z1), Vector3(half_x, y1, z1), color)
+		# Faîtage sombre.
+		_quad(st, ridge_a, ridge_b, ridge_b + Vector3(0, 0.02, 0.12),
+			ridge_a + Vector3(0, 0.02, 0.12), Color("#7a3a2e"))
 		# Pignons verticaux.
 		_tri(st, eave_a2, ridge_a, eave_a1, gable)
 		_tri(st, eave_b1, ridge_b, eave_b2, gable)
 	else:
-		# Faîtage le long de Z, pans vers ±X.
+		# Faîtage le long de Z, pans vers ±X, en rangs de tuiles.
 		var ridge_a := Vector3(0.0, h, -half_z)
 		var ridge_b := Vector3(0.0, h, half_z)
 		var eave_a1 := Vector3(-half_x, 0.0, -half_z)
 		var eave_b1 := Vector3(-half_x, 0.0, half_z)
 		var eave_a2 := Vector3(half_x, 0.0, -half_z)
 		var eave_b2 := Vector3(half_x, 0.0, half_z)
-		_quad(st, eave_a1, eave_a2, ridge_b, ridge_a, slope_a)
-		_quad(st, ridge_a, ridge_b, eave_b2, eave_b1, slope_b)
+		var rows := 6
+		for row in range(rows):
+			var t0 := float(row) / float(rows)
+			var t1 := float(row + 1) / float(rows)
+			var y0 := h * t0
+			var y1 := h * t1
+			var x0 := half_x * (1.0 - t0)
+			var x1 := half_x * (1.0 - t1)
+			var color := slope_a if row % 2 == 0 else slope_b
+			_quad(st, Vector3(-x0, y0, -half_z), Vector3(-x0, y0, half_z),
+				Vector3(-x1, y1, half_z), Vector3(-x1, y1, -half_z), color)
+			_quad(st, Vector3(x0, y0, half_z), Vector3(x0, y0, -half_z),
+				Vector3(x1, y1, -half_z), Vector3(x1, y1, half_z), color)
+		_quad(st, ridge_a, ridge_b, ridge_b + Vector3(0.12, 0.02, 0),
+			ridge_a + Vector3(0.12, 0.02, 0), Color("#7a3a2e"))
 		_tri(st, eave_a1, ridge_a, eave_b1, gable)
 		_tri(st, eave_a2, eave_b2, ridge_b, gable)
 	st.generate_normals()

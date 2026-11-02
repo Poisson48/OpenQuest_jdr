@@ -109,12 +109,13 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Rives et eau adaptées.
 - Critère : créer une colline et une dépression sans quitter l'éditeur.
 
-## Étape 3 — Toits et pièces adaptatifs (livré v1)
+## Étape 3 — Toits et pièces adaptatifs (v2 livrée)
 - Détection d'emprise, toit qui suit la forme.
 - Faîtage, pignons, débords, lucarnes.
 - Raccord mur/toit.
 - Critère : pièce irrégulière couverte sans trou.
 - v1 : toit à deux pans procédural, emprise rectangulaire, outil dédié.
+- v2 : rangs de tuiles colorés, faîtage sombre, pignons et débord.
 
 ## Étape 4 — Générateur Blender paramétrique v1 (livré et audité)
 - Recettes + scripts + manifest.
@@ -247,8 +248,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
 - Étape 2 en cours : relief déformable par tracé (crête/vallée/aplatir/lisser)
   implémenté côté document, éditeur et test ; la démo visuelle est calibrée pour
   révéler le relief malgré la texture.
-- Étape 3 livrée v1 : **toit procédural** à deux pans, débord, pignons, adaptation
-  à l'emprise, outil dédié, test et démo.
+- Étape 3 livrée v2 : **toit procédural** à deux pans, débord, pignons, rangs de
+  tuiles et faîtage, adaptation à l'emprise, outil dédié, test et démo.
 - Étape 4 livrée et auditée : **générateur Blender procédural** — 80 assets,
   5 variantes, toutes familles couvertes (`tools/blender/audit_pipeline.py`).
 - Étape 5 partiellement livrée : **zones fleuries au pinceau** avec type de fleur,
