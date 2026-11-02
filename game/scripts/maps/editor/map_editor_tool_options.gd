@@ -11,6 +11,7 @@ const ConstructionScript := preload("res://scripts/maps/editor/map_editor_constr
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
 const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
+const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 
 ## Éditeur propriétaire (Control) — non typé pour éviter le cycle de preload.
@@ -218,6 +219,29 @@ func _rebuild_tool_options() -> void:
 		)
 		_ed._tool_options.add_child(reseed_btn)
 		_option_note("Cliquez près d'un mur : buissons, rochers et haies sont semés le long de ses abords. Un seul undo, variations déterministes.")
+	elif _ed._tool == ToolsScript.SCENE_GEN:
+		var style_opt := OptionButton.new()
+		for i in range(ProceduralSceneGeneratorScript.STYLES.size()):
+			var style_id := str(ProceduralSceneGeneratorScript.STYLES[i])
+			style_opt.add_item(ProceduralSceneGeneratorScript.style_label(style_id), i)
+			style_opt.set_item_metadata(i, style_id)
+			if style_id == _ed._scene_style:
+				style_opt.select(i)
+		style_opt.item_selected.connect(func(index: int):
+			_ed._scene_style = str(style_opt.get_item_metadata(index))
+		)
+		_ed._tool_options.add_child(style_opt)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Graine", 1.0, 99999.0, float(_ed._scene_seed), 1.0, func(v): _ed._scene_seed = int(v))
+		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.3, 2.0, _ed._scene_density, 0.1, func(v): _ed._scene_density = v)
+		var regen_btn := Button.new()
+		regen_btn.text = "Nouvelle graine"
+		regen_btn.add_theme_font_size_override("font_size", 10)
+		regen_btn.pressed.connect(func():
+			_ed._scene_seed += 1
+			_ed._set_status("Scène : nouvelle graine %d." % _ed._scene_seed)
+		)
+		_ed._tool_options.add_child(regen_btn)
+		_option_note("Cliquez sur la carte : génère un %s complet (chemins, maisons, décor). Régénérez avec une autre graine, puis retouchez à la main." % ProceduralSceneGeneratorScript.style_label(_ed._scene_style).to_lower())
 	elif _ed._tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_ed._marker_type), MapData.get_marker_label(_ed._marker_type)])
 	elif _ed._tool == ToolsScript.EFFECT:

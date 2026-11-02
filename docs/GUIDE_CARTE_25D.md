@@ -111,6 +111,9 @@ Outils terrain :
 - **Outil 🌀 Tracé organique** : clic-glisser libre ; lisse la courbe et la pose
   en modules continus (mur/clôture/palissade) orientés sur la tangente. Idéal
   pour les virages doux et les tracés naturels façon Tiny Glade.
+- **Générer scène** : clic sur la carte ; produit un village, une forêt ou un
+  camp complet (chemins, maisons, décor) selon le style, la graine et la densité.
+  On retouche ensuite à la main.
 - **Outil 🌿 Végétation** : clic-glisser ; disperse automatiquement buissons,
   haies, roseaux, arbres, bosquets ou rochers avec densité/taille/rayon. Un seul
   undo par trait, pas de doublon de case, eau évitée.

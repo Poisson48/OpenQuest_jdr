@@ -18,6 +18,7 @@ const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 const OrganicPathScript := preload("res://scripts/maps/construction/organic_path.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
+const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
 
 const ROOF_STYLES := [
 	{"label": "Tuiles (2 pans)", "path": "res://assets/objects3d/buildings/toit_2pentes.glb"},
@@ -1488,6 +1489,56 @@ func _create_prop(grid: Vector2) -> void:
 ## Pose un objet 3D générique (mesh GLB) sur la carte 2.5D.
 ## Décor contextuel : clique près d'un mur, l'éditeur sème buissons/rochers le
 ## long de ses abords, sur les deux faces, avec une graine déterministe.
+## Génère une scène complète (village/forêt/camp) à partir d'une graine.
+## Les chemins sont peints, les maisons construites avec l'outil Maison rapide,
+## le décor posé comme objets 3D.
+func _generate_scene(_grid: Vector2) -> void:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	if width < 8 or height < 8:
+		_ed._set_status("Scène : carte trop petite (8 × 8 minimum).")
+		return
+	var plan: Dictionary = ProceduralSceneGeneratorScript.generate(
+		_ed._scene_style, width, height, _ed._scene_seed, _ed._scene_density
+	)
+	var path_count := 0
+	for path_variant in plan.get("paths", []):
+		var path_data: Dictionary = path_variant
+		var from: Vector2 = path_data.get("from", Vector2.ZERO)
+		var to: Vector2 = path_data.get("to", Vector2.ZERO)
+		var steps := maxi(1, int(ceil(from.distance_to(to) * 2.0)))
+		for i in range(steps + 1):
+			var t := float(i) / float(steps)
+			var cell := Vector2(round(lerpf(from.x, to.x, t)), round(lerpf(from.y, to.y, t)))
+			if cell.x >= 0.0 and cell.y >= 0.0 and cell.x < width and cell.y < height:
+				_ed.doc.set_terrain_material(int(cell.x), int(cell.y), DocumentScript.MATERIAL_DIRT, "Scène")
+				path_count += 1
+	var house_count := 0
+	for rect_variant in plan.get("houses", []):
+		var rect: Rect2 = rect_variant
+		_create_mesh_house(rect.position, rect.end)
+		house_count += 1
+	var prop_count := 0
+	for prop_variant in plan.get("props", []):
+		var prop: Dictionary = prop_variant
+		var asset := str(prop.get("asset", ""))
+		if asset.is_empty() or not ResourceLoader.exists(asset):
+			continue
+		var bounds := _mesh_bounds_cells(asset, 1.0)
+		var scale_v := maxf(0.1, float(prop.get("scale", 1.0)))
+		_ed.doc.add_element({
+			"x": float(prop.get("x", 0.0)), "y": float(prop.get("y", 0.0)),
+			"w": maxf(0.3, bounds.x * scale_v), "h": maxf(0.3, bounds.z * scale_v),
+			"asset": asset,
+			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
+			"label": "Décor de scène", "layer": 1,
+			"display": {"rotation": 0.0, "scale": scale_v},
+		}, DocumentScript.KIND_MESH, "Décor de scène")
+		prop_count += 1
+	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d décor(s)." % [
+		ProceduralSceneGeneratorScript.style_label(_ed._scene_style), house_count, path_count, prop_count])
+	_ed._sync_engine()
+
 func _decorate_context(grid: Vector2) -> void:
 	var wall := _nearest_wall_element(grid, _ed._context_decor_radius)
 	if wall.is_empty():

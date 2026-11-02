@@ -245,6 +245,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🌿 Végétation | — | Clic-glisser : **dispersion automatique** de buissons/haies/roseaux/arbres/bosquets/rochers, densité/taille/rayon, sans doublon de case |
 | Placer | 🌸 Zone fleurie | — | Clic-glisser pour dessiner une zone fermée : fleurs procédurales du type choisi (coquelicots, marguerites, lavande, bleues, mélange), densité/taille |
 | Placer | 🍂 Décor contextuel | — | Clic près d'un mur : sème buissons, rochers et haies le long de ses abords (rayon/densité, graine, un undo) |
+| Placer | 🏘 Générer scène | — | Clic : village, forêt ou camp complet (chemins, maisons, décor) avec graine et densité |
 | Placer | 🏠 Toit procédural | — | Clic-glisser un rectangle : **un seul mesh à deux pans**, débord et pignons, adapté à l'emprise |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |
 | Placer | 🧊 Objet 3D | `O` | Pose un mesh 3D (GLB exporté de Blender) : bâtiment, tour, pont, rocher. `R` : pivoter · échelle dans les options. |

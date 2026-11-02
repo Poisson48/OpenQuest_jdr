@@ -151,6 +151,10 @@ var _flower_zone_seed: int = 1
 var _context_decor_radius: float = 3.0
 var _context_decor_density: float = 0.7
 var _context_decor_seed: int = 1
+## Générateur de scène : style, graine, densité.
+var _scene_style: String = "village"
+var _scene_seed: int = 1
+var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
 
 # --- Interaction --------------------------------------------------------------
@@ -1038,6 +1042,8 @@ func _place_pose_element(grid: Vector2) -> void:
 		_create_mesh(grid)
 	elif _tool == ToolsScript.CONTEXT_DECOR:
 		_construction._decorate_context(grid)
+	elif _tool == ToolsScript.SCENE_GEN:
+		_construction._generate_scene(grid)
 	_sync_engine()
 
 func _create_token(grid: Vector2) -> void:
