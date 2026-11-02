@@ -103,7 +103,8 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Pinceaux et splines de relief.
 - **Sculpture à la souris** avec rayon/force, aperçu.
 - **Déformation le long d'un tracé** : collines, vallées, berges.
-- Aplatir une emprise de bâtiment.
+- Aplatir une emprise de bâtiment. **Livré** : option « Aplatir l'emprise »
+  sur Pièce 3D / Maison rapide, hauteur moyenne des coins + centre.
 - Recaler murs/objets sur le terrain.
 - Rives et eau adaptées.
 - Critère : créer une colline et une dépression sans quitter l'éditeur.
@@ -245,7 +246,8 @@ Aucune scène de base ne doit dépendre d'un asset modélisé à la main.
   densité et taille ; mesh procédural déterministe, test dédié, démo et capture.
 - Étape 6 v1 livrée : **empilement automatique** d'objets 3D (option activable,
   test dédié) ; ghost/raycast vertical à compléter.
-- Terrain déformable : pinceau existant + tracé + plateformes ; prochaine
-  itération sur les berges, empreintes de bâtiments et mesh de terrain.
+- Terrain déformable : pinceau existant + tracé + plateformes + **aplatissement
+  d'emprise de bâtiment** ; prochaine itération sur les berges et le mesh de
+  terrain.
 - La végétation procédurale automatique est désactivée par défaut pour des
   captures propres ; elle est remplacée par des zones peintes.

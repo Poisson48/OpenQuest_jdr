@@ -408,6 +408,28 @@ func _create_mesh_wall_chain(from: Vector2, to: Vector2) -> void:
 
 ## Construit une pièce fermée : quatre rangées raccordées. Les coins L sont
 ## posés automatiquement par les jonctions (plus de coins manuels en double).
+## Aplatit l'emprise d'un bâtiment avant d'y poser murs/toit. La hauteur cible
+## est la moyenne des coins et du centre, pour ne pas enterrer le bâtiment.
+func _flatten_build_footprint(from: Vector2, to: Vector2) -> void:
+	if not _ed._flatten_build_footprint:
+		return
+	var rect := Rect2(Vector2(minf(from.x, to.x), minf(from.y, to.y)),
+		Vector2(absf(to.x - from.x), absf(to.y - from.y)))
+	var center := (from + to) * 0.5
+	var samples: Array = [
+		Vector2(rect.position.x, rect.position.y),
+		Vector2(rect.end.x, rect.position.y),
+		Vector2(rect.position.x, rect.end.y),
+		Vector2(rect.end.x, rect.end.y),
+		center,
+	]
+	var total := 0.0
+	for sample_variant in samples:
+		var sample: Vector2 = sample_variant
+		total += _ed.doc.terrain_height(int(round(sample.x)), int(round(sample.y)))
+	var target := total / float(samples.size())
+	_ed.doc.flatten_terrain_rect(rect, target, "Emprise du bâtiment")
+
 func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	var x0 := minf(from.x, to.x)
 	var x1 := maxf(from.x, to.x)
@@ -416,6 +438,7 @@ func _create_mesh_room(from: Vector2, to: Vector2) -> void:
 	if x1 - x0 < 1.5 or y1 - y0 < 1.5:
 		_ed._set_status("Pièce trop petite (minimum 1,5 × 1,5).")
 		return
+	_flatten_build_footprint(from, to)
 	var ids: Array = []
 	_create_mesh_wall_smooth(Vector2(x0, y0), Vector2(x1, y0))
 	ids.append_array(_ed.doc.selection())
@@ -1467,7 +1490,8 @@ func _create_mesh(grid: Vector2) -> void:
 			placement = snapped
 	# Empilement automatique : si l'emprise touche le dessus d'un objet posé,
 	# le nouvel objet se pose à sa hauteur (table -> lanterne, caisse -> caisse).
-	if _ed._auto_stack:
+	# Les modules muraux/toits/portes restent au sol ou sur leur ancre.
+	if _ed._auto_stack and _auto_stack_asset(_ed._mesh_asset):
 		var stack_top := _stack_top_at(
 			Vector2(float(placement["x"]), float(placement["y"])),
 			footprint
@@ -1491,6 +1515,17 @@ func _create_mesh(grid: Vector2) -> void:
 		_ed._set_status("Objet empilé à %.2f case(s)." % float(placement["elevation"]))
 	elif placement.has("snapped_to"):
 		_ed._set_status("Module aimanté sur « %s »." % str(placement.get("snapped_to", "bâtiment")))
+
+## Vrai si cet asset peut être empilé automatiquement. Les modules de
+## construction (murs, toits, portes, fenêtres) ont leurs propres ancrages.
+func _auto_stack_asset(asset: String) -> bool:
+	var lower := asset.to_lower()
+	if lower.begins_with("procedural://"):
+		return false
+	for fragment in ["mur", "toit", "porte", "fenetre", "window", "door", "roof", "wall"]:
+		if lower.contains(fragment):
+			return false
+	return true
 
 ## Dessus de l'objet posé qui recouvre le plus l'emprise donnée (en cases).
 ## Sert à l'empilement automatique : une lanterne se pose sur une table, une

@@ -67,6 +67,14 @@ func _test_data(base: Dictionary) -> void:
 	)
 	_assert("spline_valley_lowered", doc.terrain_height(5, 7) < valley_before)
 
+	# Emprise aplatie : la pièce ne doit pas se retrouver sur un sol en pente.
+	doc.set_terrain_height(8, 3, 1.4)
+	doc.set_terrain_height(8, 4, 0.2)
+	doc.flatten_terrain_rect(Rect2(8.0, 3.0, 3.0, 3.0), 0.5, "Test emprise")
+	_assert("flatten_rect_center", is_equal_approx(doc.terrain_height(9, 4), 0.5))
+	_assert("flatten_rect_edge", is_equal_approx(doc.terrain_height(10, 5), 0.5))
+	_assert("flatten_rect_outside", not is_equal_approx(doc.terrain_height(11, 5), 0.5))
+
 	# Matières du sol : herbe par défaut, puis terre / pierre.
 	_assert("material_buffer_size", doc.terrain_materials().size() == 12 * 10)
 	_assert("material_default_grass", doc.terrain_material(0, 0) == 0)

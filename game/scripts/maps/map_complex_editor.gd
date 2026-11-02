@@ -118,6 +118,7 @@ var _auto_stack: bool = true
 var _roof_asset: String = "res://assets/objects3d/buildings/toit_2pentes.glb"
 var _floor_material: int = 2
 var _floor_flatten: bool = true
+var _flatten_build_footprint: bool = false
 var _furnish_preset: String = "salle"
 var _fence_asset: String = "res://assets/objects3d/props/barriere.glb"
 var _path_width: int = 1

@@ -128,6 +128,8 @@ Outils terrain :
 - **Empilement automatique** : avec l'outil Objet 3D, l'option « Empilement
   automatique » pose l'objet sur le dessus d'un objet existant qui recouvre son
   emprise (lanterne sur table, caisse sur caisse).
+- **Aplatir l'emprise** : option sur Pièce 3D / Maison rapide pour niveler le sol
+  sous le bâtiment (moyenne des hauteurs) avant de poser murs et toit.
 - Sélection : **Dimensions X/Y/Z** et **Rotation** dans l'inspecteur, ou poignées
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - Élévation réglable pour les modules posés librement.

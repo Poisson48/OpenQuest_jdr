@@ -55,7 +55,13 @@ func _rebuild_tool_options() -> void:
 		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
 	elif _ed._tool == ToolsScript.ROOM_3D:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
-		_option_note("Glissez un rectangle : 4 murs pour une pièce fermée. Ajoutez ensuite dallage, portes, fenêtres et toit.")
+		var room_flatten := CheckBox.new()
+		room_flatten.text = "Aplatir l'emprise"
+		room_flatten.button_pressed = _ed._flatten_build_footprint
+		room_flatten.tooltip_text = "Nivelle le sol sous la pièce (moyenne des hauteurs) avant de poser les murs."
+		room_flatten.toggled.connect(func(on): _ed._flatten_build_footprint = on)
+		_ed._tool_options.add_child(room_flatten)
+		_option_note("Glissez un rectangle : 4 murs pour une pièce fermée, sol aplati. Ajoutez ensuite dallage, portes, fenêtres et toit.")
 	elif _ed._tool == ToolsScript.ROOF_3D:
 		var roof_opt := OptionButton.new()
 		for i in range(ConstructionScript.ROOF_STYLES.size()):
@@ -86,7 +92,13 @@ func _rebuild_tool_options() -> void:
 		_option_note("Glissez un rectangle à l'intérieur d'une pièce : dallage de pierre (matière 2) et sol à plat.")
 	elif _ed._tool == ToolsScript.HOUSE_3D:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur murs", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
-		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, en une seule action.")
+		var house_flatten := CheckBox.new()
+		house_flatten.text = "Aplatir l'emprise"
+		house_flatten.button_pressed = _ed._flatten_build_footprint
+		house_flatten.tooltip_text = "Nivelle le sol sous la maison avant murs, dallage et toit."
+		house_flatten.toggled.connect(func(on): _ed._flatten_build_footprint = on)
+		_ed._tool_options.add_child(house_flatten)
+		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
 	elif _ed._tool == ToolsScript.FURNISH_3D:

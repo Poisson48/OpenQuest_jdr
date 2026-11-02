@@ -1241,6 +1241,35 @@ static func _distance_point_segment(p: Vector2, a: Vector2, b: Vector2) -> float
 	var t := clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
 	return p.distance_to(a + ab * t)
 
+## Aplatit une emprise rectangulaire à une hauteur cible (une seule étape
+## d'undo). Utilisé sous les pièces/maisons pour éviter un sol en pente.
+func flatten_terrain_rect(rect: Rect2, target: float, note: String = "Emprise aplatie") -> void:
+	var size := terrain_size()
+	var heights := _terrain_buffer()
+	var min_x := maxi(0, int(floor(rect.position.x)))
+	var max_x := mini(size.x - 1, int(ceil(rect.end.x)) - 1)
+	var min_y := maxi(0, int(floor(rect.position.y)))
+	var max_y := mini(size.y - 1, int(ceil(rect.end.y)) - 1)
+	if min_x > max_x or min_y > max_y:
+		return
+	var clamped := clampf(target, -2.0, 12.0)
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			var idx: int = cy * size.x + cx
+			var current := float(heights[idx])
+			if absf(current - clamped) < 0.001:
+				continue
+			before[str(idx)] = current
+			after[str(idx)] = clamped
+			heights[idx] = clamped
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+
 ## Nivelle tout le relief à zéro (une seule étape d'undo).
 func clear_all_terrain(note: String = "Nivellement") -> void:
 	var heights := _terrain_buffer()
