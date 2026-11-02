@@ -1290,9 +1290,10 @@ func _update_camera_debug() -> void:
 		add_child(_camera_debug_lbl)
 	var focus := _ground_focus()
 	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
-	_camera_debug_lbl.text = "CAM  pos %.2f / %.2f / %.2f   rot %.1f°   focus %.1f / %.1f   sol %.2f" % [
+	var span := _ground_span_per_pixel()
+	_camera_debug_lbl.text = "CAM  pos %.2f / %.2f / %.2f   rot %.1f°   focus %.1f / %.1f   sol %.2f   span %.3f" % [
 		_camera.position.x, _camera.position.y, _camera.position.z,
-		_camera.rotation_degrees.x, focus.x, focus.y, ground,
+		_camera.rotation_degrees.x, focus.x, focus.y, ground, span.x,
 	]
 
 func _apply_camera_perspective() -> void:
@@ -1835,6 +1836,10 @@ func _clamp_camera() -> void:
 		return
 	var visible := _visible_ground_size()
 	var focus := _ground_focus()
+	# Si toute la carte tient à l'écran, on laisse l'utilisateur déplacer la vue
+	# librement (sinon un pan est annulé et on croit que la caméra est bloquée).
+	if visible.x >= _map_extent.x and visible.y >= _map_extent.y:
+		return
 	# L'écart caméra ↔ point visé est constant : on borne le point visé puis on
 	# reporte l'écart, ce qui reste juste même avec une caméra inclinée.
 	var offset := Vector2(_camera.position.x, _camera.position.z) - focus
@@ -2478,6 +2483,9 @@ func _pan_from_motion(motion: InputEventMouseMotion) -> void:
 		return
 	var delta_pos := motion.position - _drag_start
 	var span := _ground_span_per_pixel()
+	# Sécurité : une mesure de span aberrante ne doit pas téléporter la vue.
+	span.x = clampf(span.x, 0.002, 0.35)
+	span.y = clampf(span.y, 0.002, 0.35)
 	_camera.position.x = _pan_start.x - delta_pos.x * span.x
 	_camera.position.z = _pan_start.z - delta_pos.y * span.y
 	_pan_velocity = Vector2(
@@ -2638,6 +2646,8 @@ func update_view_pan(screen_pos: Vector2) -> void:
 		return
 	var delta_pos := screen_pos - _drag_start
 	var span := _ground_span_per_pixel()
+	span.x = clampf(span.x, 0.002, 0.35)
+	span.y = clampf(span.y, 0.002, 0.35)
 	_camera.position.x = _pan_start.x - delta_pos.x * span.x
 	_camera.position.z = _pan_start.z - delta_pos.y * span.y
 	_clamp_camera()
@@ -3123,11 +3133,9 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		if map_data.is_empty() or _camera == null or _map_extent == Vector2.ZERO:
 			return
-		var keep := get_view_state()
+		# Les docks/options changent la taille utile : on recalcule les bases de
+		# zoom mais on ne touche JAMAIS à la position de la caméra (sinon un
+		# simple clic d'outil la téléporte).
 		var saved_position := _camera.position
 		_update_fit_base()
-		_apply_view_state(keep)
-		# Le changement de largeur des docks ne doit pas téléporter la caméra.
 		_camera.position = saved_position
-		_ensure_camera_above_terrain()
-		_clamp_camera()
