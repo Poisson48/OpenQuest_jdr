@@ -20,6 +20,7 @@ func _ready() -> void:
 	map["fogEnabled"] = false
 	map["worldId"] = MONDE
 	map["focusMode"] = "paths"
+	map["vegetationEnabled"] = true
 	map["lighting"] = {"enabled": true, "preset": "tiny_glade", "sources": []}
 	md.update_map(map)
 	md.preview_map_id = map_id
