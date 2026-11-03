@@ -817,6 +817,30 @@ func _build_procedural_fence(raw_points: Array) -> String:
 	_ed.doc.select_only(id)
 	return id
 
+## Chemin peint dans le terrain : creusé, matière peinte avec bords irréguliers.
+## C'est le mode principal : pas de ruban flottant, le chemin épouse le relief.
+func _paint_path_terrain(raw_points: Array) -> void:
+	var curve := OrganicPathScript.path_points(raw_points, {
+		"smoothing": _ed._organic_smoothing,
+		"spacing": 0.35,
+		"nominal_length": 0.5,
+	})
+	if curve.size() < 2:
+		_ed._set_status("Chemin : tracé trop court.")
+		return
+	var width := maxf(0.3, _ed._proc_path_width)
+	var material := DocumentScript.MATERIAL_DIRT
+	if _ed._proc_path_color == "#c9b47e":
+		material = DocumentScript.MATERIAL_SAND
+	elif _ed._proc_path_color == "#8d8a80":
+		material = DocumentScript.MATERIAL_STONE
+	_ed.doc.begin_transaction()
+	_ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
+	_ed.doc.paint_path_material(curve, width, material, _ed._scene_seed + 31, "Chemin")
+	_ed.doc.commit_transaction()
+	_ed._sync_engine()
+	_ed._set_status("Chemin peint : %d point(s), enfoncé et adapté au relief." % curve.size())
+
 func _build_procedural_path(raw_points: Array) -> String:
 	var curve := OrganicPathScript.path_points(raw_points, {
 		"smoothing": _ed._organic_smoothing,
@@ -836,18 +860,24 @@ func _build_procedural_path(raw_points: Array) -> String:
 	for point_variant in curve:
 		var p: Vector2 = point_variant - center
 		local.append([p.x, p.y])
+	var width := maxf(0.3, _ed._proc_path_width)
+	_ed.doc.begin_transaction()
+	# Léger creux sous le chemin : il est tassé dans le sol et suit pentes/creux.
+	_ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
 	var id: String = _ed.doc.add_element({
 		"x": center.x, "y": center.y,
 		"w": maxf(0.5, max_p.x - min_p.x),
 		"h": maxf(0.5, max_p.y - min_p.y),
 		"asset": "procedural://path",
 		"points": local,
-		"width": maxf(0.3, _ed._proc_path_width),
+		"width": width,
 		"color": _ed._proc_path_color,
-		"elevation": 0.01, "followTerrain": true, "tiltToTerrain": false,
+		"seed": _ed._scene_seed + int(absf(center.x * 13.0 + center.y * 7.0)),
+		"elevation": 0.20, "followTerrain": true, "tiltToTerrain": false,
 		"label": "Chemin procédural", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
 	}, DocumentScript.KIND_MESH, "Chemin procédural")
+	_ed.doc.commit_transaction()
 	_ed.doc.select_only(id)
 	return id
 
@@ -910,10 +940,7 @@ func _finish_organic_stroke() -> void:
 		_ed._refresh_overlay()
 		return
 	if _ed._tool == ToolsScript.PROC_PATH:
-		var path_id := _build_procedural_path(points)
-		if not path_id.is_empty():
-			_ed._set_status("Chemin procédural : %.2f case(s), ruban continu." % length)
-			_ed._sync_engine()
+		_paint_path_terrain(points)
 		_ed._refresh_panels()
 		_ed._refresh_overlay()
 		return

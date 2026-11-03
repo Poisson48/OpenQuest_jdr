@@ -34,6 +34,7 @@ const ORGANIC := "organic"
 const PROC_WALL := "proc_wall"
 const PROC_FENCE := "proc_fence"
 const PROC_PATH := "proc_path"
+const PATH_BRUSH := "path_brush"
 const SCATTER := "scatter"
 const FLOWER_ZONE := "flower_zone"
 const CONTEXT_DECOR := "context_decor"
@@ -178,7 +179,11 @@ const DEFS := [
 	},
 	{
 		"id": PROC_PATH, "icon": "🛤", "label": "Chemin procédural", "shortcut": "", "group": "place",
-		"hint": "Clic-glisser libre : ruban de chemin continu avec bords biseautés, largeur réglable. Complète le chemin peint pour les routes surélevées.",
+		"hint": "Clic-glisser libre : chemin continu qui suit le relief, légèrement enfoncé, bords irréguliers. Largeur et creux réglables.",
+	},
+	{
+		"id": PATH_BRUSH, "icon": "🖌", "label": "Pinceau chemin", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser comme un pinceau : peint un chemin avec la largeur choisie. Idéal pour tracer rapidement des sentiers et des places.",
 	},
 	{
 		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",

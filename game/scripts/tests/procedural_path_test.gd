@@ -23,6 +23,16 @@ func _run() -> void:
 		"width": 1.2, "color": "#8a7654",
 	}
 	_assert("path_element", PathScript.build_from_element(element).get_surface_count() > 0)
+	# Plus de détail sur un terrain accidenté → beaucoup plus de triangles.
+	var low = PathScript.build(points, 1.4, Color("#8a7654"), 1)
+	var high = PathScript.build(points, 1.4, Color("#8a7654"), 4)
+	var low_count: int = (low.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var high_count: int = (high.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	_assert("path_adaptive_detail", high_count > low_count * 2,
+		"low=%d high=%d" % [low_count, high_count])
+	var colors = low.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	_assert("path_vertex_colors", colors != null and (colors as PackedColorArray).size() > 0,
+		"colors=%s" % [colors])
 
 	if _failed:
 		print("procedural_path_test:FAIL")

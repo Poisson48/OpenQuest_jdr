@@ -67,6 +67,16 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_ed._refresh_overlay()
 		_ed._set_status("Zone fleurie : dessinez la zone, relâchez pour semer.")
 		return
+	if _ed._tool == ToolsScript.PATH_BRUSH:
+		if not _ed._in_bounds(grid):
+			_ed._set_status("Pinceau chemin : commencez dans la carte.")
+			return
+		_ed._press_mode = "path_brush"
+		_ed._organic_points = [grid]
+		_ed._overlay.polygon_points = [grid]
+		_ed._refresh_overlay()
+		_ed._set_status("Pinceau chemin : glissez pour peindre le chemin.")
+		return
 	if _ed._tool == ToolsScript.SCATTER:
 		if not _ed._in_bounds(grid):
 			return
@@ -274,6 +284,13 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				_ed._organic_points.append(grid)
 				_ed._overlay.polygon_points = _ed._organic_points.duplicate()
 				_ed._construction._preview_organic_status()
+		"path_brush":
+			_ed._press_moved = true
+			var last_brush: Vector2 = (_ed._organic_points[_ed._organic_points.size() - 1] as Vector2) \
+				if not _ed._organic_points.is_empty() else grid
+			if last_brush.distance_to(grid) >= 0.12:
+				_ed._organic_points.append(grid)
+				_ed._overlay.polygon_points = _ed._organic_points.duplicate()
 		"terrain_spline":
 			_ed._press_moved = true
 			var last_spline_point: Vector2 = (_ed._terrain_spline_points[_ed._terrain_spline_points.size() - 1] as Vector2) \
@@ -353,6 +370,11 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._finish_draw(_ed._snap(grid))
 		"organic":
 			_ed._construction._finish_organic_stroke()
+		"path_brush":
+			_ed._construction._paint_path_terrain(_ed._organic_points)
+			_ed._organic_points.clear()
+			_ed._sync_engine()
+			_ed._set_status("Pinceau chemin : chemin peint.")
 		"terrain_spline":
 			_ed._finish_terrain_spline()
 		"scatter":
@@ -377,7 +399,7 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 
 func _handle_right_click(grid: Vector2) -> void:
 	# Tracé organique en cours : le clic droit annule le trait (pas de polygone).
-	if _ed._press_mode == "organic" or _ed._press_mode == "scatter" or _ed._press_mode == "terrain_spline" or _ed._press_mode == "flower_zone":
+	if _ed._press_mode == "organic" or _ed._press_mode == "scatter" or _ed._press_mode == "terrain_spline" or _ed._press_mode == "flower_zone" or _ed._press_mode == "path_brush":
 		_cancel_action()
 		return
 	if not _ed._overlay.polygon_points.is_empty():

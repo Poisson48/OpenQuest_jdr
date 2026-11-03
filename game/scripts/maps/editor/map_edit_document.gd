@@ -1166,7 +1166,126 @@ func paint_terrain_brush(center: Vector2, radius: float, strength: float,
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
 
-## Déformation du relief le long d'un tracé (crête, vallée, aplatissement,
+## Creuse légèrement le terrain sous un chemin et adoucit les bords.
+## Une seule étape d'undo ; le chemin est ensuite posé sur ces nouvelles hauteurs.
+func carve_path(points: Array, width: float, depth: float = 0.055,
+		note: String = "Chemin") -> void:
+	if points.size() < 2:
+		return
+	var size := terrain_size()
+	var heights := _terrain_buffer()
+	var half := maxf(0.3, width * 0.5)
+	var feather := clampf(width * 0.28, 0.2, 0.8)
+	var d := clampf(depth, 0.0, 0.25)
+	if d <= 0.0:
+		return
+	var min_x := size.x
+	var max_x := 0
+	var min_y := size.y
+	var max_y := 0
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		min_x = mini(min_x, int(floor(p.x - half - feather)))
+		max_x = maxi(max_x, int(ceil(p.x + half + feather)))
+		min_y = mini(min_y, int(floor(p.y - half - feather)))
+		max_y = maxi(max_y, int(ceil(p.y + half + feather)))
+	min_x = maxi(0, min_x)
+	min_y = maxi(0, min_y)
+	max_x = mini(size.x - 1, max_x)
+	max_y = mini(size.y - 1, max_y)
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			var p := Vector2(cx, cy)
+			var dist := _distance_to_polyline(p, points)
+			if dist > half + feather:
+				continue
+			var falloff := 1.0
+			if dist > half:
+				falloff = 1.0 - smoothstep(0.0, feather, dist - half)
+			var idx: int = cy * size.x + cx
+			var current := float(heights[idx])
+			var next := clampf(current - d * falloff, -2.0, 12.0)
+			if absf(next - current) < 0.0005:
+				continue
+			before[str(idx)] = current
+			after[str(idx)] = next
+			heights[idx] = next
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+
+static func _distance_to_polyline(p: Vector2, points: Array) -> float:
+	var best := INF
+	for i in range(points.size() - 1):
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var ab := b - a
+		var len_sq := ab.length_squared()
+		var t := 0.0
+		if len_sq > 0.000001:
+			t = clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
+		best = minf(best, p.distance_to(a + ab * t))
+	return best
+
+## Peint une matière de chemin avec bords irréguliers et transition douce.
+## Le tracé est un « splat » de terrain, pas un ruban posé dessus : il suit donc
+## parfaitement pentes, creux et falaises.
+func paint_path_material(points: Array, width: float, material: int,
+		seed: int = 1, note: String = "Chemin") -> void:
+	if points.size() < 2:
+		return
+	var size := terrain_size()
+	var materials := _material_buffer()
+	var half := maxf(0.3, width * 0.5)
+	var feather := clampf(width * 0.45, 0.3, 1.2)
+	var min_x := size.x
+	var max_x := 0
+	var min_y := size.y
+	var max_y := 0
+	for p_variant in points:
+		var p: Vector2 = p_variant
+		min_x = mini(min_x, int(floor(p.x - half - feather)))
+		max_x = maxi(max_x, int(ceil(p.x + half + feather)))
+		min_y = mini(min_y, int(floor(p.y - half - feather)))
+		max_y = maxi(max_y, int(ceil(p.y + half + feather)))
+	min_x = maxi(0, min_x)
+	min_y = maxi(0, min_y)
+	max_x = mini(size.x - 1, max_x)
+	max_y = mini(size.y - 1, max_y)
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	var target := clampi(material, MATERIAL_GRASS, MATERIAL_SAND)
+	for cy in range(min_y, max_y + 1):
+		for cx in range(min_x, max_x + 1):
+			var p := Vector2(cx, cy)
+			var dist := _distance_to_polyline(p, points)
+			var wobble := 1.0 + 0.13 * sin(float(cx) * 1.7 + float(cy) * 0.9 + float(seed) * 0.37)
+			var half_var := half * wobble
+			if dist > half_var + feather:
+				continue
+			var edge := 1.0
+			if dist > half_var:
+				edge = 1.0 - smoothstep(0.0, feather, dist - half_var)
+			# Bords déchiquetés : certaines cases de bordure restent herbe.
+			var hash_noise := sin(float(cx) * 12.9898 + float(cy) * 78.233 + float(seed)) * 43758.5453
+			hash_noise = hash_noise - floor(hash_noise)
+			if edge < 0.55 and hash_noise > 0.55:
+				continue
+			var idx: int = cy * size.x + cx
+			if int(materials[idx]) == target:
+				continue
+			before[str(idx)] = materials[idx]
+			after[str(idx)] = target
+			materials[idx] = target
+	if after.is_empty():
+		return
+	map_data["terrainMaterials"] = materials
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
 ## lissage). Les points sont en cases, déjà lissés/ré-échantillonnés par
 ## l'éditeur. Le relief est modifié dans une seule étape d'undo.
 func paint_terrain_spline(points: Array, width: float, strength: float,

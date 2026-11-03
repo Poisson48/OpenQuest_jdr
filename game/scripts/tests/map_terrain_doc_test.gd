@@ -52,6 +52,15 @@ func _test_data(base: Dictionary) -> void:
 	doc.paint_terrain_brush(Vector2(6.0, 5.0), 2.0, 1.0, "flatten")
 	_assert("brush_flatten", absf(doc.terrain_height(6, 5) - doc.terrain_height(7, 6)) < 1.2)
 
+	# Chemin creusé : le centre est légèrement sous le terrain, les bords moins.
+	doc.carve_path([Vector2(2.0, 2.0), Vector2(9.0, 2.0)], 1.4, 0.06, "Test chemin")
+	_assert("path_carve_center", doc.terrain_height(5, 2) < -0.02)
+	_assert("path_carve_edge", doc.terrain_height(5, 2) < doc.terrain_height(5, 4))
+	doc.paint_path_material([Vector2(2.0, 2.0), Vector2(9.0, 2.0)], 1.6,
+		1, 7, "Test chemin")
+	_assert("path_material_center", doc.terrain_material(5, 2) == 1)
+	_assert("path_material_irregular", doc.terrain_material(5, 4) != 1)
+
 	# Relief tracé : crête le long d'une courbe, avec retombée sur les bords.
 	var ridge_before := float(doc.terrain_height(3, 8))
 	doc.paint_terrain_spline(

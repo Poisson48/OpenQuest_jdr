@@ -347,9 +347,8 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	elif asset == "procedural://path":
 		mesh_instance.name = "ProceduralPath"
-		mesh_instance.mesh = ProceduralPathMeshScript.build_from_element(mesh)
-		material.vertex_color_use_as_albedo = true
-		material.albedo_color = Color.WHITE
+		mesh_instance.mesh = ProceduralPathMeshScript.build_from_element(mesh, _path_detail_for(mesh))
+		material.albedo_color = Color.html(str(mesh.get("color", "#8a7654"))).darkened(0.12)
 		material.roughness = 0.95
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	elif asset == "procedural://fence":
@@ -455,7 +454,9 @@ func _process(delta: float) -> void:
 func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -> void:
 	if not _follows_terrain(mesh) or not _terrain_relief:
 		return
-	var source := mesh_instance.get_meta("flat_mesh", null) as ArrayMesh
+	var source: ArrayMesh = null
+	if mesh_instance.has_meta("flat_mesh"):
+		source = mesh_instance.get_meta("flat_mesh") as ArrayMesh
 	if source == null:
 		source = mesh_instance.mesh as ArrayMesh
 	if source == null:
@@ -486,10 +487,12 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 				if vi < 0 or vi >= vertices.size():
 					continue
 				var v := vertices[vi]
-				var gx := center.x + v.x
-				var gy := center.y + v.z
+				# La racine est posée au centre de case (+0.5) : on échantillonne
+				# le terrain aux coordonnées grille réelles du sommet.
+				var gx := center.x + 0.5 + v.x
+				var gy := center.y + 0.5 + v.z
 				# Hauteur absolue du terrain : la racine sera posée à y=0.
-				v.y = _terrain_height_at(gx, gy) + v.y
+				v.y = _terrain_surface_height_at(gx, gy) + v.y
 				if vi < colors.size():
 					st.set_color(colors[vi])
 				else:
@@ -503,6 +506,14 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 ## Après un changement de relief, repart du mesh plat d'origine puis le
 ## reconforme aux nouvelles hauteurs (clôture qui reste posée sur la colline).
 func _rebake_procedural_visual(mesh_instance: MeshInstance3D, entry: Dictionary) -> void:
+	if str(entry.get("asset", "")) == "procedural://path":
+		var rebuilt: ArrayMesh = ProceduralPathMeshScript.build_from_element(entry, _path_detail_for(entry))
+		mesh_instance.mesh = rebuilt
+		mesh_instance.set_meta("flat_mesh", rebuilt)
+		mesh_instance.remove_meta("terrain_baked")
+		if _terrain_relief and _follows_terrain(entry):
+			_conform_procedural_mesh(mesh_instance, entry)
+		return
 	var flat := mesh_instance.get_meta("flat_mesh", null) as ArrayMesh
 	if flat == null:
 		return
@@ -510,6 +521,67 @@ func _rebake_procedural_visual(mesh_instance: MeshInstance3D, entry: Dictionary)
 	mesh_instance.remove_meta("terrain_baked")
 	if _terrain_relief and _follows_terrain(entry):
 		_conform_procedural_mesh(mesh_instance, entry)
+
+## Plus le terrain est pentu/accidenté sous le chemin, plus on subdivise.
+func _path_detail_for(mesh: Dictionary) -> int:
+	if not _terrain_relief:
+		return 1
+	var points: Array = mesh.get("points", [])
+	if points.size() < 2:
+		return 1
+	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+	var width := maxf(0.3, float(mesh.get("width", 1.2)))
+	var roughness := 0.0
+	var prev_h := 0.0
+	for i in range(points.size()):
+		var p := _mesh_point_to_vector(points[i]) + center + Vector2(0.5, 0.5)
+		var h := _terrain_surface_height_at(p.x, p.y)
+		if i > 0:
+			roughness = maxf(roughness, absf(h - prev_h))
+		prev_h = h
+		var normal := _terrain_normal_at(p.x, p.y)
+		roughness = maxf(roughness, (1.0 - normal.y) * width * 0.8)
+	return clampi(1 + int(round(roughness * 9.0)), 1, 4)
+
+func _mesh_point_to_vector(value) -> Vector2:
+	if value is Vector2:
+		return value
+	if value is Array and value.size() >= 2:
+		return Vector2(float(value[0]), float(value[1]))
+	return Vector2.ZERO
+
+## Hauteur de la surface **rendue** du terrain (maillage à un sommet par nœud,
+## moyennes de coins), et non la hauteur des centres de cases : indispensable
+## pour que chemins, clôtures et rochers ne flottent pas sur les pentes.
+func _terrain_surface_height_at(gx: float, gy: float) -> float:
+	if not _terrain_relief or _terrain_w <= 0 or _terrain_h <= 0:
+		return 0.0
+	var x0 := floori(gx)
+	var y0 := floori(gy)
+	var fx := gx - float(x0)
+	var fy := gy - float(y0)
+	var h00 := _terrain_vertex_height(x0, y0)
+	var h10 := _terrain_vertex_height(x0 + 1, y0)
+	var h01 := _terrain_vertex_height(x0, y0 + 1)
+	var h11 := _terrain_vertex_height(x0 + 1, y0 + 1)
+	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fy)
+
+func _terrain_vertex_height(i: int, j: int) -> float:
+	var total := 0.0
+	var samples := 0
+	for oy in range(-1, 1):
+		var cy := j + oy
+		if cy < 0 or cy >= _terrain_h:
+			continue
+		for ox in range(-1, 1):
+			var cx := i + ox
+			if cx < 0 or cx >= _terrain_w:
+				continue
+			var idx: int = cy * _terrain_w + cx
+			if idx >= 0 and idx < _terrain_heights.size():
+				total += float(_terrain_heights[idx])
+				samples += 1
+	return total / float(maxi(1, samples))
 
 func _is_occludable_asset(asset: String) -> bool:
 	for fragment in ["mur", "maison", "tour", "forge", "chapelle", "grange", "ecurie", "manoir", "marche", "toit"]:

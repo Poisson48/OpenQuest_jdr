@@ -193,7 +193,7 @@ func _rebuild_tool_options() -> void:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Matière, hauteur et espacement réglables.")
-	elif _ed._tool == ToolsScript.PROC_PATH:
+	elif _ed._tool == ToolsScript.PROC_PATH or _ed._tool == ToolsScript.PATH_BRUSH:
 		var path_color_opt := OptionButton.new()
 		var path_colors := [
 			["#8a7654", "Terre"],
@@ -208,8 +208,9 @@ func _rebuild_tool_options() -> void:
 		path_color_opt.item_selected.connect(func(index: int): _ed._proc_path_color = str(path_color_opt.get_item_metadata(index)))
 		_ed._tool_options.add_child(path_color_opt)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 0.3, 4.0, _ed._proc_path_width, 0.1, func(v): _ed._proc_path_width = v)
+		_ed._spin(_ed._hbox(_ed._tool_options), "Creux", 0.0, 0.2, _ed._proc_path_depth, 0.005, func(v): _ed._proc_path_depth = v)
 		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
-		_option_note("Clic-glisser libre : ruban de chemin continu avec bords biseautés. Utile pour les routes surélevées, quais et chemins de jardin.")
+		_option_note("Clic-glisser libre : chemin peint dans le terrain, légèrement creusé, qui suit pentes et creux. Les bords sont irréguliers et la matière se fond dans le sol.")
 	elif _ed._tool == ToolsScript.ORGANIC:
 		var organic_opt := OptionButton.new()
 		for i in range(ConstructionScript.ORGANIC_STYLES.size()):
