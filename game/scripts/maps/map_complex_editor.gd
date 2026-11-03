@@ -19,6 +19,7 @@ const ConstructionScript := preload("res://scripts/maps/editor/map_editor_constr
 const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
 const EditOpsScript := preload("res://scripts/maps/editor/map_editor_edit_ops.gd")
 const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_options.gd")
+const MapEditorPathUIScript := preload("res://scripts/maps/editor/map_editor_path_ui.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -173,6 +174,7 @@ var _gen_label: Label = null
 var _gen_bar: ProgressBar = null
 var _path_focus: bool = false
 var _path_focus_btn: Button = null
+var _path_panel: VBoxContainer = null
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -335,6 +337,16 @@ func _bind_ui() -> void:
 
 	_populate_tools(%ToolHost)
 	_populate_snap(%SnapOption)
+	_path_panel = MapEditorPathUIScript.new()
+	_left_panel.add_child(_path_panel)
+	_left_panel.move_child(_path_panel, _tool_options.get_index() + 1)
+	_path_panel.setup(self)
+	_path_panel.visible = false
+	_path_panel.focus_mode_toggled.connect(_set_path_focus)
+	_path_panel.help_requested.connect(func():
+		if _help_dialog != null:
+			_help_dialog.popup_centered()
+	)
 	_minimap = MinimapScript.new()
 	_minimap.jump_requested.connect(func(grid_pos: Vector2):
 		if _engine and _engine.has_method("center_on_grid"):
@@ -1037,6 +1049,17 @@ func _set_path_focus(on: bool) -> void:
 		_populate_tools(host as VBoxContainer)
 	if _right_tabs != null:
 		_right_tabs.visible = not on
+	if _path_panel != null:
+		_path_panel.visible = on
+		_path_panel.set_path_focus_enabled(on)
+		if on:
+			_path_panel.sync_from_host()
+	if _tool_options != null:
+		_tool_options.visible = not on
+	for path in ["%LblToolOptions", "%LblSnap", "%SnapOption", "%LblMinimap", "%MinimapHost"]:
+		var node := get_node_or_null(path)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = not on
 	if on and _tool != ToolsScript.PROC_PATH and _tool != ToolsScript.PATH_BRUSH \
 			and _tool != ToolsScript.SELECT and _tool != ToolsScript.PAN:
 		_set_tool(ToolsScript.PROC_PATH)
@@ -1047,6 +1070,10 @@ func _set_path_focus(on: bool) -> void:
 
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
+	if _path_panel != null:
+		_path_panel.set_active_tool(tool_id)
+		if _path_focus:
+			_path_panel.sync_from_host()
 	if _engine != null and _engine.has_method("cancel_navigation_drag"):
 		_engine.call("cancel_navigation_drag")
 	if _engine != null and _engine.has_method("trace_event"):
