@@ -13,6 +13,23 @@
 ### 🖌 Pinceau chemin
 Même rendu, mais on peint avec la largeur choisie ; pratique pour les places et sentiers larges.
 
+## Interface focalisée chemins
+
+Le bouton **🛤 Chemins** de la barre d’action active un mode focalisé :
+
+- palette réduite à Sélection / Navigation / Tracé libre / Pinceau ;
+- panneau **Chemins** dédié à gauche avec styles rapides (Sentier, Chemin,
+  Route pavée, Place), aperçu, largeur, creux, lissage et matière ;
+- dock droit masqué pendant le travail sur les chemins ;
+- le panneau permet de revenir au mode complet.
+
+## Blender
+
+Un chemin en pierre procédural a été généré depuis un asset Geometry Nodes et
+exporté en GLB avec UVs + texture IA. Voir [BLENDER_PATHS.md](BLENDER_PATHS.md).
+
+
+
 ## Texture IA
 
 Texture générée via Google Banana / Gemini image :
