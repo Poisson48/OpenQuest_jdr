@@ -31,6 +31,15 @@ uniform float vertex_color_strength : hint_range(0.0, 1.0) = 1.0;
 // 1.0 = mélange linéaire (doux) ; > 1 accentue la matière dominante.
 uniform float blend_sharpness : hint_range(0.001, 4.0) = 1.0;
 
+// Échantillonnage « anti-tiling » : trois lectures tournées/décalées de la même
+// texture. Le motif ne se répète plus de façon lisible, pour un coût de 3
+// échantillons par matière (très inférieur à un vrai triplanar multi-textures).
+vec3 sample_anti_tile(sampler2D tex, vec2 uv) {
+	vec2 b = vec2(uv.x * 0.82 - uv.y * 0.57, uv.x * 0.57 + uv.y * 0.82) * 1.17 + vec2(0.37, 0.11);
+	return texture(tex, uv).rgb * 0.78
+		+ texture(tex, b).rgb * 0.22;
+}
+
 void fragment() {
 	vec3 weights = texture(splat_tex, UV2).rgb;
 	vec2 extra = texture(splat2_tex, UV2).rg;
@@ -47,11 +56,11 @@ void fragment() {
 		weights /= sharp_total;
 		extra /= sharp_total;
 	}
-	vec3 grass = texture(grass_tex, UV).rgb;
-	vec3 dirt = texture(dirt_tex, UV).rgb;
-	vec3 stone = texture(stone_tex, UV).rgb;
-	vec3 snow = texture(snow_tex, UV).rgb;
-	vec3 sand = texture(sand_tex, UV).rgb;
+	vec3 grass = sample_anti_tile(grass_tex, UV);
+	vec3 dirt = sample_anti_tile(dirt_tex, UV);
+	vec3 stone = sample_anti_tile(stone_tex, UV);
+	vec3 snow = sample_anti_tile(snow_tex, UV);
+	vec3 sand = sample_anti_tile(sand_tex, UV);
 	vec3 albedo =
 		grass * weights.r
 		+ dirt * weights.g
@@ -59,6 +68,9 @@ void fragment() {
 		+ snow * extra.r
 		+ sand * extra.g;
 	albedo *= mix(vec3(1.0), COLOR.rgb, vertex_color_strength);
+	// Légère variation macro pour casser les répétitions lointaines.
+	float macro = sin(UV.x * 7.7 + UV.y * 11.3) * sin(UV.y * 6.1 - UV.x * 9.7);
+	albedo *= 0.92 + 0.08 * macro;
 	ALBEDO = albedo * albedo_tint.rgb;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;

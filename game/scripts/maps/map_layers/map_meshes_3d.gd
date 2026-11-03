@@ -101,6 +101,7 @@ var _has_atmosphere: bool = false
 var _unshaded: bool = true
 ## Texture radiale partagée par toutes les ombres de contact du calque.
 var _shadow_texture: GradientTexture2D = null
+var _path_texture_cache: Texture2D = null
 
 ## Reconstruit le calque. `map_data` est accepté pour cohérence avec les autres
 ## calques (MapProps3D) ; il sert à la teinte d'ambiance du fallback et à savoir
@@ -345,6 +346,20 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		material.albedo_color = Color.WHITE
 		material.roughness = 0.95
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	elif asset == "procedural://path_texture":
+		mesh_instance.name = "ProceduralPathTextured"
+		mesh_instance.mesh = _build_textured_path_mesh(mesh)
+		mesh_instance.set_meta("terrain_baked", true)
+		var path_tex := _get_path_texture()
+		if path_tex != null:
+			material.albedo_texture = path_tex
+			material.albedo_color = Color(1.0, 1.0, 1.0, 0.92)
+			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		else:
+			material.albedo_color = Color(str(mesh.get("color", "#8a7654")))
+		material.roughness = 0.96
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	elif asset == "procedural://path":
 		mesh_instance.name = "ProceduralPath"
 		mesh_instance.mesh = ProceduralPathMeshScript.build_from_element(mesh, _path_detail_for(mesh))
@@ -506,6 +521,12 @@ func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -
 ## Après un changement de relief, repart du mesh plat d'origine puis le
 ## reconforme aux nouvelles hauteurs (clôture qui reste posée sur la colline).
 func _rebake_procedural_visual(mesh_instance: MeshInstance3D, entry: Dictionary) -> void:
+	if str(entry.get("asset", "")) == "procedural://path_texture":
+		var rebuilt_texture := _build_textured_path_mesh(entry)
+		mesh_instance.mesh = rebuilt_texture
+		mesh_instance.set_meta("flat_mesh", rebuilt_texture)
+		mesh_instance.set_meta("terrain_baked", true)
+		return
 	if str(entry.get("asset", "")) == "procedural://path":
 		var rebuilt: ArrayMesh = ProceduralPathMeshScript.build_from_element(entry, _path_detail_for(entry))
 		mesh_instance.mesh = rebuilt
@@ -549,6 +570,104 @@ func _mesh_point_to_vector(value) -> Vector2:
 	if value is Array and value.size() >= 2:
 		return Vector2(float(value[0]), float(value[1]))
 	return Vector2.ZERO
+
+## Chemin texturé : UV.x le long du tracé, UV.y en travers. Une seule texture
+## couvre toute la longueur → aucun carrelage visible ; les UV suivent la courbe
+## au lieu d'être projetés horizontalement sur le terrain.
+func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
+	var raw_points: Array = mesh.get("points", [])
+	if raw_points.size() < 2:
+		return ArrayMesh.new()
+	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+	var width := maxf(0.3, float(mesh.get("width", 1.2)))
+	var detail := clampi(_path_detail_for(mesh), 1, 3)
+	var samples: Array[Vector2] = []
+	for i in range(raw_points.size() - 1):
+		var a := _mesh_point_to_vector(raw_points[i])
+		var b := _mesh_point_to_vector(raw_points[i + 1])
+		for k in range(detail):
+			samples.append(a.lerp(b, float(k) / float(detail)))
+	samples.append(_mesh_point_to_vector(raw_points[raw_points.size() - 1]))
+	if samples.size() < 2:
+		return ArrayMesh.new()
+	# Longueur du tracé : UV.x va de 0 à 1 sur toute la longueur (pas de tuile).
+	var total_length := 0.0
+	var distances: Array[float] = []
+	for i in range(samples.size()):
+		if i > 0:
+			total_length += samples[i - 1].distance_to(samples[i])
+		distances.append(total_length)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var previous_left := Vector3.ZERO
+	var previous_right := Vector3.ZERO
+	for i in range(samples.size()):
+		var dir := _path_dir_at(samples, i)
+		var normal := Vector2(-dir.y, dir.x)
+		var t := distances[i] / maxf(0.001, total_length)
+		var wl := 1.0 + 0.12 * sin(t * 17.0 + float(mesh.get("seed", 1)) * 0.7)
+		var wr := 1.0 + 0.12 * sin(t * 21.0 + 1.7 + float(mesh.get("seed", 1)) * 0.5)
+		var left := samples[i] + normal * width * 0.5 * wl
+		var right := samples[i] - normal * width * 0.5 * wr
+		var lw := center + Vector2(0.5, 0.5) + left
+		var rw := center + Vector2(0.5, 0.5) + right
+		var ly := _terrain_surface_height_at(lw.x, lw.y) + 0.06
+		var ry := _terrain_surface_height_at(rw.x, rw.y) + 0.06
+		var lpos := Vector3(left.x, ly, left.y)
+		var rpos := Vector3(right.x, ry, right.y)
+		if i > 0:
+			_add_path_tri(st, previous_left, previous_right, lpos, rpos, float(i - 1) / float(samples.size() - 1), t)
+		previous_left = lpos
+		previous_right = rpos
+	st.generate_normals()
+	return st.commit()
+
+func _add_path_tri(st: SurfaceTool, pl: Vector3, pr: Vector3, l: Vector3, r: Vector3,
+		v0: float, v1: float) -> void:
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(v0, 0.0))
+	st.add_vertex(pl)
+	st.set_uv(Vector2(v0, 1.0))
+	st.add_vertex(pr)
+	st.set_uv(Vector2(v1, 1.0))
+	st.add_vertex(r)
+	st.set_uv(Vector2(v0, 0.0))
+	st.add_vertex(pl)
+	st.set_uv(Vector2(v1, 1.0))
+	st.add_vertex(r)
+	st.set_uv(Vector2(v1, 0.0))
+	st.add_vertex(l)
+
+func _get_path_texture() -> Texture2D:
+	if _path_texture_cache != null:
+		return _path_texture_cache
+	var path := "res://assets/terrain/dirt_ai.png"
+	var abs_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path):
+		var img := Image.new()
+		if img.load(abs_path) == OK:
+			img.convert(Image.FORMAT_RGBA8)
+			img.generate_mipmaps()
+			_path_texture_cache = ImageTexture.create_from_image(img)
+			return _path_texture_cache
+	if ResourceLoader.exists(path):
+		_path_texture_cache = load(path) as Texture2D
+	return _path_texture_cache
+
+func _path_dir_at(points: Array, index: int) -> Vector2:
+	var a: Vector2
+	var b: Vector2
+	if index <= 0:
+		a = points[0]
+		b = points[1]
+	elif index >= points.size() - 1:
+		a = points[points.size() - 2]
+		b = points[points.size() - 1]
+	else:
+		a = points[index - 1]
+		b = points[index + 1]
+	var d := b - a
+	return d.normalized() if d.length() > 0.001 else Vector2.RIGHT
 
 ## Hauteur de la surface **rendue** du terrain (maillage à un sommet par nœud,
 ## moyennes de coins), et non la hauteur des centres de cases : indispensable
