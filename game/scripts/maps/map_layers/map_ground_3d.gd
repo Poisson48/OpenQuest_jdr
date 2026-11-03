@@ -490,6 +490,11 @@ func _ensure_terrain_textures() -> bool:
 			_terrain_textures[name] = _load_terrain_texture(name)
 		if _terrain_textures[name] == null:
 			return false
+	# Matière « terre de chemin » générée par IA : utilisée si elle est livrée.
+	if not _terrain_textures.has("dirt_ai"):
+		_terrain_textures["dirt_ai"] = _load_terrain_texture("dirt_ai")
+	if _terrain_textures["dirt_ai"] != null:
+		_terrain_textures["dirt"] = _terrain_textures["dirt_ai"]
 	return true
 
 ## Charge une texture de matière : PNG source (mipmaps générées pour le

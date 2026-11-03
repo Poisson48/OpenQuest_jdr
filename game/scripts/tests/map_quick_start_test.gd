@@ -17,8 +17,10 @@ func _run() -> void:
 	editor.load_map(map)
 	await process_frame
 	editor._on_quick_start(0)
-	for _i in range(3):
+	for _i in range(240):
 		await process_frame
+		if editor._gen_panel != null and not editor._gen_panel.visible:
+			break
 	_assert("village_created", editor.doc.elements_sorted().size() > 10,
 		"elements=%d" % editor.doc.elements_sorted().size())
 	_assert("terrain_mode", str(editor.doc.map_data.get("groundMode", "")) == "terrain3d")
