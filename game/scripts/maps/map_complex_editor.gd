@@ -171,6 +171,8 @@ var _lighting_menu: PopupMenu = null
 var _gen_panel: PanelContainer = null
 var _gen_label: Label = null
 var _gen_bar: ProgressBar = null
+var _path_focus: bool = false
+var _path_focus_btn: Button = null
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -278,10 +280,15 @@ func set_editable(on: bool) -> void:
 
 func load_map(map_data: Dictionary) -> void:
 	doc.load_map(map_data)
+	_path_focus = str(map_data.get("focusMode", "")) == "paths"
 	_paint_tile = _default_tile()
 	_marker_type = _first_marker_type()
 	_sync_settings_ui()
 	_rebuild_palettes()
+	if _path_focus:
+		_set_tool(ToolsScript.PROC_PATH)
+	if _path_focus_btn != null:
+		_path_focus_btn.set_pressed_no_signal(_path_focus)
 	_refresh_asset_library()
 	_refresh_templates()
 	_sync_engine(true)
@@ -365,20 +372,38 @@ func _bind_ui() -> void:
 # --- Colonne gauche : outils --------------------------------------------------
 
 func _populate_tools(host: VBoxContainer) -> void:
+	var focus_tools: Array = [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]
+	if _path_focus:
+		var focus_title := Label.new()
+		focus_title.text = "MODE CHEMINS"
+		focus_title.add_theme_font_size_override("font_size", 11)
+		focus_title.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		focus_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		host.add_child(focus_title)
 	for group in ToolsScript.GROUP_ORDER:
+		var defs: Array = []
+		for def in ToolsScript.defs_in_group(group):
+			if _path_focus and not focus_tools.has(str(def.get("id", ""))):
+				continue
+			defs.append(def)
+		if defs.is_empty():
+			continue
 		_section(host, str(ToolsScript.GROUP_LABELS.get(group, group)))
 		var grid := GridContainer.new()
-		grid.columns = 4
+		grid.columns = 1 if _path_focus else 4
 		grid.add_theme_constant_override("h_separation", 3)
 		grid.add_theme_constant_override("v_separation", 3)
 		host.add_child(grid)
-		for def in ToolsScript.defs_in_group(group):
+		for def in defs:
 			var tool_id := str(def["id"])
 			var btn := Button.new()
-			btn.text = str(def["icon"])
+			btn.text = ("%s  %s" % [str(def["icon"]), str(def["label"])]) if _path_focus else str(def["icon"])
 			btn.toggle_mode = true
 			btn.tooltip_text = ToolsScript.tooltip(tool_id)
-			btn.custom_minimum_size = Vector2(46, 38)
+			btn.custom_minimum_size = Vector2(0, 40) if _path_focus else Vector2(46, 38)
+			if _path_focus:
+				btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.pressed.connect(func(): _set_tool(tool_id))
 			_tool_buttons[tool_id] = btn
 			grid.add_child(btn)
@@ -506,6 +531,15 @@ func _build_action_bar() -> void:
 		_lighting_menu.set_item_metadata(idx, str(preset_id))
 	_lighting_menu.id_pressed.connect(_on_quick_lighting)
 	add_child(_lighting_menu)
+
+	_path_focus_btn = Button.new()
+	_path_focus_btn.text = "🛤 Chemins"
+	_path_focus_btn.toggle_mode = true
+	_path_focus_btn.tooltip_text = "Mode focalisé chemins : masque tous les autres outils. Cliquez à nouveau pour tout réafficher."
+	_path_focus_btn.add_theme_font_size_override("font_size", 11)
+	_path_focus_btn.toggled.connect(_set_path_focus)
+	bar.add_child(_path_focus_btn)
+	_path_focus_btn.set_pressed_no_signal(_path_focus)
 
 	bar.add_child(VSeparator.new())
 	_icon_button(bar, "⬆", "Premier plan", func(): doc.bring_to_front())
@@ -715,7 +749,7 @@ func _apply_responsive_layout() -> void:
 		_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if _right_tabs:
 		_right_tabs.custom_minimum_size = Vector2(right_w if right_w > 1.0 else 0.0, 0)
-		_right_tabs.visible = _editable
+		_right_tabs.visible = _editable and not _path_focus
 		_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
 	# split_offset depuis la largeur ÉDITEUR mesurée (pas size interne stale).
@@ -990,6 +1024,26 @@ func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
 # ===========================================================================
 # Machine à états d'outils
 # ===========================================================================
+
+func _set_path_focus(on: bool) -> void:
+	_path_focus = on
+	if _path_focus_btn != null:
+		_path_focus_btn.set_pressed_no_signal(on)
+	var host := get_node_or_null("%ToolHost")
+	if host != null:
+		for child in host.get_children():
+			child.queue_free()
+		_tool_buttons.clear()
+		_populate_tools(host as VBoxContainer)
+	if _right_tabs != null:
+		_right_tabs.visible = not on
+	if on and _tool != ToolsScript.PROC_PATH and _tool != ToolsScript.PATH_BRUSH \
+			and _tool != ToolsScript.SELECT and _tool != ToolsScript.PAN:
+		_set_tool(ToolsScript.PROC_PATH)
+	_set_status("Mode chemins : trace libre, pinceau, largeur, creux et matière. Cliquez sur « Chemins » pour tout réafficher." if on else "Tous les outils réaffichés.")
+	_layout_force = true
+	call_deferred("_apply_responsive_layout")
+	_refresh_overlay()
 
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id

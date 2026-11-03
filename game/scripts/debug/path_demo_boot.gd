@@ -19,6 +19,7 @@ func _ready() -> void:
 	map["backgroundImage"] = ""
 	map["fogEnabled"] = false
 	map["worldId"] = MONDE
+	map["focusMode"] = "paths"
 	map["lighting"] = {"enabled": true, "preset": "tiny_glade", "sources": []}
 	md.update_map(map)
 	md.preview_map_id = map_id
@@ -29,6 +30,8 @@ func _ready() -> void:
 	add_child(editor)
 	await get_tree().process_frame
 	editor.load_map(md.get_by_id(map_id))
+	await get_tree().process_frame
+	editor._set_path_focus(true)
 	await get_tree().process_frame
 	editor._overlay.show_light_radii = false
 
