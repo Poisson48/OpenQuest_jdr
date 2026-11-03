@@ -20,7 +20,7 @@ func _ready() -> void:
 	map["fogEnabled"] = false
 	map["worldId"] = MONDE
 	map["focusMode"] = "paths"
-	map["vegetationEnabled"] = true
+	map["vegetationEnabled"] = false
 	map["lighting"] = {"enabled": true, "preset": "tiny_glade", "sources": []}
 	md.update_map(map)
 	md.preview_map_id = map_id
@@ -64,17 +64,16 @@ func _ready() -> void:
 	editor._construction._paint_path_terrain([
 		Vector2(13.5, 5.0), Vector2(16.0, 5.5), Vector2(18.0, 7.0),
 	])
-	# Preuve du pipeline Blender : chemin en pierre généré par Geometry Nodes,
-	# exporté en GLB et posé comme objet 3D.
-	var blender_path := "res://assets/objects3d/terrain/path_stone_procedural.glb"
+	# Preuve du pipeline Blender : patch complet chemin + herbe Geometry Nodes.
+	var blender_path := "res://assets/objects3d/terrain/path_through_grass.glb"
 	if ResourceLoader.exists(blender_path):
 		editor.doc.add_element({
-			"x": 11.5, "y": 12.0, "w": 9.0, "h": 4.0,
-			"asset": blender_path, "elevation": 0.0,
-			"followTerrain": true, "tiltToTerrain": false,
-			"label": "Chemin pierre Blender", "layer": 1,
+			"x": 11.5, "y": 11.5, "w": 11.0, "h": 7.0,
+			"asset": blender_path, "elevation": 0.02,
+			"followTerrain": false, "tiltToTerrain": false,
+			"label": "Chemin + herbe Blender", "layer": 1,
 			"display": {"rotation": 0.0, "scale": 1.0},
-		}, "mesh", "Chemin pierre Blender")
+		}, "mesh", "Chemin + herbe Blender")
 	editor.doc.clear_selection()
 	editor._sync_engine()
 	editor._engine.focus_grid_rect(Rect2(1.0, 2.0, 22.0, 13.0))

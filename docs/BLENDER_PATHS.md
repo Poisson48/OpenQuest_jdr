@@ -35,6 +35,19 @@ Le script :
 
 Résultat actuel : `path_stone_procedural.glb`, ~17 600 triangles après décimation.
 
+## Patch complet chemin + herbe
+
+`tools/blender/export_path_through_grass.py` réalise les instances du
+**Grass System**, décime le sol et l’herbe, applique les matières et exporte :
+
+- `path_through_grass.glb` — herbe dense + pierres, sans sol séparé ;
+- les brins d’herbe sont de vrais meshes, pas des quads Godot.
+
+C’est ce patch qui est posé dans `path_demo_boot.gd` comme preuve visuelle.
+Il reste un **asset statique** : la prochaine étape est d’en faire un générateur
+de patch le long d’un tracé arbitraire.
+
+
 ## Utilisation dans la démo
 
 `game/scripts/debug/path_demo_boot.gd` pose ce GLB comme objet 3D sur la carte,
