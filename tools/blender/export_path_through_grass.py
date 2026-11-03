@@ -4,7 +4,8 @@ import os
 SRC = r"D:\git\OpenQuest_jdr\_tmp_path_asset\Geometry nodes- Path through grass\GeoNodesStonePath_End.blend"
 OUT = r"D:\git\OpenQuest_jdr\game\assets\objects3d\terrain\path_through_grass.glb"
 SCALE = 0.55
-GRASS_IMG = r"D:\git\OpenQuest_jdr\game\assets\terrain\dirt_ai.png"
+GRASS_IMG = r"D:\git\OpenQuest_jdr\game\assets\terrain\grass.png"
+STONE_IMG = r"D:\git\OpenQuest_jdr\game\assets\terrain\stone.png"
 
 bpy.ops.wm.open_mainfile(filepath=SRC)
 scene = bpy.context.scene
@@ -58,10 +59,18 @@ ground = mesh_from(ground_obj, "PathPatchGround")
 decimate(ground, 0.025)
 ground.data.materials.clear()
 ground.data.materials.append(material("PathPatchGround", (0.16, 0.30, 0.10)))
+# Détail de sol herbeux.
+ground_mat = ground.data.materials[0]
+bsdf_ground = ground_mat.node_tree.nodes.get("Principled BSDF")
+if os.path.exists(GRASS_IMG):
+    gimg = bpy.data.images.load(GRASS_IMG, check_existing=True)
+    gtex = ground_mat.node_tree.nodes.new("ShaderNodeTexImage")
+    gtex.image = gimg
+    ground_mat.node_tree.links.new(gtex.outputs["Color"], bsdf_ground.inputs["Base Color"])
 
 # Herbe : on garde assez de brins pour la densité, puis décimation légère.
 grass = mesh_from(grass_src, "PathPatchGrass")
-decimate(grass, 0.055)
+decimate(grass, 0.18)
 grass.data.materials.clear()
 grass.data.materials.append(material("PathPatchGrass", (0.22, 0.42, 0.12), 0.9))
 
@@ -79,14 +88,14 @@ bpy.ops.object.mode_set(mode="OBJECT")
 path_mat = material("PathPatchStone", (0.42, 0.38, 0.31), 0.92)
 path.data.materials.clear()
 path.data.materials.append(path_mat)
-if os.path.exists(GRASS_IMG):
-    img = bpy.data.images.load(GRASS_IMG, check_existing=True)
+if os.path.exists(STONE_IMG):
+    img = bpy.data.images.load(STONE_IMG, check_existing=True)
     bsdf = path_mat.node_tree.nodes.get("Principled BSDF")
     tex = path_mat.node_tree.nodes.new("ShaderNodeTexImage")
     tex.image = img
     path_mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
 
-for name in ["PathPatchGrass", "PathPatchStones"]:
+for name in ["PathPatchGround", "PathPatchGrass", "PathPatchStones"]:
     obj = bpy.data.objects.get(name)
     if obj:
         obj.hide_set(False)

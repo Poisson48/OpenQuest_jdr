@@ -21,6 +21,7 @@ func _ready() -> void:
 	map["worldId"] = MONDE
 	map["focusMode"] = "paths"
 	map["vegetationEnabled"] = false
+	map["terrainDetail"] = 2
 	map["lighting"] = {"enabled": true, "preset": "tiny_glade", "sources": []}
 	md.update_map(map)
 	md.preview_map_id = map_id
@@ -68,15 +69,15 @@ func _ready() -> void:
 	var blender_path := "res://assets/objects3d/terrain/path_through_grass.glb"
 	if ResourceLoader.exists(blender_path):
 		editor.doc.add_element({
-			"x": 11.5, "y": 11.5, "w": 11.0, "h": 7.0,
+			"x": 12.0, "y": 8.0, "w": 11.0, "h": 7.0,
 			"asset": blender_path, "elevation": 0.02,
 			"followTerrain": false, "tiltToTerrain": false,
 			"label": "Chemin + herbe Blender", "layer": 1,
-			"display": {"rotation": 0.0, "scale": 1.0},
+			"display": {"rotation": 0.0, "scale": 2.0},
 		}, "mesh", "Chemin + herbe Blender")
 	editor.doc.clear_selection()
 	editor._sync_engine()
-	editor._engine.focus_grid_rect(Rect2(1.0, 2.0, 22.0, 13.0))
+	editor._engine.focus_grid_rect(Rect2(5.0, 4.0, 14.0, 10.0))
 
 	var hint := Label.new()
 	hint.text = "DÉMO CHEMINS — tracé à main levée, chemin peint dans le terrain, légèrement creusé, bords irréguliers et relief suivi."

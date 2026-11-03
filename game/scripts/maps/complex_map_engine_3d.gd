@@ -837,7 +837,8 @@ func _load_ground(p_ground_mode: String = "") -> void:
 			night_ambient,
 			_terrain_heights,
 			_ground_mode,
-			_terrain_materials
+			_terrain_materials,
+			int(map_data.get("terrainDetail", 1))
 		)
 	if _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()

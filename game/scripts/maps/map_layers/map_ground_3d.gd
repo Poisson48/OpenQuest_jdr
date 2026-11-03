@@ -112,6 +112,7 @@ var _cfg: Dictionary = {}
 var _ground_mode: String = GROUND_MODE_ILLUSTRATED
 ## Hauteurs du terrain : tableau plat, une hauteur par case, en cases.
 var _terrain_heights: Array = []
+var _terrain_detail: int = 1
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 ## Matières du sol : tableau plat d'entiers (0 herbe, 1 terre, 2 pierre,
@@ -165,7 +166,8 @@ func configure(
 	night_ambient: float = 0.22,
 	terrain_heights: Array = [],
 	ground_mode: String = "",
-	terrain_materials: Array = []
+	terrain_materials: Array = [],
+	terrain_detail: int = 1
 ) -> void:
 	_cfg = {
 		"texture": texture,
@@ -181,6 +183,7 @@ func configure(
 		"terrain_heights": terrain_heights,
 		"ground_mode": ground_mode,
 		"terrain_materials": terrain_materials,
+		"terrain_detail": terrain_detail,
 	}
 	_apply_config()
 
@@ -311,6 +314,7 @@ func _apply_config() -> void:
 	_terrain_h = maxi(0, map_height)
 	var raw_heights = _cfg.get("terrain_heights", [])
 	_terrain_heights = raw_heights if raw_heights is Array else []
+	_terrain_detail = clampi(int(_cfg.get("terrain_detail", 1)), 1, 4)
 	_night_mode_enabled = night_mode
 	_night_active = false
 
@@ -715,8 +719,9 @@ func _make_ground_quad(w: float, h: float) -> ArrayMesh:
 func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	var w := _terrain_w
 	var h := _terrain_h
-	var cols := w + 1
-	var rows := h + 1
+	var detail := clampi(_terrain_detail, 1, 4)
+	var cols := w * detail + 1
+	var rows := h * detail + 1
 	var count := cols * rows
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
@@ -730,47 +735,45 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	uv2s.resize(count)
 	colors.resize(count)
 
-	# Hauteurs aux sommets (moyenne des cases adjacentes).
+	# Hauteurs échantillonnées à la résolution de détail (bilinéaire).
 	var heights := PackedFloat32Array()
 	heights.resize(count)
 	for j in range(rows):
 		for i in range(cols):
-			heights[j * cols + i] = _vertex_height(i, j)
+			heights[j * cols + i] = _vertex_height_at(float(i) / float(detail), float(j) / float(detail))
 
 	for j in range(rows):
 		for i in range(cols):
 			var idx := j * cols + i
 			var hv := heights[idx]
-			verts[idx] = Vector3(float(i) * cell_size, hv * cell_size, float(j) * cell_size)
-			uvs[idx] = Vector2(
-				float(i) / TERRAIN_TILE_CELLS,
-				float(j) / TERRAIN_TILE_CELLS
-			)
+			var gx := float(i) / float(detail)
+			var gy := float(j) / float(detail)
+			verts[idx] = Vector3(gx * cell_size, hv * cell_size, gy * cell_size)
+			uvs[idx] = Vector2(gx / TERRAIN_TILE_CELLS, gy / TERRAIN_TILE_CELLS)
 			uv2s[idx] = Vector2(
-				float(i) / float(maxi(1, w)),
-				float(j) / float(maxi(1, h))
+				gx / float(maxi(1, w)),
+				gy / float(maxi(1, h))
 			)
 			var x0 := maxi(i - 1, 0)
-			var x1 := mini(i + 1, w)
+			var x1 := mini(i + 1, cols - 1)
 			var z0 := maxi(j - 1, 0)
-			var z1 := mini(j + 1, h)
-			var dhdx := (heights[j * cols + x1] - heights[j * cols + x0]) / float(maxi(1, x1 - x0))
-			var dhdz := (heights[z1 * cols + i] - heights[z0 * cols + i]) / float(maxi(1, z1 - z0))
+			var z1 := mini(j + 1, rows - 1)
+			var dhdx := (heights[j * cols + x1] - heights[j * cols + x0]) / maxf(0.001, float(x1 - x0) / float(detail))
+			var dhdz := (heights[z1 * cols + i] - heights[z0 * cols + i]) / maxf(0.001, float(z1 - z0) / float(detail))
 			var normal := Vector3(-dhdx, 1.0, -dhdz).normalized()
 			normals[idx] = normal
-			# Splat actif : les textures portent la couleur des matières, les
-			# vertex colors ne gardent que l'ombrage de pente (gris neutre).
-			# Repli : palette herbe/terre/roche actuelle.
 			if _splat_active:
-				colors[idx] = _terrain_vertex_shade(normal, i, j)
+				colors[idx] = _terrain_vertex_shade(normal, int(floor(gx)), int(floor(gy)))
 			else:
-				colors[idx] = _terrain_vertex_color(hv, normal, i, j)
+				colors[idx] = _terrain_vertex_color(hv, normal, int(floor(gx)), int(floor(gy)))
 
+	var cell_cols := cols - 1
+	var cell_rows := rows - 1
 	var indices := PackedInt32Array()
-	indices.resize(w * h * 6)
+	indices.resize(cell_cols * cell_rows * 6)
 	var n := 0
-	for j in range(h):
-		for i in range(w):
+	for j in range(cell_rows):
+		for i in range(cell_cols):
 			var a := j * cols + i
 			var b := a + 1
 			var c := (j + 1) * cols + i
@@ -794,6 +797,18 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+## Hauteur interpolée du maillage de terrain (coordonnées grille fractionnaires).
+func _vertex_height_at(gx: float, gy: float) -> float:
+	var x0 := floori(gx)
+	var y0 := floori(gy)
+	var fx := gx - float(x0)
+	var fy := gy - float(y0)
+	var h00 := _vertex_height(x0, y0)
+	var h10 := _vertex_height(x0 + 1, y0)
+	var h01 := _vertex_height(x0, y0 + 1)
+	var h11 := _vertex_height(x0 + 1, y0 + 1)
+	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fy)
 
 ## Couleur d'un sommet du terrain : herbe au plat, terre sur les pentes douces
 ## et dans les creux, roche sur les pentes fortes et les sommets. La composante
