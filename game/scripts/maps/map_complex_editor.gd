@@ -854,6 +854,7 @@ func _bind_settings_tab() -> void:
 	_settings_panel.ground_mode_changed.connect(_on_ground_mode_changed)
 	_settings_panel.water_changed.connect(_on_water_changed)
 	_settings_panel.ambient_fx_changed.connect(_on_ambient_fx_changed)
+	_settings_panel.vegetation_changed.connect(_on_vegetation_changed)
 	_settings_panel.perspective_changed.connect(_on_perspective_changed)
 	_settings_panel.atmosphere_changed.connect(_on_atmosphere_changed)
 	_settings_panel.lighting_changed.connect(_on_lighting_changed)
@@ -3028,6 +3029,7 @@ func _sync_settings_ui() -> void:
 	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
 	_set_spin("water_level", float(doc.map_data.get("waterLevel", -1.0)))
 	_select_metadata("ambient_fx", str(doc.map_data.get("ambientFx", "")))
+	_set_check("vegetation_enabled", bool(doc.map_data.get("vegetationEnabled", false)))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -3118,6 +3120,13 @@ func _on_ambient_fx_changed() -> void:
 		_set_status("Ambiance animée désactivée.")
 	else:
 		_set_status("Ambiance animée : %s." % option.get_item_text(option.selected))
+
+func _on_vegetation_changed() -> void:
+	if _syncing:
+		return
+	doc.set_meta_values({"vegetationEnabled": _get_check("vegetation_enabled")}, "Végétation")
+	_sync_engine()
+	_set_status("Végétation procédurale %s." % ("activée" if _get_check("vegetation_enabled") else "désactivée"))
 
 func _on_atmosphere_changed() -> void:
 	if _syncing:

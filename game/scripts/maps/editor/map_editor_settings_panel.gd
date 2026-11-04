@@ -17,6 +17,7 @@ signal render_style_changed
 signal ground_mode_changed
 signal water_changed
 signal ambient_fx_changed
+signal vegetation_changed
 signal perspective_changed
 signal atmosphere_changed
 signal lighting_changed
@@ -135,6 +136,15 @@ func _ready() -> void:
 	])
 	widgets["ambient_fx"] = fx_opt
 	fx_opt.item_selected.connect(func(_i): ambient_fx_changed.emit())
+
+	terrain_group.add_child(_caption(
+		"Végétation : herbe, fleurs, buissons et feuilles mortes procéduraux sur les cases d'herbe."))
+	var veg_chk := CheckBox.new()
+	veg_chk.text = "Végétation procédurale"
+	veg_chk.tooltip_text = "Affiche l'herbe, les fleurs, les buissons et les feuilles mortes (ignorés dans l'eau et hors des cases d'herbe)."
+	terrain_group.add_child(veg_chk)
+	widgets["vegetation_enabled"] = veg_chk
+	veg_chk.toggled.connect(func(_on): vegetation_changed.emit())
 
 	var style_node := find_child("LblStyle", true, false)
 	if style_node is Node:
