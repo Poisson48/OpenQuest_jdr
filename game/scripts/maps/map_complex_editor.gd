@@ -226,6 +226,7 @@ var _asset_hint: Label
 var _status_lbl: Label
 var _hint_lbl: Label
 var _zoom_lbl: Label
+var _fps_lbl: Label
 var _dirty_lbl: Label
 var _breadcrumb: HBoxContainer
 var _undo_btn: Button
@@ -271,6 +272,10 @@ func _ready() -> void:
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_size_changed):
 		vp.size_changed.connect(_on_viewport_size_changed)
+
+func _process(_delta: float) -> void:
+	if _fps_lbl != null:
+		_fps_lbl.text = "FPS %d" % Engine.get_frames_per_second()
 
 # ===========================================================================
 # API publique (consommée par map_viewer.gd)
@@ -345,6 +350,12 @@ func _bind_ui() -> void:
 	_hint_lbl = %LblHint
 	_right_tabs = %RightTabs
 	_right_scroll = null
+	_fps_lbl = Label.new()
+	_fps_lbl.text = "FPS —"
+	_fps_lbl.add_theme_font_size_override("font_size", 11)
+	_fps_lbl.add_theme_color_override("font_color", Color("#718087"))
+	if _status_lbl != null and _status_lbl.get_parent() is Container:
+		_status_lbl.get_parent().add_child(_fps_lbl)
 
 	_populate_tools(%ToolHost)
 	_populate_snap(%SnapOption)
@@ -2329,6 +2340,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 					doc.group_selection()
 			KEY_S:
 				save_now()
+			KEY_K:
+				if _asset_search != null:
+					_asset_search.grab_focus()
+					_set_status("Recherche d'asset (Ctrl+K).")
 			_:
 				return
 		get_viewport().set_input_as_handled()
