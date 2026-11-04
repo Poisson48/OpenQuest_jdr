@@ -195,6 +195,20 @@ func _run() -> void:
 	_assert("advanced_soft_shadows", engine._sun.light_angular_distance > 0.0)
 	_assert("advanced_msaa", engine._viewport.msaa_3d != Viewport.MSAA_DISABLED,
 		"msaa=%d" % engine._viewport.msaa_3d)
+	# --- Performance : GI/SSR/SSIL/brume volumétrique coupés (GPU léger) ---
+	var perf_map: Dictionary = village.duplicate(true)
+	var perf_light: Dictionary = md.get_lighting_config(perf_map)
+	perf_light["preset"] = "performance"
+	perf_light["enabled"] = false
+	perf_map["lighting"] = perf_light
+	engine.configure(perf_map, [], [], [], [], [], false, true, {"mode": "select"})
+	for _i in range(6):
+		await process_frame
+	var perf_env: Environment = engine._world_env.environment
+	_assert("perf_sdfgi_off", not perf_env.sdfgi_enabled)
+	_assert("perf_ssil_off", not perf_env.ssil_enabled)
+	_assert("perf_ssr_off", not perf_env.ssr_enabled)
+	_assert("perf_volumetric_off", not perf_env.volumetric_fog_enabled)
 	# Nuit (preset sans ciel) : on revient à un fond uni, pas de ciel résiduel.
 	engine.configure(night_map, [], [], [], [], [], false, true, {"mode": "select"})
 	for _i in range(4):
