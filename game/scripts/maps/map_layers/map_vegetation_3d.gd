@@ -270,6 +270,10 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	var bush_colors: Array = []
 	var leaf_transforms: Array = []
 	var leaf_colors: Array = []
+	# Collecte des cases d'herbe non immergées, puis ordre déterministe mélangé :
+	# les caps MAX_* s'appliquent uniformément sur toute la carte au lieu de
+	# tronquer les cases à coordonnées élevées (biais spatial).
+	var cells: Array = []
 	for y in range(_map_h):
 		for x in range(_map_w):
 			var idx := y * _map_w + x
@@ -281,64 +285,72 @@ func _rebuild(heights: Array, materials: Array) -> void:
 			var cell_height := 0.0
 			if heights is Array and heights.size() == expected:
 				cell_height = float(heights[idx])
-			var h := cell_height * _cell_size
-			# Case immergée : pas de végétation dans l'eau.
 			if _water_level >= 0.0 and cell_height < _water_level:
 				continue
-			var base := Vector3(
-				(float(x) + 0.5) * _cell_size,
-				h,
-				(float(y) + 0.5) * _cell_size
+			cells.append(Vector2i(x, y))
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return _hash01(a.x, a.y, 701) > _hash01(b.x, b.y, 701))
+	for cell: Vector2i in cells:
+		var x := cell.x
+		var y := cell.y
+		var idx := y * _map_w + x
+		var cell_height := 0.0
+		if heights is Array and heights.size() == expected:
+			cell_height = float(heights[idx])
+		var base := Vector3(
+			(float(x) + 0.5) * _cell_size,
+			cell_height * _cell_size,
+			(float(y) + 0.5) * _cell_size
+		)
+		if _hash01(x, y, 11) < TUFT_DENSITY and tuft_transforms.size() < MAX_TUFTS:
+			var jitter := Vector3(
+				(_hash01(x, y, 12) - 0.5) * _cell_size * 0.55,
+				0.0,
+				(_hash01(x, y, 13) - 0.5) * _cell_size * 0.55
 			)
-			if _hash01(x, y, 11) < TUFT_DENSITY and tuft_transforms.size() < MAX_TUFTS:
-				var jitter := Vector3(
-					(_hash01(x, y, 12) - 0.5) * _cell_size * 0.55,
-					0.0,
-					(_hash01(x, y, 13) - 0.5) * _cell_size * 0.55
-				)
-				var scale := 0.75 + _hash01(x, y, 14) * 0.6
-				var basis := Basis(Vector3.UP, _hash01(x, y, 15) * TAU).scaled(
-					Vector3(scale, scale, scale))
-				tuft_transforms.append(Transform3D(basis, base + jitter))
-				tuft_colors.append(TUFT_COLORS[int(_hash01(x, y, 16) * TUFT_COLORS.size()) % TUFT_COLORS.size()])
-			if _hash01(x, y, 21) < FLOWER_DENSITY and flower_transforms.size() < MAX_FLOWERS:
-				var fj := Vector3(
-					(_hash01(x, y, 22) - 0.5) * _cell_size * 0.6,
-					0.0,
-					(_hash01(x, y, 23) - 0.5) * _cell_size * 0.6
-				)
-				var fscale := 0.75 + _hash01(x, y, 24) * 0.5
-				var fbasis := Basis(Vector3.UP, _hash01(x, y, 25) * TAU).scaled(
-					Vector3(fscale, fscale, fscale))
-				flower_transforms.append(Transform3D(fbasis, base + fj + Vector3(0.0, 0.02, 0.0)))
-				flower_colors.append(FLOWER_COLORS[int(_hash01(x, y, 26) * FLOWER_COLORS.size()) % FLOWER_COLORS.size()])
-			if _hash01(x, y, 31) < BUSH_DENSITY and bush_transforms.size() < MAX_BUSHES:
-				var bj := Vector3(
-					(_hash01(x, y, 32) - 0.5) * _cell_size * 0.5,
-					0.0,
-					(_hash01(x, y, 33) - 0.5) * _cell_size * 0.5
-				)
-				var bscale := 0.8 + _hash01(x, y, 34) * 0.7
-				var bradius := _cell_size * 0.30
-				var bbasis := Basis(Vector3.UP, _hash01(x, y, 35) * TAU).scaled(
-					Vector3(bscale, bscale * (0.8 + _hash01(x, y, 36) * 0.5), bscale))
-				# Le buisson est posé au sol : la sphère est centrée à mi-hauteur.
-				bush_transforms.append(Transform3D(
-					bbasis, base + bj + Vector3(0.0, bradius * 0.85, 0.0)))
-				bush_colors.append(BUSH_COLORS[int(_hash01(x, y, 37) * BUSH_COLORS.size()) % BUSH_COLORS.size()])
-			# Feuilles mortes : petites feuilles plates posées au sol.
-			if _hash01(x, y, 41) < LEAF_DENSITY and leaf_transforms.size() < MAX_LEAVES:
-				var lj := Vector3(
-					(_hash01(x, y, 42) - 0.5) * _cell_size * 0.9,
-					0.0,
-					(_hash01(x, y, 43) - 0.5) * _cell_size * 0.9
-				)
-				var lscale := 0.10 + _hash01(x, y, 44) * 0.12
-				var lbasis := Basis(Vector3.UP, _hash01(x, y, 45) * TAU).scaled(
-					Vector3(lscale, lscale, lscale))
-				leaf_transforms.append(Transform3D(
-					lbasis, base + lj + Vector3(0.0, _cell_size * 0.015, 0.0)))
-				leaf_colors.append(LEAF_COLORS[int(_hash01(x, y, 46) * LEAF_COLORS.size()) % LEAF_COLORS.size()])
+			var scale := 0.75 + _hash01(x, y, 14) * 0.6
+			var basis := Basis(Vector3.UP, _hash01(x, y, 15) * TAU).scaled(
+				Vector3(scale, scale, scale))
+			tuft_transforms.append(Transform3D(basis, base + jitter))
+			tuft_colors.append(TUFT_COLORS[int(_hash01(x, y, 16) * TUFT_COLORS.size()) % TUFT_COLORS.size()])
+		if _hash01(x, y, 21) < FLOWER_DENSITY and flower_transforms.size() < MAX_FLOWERS:
+			var fj := Vector3(
+				(_hash01(x, y, 22) - 0.5) * _cell_size * 0.6,
+				0.0,
+				(_hash01(x, y, 23) - 0.5) * _cell_size * 0.6
+			)
+			var fscale := 0.75 + _hash01(x, y, 24) * 0.5
+			var fbasis := Basis(Vector3.UP, _hash01(x, y, 25) * TAU).scaled(
+				Vector3(fscale, fscale, fscale))
+			flower_transforms.append(Transform3D(fbasis, base + fj + Vector3(0.0, 0.02, 0.0)))
+			flower_colors.append(FLOWER_COLORS[int(_hash01(x, y, 26) * FLOWER_COLORS.size()) % FLOWER_COLORS.size()])
+		if _hash01(x, y, 31) < BUSH_DENSITY and bush_transforms.size() < MAX_BUSHES:
+			var bj := Vector3(
+				(_hash01(x, y, 32) - 0.5) * _cell_size * 0.5,
+				0.0,
+				(_hash01(x, y, 33) - 0.5) * _cell_size * 0.5
+			)
+			var bscale := 0.8 + _hash01(x, y, 34) * 0.7
+			var bradius := _cell_size * 0.30
+			var bbasis := Basis(Vector3.UP, _hash01(x, y, 35) * TAU).scaled(
+				Vector3(bscale, bscale * (0.8 + _hash01(x, y, 36) * 0.5), bscale))
+			# Le buisson est posé au sol : la sphère est centrée à mi-hauteur.
+			bush_transforms.append(Transform3D(
+				bbasis, base + bj + Vector3(0.0, bradius * 0.85, 0.0)))
+			bush_colors.append(BUSH_COLORS[int(_hash01(x, y, 37) * BUSH_COLORS.size()) % BUSH_COLORS.size()])
+		# Feuilles mortes : petites feuilles plates posées au sol.
+		if _hash01(x, y, 41) < LEAF_DENSITY and leaf_transforms.size() < MAX_LEAVES:
+			var lj := Vector3(
+				(_hash01(x, y, 42) - 0.5) * _cell_size * 0.9,
+				0.0,
+				(_hash01(x, y, 43) - 0.5) * _cell_size * 0.9
+			)
+			var lscale := 0.10 + _hash01(x, y, 44) * 0.12
+			var lbasis := Basis(Vector3.UP, _hash01(x, y, 45) * TAU).scaled(
+				Vector3(lscale, lscale, lscale))
+			leaf_transforms.append(Transform3D(
+				lbasis, base + lj + Vector3(0.0, _cell_size * 0.015, 0.0)))
+			leaf_colors.append(LEAF_COLORS[int(_hash01(x, y, 46) * LEAF_COLORS.size()) % LEAF_COLORS.size()])
 	_tuft_count = tuft_transforms.size()
 	_flower_count = flower_transforms.size()
 	_bush_count = bush_transforms.size()
