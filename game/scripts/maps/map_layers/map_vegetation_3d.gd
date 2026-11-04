@@ -106,6 +106,7 @@ var _map_h: int = 0
 var _cell_size: float = 1.0
 var _mesh_cell_size: float = 0.0
 var _night_mode: bool = false
+var _density: float = 1.0
 var _has_config: bool = false
 
 func _ready() -> void:
@@ -146,21 +147,25 @@ func configure(
 	materials: Array = [],
 	water_level: float = -1.0,
 	night_mode: bool = false,
-	enabled: bool = true
+	enabled: bool = true,
+	density: float = 1.0
 ) -> void:
 	var next_w := maxi(0, map_width)
 	var next_h := maxi(0, map_height)
 	var next_cell := cell_size if cell_size > 0.0 else 1.0
 	var next_water := water_level if water_level >= 0.0 else -1.0
+	var next_density := clampf(density, 0.0, 4.0)
 	if _has_config and next_w == _map_w and next_h == _map_h \
 			and is_equal_approx(next_cell, _cell_size) \
 			and is_equal_approx(next_water, _water_level) \
 			and night_mode == _night_mode and enabled == _last_enabled \
+			and is_equal_approx(next_density, _density) \
 			and _arrays_equal(heights, _last_heights) \
 			and _arrays_equal(materials, _last_materials):
 		return
 	_has_config = true
 	_last_enabled = enabled
+	_density = next_density
 	_map_w = next_w
 	_map_h = next_h
 	_cell_size = next_cell
@@ -302,7 +307,7 @@ func _rebuild(heights: Array, materials: Array) -> void:
 			cell_height * _cell_size,
 			(float(y) + 0.5) * _cell_size
 		)
-		if _hash01(x, y, 11) < TUFT_DENSITY and tuft_transforms.size() < MAX_TUFTS:
+		if _hash01(x, y, 11) < TUFT_DENSITY * _density and tuft_transforms.size() < MAX_TUFTS:
 			var jitter := Vector3(
 				(_hash01(x, y, 12) - 0.5) * _cell_size * 0.55,
 				0.0,
@@ -313,7 +318,7 @@ func _rebuild(heights: Array, materials: Array) -> void:
 				Vector3(scale, scale, scale))
 			tuft_transforms.append(Transform3D(basis, base + jitter))
 			tuft_colors.append(TUFT_COLORS[int(_hash01(x, y, 16) * TUFT_COLORS.size()) % TUFT_COLORS.size()])
-		if _hash01(x, y, 21) < FLOWER_DENSITY and flower_transforms.size() < MAX_FLOWERS:
+		if _hash01(x, y, 21) < FLOWER_DENSITY * _density and flower_transforms.size() < MAX_FLOWERS:
 			var fj := Vector3(
 				(_hash01(x, y, 22) - 0.5) * _cell_size * 0.6,
 				0.0,
@@ -324,7 +329,7 @@ func _rebuild(heights: Array, materials: Array) -> void:
 				Vector3(fscale, fscale, fscale))
 			flower_transforms.append(Transform3D(fbasis, base + fj + Vector3(0.0, 0.02, 0.0)))
 			flower_colors.append(FLOWER_COLORS[int(_hash01(x, y, 26) * FLOWER_COLORS.size()) % FLOWER_COLORS.size()])
-		if _hash01(x, y, 31) < BUSH_DENSITY and bush_transforms.size() < MAX_BUSHES:
+		if _hash01(x, y, 31) < BUSH_DENSITY * _density and bush_transforms.size() < MAX_BUSHES:
 			var bj := Vector3(
 				(_hash01(x, y, 32) - 0.5) * _cell_size * 0.5,
 				0.0,
@@ -339,7 +344,7 @@ func _rebuild(heights: Array, materials: Array) -> void:
 				bbasis, base + bj + Vector3(0.0, bradius * 0.85, 0.0)))
 			bush_colors.append(BUSH_COLORS[int(_hash01(x, y, 37) * BUSH_COLORS.size()) % BUSH_COLORS.size()])
 		# Feuilles mortes : petites feuilles plates posées au sol.
-		if _hash01(x, y, 41) < LEAF_DENSITY and leaf_transforms.size() < MAX_LEAVES:
+		if _hash01(x, y, 41) < LEAF_DENSITY * _density and leaf_transforms.size() < MAX_LEAVES:
 			var lj := Vector3(
 				(_hash01(x, y, 42) - 0.5) * _cell_size * 0.9,
 				0.0,

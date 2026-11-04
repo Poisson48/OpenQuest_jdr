@@ -3030,6 +3030,7 @@ func _sync_settings_ui() -> void:
 	_set_spin("water_level", float(doc.map_data.get("waterLevel", -1.0)))
 	_select_metadata("ambient_fx", str(doc.map_data.get("ambientFx", "")))
 	_set_check("vegetation_enabled", bool(doc.map_data.get("vegetationEnabled", false)))
+	_set_spin("vegetation_density", float(doc.map_data.get("vegetationDensity", 1.0)))
 	_refresh_bg_status()
 	_syncing = false
 
@@ -3124,9 +3125,15 @@ func _on_ambient_fx_changed() -> void:
 func _on_vegetation_changed() -> void:
 	if _syncing:
 		return
-	doc.set_meta_values({"vegetationEnabled": _get_check("vegetation_enabled")}, "Végétation")
+	doc.set_meta_values({
+		"vegetationEnabled": _get_check("vegetation_enabled"),
+		"vegetationDensity": _get_spin("vegetation_density"),
+	}, "Végétation")
 	_sync_engine()
-	_set_status("Végétation procédurale %s." % ("activée" if _get_check("vegetation_enabled") else "désactivée"))
+	_set_status("Végétation procédurale %s (densité %.1f)." % [
+		"activée" if _get_check("vegetation_enabled") else "désactivée",
+		_get_spin("vegetation_density"),
+	])
 
 func _on_atmosphere_changed() -> void:
 	if _syncing:

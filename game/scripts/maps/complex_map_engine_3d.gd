@@ -932,7 +932,8 @@ func _load_vegetation() -> void:
 	if _vegetation_layer.has_method("configure"):
 		_vegetation_layer.configure(
 			w, h, _cell_size, _terrain_heights, _terrain_materials,
-			water_level, MapData.is_night_mode(map_data), true
+			water_level, MapData.is_night_mode(map_data), true,
+			float(map_data.get("vegetationDensity", 1.0))
 		)
 
 ## Vrai si de la végétation est rendue.

@@ -146,6 +146,17 @@ func _ready() -> void:
 	widgets["vegetation_enabled"] = veg_chk
 	veg_chk.toggled.connect(func(_on): vegetation_changed.emit())
 
+	terrain_group.add_child(_caption("Densité de la végétation (0 = aucune, 1 = normale, 2 = dense)."))
+	var density_spin := SpinBox.new()
+	density_spin.min_value = 0.0
+	density_spin.max_value = 3.0
+	density_spin.step = 0.1
+	density_spin.value = 1.0
+	density_spin.tooltip_text = "Multiplie la densité des touffes/fleurs/buissons/feuilles. Baissez sur les grandes cartes pour soulager le GPU."
+	terrain_group.add_child(density_spin)
+	widgets["vegetation_density"] = density_spin
+	density_spin.value_changed.connect(func(_v): vegetation_changed.emit())
+
 	var style_node := find_child("LblStyle", true, false)
 	if style_node is Node:
 		move_child(terrain_group, style_node.get_index())
