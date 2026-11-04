@@ -350,6 +350,7 @@ func _bind_ui() -> void:
 	_hint_lbl = %LblHint
 	_right_tabs = %RightTabs
 	_right_scroll = null
+	_move_tool_options_to_top()
 	_fps_lbl = Label.new()
 	_fps_lbl.text = "FPS —"
 	_fps_lbl.add_theme_font_size_override("font_size", 11)
@@ -981,6 +982,31 @@ func _move_library_to_bottom() -> void:
 	biblio_tab.visible = true
 	biblio_tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	dock.add_child(biblio_tab)
+
+## Déplace les options de l'outil actif de la colonne de gauche vers une barre
+## contextuelle sous la barre supérieure (au-dessus de la vue).
+func _move_tool_options_to_top() -> void:
+	if _tool_options == null or _center_column == null:
+		return
+	var label := get_node_or_null("%LblToolOptions")
+	var action_bar := get_node_or_null("%ActionBarScroll")
+	if _tool_options.get_parent() != null:
+		_tool_options.get_parent().remove_child(_tool_options)
+	if label != null and label.get_parent() != null:
+		label.get_parent().remove_child(label)
+	var bar := PanelContainer.new()
+	bar.name = "OptionsBar"
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	if label != null:
+		box.add_child(label)
+	box.add_child(_tool_options)
+	bar.add_child(box)
+	var idx := 0
+	if action_bar != null and action_bar.get_parent() == _center_column:
+		idx = action_bar.get_index() + 1
+	_center_column.add_child(bar)
+	_center_column.move_child(bar, idx)
 
 func _bind_history_tab() -> void:
 	var panel = %History
