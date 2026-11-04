@@ -21,6 +21,7 @@ const EditOpsScript := preload("res://scripts/maps/editor/map_editor_edit_ops.gd
 const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_options.gd")
 const MapEditorPathUIScript := preload("res://scripts/maps/editor/map_editor_path_ui.gd")
 const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_editor_environ_palette.gd")
+const MapEditorPaletteV2Script := preload("res://scripts/maps/editor/v2/palette.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -179,6 +180,7 @@ var _path_focus: bool = false
 var _path_focus_btn: Button = null
 var _path_panel: VBoxContainer = null
 var _environ_palette: VBoxContainer = null
+var _palette_v2 = null
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -343,6 +345,13 @@ func _bind_ui() -> void:
 
 	_populate_tools(%ToolHost)
 	_populate_snap(%SnapOption)
+	# Nouvelle palette groupée (refonte v2) : remplace la grille d'émojis.
+	_palette_v2 = MapEditorPaletteV2Script.new()
+	_left_panel.add_child(_palette_v2)
+	_left_panel.move_child(_palette_v2, 0)
+	_palette_v2.tool_selected.connect(_set_tool)
+	%ToolHost.visible = false
+	_rebuild_palette_v2()
 	_path_panel = MapEditorPathUIScript.new()
 	_left_panel.add_child(_path_panel)
 	_left_panel.move_child(_path_panel, _tool_options.get_index() + 1)
@@ -1143,13 +1152,38 @@ func _set_path_focus(on: bool) -> void:
 	if on and _tool != ToolsScript.PROC_PATH and _tool != ToolsScript.PATH_BRUSH \
 			and _tool != ToolsScript.SELECT and _tool != ToolsScript.PAN:
 		_set_tool(ToolsScript.PROC_PATH)
+	_rebuild_palette_v2()
 	_set_status("Mode chemins : trace libre, pinceau, largeur, creux et matière. Cliquez sur « Chemins » pour tout réafficher." if on else "Tous les outils réaffichés.")
 	_layout_force = true
 	call_deferred("_apply_responsive_layout")
 	_refresh_overlay()
 
+func _rebuild_palette_v2() -> void:
+	if _palette_v2 == null:
+		return
+	var focus_tools: Array = [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]
+	var groups: Array = []
+	for group in ToolsScript.GROUP_ORDER:
+		var tools: Array = []
+		for def in ToolsScript.defs_in_group(group):
+			var tool_id := str(def["id"])
+			if _path_focus and not focus_tools.has(tool_id):
+				continue
+			tools.append({
+				"id": tool_id,
+				"icon": str(def["icon"]),
+				"label": str(def["label"]),
+				"shortcut": str(def.get("shortcut", "")),
+			})
+		if not tools.is_empty():
+			groups.append({"title": str(ToolsScript.GROUP_LABELS.get(group, group)), "tools": tools})
+	_palette_v2.setup(groups)
+	_palette_v2.set_active(_tool)
+
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
+	if _palette_v2 != null:
+		_palette_v2.set_active(tool_id)
 	if _path_panel != null:
 		_path_panel.set_active_tool(tool_id)
 		if _path_focus:
