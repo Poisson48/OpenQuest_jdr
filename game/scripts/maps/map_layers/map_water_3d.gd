@@ -68,6 +68,7 @@ var _has_config: bool = false
 var _duckweed_mmi: MultiMeshInstance3D
 var _lily_mmi: MultiMeshInstance3D
 var _decor_seed: int = 0
+var _decor_density: float = 1.0
 var _duckweed_count: int = 0
 var _lily_count: int = 0
 
@@ -94,20 +95,23 @@ func configure(
 	water_level: float,
 	terrain_heights: Array = [],
 	night_mode: bool = false,
-	decor_seed: int = 0
+	decor_seed: int = 0,
+	decor_density: float = 1.0
 ) -> void:
 	var next_heights: Array = terrain_heights if terrain_heights is Array else []
 	var next_level := float(water_level)
 	var next_w := maxi(0, map_width)
 	var next_h := maxi(0, map_height)
 	var next_cell := cell_size if cell_size > 0.0 else 1.0
+	var next_decor_density := clampf(decor_density, 0.0, 4.0)
 	if _has_config \
 			and next_w == _map_w and next_h == _map_h \
 			and is_equal_approx(next_cell, _cell_size) \
 			and is_equal_approx(next_level, _water_level) \
 			and _arrays_equal(next_heights, _terrain_heights) \
 			and night_mode == _night_mode \
-			and decor_seed == _decor_seed:
+			and decor_seed == _decor_seed \
+			and is_equal_approx(next_decor_density, _decor_density):
 		return
 	_map_w = next_w
 	_map_h = next_h
@@ -116,6 +120,7 @@ func configure(
 	_terrain_heights = next_heights
 	_night_mode = night_mode
 	_decor_seed = decor_seed
+	_decor_density = next_decor_density
 	_has_config = true
 	_rebuild()
 
@@ -388,7 +393,7 @@ func _rebuild_decor() -> void:
 			var r2 := _hash01(cx, cy, _decor_seed * 3 + 2)
 			var r3 := _hash01(cx, cy, _decor_seed * 3 + 3)
 			# Lentilles d'eau : petites pastilles vertes, parfois en grappes.
-			if r1 < DUCKWEED_DENSITY and duck.size() < DUCKWEED_MAX:
+			if r1 < DUCKWEED_DENSITY * _decor_density and duck.size() < DUCKWEED_MAX:
 				var cluster := 1 + int(r2 * 3.0)
 				for k in range(cluster):
 					if duck.size() >= DUCKWEED_MAX:
@@ -403,7 +408,7 @@ func _rebuild_decor() -> void:
 						Basis(Vector3.UP, yaw).scaled(Vector3.ONE * radius),
 						Vector3(px, surface_y + off, pz)))
 			# Nénuphars : larges feuilles sur les eaux peu profondes (rive).
-			if depth <= LILY_SHALLOW_DEPTH and r2 < LILY_DENSITY and lilies.size() < LILY_MAX:
+			if depth <= LILY_SHALLOW_DEPTH and r2 < LILY_DENSITY * _decor_density and lilies.size() < LILY_MAX:
 				var radius := lerpf(0.16, 0.26, r3) * cell
 				var yaw := _hash01(cx, cy, _decor_seed * 7 + 5) * TAU
 				lilies.append(Transform3D(

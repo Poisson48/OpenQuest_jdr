@@ -1025,7 +1025,7 @@ func _load_water() -> void:
 	var night_mode := MapData.is_night_mode(map_data)
 	if _water_layer.has_method("configure"):
 		_water_layer.configure(w, h, _cell_size, _water_level, _terrain_heights, night_mode,
-			int(map_data.get("waterDecorSeed", 1)))
+			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0)))
 
 ## Change le niveau d'eau **sans toucher au document** (outils/tests ; l'éditeur
 ## passera par `refresh_terrain(map_data)`). Niveau en cases ; < 0 retire l'eau.
@@ -1041,7 +1041,7 @@ func set_water_level(level: float) -> void:
 		var h: int = int(map_data.get("height", 12))
 		_water_layer.configure(
 			w, h, _cell_size, _water_level, _terrain_heights, MapData.is_night_mode(map_data),
-			int(map_data.get("waterDecorSeed", 1))
+			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0))
 		)
 
 ## Niveau d'eau courant, en cases (-1 = pas d'eau).

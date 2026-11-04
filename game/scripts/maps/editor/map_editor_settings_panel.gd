@@ -121,6 +121,17 @@ func _ready() -> void:
 	widgets["water_level"] = water_spin
 	water_spin.value_changed.connect(func(_v): water_changed.emit())
 
+	terrain_group.add_child(_caption("Densité du décor d'eau (lentilles + nénuphars). 0 = aucune."))
+	var water_decor_spin := SpinBox.new()
+	water_decor_spin.min_value = 0.0
+	water_decor_spin.max_value = 3.0
+	water_decor_spin.step = 0.1
+	water_decor_spin.value = 1.0
+	water_decor_spin.tooltip_text = "Multiplie la densité des lentilles d'eau et des nénuphars. Baissez sur les grandes cartes pour soulager le GPU."
+	terrain_group.add_child(water_decor_spin)
+	widgets["water_decor_density"] = water_decor_spin
+	water_decor_spin.value_changed.connect(func(_v): water_changed.emit())
+
 	terrain_group.add_child(_caption(
 		"Ambiance : particules décoratives (lucioles, poussière, feuilles, pluie, neige)."))
 	var fx_opt := OptionButton.new()

@@ -3028,6 +3028,7 @@ func _sync_settings_ui() -> void:
 	_select_metadata("render_style", str(doc.map_data.get("renderStyle", "2.5d")))
 	_select_metadata("ground_mode", MapData.get_ground_mode(doc.map_data))
 	_set_spin("water_level", float(doc.map_data.get("waterLevel", -1.0)))
+	_set_spin("water_decor_density", float(doc.map_data.get("waterDecorDensity", 1.0)))
 	_select_metadata("ambient_fx", str(doc.map_data.get("ambientFx", "")))
 	_set_check("vegetation_enabled", bool(doc.map_data.get("vegetationEnabled", false)))
 	_set_spin("vegetation_density", float(doc.map_data.get("vegetationDensity", 1.0)))
@@ -3101,7 +3102,10 @@ func _on_water_changed() -> void:
 	if _syncing:
 		return
 	var level := _get_spin("water_level")
-	doc.set_meta_values({"waterLevel": level}, "Niveau d'eau")
+	doc.set_meta_values({
+		"waterLevel": level,
+		"waterDecorDensity": _get_spin("water_decor_density"),
+	}, "Eau")
 	_sync_engine()
 	if level >= 0.0:
 		_set_status("Eau : niveau %.1f case(s) — les creux du relief sont immergés." % level)
