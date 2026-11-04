@@ -839,6 +839,7 @@ func _paint_path_terrain(raw_points: Array) -> void:
 	_ed.doc.paint_path_material(curve, width, material, _ed._scene_seed + 31, "Chemin")
 	_ed.doc.commit_transaction()
 	_ed._last_path_points = raw_points.duplicate()
+	_ed._last_path_painted = true
 	_ed._sync_engine()
 	_ed._set_status("Chemin peint : %d point(s), enfoncé et adapté au relief." % curve.size())
 

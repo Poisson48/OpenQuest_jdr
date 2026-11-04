@@ -176,6 +176,7 @@ var _path_focus: bool = false
 var _path_focus_btn: Button = null
 var _path_panel: VBoxContainer = null
 var _last_path_points: Array = []
+var _last_path_painted: bool = false
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -1084,6 +1085,11 @@ func _generate_blender_path_patch() -> void:
 		var detail := "\n".join(output.slice(maxi(0, output.size() - 3)))
 		_set_status("Patch Blender : échec (code %d). %s" % [code, detail])
 		return
+	# Le patch Blender remplace le chemin peint : on retire la dernière
+	# transaction de peinture pour éviter un chemin 3D qui traverse la terre.
+	if _last_path_painted and doc.undo_depth() > 0:
+		doc.undo()
+		_last_path_painted = false
 	var cx := 0.0
 	var cy := 0.0
 	for p in _last_path_points:
@@ -1095,7 +1101,7 @@ func _generate_blender_path_patch() -> void:
 		"x": cx, "y": cy, "w": 12.0, "h": 7.0,
 		"asset": "user://generated_path.glb",
 		"elevation": 0.02,
-		"followTerrain": false, "tiltToTerrain": false,
+		"followTerrain": true, "tiltToTerrain": false,
 		"label": "Patch Blender généré", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
 	}, "mesh", "Patch Blender généré")
