@@ -367,6 +367,10 @@ func _bind_ui() -> void:
 	_left_panel.add_child(_environ_palette)
 	_left_panel.move_child(_environ_palette, _tool_options.get_index() + 2)
 	_environ_palette.setup(self)
+	# Doublon de l'onglet « Carte » du panneau droit → masqué pour alléger la
+	# colonne de gauche. Les mêmes réglages (eau/végétation/ambiance/lumière)
+	# restent accessibles dans l'onglet Carte.
+	_environ_palette.visible = false
 	_minimap = MinimapScript.new()
 	_minimap.jump_requested.connect(func(grid_pos: Vector2):
 		if _engine and _engine.has_method("center_on_grid"):

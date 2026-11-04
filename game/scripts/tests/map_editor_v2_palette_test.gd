@@ -41,11 +41,10 @@ func _run() -> void:
 	])
 	await process_frame
 
-	# --- Rendu : 5 boutons au total (3 + 2) et les 2 titres de groupe. ---
+	# --- Rendu : 5 boutons au total (3 + 2), icônes seules. ---
 	var buttons := _collect_buttons(palette)
 	_assert("buttons_total_5", buttons.size() == 5)
-	_assert("title_naviguer", _has_title(palette, "Naviguer"))
-	_assert("title_dessiner", _has_title(palette, "Dessiner"))
+	_assert("separator_between_groups", _count_separators(palette) >= 1)
 
 	# --- Sélection programmatique : coche sans émettre tool_selected. ---
 	palette.set_active("path")
@@ -122,11 +121,15 @@ func _find_button(node: Node, tool_id: String) -> Button:
 	return null
 
 
-## Vrai si un titre de groupe (Label) porte exactement ce texte.
-func _has_title(node: Node, title: String) -> bool:
+## Compte les séparateurs (HSeparator) sous un nœud (séparation entre groupes).
+func _count_separators(node: Node) -> int:
+	return _count_separators_in(node)
+
+
+func _count_separators_in(node: Node) -> int:
+	var count := 0
 	for child in node.get_children():
-		if child is Label and child.text == title:
-			return true
-		if _has_title(child, title):
-			return true
-	return false
+		if child is HSeparator:
+			count += 1
+		count += _count_separators_in(child)
+	return count
