@@ -948,6 +948,28 @@ func _bind_library_tab() -> void:
 	_library_panel.trigger_all_effects_pressed.connect(_trigger_all_effects)
 	_library_panel.save_template_pressed.connect(_prompt_save_template)
 	_library_panel.refresh_templates_pressed.connect(_refresh_templates)
+	_move_library_to_bottom()
+
+## Déplace la bibliothèque depuis l'onglet droit vers un dock inférieur
+## (direction artistique « Cartographer's Desk » : la bibliothèque est en bas).
+func _move_library_to_bottom() -> void:
+	if _library_panel == null or _right_tabs == null or _center_column == null:
+		return
+	var biblio_tab := _library_panel.get_parent()
+	if biblio_tab == null or biblio_tab.get_parent() != _right_tabs:
+		return
+	_right_tabs.remove_child(biblio_tab)
+	var dock := PanelContainer.new()
+	dock.name = "LibraryDock"
+	dock.custom_minimum_size = Vector2(0, 190)
+	dock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var status_row := _status_lbl.get_parent() if _status_lbl != null else null
+	_center_column.add_child(dock)
+	if status_row != null and status_row.get_parent() == _center_column:
+		_center_column.move_child(dock, status_row.get_index())
+	biblio_tab.visible = true
+	biblio_tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dock.add_child(biblio_tab)
 
 func _bind_history_tab() -> void:
 	var panel = %History
