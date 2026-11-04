@@ -67,7 +67,7 @@ var _has_config: bool = false
 ## Décor de surface : lentilles d'eau + nénuphars (MultiMesh pour la perf).
 var _duckweed_mmi: MultiMeshInstance3D
 var _lily_mmi: MultiMeshInstance3D
-var _decor_seed: int = 0
+var _decor_seed: int = 1
 var _decor_density: float = 1.0
 var _duckweed_count: int = 0
 var _lily_count: int = 0
@@ -95,7 +95,7 @@ func configure(
 	water_level: float,
 	terrain_heights: Array = [],
 	night_mode: bool = false,
-	decor_seed: int = 0,
+	decor_seed: int = 1,
 	decor_density: float = 1.0
 ) -> void:
 	var next_heights: Array = terrain_heights if terrain_heights is Array else []

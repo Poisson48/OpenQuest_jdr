@@ -1059,8 +1059,9 @@ func is_water_active() -> bool:
 # ===========================================================================
 #
 # Contrat de données : `map_data["ambientFx"]` = String, "" par défaut (aucune).
-# Valeurs supportées : "fireflies", "dust", "leaves" ; toute autre valeur est
-# ignorée. Le calque n'est rendu qu'en mode `terrain3d` (retiré en illustrated).
+# Valeurs supportées : "fireflies", "dust", "leaves", "rain", "snow" ; toute
+# autre valeur est ignorée. Le calque n'est rendu qu'en mode `terrain3d`
+# (retiré en illustrated).
 
 ## Lit `ambientFx` et configure (ou retire) le calque d'ambiance.
 func _load_ambient_fx() -> void:

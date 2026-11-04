@@ -132,6 +132,17 @@ func _ready() -> void:
 	widgets["water_decor_density"] = water_decor_spin
 	water_decor_spin.value_changed.connect(func(_v): water_changed.emit())
 
+	terrain_group.add_child(_caption("Graine du décor d'eau (lentilles + nénuphars)."))
+	var water_seed_spin := SpinBox.new()
+	water_seed_spin.min_value = 1.0
+	water_seed_spin.max_value = 99999.0
+	water_seed_spin.step = 1.0
+	water_seed_spin.value = 1.0
+	water_seed_spin.tooltip_text = "Change la disposition des lentilles d'eau et des nénuphars (déterministe)."
+	terrain_group.add_child(water_seed_spin)
+	widgets["water_decor_seed"] = water_seed_spin
+	water_seed_spin.value_changed.connect(func(_v): water_changed.emit())
+
 	terrain_group.add_child(_caption(
 		"Ambiance : particules décoratives (lucioles, poussière, feuilles, pluie, neige)."))
 	var fx_opt := OptionButton.new()
