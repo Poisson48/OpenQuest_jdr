@@ -20,6 +20,7 @@ const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction
 const EditOpsScript := preload("res://scripts/maps/editor/map_editor_edit_ops.gd")
 const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_options.gd")
 const MapEditorPathUIScript := preload("res://scripts/maps/editor/map_editor_path_ui.gd")
+const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_editor_environ_palette.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -177,6 +178,7 @@ var _gen_bar: ProgressBar = null
 var _path_focus: bool = false
 var _path_focus_btn: Button = null
 var _path_panel: VBoxContainer = null
+var _environ_palette: VBoxContainer = null
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -352,6 +354,10 @@ func _bind_ui() -> void:
 		if _help_dialog != null:
 			_help_dialog.popup_centered()
 	)
+	_environ_palette = MapEditorEnvironPaletteScript.new()
+	_left_panel.add_child(_environ_palette)
+	_left_panel.move_child(_environ_palette, _tool_options.get_index() + 2)
+	_environ_palette.setup(self)
 	_minimap = MinimapScript.new()
 	_minimap.jump_requested.connect(func(grid_pos: Vector2):
 		if _engine and _engine.has_method("center_on_grid"):
@@ -3034,6 +3040,8 @@ func _sync_settings_ui() -> void:
 	_set_check("vegetation_enabled", bool(doc.map_data.get("vegetationEnabled", false)))
 	_set_spin("vegetation_density", float(doc.map_data.get("vegetationDensity", 1.0)))
 	_refresh_bg_status()
+	if _environ_palette != null:
+		_environ_palette.sync_from_host()
 	_syncing = false
 
 func _on_size_changed() -> void:
