@@ -967,7 +967,7 @@ func _bind_library_tab() -> void:
 func _move_library_to_bottom() -> void:
 	if _library_panel == null or _right_tabs == null or _center_column == null:
 		return
-	var biblio_tab := _library_panel.get_parent()
+	var biblio_tab: Node = _library_panel.get_parent()
 	if biblio_tab == null or biblio_tab.get_parent() != _right_tabs:
 		return
 	_right_tabs.remove_child(biblio_tab)
@@ -975,7 +975,7 @@ func _move_library_to_bottom() -> void:
 	dock.name = "LibraryDock"
 	dock.custom_minimum_size = Vector2(0, 190)
 	dock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var status_row := _status_lbl.get_parent() if _status_lbl != null else null
+	var status_row: Node = _status_lbl.get_parent() if _status_lbl != null else null
 	_center_column.add_child(dock)
 	if status_row != null and status_row.get_parent() == _center_column:
 		_center_column.move_child(dock, status_row.get_index())
