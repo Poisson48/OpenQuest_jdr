@@ -226,7 +226,7 @@ const DEFS := [
 		"hint": "Clic-glisser : délimiter un lieu nommé (taverne, place, sortie). Un lieu peut ouvrir sa propre carte, où l'on place les personnages.",
 	},
 	{
-		"id": PAINT, "icon": "🖌", "label": "Terrain", "shortcut": "B", "group": "terrain",
+		"id": PAINT, "icon": "🖌", "label": "Terrain", "shortcut": "", "group": "terrain",
 		"hint": "Clic ou glisser : peindre le terrain avec la tuile sélectionnée. Taille de pinceau réglable.",
 	},
 	{
@@ -254,7 +254,7 @@ const DEFS := [
 		"hint": "Clic ou glisser : remasquer les cases déjà révélées.",
 	},
 	{
-		"id": LINK, "icon": "🔗", "label": "Lier", "shortcut": "L", "group": "tools",
+		"id": LINK, "icon": "🔗", "label": "Lier", "shortcut": "", "group": "tools",
 		"hint": "Clic sur la source puis sur la cible : crée un lien orienté (patrouille, passage, chaîne d'indices).",
 	},
 	{

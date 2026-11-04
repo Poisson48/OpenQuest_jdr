@@ -23,6 +23,7 @@ const MapEditorPathUIScript := preload("res://scripts/maps/editor/map_editor_pat
 const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_editor_environ_palette.gd")
 const MapEditorPaletteV2Script := preload("res://scripts/maps/editor/v2/palette.gd")
 const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+const MapEditorFloatingPanelScript := preload("res://scripts/maps/editor/v2/floating_panel.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -183,6 +184,9 @@ var _path_panel: VBoxContainer = null
 var _environ_palette: VBoxContainer = null
 var _palette_v2 = null
 var _ui_hidden := false
+var _history_panel = null
+var _history_floating_panel = null
+var _library_dock = null
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -546,6 +550,7 @@ func _build_action_bar() -> void:
 	_icon_button(bar, "💾", "Enregistrer (Ctrl+S)", func(): save_now())
 	_icon_button(bar, "⧉", "Dupliquer la sélection (Ctrl+D)", func(): doc.duplicate_selection())
 	_icon_button(bar, "🗑", "Supprimer la sélection (Suppr)", func(): doc.remove_elements(doc.selection()))
+	_icon_button(bar, "🕘", "Historique", func(): _open_history_panel())
 
 	bar.add_child(VSeparator.new())
 	var quick_btn := Button.new()
@@ -982,6 +987,7 @@ func _move_library_to_bottom() -> void:
 	biblio_tab.visible = true
 	biblio_tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	dock.add_child(biblio_tab)
+	_library_dock = dock
 
 ## Déplace les options de l'outil actif de la colonne de gauche vers une barre
 ## contextuelle sous la barre supérieure (au-dessus de la vue).
@@ -1013,6 +1019,26 @@ func _bind_history_tab() -> void:
 	panel.undo_pressed.connect(_do_undo)
 	panel.redo_pressed.connect(_do_redo)
 	_history_list = panel.history_list
+	_history_panel = panel
+	_move_history_to_floating()
+
+## Sort l'historique du dock droit pour en faire un panneau flottant
+## (direction artistique : l'historique ne mérite pas un onglet permanent).
+func _move_history_to_floating() -> void:
+	if _history_panel == null or _right_tabs == null:
+		return
+	var hist_tab: Node = _history_panel.get_parent()
+	if hist_tab == null or hist_tab.get_parent() != _right_tabs:
+		return
+	_right_tabs.remove_child(hist_tab)
+	_history_floating_panel = MapEditorFloatingPanelScript.new()
+	_history_floating_panel.setup("Historique", hist_tab)
+	add_child(_history_floating_panel)
+
+func _open_history_panel() -> void:
+	if _history_floating_panel == null:
+		return
+	_history_floating_panel.open_at(Vector2(360, 80))
 
 # ===========================================================================
 # Dialogues
@@ -2418,6 +2444,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_toggle_fullscreen()
 		KEY_HOME:
 			_focus_map()
+		KEY_B:
+			_toggle_library_dock()
+		KEY_I:
+			if _right_tabs != null:
+				_right_tabs.current_tab = 0
+		KEY_L:
+			if _right_tabs != null:
+				_right_tabs.current_tab = 1
+		KEY_C:
+			if _right_tabs != null:
+				_right_tabs.current_tab = 2
 		KEY_R:
 			if _tool == ToolsScript.TEMPLATE:
 				_template_rotation = (_template_rotation + 1) % 4
@@ -2479,6 +2516,11 @@ func _focus_map() -> void:
 	if _engine != null and _engine.has_method("focus_grid_rect"):
 		_engine.focus_grid_rect(Rect2(0.0, 0.0, w, h))
 		_refresh_overlay()
+
+## Affiche / masque le dock de bibliothèque (B).
+func _toggle_library_dock() -> void:
+	if _library_dock is CanvasItem:
+		(_library_dock as CanvasItem).visible = not (_library_dock as CanvasItem).visible
 
 func _do_undo() -> void:
 	if doc.undo():
