@@ -29,6 +29,7 @@ Couches d'habillage du rendu 2.5D (mode `terrain3d`) : végétation procédurale
 
 - Type de sol : terrain 3D (relief, eau, objets qui suivent le sol) ou fond illustré plat.
 - Niveau d'eau : SpinBox −1.0 à 8.0 (pas 0.1) ; −1 = aucune eau.
+- Densité du décor d'eau : SpinBox 0.0 à 3.0 (lentilles + nénuphars).
 - Ambiance : liste déroulante (aucune / lucioles / poussière / feuilles / pluie / neige).
 - Végétation : case à cocher + densité 0.0 à 3.0 (pas 0.1).
 - Lumière : presets (`MapData.LIGHTING_PRESET_ORDER`), direction, intensité, mode nuit.
@@ -41,5 +42,6 @@ Couches d'habillage du rendu 2.5D (mode `terrain3d`) : végétation procédurale
 | `vegetationDensity` | float | `1.0` | Multiplicateur de densité (éditeur 0–3) |
 | `waterLevel` | float | `-1.0` | Hauteur du plan d'eau en cases ; < 0 = désactivée |
 | `waterDecorSeed` | int | `1` | Graine du décor de surface (lentilles, nénuphars) |
+| `waterDecorDensity` | float | `1.0` | Multiplicateur de densité du décor d'eau (éditeur 0–3) |
 | `ambientFx` | String | `""` | Effet d'ambiance (`fireflies`/`dust`/`leaves`/`rain`/`snow`) |
 | `groundMode` | String | — | `terrain3d` requis pour ces couches (sinon fond illustré) |
