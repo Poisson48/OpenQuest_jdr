@@ -104,6 +104,7 @@ var _leaf_count: int = 0
 var _map_w: int = 0
 var _map_h: int = 0
 var _cell_size: float = 1.0
+var _mesh_cell_size: float = 0.0
 var _night_mode: bool = false
 var _has_config: bool = false
 
@@ -230,6 +231,12 @@ func clear() -> void:
 	_flower_count = 0
 	_bush_count = 0
 	_leaf_count = 0
+	# Réinitialise l'état de config : sinon un configure() identique qui suit
+	# serait ignoré et la végétation resterait invisible.
+	_has_config = false
+	_last_enabled = true
+	_last_heights = []
+	_last_materials = []
 	if _tuft_instance != null and is_instance_valid(_tuft_instance):
 		_tuft_instance.multimesh = null
 		_tuft_instance.visible = false
@@ -336,6 +343,14 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	_flower_count = flower_transforms.size()
 	_bush_count = bush_transforms.size()
 	_leaf_count = leaf_transforms.size()
+	# Les maillages dépendent de la taille de case : on les reconstruit si elle
+	# change (sinon l'échelle des touffes/fleurs/buissons/feuilles reste fausse).
+	if not is_equal_approx(_mesh_cell_size, _cell_size):
+		_tuft_mesh = null
+		_flower_mesh = null
+		_bush_mesh = null
+		_leaf_mesh = null
+		_mesh_cell_size = _cell_size
 	if _tuft_mesh == null:
 		_tuft_mesh = _make_tuft_mesh(_cell_size)
 	if _flower_mesh == null:

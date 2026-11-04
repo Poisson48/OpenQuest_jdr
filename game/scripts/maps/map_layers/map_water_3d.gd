@@ -145,13 +145,14 @@ func set_terrain_heights(terrain_heights: Array) -> void:
 	if _has_config:
 		_rebuild()
 
-## Active / désactive la teinte de nuit.
+## Active / désactive la teinte de nuit (simple mise à jour du shader, pas de
+## rebuild O(w×h) : la profondeur et les multimeshes n'ont pas changé).
 func set_night_mode(on: bool) -> void:
 	if _night_mode == on:
 		return
 	_night_mode = on
-	if _has_config:
-		_rebuild()
+	if _material != null:
+		_material.set_shader_parameter("night_tint", NIGHT_TINT if _night_mode else Color.WHITE)
 
 func get_water_level() -> float:
 	return _water_level
@@ -245,6 +246,9 @@ func _rebuild() -> void:
 func _deactivate() -> void:
 	_active = false
 	_submerged_count = 0
+	_max_depth = 0.0
+	_depth_texture = null
+	_depth_image = null
 	_clear_decor()
 	if _mesh_instance != null:
 		_mesh_instance.mesh = null
@@ -387,6 +391,8 @@ func _rebuild_decor() -> void:
 			if r1 < DUCKWEED_DENSITY and duck.size() < DUCKWEED_MAX:
 				var cluster := 1 + int(r2 * 3.0)
 				for k in range(cluster):
+					if duck.size() >= DUCKWEED_MAX:
+						break
 					var jx := _hash01(cx, cy, _decor_seed * 5 + 11 + k)
 					var jz := _hash01(cx, cy, _decor_seed * 5 + 17 + k)
 					var px := (float(cx) + jx) * cell
