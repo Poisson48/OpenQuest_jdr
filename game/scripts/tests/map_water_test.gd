@@ -272,6 +272,11 @@ func _test_water_decor() -> void:
 		"lily=%d" % water.get_lily_count())
 	_assert("decor_duckweed_bounded", water.get_duckweed_count() <= 2400)
 	_assert("decor_lily_bounded", water.get_lily_count() <= 360)
+	# Densité 0 : aucun décor (même pas le nénuphar de secours).
+	water.configure(W, H, CELL, 0.1, _make_shallow_heights(), false, 7, 0.0)
+	_assert("decor_density_zero",
+		water.get_duckweed_count() == 0 and water.get_lily_count() == 0,
+		"duckweed=%d lily=%d" % [water.get_duckweed_count(), water.get_lily_count()])
 	# Sans eau : le décor disparaît.
 	water.set_water_level(-1.0)
 	_assert("decor_cleared", water.get_duckweed_count() == 0 and water.get_lily_count() == 0)

@@ -416,7 +416,8 @@ func _rebuild_decor() -> void:
 					Vector3((float(cx) + 0.5) * cell, surface_y + off, (float(cy) + 0.5) * cell)))
 	# Garantie déterministe : s'il y a des hauts-fonds mais aucun nénuphar,
 	# on en place un seul au « meilleur » emplacement (évite un étang vide).
-	if lilies.is_empty() and not shallow_cells.is_empty() and _map_w > 0:
+	# Sauf densité nulle : dans ce cas on ne veut AUCUN décor.
+	if _decor_density > 0.0 and lilies.is_empty() and not shallow_cells.is_empty() and _map_w > 0:
 		var pick: Vector2i = shallow_cells[0]
 		var best := -1.0
 		for cand in shallow_cells:
