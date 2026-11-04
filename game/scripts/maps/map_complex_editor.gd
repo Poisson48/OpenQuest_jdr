@@ -182,6 +182,7 @@ var _path_focus_btn: Button = null
 var _path_panel: VBoxContainer = null
 var _environ_palette: VBoxContainer = null
 var _palette_v2 = null
+var _ui_hidden := false
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -2348,6 +2349,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_sync_engine()
 		KEY_F:
 			_focus_selection()
+		KEY_TAB:
+			_toggle_ui(key.shift_pressed)
+		KEY_F11:
+			_toggle_fullscreen()
+		KEY_HOME:
+			_focus_map()
 		KEY_R:
 			if _tool == ToolsScript.TEMPLATE:
 				_template_rotation = (_template_rotation + 1) % 4
@@ -2377,6 +2384,38 @@ func _apply_shortcut_tool(key: InputEventKey) -> void:
 		return
 	_set_tool(tool_id)
 	get_viewport().set_input_as_handled()
+
+## Masque / réaffiche l'interface (Tab) pour laisser la carte en plein écran.
+## `immersive` (Shift+Tab) masque tout ; Tab simple masque aussi les docks mais
+## garde la barre supérieure.
+func _toggle_ui(immersive: bool) -> void:
+	_ui_hidden = not _ui_hidden
+	var show := not _ui_hidden
+	for path in ["%LeftScroll", "%RightTabs", "%ActionBarScroll"]:
+		var node := get_node_or_null(path)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = show
+	if _status_lbl != null and _status_lbl.get_parent() is CanvasItem:
+		(_status_lbl.get_parent() as CanvasItem).visible = show
+	if _hint_lbl != null:
+		_hint_lbl.visible = show
+	_set_status("Interface masquée (Tab pour réafficher)." if _ui_hidden else "Interface affichée.")
+
+## Bascule le plein écran (F11).
+func _toggle_fullscreen() -> void:
+	var mode := DisplayServer.window_get_mode()
+	if mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+## Cadre toute la carte (Home).
+func _focus_map() -> void:
+	var w := float(doc.map_data.get("width", 16))
+	var h := float(doc.map_data.get("height", 12))
+	if _engine != null and _engine.has_method("focus_grid_rect"):
+		_engine.focus_grid_rect(Rect2(0.0, 0.0, w, h))
+		_refresh_overlay()
 
 func _do_undo() -> void:
 	if doc.undo():
