@@ -46,8 +46,22 @@ Résultat actuel : `path_stone_procedural.glb`, ~17 600 triangles après décima
 
 C’est ce patch qui est posé dans `path_demo_boot.gd` comme preuve visuelle.
 Le terrain du path demo passe aussi en **sous-division 2×** (`terrainDetail=2`).
-Il reste un **asset statique** : la prochaine étape est d’en faire un générateur
-de patch le long d’un tracé arbitraire.
+
+## Générateur de patch sur tracé
+
+`tools/blender/generate_path_patch.py` accepte une courbe JSON et régénère le
+patch complet (chemin + herbe) :
+
+```powershell
+$blender = "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
+& $blender -b --python tools/blender/generate_path_patch.py -- `
+  --points "[[-8.5,-3.0],[-4.5,2.0],[-1.0,-2.0],[3.5,2.5],[8.0,-1.0]]" `
+  --out "game/assets/objects3d/terrain/path_generated_demo.glb"
+```
+
+La courbe remplace celle du `.blend`, puis le Grass System et le générateur de
+pierres sont réévalués autour du nouveau tracé. C’est la base du générateur
+offline : Godot n’a plus qu’à fournir les points d’un tracé.
 
 
 ## Utilisation dans la démo
@@ -57,7 +71,7 @@ de patch le long d’un tracé arbitraire.
 
 ## Limites
 
-- le chemin Blender est un **asset statique** ; le tracé libre/peint reste le
-  moyen de créer un chemin arbitraire dans l’éditeur ;
+- le patch généré reste un **asset GLB statique** ; le tracé libre/peint reste le
+  moyen de créer un chemin instantanément dans l’éditeur ;
 - le GLB n’est pas encore exposé dans la bibliothèque d’assets de l’éditeur ;
 - source `.blend` non versionnée (asset tiers téléchargé).
