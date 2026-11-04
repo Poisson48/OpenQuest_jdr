@@ -22,6 +22,7 @@ const ToolOptionsScript := preload("res://scripts/maps/editor/map_editor_tool_op
 const MapEditorPathUIScript := preload("res://scripts/maps/editor/map_editor_path_ui.gd")
 const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_editor_environ_palette.gd")
 const MapEditorPaletteV2Script := preload("res://scripts/maps/editor/v2/palette.gd")
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -258,6 +259,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(0, 0)
 	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
+	theme = CartographerThemeScript.build()
 	doc.changed.connect(_on_doc_changed)
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
