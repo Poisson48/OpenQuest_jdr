@@ -63,6 +63,27 @@ La courbe remplace celle du `.blend`, puis le Grass System et le générateur de
 pierres sont réévalués autour du nouveau tracé. C’est la base du générateur
 offline : Godot n’a plus qu’à fournir les points d’un tracé.
 
+### Depuis l’éditeur
+
+Le panneau Chemins contient **🧱 Patch Blender** :
+
+1. dessiner un chemin ;
+2. cliquer sur **Patch Blender** ;
+3. l’éditeur écrit les points dans `user://blender_path_points.json` ;
+4. lance Blender headless avec `generate_path_patch.py` ;
+5. charge le GLB généré via `user://generated_path.glb` ;
+6. ajoute le patch comme objet 3D.
+
+Variables d’environnement utiles :
+
+```text
+BLENDER_BIN=C:\Program Files\Blender Foundation\Blender 4.5\blender.exe
+BLENDER_PATH_BLEND=<chemin vers GeoNodesStonePath_End.blend>
+```
+
+Si `BLENDER_PATH_BLEND` n’est pas défini, le script cherche le `.blend` dans
+`_tmp_path_asset/`. Le `.blend` source n’est pas versionné (asset tiers).
+
 
 ## Utilisation dans la démo
 

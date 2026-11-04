@@ -175,6 +175,7 @@ var _gen_bar: ProgressBar = null
 var _path_focus: bool = false
 var _path_focus_btn: Button = null
 var _path_panel: VBoxContainer = null
+var _last_path_points: Array = []
 var _scene_seed: int = 1
 var _scene_density: float = 1.0
 var _scatter_rng := RandomNumberGenerator.new()
@@ -343,6 +344,7 @@ func _bind_ui() -> void:
 	_path_panel.setup(self)
 	_path_panel.visible = false
 	_path_panel.focus_mode_toggled.connect(_set_path_focus)
+	_path_panel.blender_patch_requested.connect(_generate_blender_path_patch)
 	_path_panel.help_requested.connect(func():
 		if _help_dialog != null:
 			_help_dialog.popup_centered()
@@ -1037,8 +1039,70 @@ func _make_file_dialog(title: String, mode: int, filters: Array) -> FileDialog:
 # Machine à états d'outils
 # ===========================================================================
 
-func _set_path_focus(on: bool) -> void:
-	_path_focus = on
+func _generate_blender_path_patch() -> void:
+	if _last_path_points.size() < 2:
+		_set_status("Patch Blender : dessinez d'abord un chemin.")
+		return
+	var blender := OS.get_environment("BLENDER_BIN")
+	if blender.is_empty():
+		blender = "C:\\Program Files\\Blender Foundation\\Blender 4.5\\blender.exe"
+	if not FileAccess.file_exists(blender):
+		_set_status("Patch Blender : Blender introuvable. Définissez BLENDER_BIN.")
+		return
+	var script_path := ProjectSettings.globalize_path("res://../tools/blender/generate_path_patch.py")
+	if not FileAccess.file_exists(script_path):
+		_set_status("Patch Blender : générateur introuvable.")
+		return
+	var blend := OS.get_environment("BLENDER_PATH_BLEND")
+	if blend.is_empty():
+		blend = ProjectSettings.globalize_path(
+			"res://../_tmp_path_asset/Geometry nodes- Path through grass/GeoNodesStonePath_End.blend")
+	if not FileAccess.file_exists(blend):
+		_set_status("Patch Blender : source .blend introuvable (BLENDER_PATH_BLEND).")
+		return
+	var json_path := ProjectSettings.globalize_path("user://blender_path_points.json")
+	var json_points: Array = []
+	for p in _last_path_points:
+		json_points.append([float(p.x), float(p.y)])
+	var f := FileAccess.open(json_path, FileAccess.WRITE)
+	if f == null:
+		_set_status("Patch Blender : écriture du tracé impossible.")
+		return
+	f.store_string(JSON.stringify(json_points))
+	f.close()
+	var out_path := ProjectSettings.globalize_path("user://generated_path.glb")
+	_set_status("Patch Blender : génération Geometry Nodes…")
+	var args := PackedStringArray([
+		"-b", "--python", script_path, "--",
+		"--blend", blend,
+		"--points-file", json_path,
+		"--out", out_path,
+	])
+	var output: Array = []
+	var code := OS.execute(blender, args, output, true)
+	if code != 0 or not FileAccess.file_exists(out_path):
+		var detail := "\n".join(output.slice(maxi(0, output.size() - 3)))
+		_set_status("Patch Blender : échec (code %d). %s" % [code, detail])
+		return
+	var cx := 0.0
+	var cy := 0.0
+	for p in _last_path_points:
+		cx += float(p.x)
+		cy += float(p.y)
+	cx /= float(_last_path_points.size())
+	cy /= float(_last_path_points.size())
+	doc.add_element({
+		"x": cx, "y": cy, "w": 12.0, "h": 7.0,
+		"asset": "user://generated_path.glb",
+		"elevation": 0.02,
+		"followTerrain": false, "tiltToTerrain": false,
+		"label": "Patch Blender généré", "layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, "mesh", "Patch Blender généré")
+	_sync_engine()
+	_set_status("Patch Blender généré et posé.")
+
+func _set_path_focus(on: bool) -> void:	_path_focus = on
 	if _path_focus_btn != null:
 		_path_focus_btn.set_pressed_no_signal(on)
 	var host := get_node_or_null("%ToolHost")
