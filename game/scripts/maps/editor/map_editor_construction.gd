@@ -835,7 +835,7 @@ func _paint_path_terrain(raw_points: Array) -> void:
 	elif _ed._proc_path_color == "#8d8a80":
 		material = DocumentScript.MATERIAL_STONE
 	_ed.doc.begin_transaction()
-	_ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
+	var restore: Dictionary = _ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
 	# Ruban 3D cuit en coordonnées monde : UV le long du tracé, bords alpha
 	# irréguliers, posé au ras du terrain. Source unique de la surface visible
 	# (le creux reste en herbe sous les bords transparents du ruban).
@@ -846,6 +846,7 @@ func _paint_path_terrain(raw_points: Array) -> void:
 		"width": width,
 		"material": material,
 		"seed": _ed._scene_seed + 31,
+		"terrain_restore": restore,
 		"label": "Chemin",
 		"layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
@@ -878,7 +879,7 @@ func _build_procedural_path(raw_points: Array) -> String:
 	var width := maxf(0.3, _ed._proc_path_width)
 	_ed.doc.begin_transaction()
 	# Léger creux sous le chemin : il est tassé dans le sol et suit pentes/creux.
-	_ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
+	var restore: Dictionary = _ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
 	var id: String = _ed.doc.add_element({
 		"x": center.x, "y": center.y,
 		"w": maxf(0.5, max_p.x - min_p.x),
@@ -889,6 +890,7 @@ func _build_procedural_path(raw_points: Array) -> String:
 		"color": _ed._proc_path_color,
 		"seed": _ed._scene_seed + int(absf(center.x * 13.0 + center.y * 7.0)),
 		"elevation": 0.20, "followTerrain": true, "tiltToTerrain": false,
+		"terrain_restore": restore,
 		"label": "Chemin procédural", "layer": 1,
 		"display": {"rotation": 0.0, "scale": 1.0},
 	}, DocumentScript.KIND_MESH, "Chemin procédural")

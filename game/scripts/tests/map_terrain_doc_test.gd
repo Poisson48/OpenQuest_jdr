@@ -18,6 +18,7 @@ func _run() -> void:
 	var base: Dictionary = md.create_complex_map("Test relief", "general", "local", 12, 10)
 
 	_test_data(base)
+	_test_erase_restore(base)
 	_test_undo(base)
 	_test_serialization(base)
 	await _test_editor(base)
@@ -93,6 +94,25 @@ func _test_data(base: Dictionary) -> void:
 	_assert("material_brush_stone", doc.terrain_material(6, 5) == 2)
 	_assert("material_brush_radius", doc.terrain_material(6, 5) == 2
 		and doc.terrain_material(9, 5) == 0)
+
+func _test_erase_restore(base: Dictionary) -> void:
+	var doc: Variant = DocScript.new()
+	doc.load_map(base)
+	var before: float = float(doc.terrain_height(5, 2))
+	var restore: Dictionary = doc.carve_path(
+		[Vector2(2.0, 2.0), Vector2(9.0, 2.0)], 1.4, 0.06, "Chemin")
+	_assert("erase_restore_carved", doc.terrain_height(5, 2) < before)
+	_assert("erase_restore_has_delta", not restore.is_empty())
+	var id: String = doc.add_element({
+		"asset": "procedural://path_texture",
+		"points": [Vector2(2.0, 2.0), Vector2(9.0, 2.0)],
+		"width": 1.4,
+		"terrain_restore": restore,
+	}, "mesh", "Chemin")
+	_assert("erase_restore_added", not id.is_empty())
+	doc.remove_element(id)
+	_assert("erase_restore_removed", doc.get_element(id).is_empty())
+	_assert("erase_restore_terrain", is_equal_approx(doc.terrain_height(5, 2), before))
 
 func _test_undo(base: Dictionary) -> void:
 	var doc: Variant = DocScript.new()

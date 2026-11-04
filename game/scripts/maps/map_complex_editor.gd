@@ -76,6 +76,8 @@ var _terrain_spline_mode: String = "ridge"
 var _material_id: int = 0
 var _material_radius: float = 1.5
 var _fog_brush: int = 1
+## Gomme ciblée : -1 = tout effacer, sinon id du calque à effacer.
+var _erase_target: int = -1
 var _paint_tile: String = ""
 var _selected_template: String = ""
 var _area_category: String = "building"
@@ -1590,7 +1592,7 @@ func _close_polygon() -> void:
 	_sync_engine()
 
 func _erase_at(screen: Vector2) -> void:
-	var hit: String = _overlay.element_at_screen(screen)
+	var hit: String = _overlay.element_at_screen_on_layer(screen, _erase_target)
 	if hit.is_empty():
 		return
 	doc.remove_element(hit)

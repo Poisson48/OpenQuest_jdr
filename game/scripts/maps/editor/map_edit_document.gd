@@ -864,14 +864,44 @@ func remove_element(id: String) -> void:
 	var before: Dictionary = (_elements[id] as Dictionary).duplicate(true)
 	var was_light := str(before.get("kind", "")) == KIND_LIGHT
 	_unlink_all(id)
+	begin_transaction()
 	_raw_remove(id)
 	_push_delta({"type": D_ELEM_DEL, "id": id, "index": index, "before": before})
+	# Un chemin possède son creux : l'effacer remet le terrain comme avant.
+	_restore_terrain_for_element(before)
+	commit_transaction()
 	_selected.erase(id)
 	selection_changed.emit(_selected.duplicate())
 	changed.emit("remove")
 	# Hors transaction batch : recalculer le halo (pas d'ancien éclairage fantôme).
 	if was_light and _transaction_depth <= 0:
 		rebuild_light_reveal_from_lights("Suppression lumière")
+
+## Remet le terrain à son état d'avant la pose d'un élément qui a creusé le sol
+## (chemin, dallage…) — l'inverse de `carve_path`, poussé comme delta annulable.
+func _restore_terrain_for_element(elem: Dictionary) -> void:
+	var restore: Dictionary = elem.get("terrain_restore", {})
+	if not restore is Dictionary or restore.is_empty():
+		return
+	var heights: Array = map_data.get("terrainHeights", [])
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for key in restore.keys():
+		var idx := int(key)
+		if idx < 0 or idx >= heights.size():
+			continue
+		var original := float(restore[key])
+		var current := float(heights[idx])
+		if absf(current - original) < 0.0005:
+			continue
+		before[key] = current
+		after[key] = original
+		heights[idx] = original
+	if after.is_empty():
+		return
+	map_data["terrainHeights"] = heights
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": "Effacer chemin"})
+	changed.emit("terrain")
 
 func remove_elements(ids: Array) -> void:
 	if ids.is_empty():
@@ -1168,17 +1198,19 @@ func paint_terrain_brush(center: Vector2, radius: float, strength: float,
 
 ## Creuse légèrement le terrain sous un chemin et adoucit les bords.
 ## Une seule étape d'undo ; le chemin est ensuite posé sur ces nouvelles hauteurs.
+## Renvoie le dictionnaire `before` (index de case → hauteur d'origine) pour que
+## l'élément chemin puisse, à l'effacement, remettre le terrain comme avant.
 func carve_path(points: Array, width: float, depth: float = 0.055,
-		note: String = "Chemin") -> void:
+		note: String = "Chemin") -> Dictionary:
 	if points.size() < 2:
-		return
+		return {}
 	var size := terrain_size()
 	var heights := _terrain_buffer()
 	var half := maxf(0.3, width * 0.5)
 	var feather := clampf(width * 0.28, 0.2, 0.8)
 	var d := clampf(depth, 0.0, 0.25)
 	if d <= 0.0:
-		return
+		return {}
 	var min_x := size.x
 	var max_x := 0
 	var min_y := size.y
@@ -1213,10 +1245,11 @@ func carve_path(points: Array, width: float, depth: float = 0.055,
 			after[str(idx)] = next
 			heights[idx] = next
 	if after.is_empty():
-		return
+		return before
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
+	return before
 
 static func _distance_to_polyline(p: Vector2, points: Array) -> float:
 	var best := INF

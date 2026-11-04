@@ -479,6 +479,27 @@ func _rebuild_tool_options() -> void:
 		_option_note("Peint la matière du sol. La carte doit être en mode sol 3D (terrain3d). Matière enregistrée avec la carte.")
 	elif _ed._tool == ToolsScript.FOG_REVEAL or _ed._tool == ToolsScript.FOG_HIDE:
 		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau", 0, 6, float(_ed._fog_brush), 1, func(v): _ed._fog_brush = int(v))
+	elif _ed._tool == ToolsScript.ERASE:
+		var target_opt := OptionButton.new()
+		target_opt.add_item("Tout effacer", -1)
+		target_opt.set_item_metadata(0, -1)
+		var selected_index := 0
+		var layers: Array = _ed.doc.map_data.get("layers", [])
+		for i in range(layers.size()):
+			var layer_def: Dictionary = layers[i]
+			var layer_id := int(layer_def.get("id", -1))
+			var layer_name := str(layer_def.get("name", "Calque %d" % layer_id))
+			target_opt.add_item(layer_name, layer_id)
+			target_opt.set_item_metadata(i + 1, layer_id)
+			if layer_id == _ed._erase_target:
+				selected_index = i + 1
+		target_opt.select(selected_index)
+		target_opt.item_selected.connect(func(index):
+			_ed._erase_target = int(target_opt.get_item_metadata(index))
+			_ed._set_status("Gomme : %s." % target_opt.get_item_text(index))
+		)
+		_ed._tool_options.add_child(target_opt)
+		_option_note("Efface l'élément sous le curseur. Ciblez un calque pour ne retirer que ce calque (ex. le chemin sans les fleurs). Effacer un chemin remet aussi le terrain comme avant.")
 	elif _ed._tool == ToolsScript.TEMPLATE:
 		_option_note("Template : %s (rotation %d°)" % [
 			_ed._selected_template if not _ed._selected_template.is_empty() else "aucun",

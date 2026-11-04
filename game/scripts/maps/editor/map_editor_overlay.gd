@@ -723,6 +723,33 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 func element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
 	return _pick_at_screen(pos, tolerance, false, false)
 
+## Comme `element_at_screen`, mais restreint à un calque (`layer_id` >= 0).
+## Sert à la gomme ciblée : effacer uniquement le chemin, en gardant les fleurs.
+func element_at_screen_on_layer(pos: Vector2, layer_id: int, tolerance: float = 6.0) -> String:
+	if layer_id < 0:
+		return element_at_screen(pos, tolerance)
+	if doc == null:
+		return ""
+	var sorted: Array = doc.elements_sorted()
+	var center_hit := ""
+	for i in range(sorted.size() - 1, -1, -1):
+		var elem: Dictionary = sorted[i]
+		var id := str(elem.get("id", ""))
+		if int(elem.get("layer", 0)) != layer_id:
+			continue
+		if not doc.is_element_visible(elem) or not doc.is_element_selectable(elem):
+			continue
+		var pts := _footprint(elem)
+		if pts.is_empty():
+			continue
+		if Geometry2D.is_point_in_polygon(pos, pts):
+			return id
+		if center_hit.is_empty():
+			var center := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+			if center.distance_to(pos) <= tolerance + 8.0:
+				center_hit = id
+	return center_hit
+
 ## Comme `element_at_screen`, mais uniquement parmi la sélection courante
 ## (visibles, y compris verrouillés — pour le drag « collant » façon GIMP).
 func selected_element_at_screen(pos: Vector2, tolerance: float = 6.0) -> String:
