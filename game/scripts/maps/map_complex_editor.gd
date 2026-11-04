@@ -1102,7 +1102,8 @@ func _generate_blender_path_patch() -> void:
 	_sync_engine()
 	_set_status("Patch Blender généré et posé.")
 
-func _set_path_focus(on: bool) -> void:	_path_focus = on
+func _set_path_focus(on: bool) -> void:
+	_path_focus = on
 	if _path_focus_btn != null:
 		_path_focus_btn.set_pressed_no_signal(on)
 	var host := get_node_or_null("%ToolHost")
