@@ -121,7 +121,7 @@ if os.path.exists(STONE_IMG):
     stex.image = simg
     smat.node_tree.links.new(stex.outputs["Color"], smat.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
 
-for name in ["PathPatchGround", "PathPatchGrass", "PathPatchStones"]:
+for name in ["PathPatchGrass", "PathPatchStones"]:
     obj = bpy.data.objects.get(name)
     if obj:
         obj.hide_set(False)
