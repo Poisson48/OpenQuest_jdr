@@ -54,14 +54,24 @@ ou via `GOOGLE_BANANA_API_KEY`. Un seul appel API a été fait pour l’instant.
 lectures tournées/décalées (`sample_anti_tile`) et une variation macro. Cela
 casse la sensation de carrelage sans coût de texture supplémentaire.
 
+## Rendu 100 % Godot
+
+Le chemin est désormais un **ruban 3D cuit en coordonnées monde** (plus de patch
+Blender) :
+
+- UV **le long du tracé** (pas de projection horizontale) ;
+- centre opaque, **bords alpha irréguliers** fondus dans l'herbe ;
+- shader `path_ribbon` : `blend_mix + depth_draw_opaque` (pas de tri transparent
+  cassé) + échantillonnage anti-carrelage à deux lectures ;
+- le terrain est **creusé** sous le chemin (le creux reste en herbe sous les
+  bords transparents du ruban).
+
 ## Limites actuelles
 
-- les UV des chemins peints sont **planaires** (UV du terrain), pas des UV le
-  long du tracé ;
-- le maillage du terrain reste **uniforme** : un chemin peint n’ajoute pas de
-  triangles ;
-- l’overlay de chemin texturé avec UV le long du tracé existe dans le code mais
-  n’est pas encore activé, car son raccord au terrain n’est pas assez propre.
+- le maillage du terrain reste **uniforme** : un chemin n’ajoute pas encore de
+  triangles au terrain lui-même (le ruban, lui, s'adapte à la pente) ;
+- la densité de détail du ruban est pilotée par la rugosité du terrain, pas
+  encore par un LOD global.
 
 ## Démo
 

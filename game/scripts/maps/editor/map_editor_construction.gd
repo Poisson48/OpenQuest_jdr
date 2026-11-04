@@ -836,7 +836,20 @@ func _paint_path_terrain(raw_points: Array) -> void:
 		material = DocumentScript.MATERIAL_STONE
 	_ed.doc.begin_transaction()
 	_ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
-	_ed.doc.paint_path_material(curve, width, material, _ed._scene_seed + 31, "Chemin")
+	# Ruban 3D cuit en coordonnées monde : UV le long du tracé, bords alpha
+	# irréguliers, posé au ras du terrain. Source unique de la surface visible
+	# (le creux reste en herbe sous les bords transparents du ruban).
+	_ed.doc.add_element({
+		"x": 0.0, "y": 0.0, "w": 1.0, "h": 0.35,
+		"asset": "procedural://path_texture",
+		"points": curve.duplicate(),
+		"width": width,
+		"material": material,
+		"seed": _ed._scene_seed + 31,
+		"label": "Chemin",
+		"layer": 1,
+		"display": {"rotation": 0.0, "scale": 1.0},
+	}, "mesh", "Chemin")
 	_ed.doc.commit_transaction()
 	_ed._last_path_points = raw_points.duplicate()
 	_ed._last_path_painted = true

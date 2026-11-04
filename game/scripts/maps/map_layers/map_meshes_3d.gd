@@ -54,6 +54,7 @@ const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/pro
 const ProceduralRoofMeshScript := preload("res://scripts/maps/construction/procedural_roof_mesh.gd")
 const ProceduralWallShader := preload("res://shaders/procedural_wall.gdshader")
 const ProceduralRoofShader := preload("res://shaders/procedural_roof.gdshader")
+const PathRibbonShader := preload("res://shaders/path_ribbon.gdshader")
 const ProceduralFloorMeshScript := preload("res://scripts/maps/construction/procedural_floor_mesh.gd")
 const ProceduralFenceMeshScript := preload("res://scripts/maps/construction/procedural_fence_mesh.gd")
 const ProceduralPathMeshScript := preload("res://scripts/maps/construction/procedural_path_mesh.gd")
@@ -101,7 +102,6 @@ var _has_atmosphere: bool = false
 var _unshaded: bool = true
 ## Texture radiale partagée par toutes les ombres de contact du calque.
 var _shadow_texture: GradientTexture2D = null
-var _path_texture_cache: Texture2D = null
 
 ## Reconstruit le calque. `map_data` est accepté pour cohérence avec les autres
 ## calques (MapProps3D) ; il sert à la teinte d'ambiance du fallback et à savoir
@@ -289,7 +289,9 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	# Rendu 2.5D léger : aucune ombre portée, aucune collision.
 	_sanitize_visual(visual)
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
-	_add_contact_shadow(root, visual, _is_inclined(mesh))
+	# Les chemins texturés sont déjà posés au ras du terrain : pas d'ombre ajoutée.
+	if not (visual is Node and visual.has_meta("world_space")):
+		_add_contact_shadow(root, visual, _is_inclined(mesh))
 	root.set_meta("fallback", fallback)
 	# Décor léger : culling de distance pour les grandes cartes.
 	if asset_path.contains("/vegetation/") or asset_path.contains("/props/"):
@@ -350,16 +352,15 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		mesh_instance.name = "ProceduralPathTextured"
 		mesh_instance.mesh = _build_textured_path_mesh(mesh)
 		mesh_instance.set_meta("terrain_baked", true)
-		var path_tex := _get_path_texture()
-		if path_tex != null:
-			material.albedo_texture = path_tex
-			material.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
-			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-		else:
-			material.albedo_color = Color(str(mesh.get("color", "#8a7654")))
-		material.roughness = 0.96
-		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mesh_instance.set_meta("world_space", true)
+		var path_mat := ShaderMaterial.new()
+		path_mat.shader = PathRibbonShader
+		path_mat.set_shader_parameter("albedo_tex", _path_material_texture(int(mesh.get("material", 1))))
+		path_mat.set_shader_parameter("tint", _path_material_tint(int(mesh.get("material", 1))))
+		path_mat.set_shader_parameter("tex_scale", 1.0)
+		mesh_instance.material_override = path_mat
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return mesh_instance
 	elif asset == "procedural://path":
 		mesh_instance.name = "ProceduralPath"
 		mesh_instance.mesh = ProceduralPathMeshScript.build_from_element(mesh, _path_detail_for(mesh))
@@ -469,6 +470,8 @@ func _process(delta: float) -> void:
 func _conform_procedural_mesh(mesh_instance: MeshInstance3D, mesh: Dictionary) -> void:
 	if not _follows_terrain(mesh) or not _terrain_relief:
 		return
+	if mesh_instance.has_meta("world_space"):
+		return
 	var source: ArrayMesh = null
 	if mesh_instance.has_meta("flat_mesh"):
 		source = mesh_instance.get_meta("flat_mesh") as ArrayMesh
@@ -571,16 +574,20 @@ func _mesh_point_to_vector(value) -> Vector2:
 		return Vector2(float(value[0]), float(value[1]))
 	return Vector2.ZERO
 
-## Chemin texturé : UV.x le long du tracé, UV.y en travers. Une seule texture
-## couvre toute la longueur → aucun carrelage visible ; les UV suivent la courbe
-## au lieu d'être projetés horizontalement sur le terrain.
+## Chemin texturé : ruban cuit en coordonnées **monde**, UV.x le long du tracé,
+## UV.y en travers. Subdivisé en largeur pour que le centre soit opaque et les
+## bords semi-transparents (COLOR.a) estompés par le shader `path_ribbon`.
+const PATH_ACROSS := 4
+
 func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 	var raw_points: Array = mesh.get("points", [])
 	if raw_points.size() < 2:
 		return ArrayMesh.new()
-	var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
 	var width := maxf(0.3, float(mesh.get("width", 1.2)))
-	var detail := clampi(_path_detail_for(mesh), 1, 3)
+	var detail := clampi(_path_detail_for(mesh), 1, 4)
+	var seed := int(mesh.get("seed", 1))
+	var tile_length := 2.0
+
 	var samples: Array[Vector2] = []
 	for i in range(raw_points.size() - 1):
 		var a := _mesh_point_to_vector(raw_points[i])
@@ -590,69 +597,98 @@ func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 	samples.append(_mesh_point_to_vector(raw_points[raw_points.size() - 1]))
 	if samples.size() < 2:
 		return ArrayMesh.new()
-	# Longueur du tracé : UV.x va de 0 à 1 sur toute la longueur (pas de tuile).
-	var total_length := 0.0
+
+	# Longueur du tracé en cases, convertie en UV.x en unités monde.
 	var distances: Array[float] = []
+	var total := 0.0
 	for i in range(samples.size()):
 		if i > 0:
-			total_length += samples[i - 1].distance_to(samples[i])
-		distances.append(total_length)
+			total += samples[i - 1].distance_to(samples[i])
+		distances.append(total)
+
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var previous_left := Vector3.ZERO
-	var previous_right := Vector3.ZERO
+	var prev_cross: Array = []
+	var prev_u := 0.0
 	for i in range(samples.size()):
 		var dir := _path_dir_at(samples, i)
-		var normal := Vector2(-dir.y, dir.x)
-		var t := distances[i] / maxf(0.001, total_length)
-		var wl := 1.0 + 0.12 * sin(t * 17.0 + float(mesh.get("seed", 1)) * 0.7)
-		var wr := 1.0 + 0.12 * sin(t * 21.0 + 1.7 + float(mesh.get("seed", 1)) * 0.5)
-		var left := samples[i] + normal * width * 0.5 * wl
-		var right := samples[i] - normal * width * 0.5 * wr
-		var lw := center + Vector2(0.5, 0.5) + left
-		var rw := center + Vector2(0.5, 0.5) + right
-		var ly := _terrain_surface_height_at(lw.x, lw.y) + 0.05
-		var ry := _terrain_surface_height_at(rw.x, rw.y) + 0.05
-		var lpos := Vector3(left.x, ly, left.y)
-		var rpos := Vector3(right.x, ry, right.y)
+		var nrm := Vector2(-dir.y, dir.x)
+		var u := distances[i] / tile_length
+		var wl := 1.0 + 0.12 * sin(u * 9.0 + float(seed) * 0.7)
+		var wr := 1.0 + 0.12 * sin(u * 11.0 + 1.9 + float(seed) * 0.5)
+		var lp := samples[i] + nrm * width * 0.5 * wl
+		var rp := samples[i] - nrm * width * 0.5 * wr
+		# Points répartis en travers du ruban : le centre (s≈0.5) est opaque,
+		# les bords (s=0 / s=1) fondent dans le terrain.
+		var cross: Array = []
+		for a in range(PATH_ACROSS):
+			var t := float(a) / float(PATH_ACROSS - 1)
+			var p := lp.lerp(rp, t)
+			var w := _grid_point_to_world(p)
+			# Le maillage rendu du terrain a ses sommets aux COINS des cases :
+			# un point de grille `p` (centre de case) est donc au coin `p + 0.5`.
+			var h := _terrain_surface_height_at(p.x + 0.5, p.y + 0.5) * _cell_size + 0.035
+			cross.append({"pos": Vector3(w.x, h, w.y), "s": t})
 		if i > 0:
-			_add_path_tri(st, previous_left, previous_right, lpos, rpos, float(i - 1) / float(samples.size() - 1), t)
-		previous_left = lpos
-		previous_right = rpos
+			for a in range(PATH_ACROSS - 1):
+				_add_path_strip(st,
+					prev_cross[a]["pos"], prev_cross[a + 1]["pos"],
+					cross[a + 1]["pos"], cross[a]["pos"],
+					prev_u, u, prev_cross[a]["s"], prev_cross[a + 1]["s"], seed)
+		prev_cross = cross
+		prev_u = u
 	st.generate_normals()
 	return st.commit()
 
-func _add_path_tri(st: SurfaceTool, pl: Vector3, pr: Vector3, l: Vector3, r: Vector3,
-		v0: float, v1: float) -> void:
-	st.set_normal(Vector3.UP)
-	st.set_uv(Vector2(v0, 0.0))
-	st.add_vertex(pl)
-	st.set_uv(Vector2(v0, 1.0))
-	st.add_vertex(pr)
-	st.set_uv(Vector2(v1, 1.0))
-	st.add_vertex(r)
-	st.set_uv(Vector2(v0, 0.0))
-	st.add_vertex(pl)
-	st.set_uv(Vector2(v1, 1.0))
-	st.add_vertex(r)
-	st.set_uv(Vector2(v1, 0.0))
-	st.add_vertex(l)
+## Grille (centre de case) → coordonnées monde (le terrain est dessiné en unités
+## monde, sommet de coin à `i * cell`, centre de case à `(i + 0.5) * cell`).
+func _grid_point_to_world(p: Vector2) -> Vector2:
+	return Vector2((p.x + 0.5) * _cell_size, (p.y + 0.5) * _cell_size)
 
-func _get_path_texture() -> Texture2D:
-	if _path_texture_cache != null:
-		return _path_texture_cache
-	var path := "res://assets/terrain/path_ribbon.png"
-	var abs_path := ProjectSettings.globalize_path(path)
-	if FileAccess.file_exists(abs_path):
-		var img := Image.new()
-		if img.load(abs_path) == OK:
-			img.convert(Image.FORMAT_RGBA8)
-			img.generate_mipmaps()
-			_path_texture_cache = ImageTexture.create_from_image(img)
-			return _path_texture_cache
-	if ResourceLoader.exists(path):
-		_path_texture_cache = load(path) as Texture2D
-	return _path_texture_cache
+## Quad entre deux sections transversales : `pl`/`pr` = section précédente
+## (s0/s1), `r`/`l` = section courante (s1/s0).
+func _add_path_strip(st: SurfaceTool, pl: Vector3, pr: Vector3, r: Vector3, l: Vector3,
+		u0: float, u1: float, s0: float, s1: float, seed: int) -> void:
+	_add_path_vertex(st, pl, Vector2(u0, s0), seed)
+	_add_path_vertex(st, pr, Vector2(u0, s1), seed)
+	_add_path_vertex(st, r, Vector2(u1, s1), seed)
+	_add_path_vertex(st, pl, Vector2(u0, s0), seed)
+	_add_path_vertex(st, r, Vector2(u1, s1), seed)
+	_add_path_vertex(st, l, Vector2(u1, s0), seed)
+
+func _add_path_vertex(st: SurfaceTool, pos: Vector3, uv: Vector2, seed: int) -> void:
+	st.set_uv(uv)
+	st.set_color(Color(1.0, 1.0, 1.0, _path_edge_alpha(uv.y, uv.x, seed)))
+	st.add_vertex(pos)
+
+## Alpha du bord : 1 au centre du ruban, 0 sur les bords, avec une frontière
+## sinusoïdale qui ne suit pas une ligne droite le long du tracé.
+func _path_edge_alpha(s: float, u: float, seed: int) -> float:
+	var d := absf(s - 0.5) * 2.0
+	var edge := clampf(
+		0.72 + 0.07 * sin(u * 19.0 + float(seed) * 0.7) + 0.04 * sin(u * 37.0 + float(seed) * 1.3),
+		0.55, 0.92
+	)
+	return 1.0 - smoothstep(edge, 1.0, d)
+
+## Texture de chemin selon la matière : 1 = terre, 2 = pierre, 4 = sable.
+func _path_material_texture(material_id: int) -> Texture2D:
+	var path := "res://assets/terrain/dirt.png"
+	match material_id:
+		2:
+			path = "res://assets/terrain/stone.png"
+		4:
+			path = "res://assets/terrain/sand.png"
+	return load(path) as Texture2D
+
+## Teinte de la matière de chemin (la texture de base reste reconnaissable).
+func _path_material_tint(material_id: int) -> Color:
+	match material_id:
+		2:
+			return Color(0.93, 0.91, 0.87)
+		4:
+			return Color(1.0, 0.96, 0.82)
+	return Color(1.0, 1.0, 1.0)
 
 func _path_dir_at(points: Array, index: int) -> Vector2:
 	var a: Vector2
@@ -745,12 +781,20 @@ func _mesh_dimensions(mesh: Dictionary, visual: Node) -> Vector3:
 ## de l'empreinte pour un bâtiment droit, **maximale** pour un objet incliné via
 ## `tiltToTerrain`), élévation, puis inclinaison si la pente dépasse le seuil.
 func _place_root(root: Node3D, mesh: Dictionary) -> void:
+	var visual_node: Node = root.get_meta("visual", null) if root.has_meta("visual") else null
+	# Mesh déjà cuit en coordonnées monde (chemin texturé) : aucune translation
+	# ni mise à l'échelle de la racine — les sommets sont directement dans le
+	# repère du monde (comme le terrain lui-même).
+	if visual_node != null and visual_node.has_meta("world_space"):
+		root.position = Vector3.ZERO
+		root.rotation_degrees = Vector3.ZERO
+		root.scale = Vector3.ONE
+		return
 	var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
 	var display_scale := maxf(0.01, float(display.get("scale", 1.0)))
 	var gx := float(mesh.get("x", 0.0))
 	var gy := float(mesh.get("y", 0.0))
 	var elevation := float(mesh.get("elevation", 0.0)) * _cell_size
-	var visual_node: Node = root.get_meta("visual", null) if root.has_meta("visual") else null
 	var terrain_baked := visual_node != null and visual_node.has_meta("terrain_baked")
 	var base_y := 0.0 if terrain_baked else (_terrain_base_y(mesh) if _follows_terrain(mesh) else 0.0)
 	var yaw := -float(display.get("rotation", 0.0))
