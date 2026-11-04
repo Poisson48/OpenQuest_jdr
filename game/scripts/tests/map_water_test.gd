@@ -44,6 +44,7 @@ func _run() -> void:
 	await _test_water_layer_basics()
 	await _test_water_layer_updates()
 	await _test_water_layer_night()
+	await _test_water_decor()
 	await _test_ground_exposes_heights()
 	await _test_engine_integration()
 
@@ -245,6 +246,35 @@ func _test_water_layer_night() -> void:
 	if water._mesh_instance.material_override is ShaderMaterial:
 		var day_tint = (water._mesh_instance.material_override as ShaderMaterial).get_shader_parameter("night_tint")
 		_assert("night_water_day_tint", (day_tint as Color).is_equal_approx(Color.WHITE))
+
+# ===========================================================================
+# Décor de surface : lentilles d'eau + nénuphars
+# ===========================================================================
+
+func _make_shallow_heights() -> Array:
+	var heights: Array = []
+	heights.resize(W * H)
+	heights.fill(0.2)
+	for cy in range(3, 6):
+		for cx in range(3, 6):
+			heights[cy * W + cx] = 0.0
+	return heights
+
+func _test_water_decor() -> void:
+	var water = _make_water()
+	await _wait_frames(2)
+	# Bassin 3×3 à profondeur 0.1 : assez peu profond pour des nénuphars.
+	water.configure(W, H, CELL, 0.1, _make_shallow_heights(), false, 7)
+	_assert("decor_active", water.is_active())
+	_assert("decor_duckweed", water.get_duckweed_count() > 0,
+		"duckweed=%d" % water.get_duckweed_count())
+	_assert("decor_lily", water.get_lily_count() > 0,
+		"lily=%d" % water.get_lily_count())
+	_assert("decor_duckweed_bounded", water.get_duckweed_count() <= 2400)
+	_assert("decor_lily_bounded", water.get_lily_count() <= 360)
+	# Sans eau : le décor disparaît.
+	water.set_water_level(-1.0)
+	_assert("decor_cleared", water.get_duckweed_count() == 0 and water.get_lily_count() == 0)
 
 # ===========================================================================
 # Le sol expose ses hauteurs par case

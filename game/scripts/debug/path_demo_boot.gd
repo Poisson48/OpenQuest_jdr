@@ -22,7 +22,7 @@ func _ready() -> void:
 	map["focusMode"] = "paths"
 	map["vegetationEnabled"] = false
 	map["terrainDetail"] = 2
-	map["lighting"] = {"enabled": true, "preset": "tiny_glade", "sources": []}
+	map["lighting"] = {"enabled": true, "preset": "performance", "sources": []}
 	md.update_map(map)
 	md.preview_map_id = map_id
 

@@ -36,6 +36,17 @@ const NIGHT_TINT := Color(0.28, 0.34, 0.46)
 const BASE_ALPHA := 0.78
 const ALPHA_DEPTH := 0.10
 
+## Décor de surface (lentilles d'eau + nénuphars), posé sur le plan d'eau.
+## Densités (probabilité par case immergée) et bornes de performance.
+const DUCKWEED_COLOR := Color(0.30, 0.54, 0.25)
+const LILY_PAD_COLOR := Color(0.16, 0.42, 0.20)
+const DUCKWEED_DENSITY := 0.26
+const LILY_DENSITY := 0.05
+const DUCKWEED_MAX := 2400
+const LILY_MAX := 360
+## Profondeur (en cases) en-deçà de laquelle un nénuphar peut pousser (rive).
+const LILY_SHALLOW_DEPTH := 0.22
+
 var _mesh_instance: MeshInstance3D
 var _material: ShaderMaterial
 var _depth_texture: ImageTexture = null
@@ -53,9 +64,16 @@ var _submerged_count: int = 0
 var _max_depth: float = 0.0
 ## État du dernier rebuild (pour ignorer les mises à jour sans changement).
 var _has_config: bool = false
+## Décor de surface : lentilles d'eau + nénuphars (MultiMesh pour la perf).
+var _duckweed_mmi: MultiMeshInstance3D
+var _lily_mmi: MultiMeshInstance3D
+var _decor_seed: int = 0
+var _duckweed_count: int = 0
+var _lily_count: int = 0
 
 func _ready() -> void:
 	_ensure_mesh_instance()
+	_ensure_decor()
 
 func _ensure_mesh_instance() -> void:
 	if _mesh_instance != null and is_instance_valid(_mesh_instance):
@@ -75,7 +93,8 @@ func configure(
 	cell_size: float,
 	water_level: float,
 	terrain_heights: Array = [],
-	night_mode: bool = false
+	night_mode: bool = false,
+	decor_seed: int = 0
 ) -> void:
 	var next_heights: Array = terrain_heights if terrain_heights is Array else []
 	var next_level := float(water_level)
@@ -87,7 +106,8 @@ func configure(
 			and is_equal_approx(next_cell, _cell_size) \
 			and is_equal_approx(next_level, _water_level) \
 			and _arrays_equal(next_heights, _terrain_heights) \
-			and night_mode == _night_mode:
+			and night_mode == _night_mode \
+			and decor_seed == _decor_seed:
 		return
 	_map_w = next_w
 	_map_h = next_h
@@ -95,6 +115,7 @@ func configure(
 	_water_level = next_level
 	_terrain_heights = next_heights
 	_night_mode = night_mode
+	_decor_seed = decor_seed
 	_has_config = true
 	_rebuild()
 
@@ -106,6 +127,7 @@ func clear() -> void:
 	_depth_texture = null
 	_depth_image = null
 	_has_config = false
+	_clear_decor()
 	if _mesh_instance != null:
 		_mesh_instance.mesh = null
 		_mesh_instance.visible = false
@@ -218,10 +240,12 @@ func _rebuild() -> void:
 	_mesh_instance.visible = true
 	visible = true
 	_active = true
+	_rebuild_decor()
 
 func _deactivate() -> void:
 	_active = false
 	_submerged_count = 0
+	_clear_decor()
 	if _mesh_instance != null:
 		_mesh_instance.mesh = null
 		_mesh_instance.visible = false
@@ -300,6 +324,164 @@ func _build_material() -> void:
 	_material.set_shader_parameter("foam_strength", 1.0)
 	_material.set_shader_parameter("foam_width", 0.12)
 	_mesh_instance.material_override = _material
+
+# ===========================================================================
+# Décor de surface : lentilles d'eau + nénuphars (MultiMesh, déterministe)
+# ===========================================================================
+
+func _ensure_decor() -> void:
+	if _duckweed_mmi == null or not is_instance_valid(_duckweed_mmi):
+		_duckweed_mmi = MultiMeshInstance3D.new()
+		_duckweed_mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_duckweed_mmi.visible = false
+		add_child(_duckweed_mmi)
+	if _lily_mmi == null or not is_instance_valid(_lily_mmi):
+		_lily_mmi = MultiMeshInstance3D.new()
+		_lily_mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_lily_mmi.visible = false
+		add_child(_lily_mmi)
+
+func _clear_decor() -> void:
+	_duckweed_count = 0
+	_lily_count = 0
+	if _duckweed_mmi != null and is_instance_valid(_duckweed_mmi):
+		_duckweed_mmi.multimesh = null
+		_duckweed_mmi.visible = false
+	if _lily_mmi != null and is_instance_valid(_lily_mmi):
+		_lily_mmi.multimesh = null
+		_lily_mmi.visible = false
+
+## Nombre de lentilles d'eau posées (0 si pas d'eau ou pas de décor).
+func get_duckweed_count() -> int:
+	return _duckweed_count
+
+## Nombre de nénuphars posés (0 si pas d'eau ou pas de décor).
+func get_lily_count() -> int:
+	return _lily_count
+
+func _rebuild_decor() -> void:
+	_ensure_decor()
+	_duckweed_count = 0
+	_lily_count = 0
+	if _water_level <= NO_WATER_LEVEL + 0.001 or _submerged_count == 0:
+		_clear_decor()
+		return
+	var surface_y := get_surface_y()
+	var cell := _cell_size
+	var off := cell * 0.02
+	var duck: Array[Transform3D] = []
+	var lilies: Array[Transform3D] = []
+	var shallow_cells: Array = []
+	for cy in range(_map_h):
+		for cx in range(_map_w):
+			var h := get_cell_height(cx, cy)
+			if h >= _water_level - WATER_EPSILON:
+				continue
+			var depth := _water_level - h
+			if depth <= LILY_SHALLOW_DEPTH:
+				shallow_cells.append(Vector2i(cx, cy))
+			var r1 := _hash01(cx, cy, _decor_seed * 3 + 1)
+			var r2 := _hash01(cx, cy, _decor_seed * 3 + 2)
+			var r3 := _hash01(cx, cy, _decor_seed * 3 + 3)
+			# Lentilles d'eau : petites pastilles vertes, parfois en grappes.
+			if r1 < DUCKWEED_DENSITY and duck.size() < DUCKWEED_MAX:
+				var cluster := 1 + int(r2 * 3.0)
+				for k in range(cluster):
+					var jx := _hash01(cx, cy, _decor_seed * 5 + 11 + k)
+					var jz := _hash01(cx, cy, _decor_seed * 5 + 17 + k)
+					var px := (float(cx) + jx) * cell
+					var pz := (float(cy) + jz) * cell
+					var radius := lerpf(0.05, 0.11, _hash01(cx, cy, _decor_seed * 7 + k)) * cell
+					var yaw := _hash01(cx, cy, _decor_seed * 7 + 31 + k) * TAU
+					duck.append(Transform3D(
+						Basis(Vector3.UP, yaw).scaled(Vector3.ONE * radius),
+						Vector3(px, surface_y + off, pz)))
+			# Nénuphars : larges feuilles sur les eaux peu profondes (rive).
+			if depth <= LILY_SHALLOW_DEPTH and r2 < LILY_DENSITY and lilies.size() < LILY_MAX:
+				var radius := lerpf(0.16, 0.26, r3) * cell
+				var yaw := _hash01(cx, cy, _decor_seed * 7 + 5) * TAU
+				lilies.append(Transform3D(
+					Basis(Vector3.UP, yaw).scaled(Vector3.ONE * radius),
+					Vector3((float(cx) + 0.5) * cell, surface_y + off, (float(cy) + 0.5) * cell)))
+	# Garantie déterministe : s'il y a des hauts-fonds mais aucun nénuphar,
+	# on en place un seul au « meilleur » emplacement (évite un étang vide).
+	if lilies.is_empty() and not shallow_cells.is_empty() and _map_w > 0:
+		var pick: Vector2i = shallow_cells[0]
+		var best := -1.0
+		for cand in shallow_cells:
+			var cc: Vector2i = cand
+			var score := _hash01(cc.x, cc.y, _decor_seed * 7 + 5)
+			if score > best:
+				best = score
+				pick = cc
+		var radius := lerpf(0.16, 0.24, best) * cell
+		var yaw := _hash01(pick.x, pick.y, _decor_seed * 11 + 2) * TAU
+		lilies.append(Transform3D(
+			Basis(Vector3.UP, yaw).scaled(Vector3.ONE * radius),
+			Vector3((float(pick.x) + 0.5) * cell, surface_y + off, (float(pick.y) + 0.5) * cell)))
+	_set_multimesh(_duckweed_mmi, duck, DUCKWEED_COLOR)
+	_set_multimesh(_lily_mmi, lilies, LILY_PAD_COLOR)
+	_duckweed_count = duck.size()
+	_lily_count = lilies.size()
+
+func _set_multimesh(mmi: MultiMeshInstance3D, transforms: Array[Transform3D], color: Color) -> void:
+	if transforms.is_empty():
+		mmi.multimesh = null
+		mmi.visible = false
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _disc_mesh()
+	mm.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		mm.set_instance_transform(i, transforms[i])
+	mmi.multimesh = mm
+	if mmi.material_override == null or not (mmi.material_override is StandardMaterial3D):
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mmi.material_override = mat
+	(mmi.material_override as StandardMaterial3D).albedo_color = color
+	mmi.visible = true
+
+## Pastille plate (disque) de rayon 1, face +Y — mise à l'échelle par instance.
+var _disc_mesh_cache: ArrayMesh = null
+func _disc_mesh() -> ArrayMesh:
+	if _disc_mesh_cache != null:
+		return _disc_mesh_cache
+	const SEGMENTS := 12
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	verts.append(Vector3.ZERO)
+	normals.append(Vector3.UP)
+	uvs.append(Vector2(0.5, 0.5))
+	for i in range(SEGMENTS):
+		var a := TAU * float(i) / float(SEGMENTS)
+		verts.append(Vector3(cos(a), 0.0, sin(a)))
+		normals.append(Vector3.UP)
+		uvs.append(Vector2(0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)))
+	for i in range(SEGMENTS):
+		indices.append(0)
+		indices.append(1 + ((i + 1) % SEGMENTS))
+		indices.append(1 + i)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	_disc_mesh_cache = ArrayMesh.new()
+	_disc_mesh_cache.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return _disc_mesh_cache
+
+## Hash déterministe 0..1, stable d'un rebuild à l'autre pour une même graine.
+func _hash01(x: int, y: int, seed: int) -> float:
+	var n: int = (x * 73856093) ^ (y * 19349663) ^ (seed * 83492791)
+	n = (n ^ (n >> 13)) & 0xffffffff
+	n = (n * 1274126177) & 0x7fffffff
+	return float(n) / 2147483647.0
 
 ## Vrai si deux tableaux plats ont le même contenu.
 func _arrays_equal(a: Array, b: Array) -> bool:

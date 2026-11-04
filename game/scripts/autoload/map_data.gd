@@ -25,7 +25,7 @@ const DEFAULT_GRID_CONFIG := {
 	"color": "#ffffff",
 	"enabled": true,
 }
-const LIGHTING_PRESET_ORDER := ["jour", "matin", "coucher", "nuit", "donjon", "tiny_glade"]
+const LIGHTING_PRESET_ORDER := ["jour", "matin", "coucher", "nuit", "donjon", "tiny_glade", "performance"]
 const LIGHTING_PRESETS := {
 	"jour": {
 		"label": "☀ Jour clair", "sunColor": "#fff1d8", "sunEnergy": 1.25,
@@ -77,6 +77,16 @@ const LIGHTING_PRESETS := {
 		"volumetricColor": "#fff1de", "ambientFromSky": true,
 		"skyContribution": 0.7, "aerial": 0.35, "sunScatter": 0.18,
 		"shadowAngular": 1.3, "fogLightEnergy": 1.0,
+	},
+	"performance": {
+		# Léger : désactive GI/SSR/SSIL/brume volumétrique (coûteux sur GPU),
+		# conserve une lumière propre et un léger glow. Pour les grosses cartes.
+		"label": "⚡ Performance", "sunColor": "#fff1d8", "sunEnergy": 1.12,
+		"sunAngle": -58.0, "sunYaw": 38.0, "ambientColor": "#aebed2",
+		"ambientEnergy": 0.56, "background": "#10151c", "exposure": 1.0,
+		"fogDensity": 0.0, "glow": 0.20,
+		"gi": false, "ssil": false, "ssr": false, "volumetricFog": false,
+		"saturation": 1.0, "brightness": 1.02, "contrast": 1.02,
 	},
 }
 const DEFAULT_LIGHTING_CONFIG := {
