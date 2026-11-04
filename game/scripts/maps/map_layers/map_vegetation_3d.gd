@@ -22,10 +22,13 @@ const TUFT_DENSITY := 0.85
 const FLOWER_DENSITY := 0.18
 ## Densité de buissons par case d'herbe (0..1).
 const BUSH_DENSITY := 0.16
+## Densité de feuilles mortes au sol par case d'herbe (0..1).
+const LEAF_DENSITY := 0.30
 ## Garde-fou de performance : nombre max d'instances par catégorie.
 const MAX_TUFTS := 5000
 const MAX_FLOWERS := 1800
 const MAX_BUSHES := 900
+const MAX_LEAVES := 3200
 const MATERIAL_GRASS := 0
 ## Teinte de nuit (même logique que le sol).
 const NIGHT_TINT := Color(0.40, 0.44, 0.58)
@@ -51,6 +54,14 @@ const BUSH_COLORS := [
 	Color(0.30, 0.46, 0.20),
 	Color(0.36, 0.52, 0.24),
 	Color(0.26, 0.42, 0.18),
+]
+## Couleurs d'instance des feuilles mortes (automne : brun, ocre, rouille).
+const LEAF_COLORS := [
+	Color(0.62, 0.42, 0.16),
+	Color(0.74, 0.52, 0.18),
+	Color(0.56, 0.32, 0.12),
+	Color(0.70, 0.60, 0.22),
+	Color(0.50, 0.38, 0.14),
 ]
 
 ## Shader inline : albédo unshaded + vent (balancement par instance).
@@ -79,14 +90,17 @@ void fragment() {
 var _tuft_instance: MultiMeshInstance3D
 var _flower_instance: MultiMeshInstance3D
 var _bush_instance: MultiMeshInstance3D
+var _leaf_instance: MultiMeshInstance3D
 var _material: ShaderMaterial
 var _tuft_mesh: ArrayMesh
 var _flower_mesh: ArrayMesh
 var _bush_mesh: Mesh
+var _leaf_mesh: ArrayMesh
 var _active: bool = false
 var _tuft_count: int = 0
 var _flower_count: int = 0
 var _bush_count: int = 0
+var _leaf_count: int = 0
 var _map_w: int = 0
 var _map_h: int = 0
 var _cell_size: float = 1.0
@@ -114,6 +128,11 @@ func _ensure_instances() -> void:
 	_bush_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_bush_instance.visible = false
 	add_child(_bush_instance)
+	_leaf_instance = MultiMeshInstance3D.new()
+	_leaf_instance.name = "LeafLitter"
+	_leaf_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_leaf_instance.visible = false
+	add_child(_leaf_instance)
 
 ## Configure la végétation (no-op si paramètres identiques).
 ## `heights` : tableau plat de hauteurs en cases ; `materials` : IDs de matière ;
@@ -163,9 +182,9 @@ func set_night_mode(on: bool) -> void:
 func is_active() -> bool:
 	return _active
 
-## Nombre total d'instances (touffes + fleurs + buissons).
+## Nombre total d'instances (touffes + fleurs + buissons + feuilles).
 func get_vegetation_count() -> int:
-	return _tuft_count + _flower_count + _bush_count
+	return _tuft_count + _flower_count + _bush_count + _leaf_count
 
 func get_tuft_count() -> int:
 	return _tuft_count
@@ -175,6 +194,9 @@ func get_flower_count() -> int:
 
 func get_bush_count() -> int:
 	return _bush_count
+
+func get_leaf_count() -> int:
+	return _leaf_count
 
 func get_tuft_multimesh() -> MultiMesh:
 	if _tuft_instance == null:
@@ -191,6 +213,11 @@ func get_bush_multimesh() -> MultiMesh:
 		return null
 	return _bush_instance.multimesh
 
+func get_leaf_multimesh() -> MultiMesh:
+	if _leaf_instance == null:
+		return null
+	return _leaf_instance.multimesh
+
 func get_material() -> ShaderMaterial:
 	return _material
 
@@ -202,6 +229,7 @@ func clear() -> void:
 	_tuft_count = 0
 	_flower_count = 0
 	_bush_count = 0
+	_leaf_count = 0
 	if _tuft_instance != null and is_instance_valid(_tuft_instance):
 		_tuft_instance.multimesh = null
 		_tuft_instance.visible = false
@@ -211,6 +239,9 @@ func clear() -> void:
 	if _bush_instance != null and is_instance_valid(_bush_instance):
 		_bush_instance.multimesh = null
 		_bush_instance.visible = false
+	if _leaf_instance != null and is_instance_valid(_leaf_instance):
+		_leaf_instance.multimesh = null
+		_leaf_instance.visible = false
 	visible = false
 
 ## Mise à jour rapide de la nuit sans reconstruire.
@@ -230,6 +261,8 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	var flower_colors: Array = []
 	var bush_transforms: Array = []
 	var bush_colors: Array = []
+	var leaf_transforms: Array = []
+	var leaf_colors: Array = []
 	for y in range(_map_h):
 		for x in range(_map_w):
 			var idx := y * _map_w + x
@@ -286,18 +319,35 @@ func _rebuild(heights: Array, materials: Array) -> void:
 				bush_transforms.append(Transform3D(
 					bbasis, base + bj + Vector3(0.0, bradius * 0.85, 0.0)))
 				bush_colors.append(BUSH_COLORS[int(_hash01(x, y, 37) * BUSH_COLORS.size()) % BUSH_COLORS.size()])
+			# Feuilles mortes : petites feuilles plates posées au sol.
+			if _hash01(x, y, 41) < LEAF_DENSITY and leaf_transforms.size() < MAX_LEAVES:
+				var lj := Vector3(
+					(_hash01(x, y, 42) - 0.5) * _cell_size * 0.9,
+					0.0,
+					(_hash01(x, y, 43) - 0.5) * _cell_size * 0.9
+				)
+				var lscale := 0.10 + _hash01(x, y, 44) * 0.12
+				var lbasis := Basis(Vector3.UP, _hash01(x, y, 45) * TAU).scaled(
+					Vector3(lscale, lscale, lscale))
+				leaf_transforms.append(Transform3D(
+					lbasis, base + lj + Vector3(0.0, _cell_size * 0.015, 0.0)))
+				leaf_colors.append(LEAF_COLORS[int(_hash01(x, y, 46) * LEAF_COLORS.size()) % LEAF_COLORS.size()])
 	_tuft_count = tuft_transforms.size()
 	_flower_count = flower_transforms.size()
 	_bush_count = bush_transforms.size()
+	_leaf_count = leaf_transforms.size()
 	if _tuft_mesh == null:
 		_tuft_mesh = _make_tuft_mesh(_cell_size)
 	if _flower_mesh == null:
 		_flower_mesh = _make_flower_mesh(_cell_size)
 	if _bush_mesh == null:
 		_bush_mesh = _make_bush_mesh(_cell_size)
+	if _leaf_mesh == null:
+		_leaf_mesh = _make_leaf_mesh(_cell_size)
 	_apply_multimesh(_tuft_instance, tuft_transforms, tuft_colors, _tuft_mesh)
 	_apply_multimesh(_flower_instance, flower_transforms, flower_colors, _flower_mesh)
 	_apply_multimesh(_bush_instance, bush_transforms, bush_colors, _bush_mesh)
+	_apply_multimesh(_leaf_instance, leaf_transforms, leaf_colors, _leaf_mesh)
 	_active = get_vegetation_count() > 0
 	visible = _active
 	if _active:
@@ -306,6 +356,7 @@ func _rebuild(heights: Array, materials: Array) -> void:
 		_tuft_instance.visible = false
 		_flower_instance.visible = false
 		_bush_instance.visible = false
+		_leaf_instance.visible = false
 
 func _apply_multimesh(
 	instance: MultiMeshInstance3D,
@@ -387,6 +438,32 @@ func _make_bush_mesh(cell: float) -> Mesh:
 	sphere.radial_segments = 10
 	sphere.rings = 5
 	return sphere
+
+## Feuille morte : petit losange plat posé au sol (couleur = couleur d'instance).
+func _make_leaf_mesh(cell: float) -> ArrayMesh:
+	var r := cell * 0.16
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(0.0, 0.0))
+	st.add_vertex(Vector3(0.0, 0.0, -r))
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(1.0, 0.0))
+	st.add_vertex(Vector3(r, 0.0, 0.0))
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(1.0, 1.0))
+	st.add_vertex(Vector3(0.0, 0.0, r))
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(0.0, 0.0))
+	st.add_vertex(Vector3(0.0, 0.0, -r))
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(1.0, 1.0))
+	st.add_vertex(Vector3(0.0, 0.0, r))
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(0.0, 1.0))
+	st.add_vertex(Vector3(-r, 0.0, 0.0))
+	st.generate_normals()
+	return st.commit()
 
 func _add_quad(
 	st: SurfaceTool,

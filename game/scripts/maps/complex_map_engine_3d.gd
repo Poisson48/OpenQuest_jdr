@@ -949,14 +949,15 @@ func get_vegetation_count() -> int:
 		return 0
 	return int(_vegetation_layer.get_vegetation_count())
 
-## Détail (tests/captures) : touffes, fleurs et buissons séparément.
+## Détail (tests/captures) : touffes, fleurs, buissons et feuilles séparément.
 func get_vegetation_counts() -> Dictionary:
 	if _vegetation_layer == null or not is_instance_valid(_vegetation_layer):
-		return {"tufts": 0, "flowers": 0, "bushes": 0}
+		return {"tufts": 0, "flowers": 0, "bushes": 0, "leaves": 0}
 	return {
 		"tufts": int(_vegetation_layer.get_tuft_count()) if _vegetation_layer.has_method("get_tuft_count") else 0,
 		"flowers": int(_vegetation_layer.get_flower_count()) if _vegetation_layer.has_method("get_flower_count") else 0,
 		"bushes": int(_vegetation_layer.get_bush_count()) if _vegetation_layer.has_method("get_bush_count") else 0,
+		"leaves": int(_vegetation_layer.get_leaf_count()) if _vegetation_layer.has_method("get_leaf_count") else 0,
 	}
 
 # ===========================================================================

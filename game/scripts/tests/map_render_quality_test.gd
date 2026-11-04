@@ -45,6 +45,7 @@ func _run() -> void:
 	_assert("render_vegetation", engine.is_vegetation_active())
 	var veg_counts: Dictionary = engine.get_vegetation_counts()
 	_assert("render_vegetation_tufts", int(veg_counts.get("tufts", 0)) > 0)
+	_assert("render_vegetation_leaves", int(veg_counts.get("leaves", 0)) > 0)
 	_assert("render_vegetation_total", engine.get_vegetation_count() > 40)
 	var veg_layer = engine._vegetation_layer
 	_assert("render_vegetation_layer", veg_layer != null)
