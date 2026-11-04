@@ -353,7 +353,7 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		var path_tex := _get_path_texture()
 		if path_tex != null:
 			material.albedo_texture = path_tex
-			material.albedo_color = Color(1.0, 1.0, 1.0, 0.92)
+			material.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
 			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		else:
@@ -611,8 +611,8 @@ func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 		var right := samples[i] - normal * width * 0.5 * wr
 		var lw := center + Vector2(0.5, 0.5) + left
 		var rw := center + Vector2(0.5, 0.5) + right
-		var ly := _terrain_surface_height_at(lw.x, lw.y) + 0.06
-		var ry := _terrain_surface_height_at(rw.x, rw.y) + 0.06
+		var ly := _terrain_surface_height_at(lw.x, lw.y) + 0.05
+		var ry := _terrain_surface_height_at(rw.x, rw.y) + 0.05
 		var lpos := Vector3(left.x, ly, left.y)
 		var rpos := Vector3(right.x, ry, right.y)
 		if i > 0:
@@ -641,7 +641,7 @@ func _add_path_tri(st: SurfaceTool, pl: Vector3, pr: Vector3, l: Vector3, r: Vec
 func _get_path_texture() -> Texture2D:
 	if _path_texture_cache != null:
 		return _path_texture_cache
-	var path := "res://assets/terrain/dirt_ai.png"
+	var path := "res://assets/terrain/path_ribbon.png"
 	var abs_path := ProjectSettings.globalize_path(path)
 	if FileAccess.file_exists(abs_path):
 		var img := Image.new()

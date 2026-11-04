@@ -505,14 +505,7 @@ func _build_ui() -> void:
 	help_btn.tooltip_text = "Aide des raccourcis et de la navigation 3D."
 	help_btn.pressed.connect(func(): help_requested.emit())
 	action_row.add_child(help_btn)
-	var blender_btn := Button.new()
-	blender_btn.text = "🧱 Patch Blender"
-	blender_btn.theme_type_variation = &"GhostButton"
-	blender_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	blender_btn.custom_minimum_size = Vector2(0, 30)
-	blender_btn.tooltip_text = "Génère le dernier tracé en patch haute qualité avec Blender (Geometry Nodes). Blender doit être installé."
-	blender_btn.pressed.connect(func(): blender_patch_requested.emit())
-	add_child(blender_btn)
+
 
 	_focus_check = CheckButton.new()
 	_focus_check.text = "Mode chemins (palette réduite)"

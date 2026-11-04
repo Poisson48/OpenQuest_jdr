@@ -65,18 +65,7 @@ func _ready() -> void:
 	editor._construction._paint_path_terrain([
 		Vector2(13.5, 5.0), Vector2(16.0, 5.5), Vector2(18.0, 7.0),
 	])
-	# Deuxième chemin supprimé : le patch Blender occupe la zone basse pour
-	# éviter qu'un chemin 3D traverse un chemin de terre.
-	# Preuve du pipeline Blender : patch complet chemin + herbe Geometry Nodes.
-	var blender_path := "res://assets/objects3d/terrain/path_generated_demo.glb"
-	if ResourceLoader.exists(blender_path):
-		editor.doc.add_element({
-			"x": 12.0, "y": 12.5, "w": 11.0, "h": 7.0,
-			"asset": blender_path, "elevation": 0.02,
-			"followTerrain": true, "tiltToTerrain": false,
-			"label": "Chemin + herbe Blender", "layer": 1,
-			"display": {"rotation": 0.0, "scale": 1.2},
-		}, "mesh", "Chemin + herbe Blender")
+	# Démo 100 % Godot : pas de patch Blender posé par-dessus le terrain.
 	editor.doc.clear_selection()
 	editor._sync_engine()
 	editor._engine.focus_grid_rect(Rect2(5.0, 4.0, 14.0, 10.0))
