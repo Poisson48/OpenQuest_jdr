@@ -66,7 +66,7 @@ func _ready() -> void:
 		Vector2(13.5, 5.0), Vector2(16.0, 5.5), Vector2(18.0, 7.0),
 	])
 	# Preuve du pipeline Blender : patch complet chemin + herbe Geometry Nodes.
-	var blender_path := "res://assets/objects3d/terrain/path_through_grass.glb"
+	var blender_path := "res://assets/objects3d/terrain/path_generated_demo.glb"
 	if ResourceLoader.exists(blender_path):
 		editor.doc.add_element({
 			"x": 12.0, "y": 8.0, "w": 11.0, "h": 7.0,
