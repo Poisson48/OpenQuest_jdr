@@ -836,6 +836,13 @@ func _paint_path_terrain(raw_points: Array) -> void:
 		material = DocumentScript.MATERIAL_STONE
 	_ed.doc.begin_transaction()
 	var restore: Dictionary = _ed.doc.carve_path(curve, width, _ed._proc_path_depth, "Chemin")
+	# Empilement des rubans : un chemin peint par-dessus un autre doit passer
+	# AU-DESSUS (sinon les deux rubans sont coplanaires → z-fighting et le
+	# nouveau finit sous l'ancien). On compte les chemins déjà posés.
+	var path_stack := 0
+	for elem in _ed.doc.elements():
+		if str(elem.get("asset", "")).begins_with("procedural://path"):
+			path_stack += 1
 	# Ruban 3D cuit en coordonnées monde : UV le long du tracé, bords alpha
 	# irréguliers, posé au ras du terrain. Source unique de la surface visible
 	# (le creux reste en herbe sous les bords transparents du ruban).
@@ -846,6 +853,7 @@ func _paint_path_terrain(raw_points: Array) -> void:
 		"width": width,
 		"material": material,
 		"seed": _ed._scene_seed + 31,
+		"pathStack": path_stack,
 		"terrain_restore": restore,
 		"label": "Chemin",
 		"layer": 1,

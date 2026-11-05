@@ -587,6 +587,11 @@ func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 	var detail := clampi(_path_detail_for(mesh), 1, 4)
 	var seed := int(mesh.get("seed", 1))
 	var tile_length := 2.0
+	# Empilement vertical des chemins : les rubans coplanaires provoquent du
+	# z-fighting (le chemin peint en dernier pouvait passer SOUS le premier).
+	# Chaque chemin successif monte de 2 cm, imperceptible mais décisif pour
+	# le test de profondeur.
+	var path_lift := 0.035 + float(int(mesh.get("pathStack", 0))) * 0.02
 
 	var samples: Array[Vector2] = []
 	for i in range(raw_points.size() - 1):
@@ -627,7 +632,7 @@ func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 			var w := _grid_point_to_world(p)
 			# Le maillage rendu du terrain a ses sommets aux COINS des cases :
 			# un point de grille `p` (centre de case) est donc au coin `p + 0.5`.
-			var h := _terrain_surface_height_at(p.x + 0.5, p.y + 0.5) * _cell_size + 0.035
+			var h := _terrain_surface_height_at(p.x + 0.5, p.y + 0.5) * _cell_size + path_lift
 			cross.append({"pos": Vector3(w.x, h, w.y), "s": t})
 		if i > 0:
 			for a in range(PATH_ACROSS - 1):
