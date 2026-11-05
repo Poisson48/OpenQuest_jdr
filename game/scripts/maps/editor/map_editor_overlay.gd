@@ -717,6 +717,32 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 			return {"id": id, "kind": "resize", "corner": i}
 	return {}
 
+## Tous les éléments sous un point écran (visibles, sélectionnables), du plus
+## haut au plus bas de la pile, éventuellement filtrés par calque. Sert au
+## sélecteur « quel objet ? » quand plusieurs objets se superposent.
+func elements_at_screen(pos: Vector2, layer_id: int = -1, tolerance: float = 6.0) -> Array:
+	if doc == null:
+		return []
+	var out: Array = []
+	var sorted: Array = doc.elements_sorted()
+	for i in range(sorted.size() - 1, -1, -1):
+		var elem: Dictionary = sorted[i]
+		if layer_id >= 0 and int(elem.get("layer", 0)) != layer_id:
+			continue
+		if not doc.is_element_visible(elem) or not doc.is_element_selectable(elem):
+			continue
+		var id := str(elem.get("id", ""))
+		var pts := _footprint(elem)
+		if pts.is_empty():
+			continue
+		if Geometry2D.is_point_in_polygon(pos, pts):
+			out.append(id)
+		else:
+			var center := _p(float(elem.get("x", 0.0)), float(elem.get("y", 0.0)))
+			if center.distance_to(pos) <= tolerance + 8.0:
+				out.append(id)
+	return out
+
 ## Élément le plus « au-dessus » sous un point écran (ordre de calque inversé).
 ## Préfère l'empreinte polygonale ; le voisinage du centre ne sert qu'en secours
 ## (petits tokens) pour ne pas voler un hit polygone plus bas dans la pile.

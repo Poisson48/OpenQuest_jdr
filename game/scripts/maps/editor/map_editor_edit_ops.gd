@@ -199,7 +199,14 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 			_start_move_drag(movable)
 			return
 
-	var hit: String = _ed._overlay.element_at_screen(screen)
+	var candidates: Array = _ed._overlay.elements_at_screen(screen, _ed._select_target)
+	if candidates.size() > 1 and not additive:
+		# Plusieurs objets empilés sous le curseur : proposer lequel prendre.
+		_ed._open_select_picker(candidates)
+		_ed._press_mode = "none"
+		_ed._refresh_overlay()
+		return
+	var hit: String = str(candidates[0]) if not candidates.is_empty() else ""
 	if hit.is_empty():
 		var blocked: String = _ed._overlay.blocked_element_at_screen(screen)
 		if not blocked.is_empty() and not additive:

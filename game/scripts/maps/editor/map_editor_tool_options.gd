@@ -611,6 +611,28 @@ func _rebuild_tool_options() -> void:
 	elif _ed._tool == ToolsScript.FOG_REVEAL or _ed._tool == ToolsScript.FOG_HIDE:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._fog_brush), 1, func(v): _ed._fog_brush = int(v))
+	elif _ed._tool == ToolsScript.SELECT:
+		var sel_opt := OptionButton.new()
+		sel_opt.add_item("Tous les calques", -1)
+		sel_opt.set_item_metadata(0, -1)
+		var sel_index := 0
+		var layers: Array = _ed.doc.map_data.get("layers", [])
+		for i in range(layers.size()):
+			var layer_def: Dictionary = layers[i]
+			var layer_id := int(layer_def.get("id", -1))
+			var layer_name := str(layer_def.get("name", "Calque %d" % layer_id))
+			sel_opt.add_item(layer_name, layer_id)
+			sel_opt.set_item_metadata(i + 1, layer_id)
+			if layer_id == _ed._select_target:
+				sel_index = i + 1
+		sel_opt.select(sel_index)
+		sel_opt.item_selected.connect(func(index):
+			_ed._select_target = int(sel_opt.get_item_metadata(index))
+			_ed._set_status("Sélection : %s." % sel_opt.get_item_text(index))
+		)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Calque", sel_opt)
+		_option_note("Cliquez un objet. Calque ciblé : ne sélectionne que ce calque. Plusieurs objets superposés : un menu propose lequel prendre.")
 	elif _ed._tool == ToolsScript.ERASE:
 		var target_opt := OptionButton.new()
 		target_opt.add_item("Tout effacer", -1)

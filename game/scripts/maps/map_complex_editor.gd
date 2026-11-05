@@ -83,6 +83,9 @@ var _material_radius: float = 1.5
 var _fog_brush: int = 1
 ## Gomme ciblée : -1 = tout effacer, sinon id du calque à effacer.
 var _erase_target: int = -1
+## Sélection ciblée : -1 = tous les calques, sinon id du calque à sélectionner.
+var _select_target: int = -1
+var _select_picker: PopupMenu = null
 var _paint_tile: String = ""
 var _selected_template: String = ""
 var _area_category: String = "building"
@@ -1852,6 +1855,34 @@ func _close_polygon() -> void:
 	}, DocumentScript.KIND_ZONE, "Zone libre")
 	doc.select_only(id)
 	_sync_engine()
+
+## Plusieurs objets superposés : petit menu pour choisir celui à sélectionner.
+func _open_select_picker(ids: Array) -> void:
+	if _select_picker == null:
+		_select_picker = PopupMenu.new()
+		add_child(_select_picker)
+		_select_picker.id_pressed.connect(_on_select_picker_chosen)
+	_select_picker.clear()
+	for i in range(ids.size()):
+		var elem: Dictionary = doc.get_element(str(ids[i]))
+		var label := str(elem.get("label", ""))
+		if label.is_empty():
+			label = str(elem.get("kind", "Élément"))
+		_select_picker.add_item("%d. %s" % [i + 1, label], i)
+	_select_picker.set_meta("candidate_ids", ids.duplicate())
+	if is_inside_tree() and get_viewport() != null:
+		_select_picker.position = Vector2i(get_viewport().get_mouse_position())
+	_select_picker.popup()
+
+func _on_select_picker_chosen(index: int) -> void:
+	if _select_picker == null:
+		return
+	var ids: Array = _select_picker.get_meta("candidate_ids", [])
+	if index < 0 or index >= ids.size():
+		return
+	doc.select_only(str(ids[index]))
+	_refresh_overlay()
+	_set_status("Objet sélectionné : %s." % str(doc.get_element(str(ids[index])).get("label", "")))
 
 func _erase_at(screen: Vector2) -> void:
 	var hit: String = _overlay.element_at_screen_on_layer(screen, _erase_target)
