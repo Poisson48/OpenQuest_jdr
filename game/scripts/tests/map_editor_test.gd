@@ -427,7 +427,7 @@ func _test_editor_ui(base: Dictionary) -> void:
 	await process_frame
 	editor._layout_force = true
 	editor._apply_responsive_layout()
-	_assert("ui_dock_left_wide", editor._dock_left_w >= 150.0 and editor._dock_left_w <= 260.0)
+	_assert("ui_dock_left_wide", editor._dock_left_w >= 40.0 and editor._dock_left_w <= 80.0)
 	_assert("ui_dock_right_wide", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
 	_assert("ui_docks_fit_wide", editor._dock_left_w + editor._dock_right_w < 1280.0 - 120.0)
 	_assert("ui_right_min_w", editor._right_tabs != null and editor._right_tabs.custom_minimum_size.x >= 200.0)
@@ -452,7 +452,7 @@ func _test_editor_ui(base: Dictionary) -> void:
 	await process_frame
 	editor._layout_force = true
 	editor._apply_responsive_layout()
-	_assert("ui_ultrawide_left", editor._dock_left_w >= 150.0 and editor._dock_left_w <= 260.0)
+	_assert("ui_ultrawide_left", editor._dock_left_w >= 40.0 and editor._dock_left_w <= 80.0)
 	_assert("ui_ultrawide_right", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
 	_assert("ui_ultrawide_sum", editor._dock_left_w + editor._dock_right_w < 2560.0 - 280.0)
 	_assert("ui_ultrawide_visible", editor._right_tabs.visible and editor._left_scroll.visible)

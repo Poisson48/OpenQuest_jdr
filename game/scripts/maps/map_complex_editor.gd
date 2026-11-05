@@ -355,6 +355,15 @@ func _bind_ui() -> void:
 	_right_tabs = %RightTabs
 	_right_scroll = null
 	_move_tool_options_to_top()
+	# Colonne de gauche épurée (plan) : icônes seules. Aimantation et mini-carte
+	# sortent de la colonne (grille/magnétisme restent dans l'onglet Carte).
+	for path in ["%LblSnap", "%SnapOption", "%LblMinimap", "%MinimapHost"]:
+		var legacy := get_node_or_null(path)
+		if legacy is CanvasItem:
+			(legacy as CanvasItem).visible = false
+	var action_scroll := get_node_or_null("%ActionBarScroll")
+	if action_scroll is Control:
+		(action_scroll as Control).custom_minimum_size = Vector2(0, 48)
 	_fps_lbl = Label.new()
 	_fps_lbl.text = "FPS —"
 	_fps_lbl.add_theme_font_size_override("font_size", 11)
@@ -762,28 +771,14 @@ func _apply_responsive_layout() -> void:
 			and absf(total_h - _layout_applied_size.y) < 6.0:
 		return
 
-	# Ratios de la largeur COURANTE — bornes qui restent valides en ultrawide
-	# (2560×1080) comme en 16:10 / 3:2 / fenêtre étroite.
-	var left_w := clampf(total * 0.14, 150.0, 260.0)
-	var right_w := clampf(total * 0.20, 200.0, 380.0)
-	if total < 1400.0:
-		left_w = clampf(total * 0.15, 150.0, 230.0)
-		right_w = clampf(total * 0.22, 190.0, 320.0)
-	if total < 1100.0:
-		left_w = clampf(total * 0.16, 140.0, 200.0)
-		right_w = clampf(total * 0.24, 180.0, 280.0)
-	if total < 900.0:
-		left_w = clampf(total * 0.18, 130.0, 170.0)
-		right_w = clampf(total * 0.26, 160.0, 230.0)
-
-	# Écrans courts (ultrawide bas, 16:10 laptop) : docks un peu plus étroits
-	# pour laisser de la hauteur utile au viewport central.
-	if total_h > 0.0 and total_h < 720.0:
-		left_w = minf(left_w, 200.0)
-		right_w = minf(right_w, 280.0)
-	if total_h > 0.0 and total_h < 600.0:
-		left_w = minf(left_w, 170.0)
-		right_w = minf(right_w, 220.0)
+	# Dimensions fixes du plan « Cartographer's Desk » : barre d'outils 52 px,
+	# inspecteur 310 px. On resserre seulement en fenêtre étroite.
+	var left_w := 56.0
+	var right_w := 310.0
+	if total < 1200.0:
+		right_w = 260.0
+	if total < 1000.0:
+		right_w = 220.0
 
 	# Toujours laisser de la place au centre + aux deux docks.
 	var min_center := clampf(total * 0.28, 120.0, 280.0)
@@ -1253,24 +1248,44 @@ func _set_path_focus(on: bool) -> void:
 func _rebuild_palette_v2() -> void:
 	if _palette_v2 == null:
 		return
-	var focus_tools: Array = [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]
 	var groups: Array = []
-	for group in ToolsScript.GROUP_ORDER:
-		var tools: Array = []
-		for def in ToolsScript.defs_in_group(group):
-			var tool_id := str(def["id"])
-			if _path_focus and not focus_tools.has(tool_id):
-				continue
-			tools.append({
-				"id": tool_id,
-				"icon": str(def["icon"]),
-				"label": str(def["label"]),
-				"shortcut": str(def.get("shortcut", "")),
-			})
-		if not tools.is_empty():
-			groups.append({"title": str(ToolsScript.GROUP_LABELS.get(group, group)), "tools": tools})
+	if _path_focus:
+		groups.append(_group_def("Chemins", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]))
+	else:
+		groups.append(_group_def("Navigation", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE]))
+		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.AREA]))
+		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
+		groups.append(_group_def("Objets", [ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE]))
+		groups.append(_group_def("Avancé", _advanced_tool_ids()))
 	_palette_v2.setup(groups)
 	_palette_v2.set_active(_tool)
+
+func _group_def(title: String, ids: Array) -> Dictionary:
+	var tools: Array = []
+	for tool_id in ids:
+		var def: Dictionary = ToolsScript.get_def(str(tool_id))
+		tools.append({
+			"id": str(tool_id),
+			"icon": str(def.get("icon", "•")),
+			"label": str(def.get("label", tool_id)),
+			"shortcut": str(def.get("shortcut", "")),
+		})
+	return {"title": title, "tools": tools}
+
+func _advanced_tool_ids() -> Array:
+	var main: Array = [
+		ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE,
+		ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT,
+		ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.AREA,
+		ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT,
+		ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE,
+	]
+	var out: Array = []
+	for def in ToolsScript.DEFS:
+		var id := str(def["id"])
+		if not main.has(id):
+			out.append(id)
+	return out
 
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
@@ -2436,8 +2451,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_PAGEDOWN:
 			doc.send_backward()
 			_sync_engine()
-		KEY_F:
-			_focus_selection()
 		KEY_TAB:
 			_toggle_ui(key.shift_pressed)
 		KEY_F11:

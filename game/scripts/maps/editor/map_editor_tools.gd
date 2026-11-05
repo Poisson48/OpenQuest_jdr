@@ -90,23 +90,23 @@ const DEFS := [
 		"hint": "Clic : poser un effet de particules (feu, fumée, magie, pluie).",
 	},
 	{
-		"id": ZONE, "icon": "⭕", "label": "Zone ronde", "shortcut": "4", "group": "place",
+		"id": ZONE, "icon": "⭕", "label": "Zone ronde", "shortcut": "O", "group": "place",
 		"hint": "Clic : poser une zone circulaire (sort, piège, aura).",
 	},
 	{
-		"id": ZONE_RECT, "icon": "▭", "label": "Zone rect.", "shortcut": "5", "group": "place",
+		"id": ZONE_RECT, "icon": "▭", "label": "Zone rect.", "shortcut": "R", "group": "place",
 		"hint": "Clic-glisser : tracer une zone rectangulaire.",
 	},
 	{
-		"id": ZONE_POLY, "icon": "⬡", "label": "Zone libre", "shortcut": "6", "group": "place",
+		"id": ZONE_POLY, "icon": "⬡", "label": "Zone libre", "shortcut": "F", "group": "place",
 		"hint": "Clics successifs : sommets du polygone · Entrée ou clic droit : fermer · Échap : annuler.",
 	},
 	{
-		"id": PLATFORM, "icon": "🟫", "label": "Plateforme", "shortcut": "7", "group": "place",
+		"id": PLATFORM, "icon": "🟫", "label": "Plateforme", "shortcut": "T", "group": "place",
 		"hint": "Clic-glisser : tracer une plateforme surélevée (étage, pont, estrade).",
 	},
 	{
-		"id": WALL, "icon": "🧱", "label": "Mur", "shortcut": "8", "group": "place",
+		"id": WALL, "icon": "🧱", "label": "Mur", "shortcut": "W", "group": "place",
 		"hint": "Clic-glisser : tracer un mur. Maj : contraindre à l'horizontale/verticale.",
 	},
 	{
@@ -178,7 +178,7 @@ const DEFS := [
 		"hint": "Clic-glisser libre : poteaux et lisses générés en un seul mesh le long de la courbe. Hauteur et espacement réglables.",
 	},
 	{
-		"id": PROC_PATH, "icon": "🛤", "label": "Chemin procédural", "shortcut": "", "group": "place",
+		"id": PROC_PATH, "icon": "🛤", "label": "Chemin procédural", "shortcut": "P", "group": "place",
 		"hint": "Clic-glisser libre : chemin continu qui suit le relief, légèrement enfoncé, bords irréguliers. Largeur et creux réglables.",
 	},
 	{
@@ -186,7 +186,7 @@ const DEFS := [
 		"hint": "Clic-glisser comme un pinceau : peint un chemin avec la largeur choisie. Idéal pour tracer rapidement des sentiers et des places.",
 	},
 	{
-		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "", "group": "place",
+		"id": SCATTER, "icon": "🌿", "label": "Végétation", "shortcut": "G", "group": "place",
 		"hint": "Clic-glisser : disperse automatiquement buissons, haies, roseaux, arbres, bosquets ou rochers autour du tracé (densité, taille, rayon). Rotations et échelles variées, sans doublon sur une case, eau évitée, un seul undo par trait.",
 	},
 	{
@@ -214,15 +214,15 @@ const DEFS := [
 		"hint": "Clic : poser une source lumineuse (torche, brasier, lanterne).",
 	},
 	{
-		"id": PROP, "icon": "🏚", "label": "Décor", "shortcut": "P", "group": "place",
+		"id": PROP, "icon": "🏚", "label": "Décor", "shortcut": "", "group": "place",
 		"hint": "Clic : poser le décor sélectionné dans la bibliothèque (bâtiment, charrette, mobilier…). Molette + Maj : agrandir · R : pivoter.",
 	},
 	{
-		"id": MESH, "icon": "🧊", "label": "Objet 3D", "shortcut": "O", "group": "place",
+		"id": MESH, "icon": "🧊", "label": "Objet 3D", "shortcut": "Q", "group": "place",
 		"hint": "Clic : poser l'objet 3D sélectionné (GLB) — bâtiment, tour, pont, rocher. R : pivoter de 90° · Échelle dans les options.",
 	},
 	{
-		"id": AREA, "icon": "🏠", "label": "Lieu", "shortcut": "A", "group": "place",
+		"id": AREA, "icon": "🏠", "label": "Lieu", "shortcut": "J", "group": "place",
 		"hint": "Clic-glisser : délimiter un lieu nommé (taverne, place, sortie). Un lieu peut ouvrir sa propre carte, où l'on place les personnages.",
 	},
 	{
@@ -230,7 +230,7 @@ const DEFS := [
 		"hint": "Clic ou glisser : peindre le terrain avec la tuile sélectionnée. Taille de pinceau réglable.",
 	},
 	{
-		"id": BUCKET, "icon": "🪣", "label": "Remplir", "shortcut": "G", "group": "terrain",
+		"id": BUCKET, "icon": "🪣", "label": "Remplir", "shortcut": "", "group": "terrain",
 		"hint": "Clic : remplir toute la zone contiguë de même tuile.",
 	},
 	{
@@ -246,11 +246,11 @@ const DEFS := [
 		"hint": "Clic ou glisser : peindre la matière du sol (herbe, terre/chemin, pierre). Choix de matière et taille de pinceau dans les options. Seulement en mode sol 3D.",
 	},
 	{
-		"id": FOG_REVEAL, "icon": "🌫", "label": "Révéler", "shortcut": "R", "group": "fog",
+		"id": FOG_REVEAL, "icon": "🌫", "label": "Révéler", "shortcut": "", "group": "fog",
 		"hint": "Clic ou glisser : révéler le brouillard de guerre autour du curseur.",
 	},
 	{
-		"id": FOG_HIDE, "icon": "🚫", "label": "Masquer", "shortcut": "T", "group": "fog",
+		"id": FOG_HIDE, "icon": "🚫", "label": "Masquer", "shortcut": "", "group": "fog",
 		"hint": "Clic ou glisser : remasquer les cases déjà révélées.",
 	},
 	{
