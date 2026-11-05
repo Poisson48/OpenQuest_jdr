@@ -61,7 +61,7 @@ theme_type_variation = &"HeadingLabel"
 theme_override_font_sizes/font_size = 12
 text = "⚙️ Options de l'outil"
 
-[node name="ToolOptions" type="HBoxContainer" parent="SplitOuter/LeftScroll/LeftPanel"]
+[node name="ToolOptions" type="HFlowContainer" parent="SplitOuter/LeftScroll/LeftPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4

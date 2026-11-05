@@ -229,7 +229,7 @@ var _left_panel: VBoxContainer
 var _left_scroll: ScrollContainer
 var _right_tabs: TabContainer
 var _right_scroll: ScrollContainer = null
-var _tool_options: BoxContainer
+var _tool_options: Container
 var _history_list: VBoxContainer
 var _template_list: VBoxContainer
 var _asset_grid: GridContainer
@@ -1430,6 +1430,7 @@ func _refresh_recent_buttons() -> void:
 		_recent_buttons.append(b)
 
 func _set_tool(tool_id: String) -> void:
+	var changed := tool_id != _tool
 	_tool = tool_id
 	if _palette_v2 != null:
 		_palette_v2.set_active(tool_id)
@@ -1453,8 +1454,21 @@ func _set_tool(tool_id: String) -> void:
 		_overlay.measure_from = Vector2.ZERO
 		_overlay.measure_to = Vector2.ZERO
 	_rebuild_tool_options()
+	if changed:
+		_fade_options_bar()
 	_update_hint()
 	_refresh_overlay()
+
+## Fondu enchaîné de la barre d'options au changement d'outil (100 ms).
+func _fade_options_bar() -> void:
+	if _tool_options == null:
+		return
+	var row := _tool_options.get_parent()
+	var bar: Node = row.get_parent() if row != null and row.get_parent() != null else row
+	if bar is CanvasItem:
+		(bar as CanvasItem).modulate = Color(1, 1, 1, 0)
+		var tw := create_tween()
+		tw.tween_property(bar, "modulate:a", 1.0, 0.1)
 
 
 # --- Édition (pointeurs / sélection / poignées) : module extrait ---------------
