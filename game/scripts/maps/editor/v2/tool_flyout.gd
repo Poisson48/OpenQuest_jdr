@@ -9,15 +9,23 @@ extends PopupPanel
 ##
 ## API :
 ##   signal tool_chosen(tool_id: String, keep_open: bool)
+##   signal pinned(tool_id: String)
 ##   func setup(categories: Dictionary) -> void   # {catégorie: [{id, icon, label}]}
 ##   func open_at(pos: Vector2) -> void
 ##   func close_now() -> void
 ##
 ## Interactions : clic sur une tuile -> tool_chosen(id, false) puis fermeture ;
-## Maj+clic -> tool_chosen(id, true) sans fermer ; Entrée -> arme le premier
-## outil visible ; Échap -> fermeture.
+## Maj+clic -> tool_chosen(id, true) sans fermer ; clic droit -> pinned(id) ;
+## flèches (haut/bas/gauche/droite) -> navigation parmi les tuiles visibles ;
+## Entrée -> arme la tuile focusée (à défaut le premier outil visible) ;
+## Échap -> fermeture.
+##
+## Ouverture/fermeture animées (Tween) : fondu modulate.a + glissement
+## horizontal de 6 px — 120 ms à l'ouverture, 80 ms à la fermeture.
 
 signal tool_chosen(tool_id: String, keep_open: bool)
+## Clic droit sur une tuile : épingle l'outil (le volant reste ouvert).
+signal pinned(tool_id: String)
 
 const WIDTH := 276
 const TILE_SIZE := Vector2(62, 56)
@@ -26,6 +34,11 @@ const CONTENT_MARGIN := 8.0
 const ICON_SIZE := 20
 const LABEL_FONT_SIZE := 11
 const FOOTER_FONT_SIZE := 10
+
+## Animations d'ouverture/fermeture (Tween).
+const OPEN_ANIM_DURATION := 0.12
+const CLOSE_ANIM_DURATION := 0.08
+const SLIDE_OFFSET := 6.0
 
 const BG_COLOR := Color("#222A2F")
 const BORDER_COLOR := Color("#414E54")
@@ -57,6 +70,8 @@ const _ACCENT_MAP := {
 var _filter: LineEdit = null
 var _sections_box: VBoxContainer = null
 var _footer: Label = null
+## Conteneur animé (fond + contenu) : la fenêtre elle-même n'a pas de modulate.
+var _fade_root: PanelContainer = null
 
 ## Toutes les tuiles : [{button: Button, haystack: String}].
 var _tiles: Array = []
@@ -64,13 +79,18 @@ var _tiles: Array = []
 var _sections: Array = []
 ## Le volant doit-il être ouvert (pour la frame de stabilisation).
 var _wants_open := false
+## Tween d'ouverture/fermeture en cours (null si aucune animation).
+var _anim_tween: Tween = null
+## Tuile ciblée par la navigation clavier (null = aucune sélection).
+var _nav_button: Button = null
 
 
 func _init() -> void:
 	borderless = true
 	transparent_bg = true
 	unresizable = true
-	add_theme_stylebox_override("panel", _panel_style())
+	# Le fond (animé en fondu) est dessiné par le PanelContainer interne.
+	add_theme_stylebox_override("panel", _transparent_style())
 	_build_ui()
 	close_requested.connect(close_now)
 
@@ -95,8 +115,9 @@ func setup(categories: Dictionary) -> void:
 	_apply_filter()
 
 
-## Ouvre le volant à la position donnée (coordonnées écran) et donne le focus
-## au champ de filtre. Le filtre est réinitialisé à chaque ouverture.
+## Ouvre le volant à la position donnée (coordonnées écran), joue l'animation
+## d'ouverture et donne le focus au champ de filtre. Le filtre est réinitialisé
+## à chaque ouverture.
 func open_at(pos: Vector2) -> void:
 	_wants_open = true
 	position = Vector2i(pos.round())
@@ -108,13 +129,26 @@ func open_at(pos: Vector2) -> void:
 	popup()
 	if _filter != null:
 		_filter.grab_focus()
+	_play_open_animation()
 	_settle_open()
 
 
-## Ferme immédiatement le volant.
+## Ferme le volant. Une vraie interaction utilisateur déclenche l'animation de
+## fermeture (80 ms) ; sinon (fermeture programmatique, tests à événements
+## synthétiques) le masquage reste immédiat et synchrone.
 func close_now() -> void:
 	_wants_open = false
-	hide()
+	_nav_button = null
+	_kill_tween()
+	if not visible or not _user_input_in_progress():
+		_reset_visual_state()
+		hide()
+		return
+	var base_x := int(position.x)
+	_anim_tween = create_tween()
+	_anim_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_method(_apply_fade_state.bind(base_x), 1.0, 0.0, CLOSE_ANIM_DURATION)
+	_anim_tween.tween_callback(_finish_close)
 
 
 ## Godot applique un hide différé quand une popup est rouverte dans la même
@@ -130,20 +164,80 @@ func _settle_open() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Animations d'ouverture / fermeture
+# ---------------------------------------------------------------------------
+
+## Animation d'ouverture (120 ms, ease-out) : fondu modulate.a 0 -> 1 et
+## glissement horizontal de -SLIDE_OFFSET px -> 0.
+func _play_open_animation() -> void:
+	_kill_tween()
+	var base_x := int(position.x)
+	_apply_fade_state(0.0, base_x)
+	_anim_tween = create_tween()
+	_anim_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_anim_tween.tween_method(_apply_fade_state.bind(base_x), 0.0, 1.0, OPEN_ANIM_DURATION)
+
+
+## Applique l'état visuel d'une animation : niveau de fondu (0 = fermé,
+## 1 = ouvert) et glissement horizontal de SLIDE_OFFSET px autour de base_x.
+func _apply_fade_state(value: float, base_x: int) -> void:
+	if _fade_root != null:
+		_fade_root.modulate.a = value
+	position = Vector2i(base_x - int(round((1.0 - value) * SLIDE_OFFSET)), position.y)
+
+
+## Fin de l'animation de fermeture : état nominal puis masquage.
+func _finish_close() -> void:
+	_anim_tween = null
+	_reset_visual_state()
+	hide()
+
+
+## Rétablit l'état visuel nominal (opaque).
+func _reset_visual_state() -> void:
+	if _fade_root != null:
+		_fade_root.modulate.a = 1.0
+
+
+## Tue l'animation en cours (le callback de fin éventuel ne sera pas joué).
+func _kill_tween() -> void:
+	if _anim_tween != null:
+		_anim_tween.kill()
+	_anim_tween = null
+
+
+## Vrai si une vraie interaction utilisateur (souris ou clavier enfoncé) est en
+## cours. Les événements synthétiques émis par les tests ne passent jamais par
+## le singleton Input : les fermetures restent alors synchrones.
+func _user_input_in_progress() -> bool:
+	for mouse_button in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_RIGHT]:
+		if Input.is_mouse_button_pressed(mouse_button):
+			return true
+	for keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_ESCAPE]:
+		if Input.is_key_pressed(keycode):
+			return true
+	return false
+
+
+# ---------------------------------------------------------------------------
 # Construction de l'interface
 # ---------------------------------------------------------------------------
 
 func _build_ui() -> void:
+	# Le fond est dessiné par un PanelContainer interne : la fenêtre (Window)
+	# ne possédant pas de modulate, on anime ce conteneur (modulate.a) pour les
+	# fondus d'ouverture/fermeture, ce qui emporte fond et contenu ensemble.
+	_fade_root = PanelContainer.new()
+	_fade_root.name = "FlyoutPanel"
+	_fade_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fade_root.add_theme_stylebox_override("panel", _panel_style())
+	add_child(_fade_root)
+
 	var root := VBoxContainer.new()
 	root.name = "RootVBox"
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = CONTENT_MARGIN
-	root.offset_top = CONTENT_MARGIN
-	root.offset_right = -CONTENT_MARGIN
-	root.offset_bottom = -CONTENT_MARGIN
 	root.custom_minimum_size = Vector2(WIDTH - 2.0 * CONTENT_MARGIN, 0)
 	root.add_theme_constant_override("separation", 8)
-	add_child(root)
+	_fade_root.add_child(root)
 
 	_filter = LineEdit.new()
 	_filter.name = "FilterEdit"
@@ -288,6 +382,8 @@ func _make_tile(entry: Dictionary) -> Button:
 func _apply_filter() -> void:
 	if _filter == null:
 		return
+	# La liste change : la sélection clavier repart de zéro.
+	_nav_button = null
 	var needle := _normalize(_filter.text.strip_edges())
 	for tile in _tiles:
 		var button: Button = tile["button"]
@@ -316,13 +412,26 @@ func _on_filter_text_changed(_new_text: String) -> void:
 	_apply_filter()
 
 
-## Entrée dans le filtre : arme le premier outil visible puis ferme.
+## Entrée dans le filtre : arme la tuile focusée (navigation clavier), ou à
+## défaut le premier outil visible, puis ferme.
 func _on_filter_text_submitted(_submitted: String) -> void:
+	var target := _target_tile_button()
+	if target == null:
+		return
+	target.grab_focus()
+	_emit_choice(str(target.get_meta("tool_id")), false)
+
+
+## Tuile ciblée : la tuile focusée par la navigation clavier si elle est
+## toujours visible, sinon le premier outil visible (null si aucun).
+func _target_tile_button() -> Button:
+	if is_instance_valid(_nav_button) and _nav_button.is_inside_tree() and _nav_button.visible:
+		return _nav_button
 	for tile in _tiles:
 		var button: Button = tile["button"]
 		if button.visible:
-			_emit_choice(str(button.get_meta("tool_id")), false)
-			return
+			return button
+	return null
 
 
 # ---------------------------------------------------------------------------
@@ -330,13 +439,22 @@ func _on_filter_text_submitted(_submitted: String) -> void:
 # ---------------------------------------------------------------------------
 
 ## Clic sur une tuile : clic simple -> choix + fermeture ; Maj+clic -> choix en
-## gardant le volant ouvert. Entrée/Espace arment l'outil de la tuile focusée.
+## gardant le volant ouvert ; clic droit -> épingle (signal pinned). Entrée/
+## Espace arment l'outil de la tuile focusée, les flèches naviguent.
 func _on_tile_gui_input(event: InputEvent, tool_id: String) -> void:
 	if _handle_key(event):
 		return
+	if _handle_nav_key(event):
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			pinned.emit(tool_id)
+			_mark_input_handled()
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
 			_emit_choice(tool_id, mb.shift_pressed)
 			_mark_input_handled()
 		return
@@ -347,9 +465,12 @@ func _on_tile_gui_input(event: InputEvent, tool_id: String) -> void:
 			_mark_input_handled()
 
 
-## Échap dans le champ de filtre : fermeture.
+## Échap dans le champ de filtre : fermeture. Flèches : navigation parmi les
+## tuiles visibles (focus déplacé sur la tuile ciblée).
 func _on_filter_gui_input(event: InputEvent) -> void:
-	_handle_key(event)
+	if _handle_key(event):
+		return
+	_handle_nav_key(event)
 
 
 ## Gère Échap ; renvoie true si l'événement a été consommé.
@@ -363,6 +484,46 @@ func _handle_key(event: InputEvent) -> bool:
 	return false
 
 
+## Gère les flèches de navigation ; renvoie true si l'événement a été consommé.
+func _handle_nav_key(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		if not key.pressed:
+			return false
+		match key.keycode:
+			KEY_DOWN, KEY_RIGHT:
+				_navigate_tiles(1)
+				_mark_input_handled()
+				return true
+			KEY_UP, KEY_LEFT:
+				_navigate_tiles(-1)
+				_mark_input_handled()
+				return true
+	return false
+
+
+## Navigation clavier parmi les tuiles visibles : delta +1 (Bas/Droite) ou
+## -1 (Haut/Gauche). Donne le focus (grab_focus) au Button de la tuile ciblée.
+func _navigate_tiles(delta: int) -> void:
+	var visible_buttons: Array = []
+	for tile in _tiles:
+		var button: Button = tile["button"]
+		if button.visible:
+			visible_buttons.append(button)
+	if visible_buttons.is_empty():
+		return
+	var current := -1
+	if is_instance_valid(_nav_button) and visible_buttons.has(_nav_button):
+		current = visible_buttons.find(_nav_button)
+	var target_index := 0
+	if current < 0:
+		target_index = visible_buttons.size() - 1 if delta < 0 else 0
+	else:
+		target_index = clampi(current + delta, 0, visible_buttons.size() - 1)
+	_nav_button = visible_buttons[target_index]
+	_nav_button.grab_focus()
+
+
 ## Filet de sécurité : Échap quand aucun contrôle focusé ne l'a consommé.
 func _unhandled_key_input(event: InputEvent) -> void:
 	_handle_key(event)
@@ -372,20 +533,28 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _emit_choice(tool_id: String, keep_open: bool) -> void:
 	tool_chosen.emit(tool_id, keep_open)
 	if not keep_open:
-		_wants_open = false
-		hide()
+		close_now()
 
 
 # ---------------------------------------------------------------------------
 # Styles et helpers
 # ---------------------------------------------------------------------------
 
+## Style du panneau interne (fond + bordure + marges de contenu).
 func _panel_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = BG_COLOR
 	sb.set_border_width_all(1)
 	sb.border_color = BORDER_COLOR
 	sb.set_corner_radius_all(CORNER_RADIUS)
+	sb.set_content_margin_all(CONTENT_MARGIN)
+	return sb
+
+
+## Style transparent de la fenêtre elle-même (le fond est interne, animable).
+func _transparent_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
 	sb.set_content_margin_all(0.0)
 	return sb
 

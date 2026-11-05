@@ -88,9 +88,30 @@ func _make_button(tool_data: Dictionary) -> Button:
 		b.text = icon if not icon.is_empty() else label.substr(0, 1)
 	b.tooltip_text = label if shortcut.is_empty() else "%s (%s)" % [label, shortcut]
 	b.set_meta("tool_id", id)
+	# Style d'état (spec UI v2) : transparent au repos, hover #36434A,
+	# actif (toggle on) #263C3A + bordure 1px #55D6BE, focus = anneau #55D6BE.
+	b.add_theme_stylebox_override("normal", _tool_style(Color(0, 0, 0, 0)))
+	b.add_theme_stylebox_override("hover", _tool_style(Color("#36434A")))
+	b.add_theme_stylebox_override("pressed", _tool_style(Color("#263C3A"), Color("#55D6BE"), 1))
+	b.add_theme_stylebox_override("focus", _tool_style(Color(0, 0, 0, 0), Color("#55D6BE"), 1))
+	# Teintes d'icône (texture comme emoji vectorisé).
+	b.add_theme_color_override("icon_normal_color", Color("#A1AFB2"))
+	b.add_theme_color_override("icon_hover_color", Color("#E1E8E8"))
+	b.add_theme_color_override("icon_pressed_color", Color("#55D6BE"))
+	b.add_theme_color_override("icon_focus_color", Color("#55D6BE"))
 	b.pressed.connect(_on_pressed.bind(id))
 	_buttons[id] = b
 	return b
+
+
+## Helper de StyleBoxFlat pour un bouton d'outil (42x38, coins nets).
+func _tool_style(bg: Color, border: Color = Color(0, 0, 0, 0), border_width: int = 0) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(border_width)
+	sb.set_corner_radius_all(0)
+	return sb
 
 
 func _separator() -> HSeparator:

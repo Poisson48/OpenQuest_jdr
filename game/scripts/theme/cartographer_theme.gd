@@ -30,6 +30,10 @@ static func build() -> Theme:
 	t.set_color("font_pressed_color", "Button", accent)
 	t.set_color("font_disabled_color", "Button", muted)
 	t.set_color("icon_disabled_color", "Button", icon_disabled)
+	t.set_color("icon_normal_color", "Button", Color("#A1AFB2"))
+	t.set_color("icon_hover_color", "Button", Color("#E1E8E8"))
+	t.set_color("icon_pressed_color", "Button", Color("#55D6BE"))
+	t.set_color("icon_focus_color", "Button", Color("#55D6BE"))
 
 	# Panels
 	t.set_stylebox("panel", "PanelContainer", _panel(panel, border, 8))
@@ -61,8 +65,8 @@ static func build() -> Theme:
 	t.set_color("font_color", "LineEdit", text)
 
 	# Onglets
-	t.set_stylebox("tab_selected", "TabContainer", _btn(selection, accent, 6))
-	t.set_stylebox("tab_unselected", "TabContainer", _btn(panel, border, 6))
+	t.set_stylebox("tab_selected", "TabContainer", _tab_underline(panel, accent, 2))
+	t.set_stylebox("tab_unselected", "TabContainer", _tab_underline(Color(0, 0, 0, 0), border, 1))
 	t.set_stylebox("tab_hovered", "TabContainer", _btn(hover, border, 6))
 	t.set_color("font_selected_color", "TabContainer", accent)
 	t.set_color("font_unselected_color", "TabContainer", secondary)
@@ -103,6 +107,21 @@ static func _btn(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
 	sb.border_color = border
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(radius)
+	sb.content_margin_left = 10.0
+	sb.content_margin_right = 10.0
+	sb.content_margin_top = 6.0
+	sb.content_margin_bottom = 6.0
+	return sb
+
+
+static func _tab_underline(bg: Color, line: Color, line_width: int) -> StyleBoxFlat:
+	# Onglet « souligné » : pas de cadre complet, uniquement une bordure basse.
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = line
+	sb.set_border_width_all(0)
+	sb.border_width_bottom = line_width
+	sb.set_corner_radius_all(0)
 	sb.content_margin_left = 10.0
 	sb.content_margin_right = 10.0
 	sb.content_margin_top = 6.0
