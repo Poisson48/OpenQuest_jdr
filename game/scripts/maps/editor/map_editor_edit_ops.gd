@@ -32,6 +32,12 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_ed._engine.begin_view_pan(screen)
 		return
 
+	# Peinture eau : traitée avant la sélection (Maj = effacer l'eau).
+	if _ed._tool == ToolsScript.WATER_PAINT:
+		_ed._press_mode = "water"
+		_ed._paint_water(grid, bool(mods.get("shift", false)))
+		return
+
 	var wants_select = _ed._tool == ToolsScript.SELECT or bool(mods.get("ctrl", false)) or bool(mods.get("shift", false))
 	if wants_select:
 		_begin_select_or_move(grid, screen, mods)
@@ -350,6 +356,9 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 				_ed._paint_terrain(grid)
 			else:
 				_ed._paint_fog(grid)
+		"water":
+			# Maj maintenu : le trait efface l'eau (remonte le sol).
+			_ed._paint_water(grid, bool(mods.get("shift", false)))
 		"relief":
 			_ed._paint_relief(grid)
 		"ground_material":
@@ -413,6 +422,9 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._finish_flower_zone()
 		"paint":
 			_ed._painted_cells.clear()
+		"water":
+			# Peinture eau : rien à valider, on remet juste le mode à zéro.
+			_ed._press_mode = "none"
 		"relief":
 			_ed.doc.commit_transaction()
 			_ed._sync_engine()

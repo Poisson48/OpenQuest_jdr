@@ -48,6 +48,7 @@ const BUCKET := "bucket"
 const TERRAIN_HEIGHT := "terrain_height"
 const TERRAIN_SPLINE := "terrain_spline"
 const GROUND_MATERIAL := "ground_material"
+const WATER_PAINT := "water_paint"
 const FOG_REVEAL := "fog"
 const FOG_HIDE := "fog_hide"
 const ERASE := "erase"
@@ -65,7 +66,7 @@ const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_
 const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, BRIDGE, AREA, SCENE_ZONE]
 
 ## Outils qui peignent la grille de terrain en continu.
-const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
+const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE, WATER_PAINT]
 ## Outil de relief : pinceau de hauteurs (traitement distinct de la peinture de tuiles).
 const RELIEF_TOOLS := [TERRAIN_HEIGHT]
 
@@ -249,6 +250,10 @@ const DEFS := [
 	{
 		"id": GROUND_MATERIAL, "icon": "🟫", "label": "Sol", "shortcut": "Y", "group": "terrain",
 		"hint": "Clic ou glisser : peindre la matière du sol (herbe, terre/chemin, pierre). Choix de matière et taille de pinceau dans les options. Seulement en mode sol 3D.",
+	},
+	{
+		"id": WATER_PAINT, "icon": "💧", "label": "Peindre l'eau", "shortcut": "", "group": "terrain",
+		"hint": "Clic-glisser : peint de l'eau en creusant le sol sous le niveau d'eau. Maj : effacer l'eau (remonte le sol).",
 	},
 	{
 		"id": FOG_REVEAL, "icon": "🌫", "label": "Révéler", "shortcut": "", "group": "fog",

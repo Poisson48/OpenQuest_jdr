@@ -20,6 +20,19 @@ const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 ## Éditeur propriétaire (Control) — non typé pour éviter le cycle de preload.
 var _ed
 
+## Scrub des valeurs : vrai pendant qu'un glisser (clic gauche maintenu) est
+## actif sur le label d'un champ numérique ; le suivi utilise `label.gui_input`
+## et `event.relative` (px) sur la fenêtre (mouse focus conservé pendant le drag).
+var _scrubbing := false
+
+## Mémorisation par outil : `_saved_per_tool[tool_id][index du champ]` retient la
+## valeur de chaque SpinBox d'un outil entre deux passages sur cet outil.
+var _saved_per_tool := {}
+## tool_id de la barre d'options actuellement affichée.
+var _options_tool_id := ""
+## Index du prochain champ numérique créé pendant le rebuild courant.
+var _spin_field_index := 0
+
 func setup(editor) -> void:
 	_ed = editor
 
@@ -40,6 +53,9 @@ func _field_hbox(parent: Control, label_text: String, control: Control) -> HBoxC
 	row.add_child(lbl)
 	control.custom_minimum_size.y = 28.0
 	row.add_child(control)
+	# Pair label (enfant 0) + SpinBox (enfant 1) : le label devient scrubbable.
+	if control is SpinBox:
+		_make_scrubbable(lbl, control as SpinBox)
 	return row
 
 func _sep(parent: Control) -> void:
@@ -59,15 +75,78 @@ func _sep(parent: Control) -> void:
 
 func _spin_field(parent: Control, label_text: String, min_v: float, max_v: float, value: float, step: float, on_change: Callable) -> SpinBox:
 	# Version horizontale de _ed._spin : label et champ groupés dans un HBox de
-	# la barre. Valeurs et callbacks inchangés.
+	# la barre. Valeurs et callbacks inchangés ; la valeur mémorisée pour l'outil
+	# (si présente) est restaurée à la place de la valeur passée en paramètre.
 	var spin := SpinBox.new()
 	spin.min_value = min_v
 	spin.max_value = max_v
 	spin.step = step
-	spin.set_value_no_signal(clampf(value, min_v, max_v))
 	spin.value_changed.connect(func(v): on_change.call(v))
+	if parent == _ed._tool_options:
+		# Clé combinée tool_id + index du champ numérique.
+		var saved: Dictionary = _saved_per_tool.get(_options_tool_id, {})
+		if saved.has(_spin_field_index):
+			# La restauration passe par `value` : value_changed déclenche le
+			# callback métier, qui resynchronise la valeur `_ed.*` correspondante.
+			spin.value = clampf(float(saved[_spin_field_index]), min_v, max_v)
+		else:
+			spin.set_value_no_signal(clampf(value, min_v, max_v))
+		_spin_field_index += 1
+	else:
+		spin.set_value_no_signal(clampf(value, min_v, max_v))
 	_field_hbox(parent, label_text, spin)
 	return spin
+
+func _make_scrubbable(label: Label, spin: SpinBox) -> void:
+	# Scrub des valeurs : glisser horizontalement (clic gauche maintenu) sur le
+	# label d'un champ numérique fait varier sa valeur proportionnellement au
+	# déplacement souris — 1 px = 1 pas de `spin.step`, Maj = ×10, Alt = ÷10.
+	# `spin.value` déclenche `value_changed` (et donc le callback métier déjà
+	# connecté). Curseur horizontal au survol du label.
+	label.mouse_filter = Control.MOUSE_FILTER_STOP
+	label.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	label.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				_scrubbing = mb.pressed
+				if _scrubbing:
+					label.accept_event()
+		elif event is InputEventMouseMotion:
+			var mm := event as InputEventMouseMotion
+			if (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+				_scrubbing = false
+				return
+			if not _scrubbing:
+				return
+			var speed := spin.step
+			if mm.shift_pressed:
+				speed *= 10.0
+			elif mm.alt_pressed:
+				speed *= 0.1
+			spin.value += mm.relative.x * speed
+			label.accept_event()
+	)
+
+func _save_tool_spin_values() -> void:
+	# Mémorisation par outil : sauvegarde les valeurs courantes des SpinBox
+	# affichées pour l'outil précédemment reconstruit (_options_tool_id), avant
+	# que ses widgets ne soient détruits. Les enfants déjà queue_free() d'un
+	# rebuild antérieur du même frame ne comptent pas.
+	if _options_tool_id.is_empty() or _ed._tool_options == null:
+		return
+	var saved := {}
+	var index := 0
+	for child in _ed._tool_options.get_children():
+		if child.is_queued_for_deletion():
+			continue
+		if not (child is HBoxContainer) or child.get_child_count() < 2:
+			continue
+		var field: Node = child.get_child(1)
+		if field is SpinBox:
+			saved[index] = (field as SpinBox).value
+			index += 1
+	_saved_per_tool[_options_tool_id] = saved
 
 func _line_field(parent: Control, label_text: String, value: String, on_change: Callable) -> LineEdit:
 	# Version horizontale de _ed._line_row : label et champ groupés dans un HBox
@@ -82,8 +161,13 @@ func _line_field(parent: Control, label_text: String, value: String, on_change: 
 func _rebuild_tool_options() -> void:
 	if _ed._tool_options == null:
 		return
+	# Mémorisation par outil : sauvegarde les SpinBox de l'outil précédemment
+	# affiché avant de reconstruire la barre pour le nouvel outil.
+	_save_tool_spin_values()
 	for child in _ed._tool_options.get_children():
 		child.queue_free()
+	_options_tool_id = str(_ed._tool)
+	_spin_field_index = 0
 	if _ed._tool == ToolsScript.TOKEN:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Taille", 0.5, 6.0, _ed._token_size, 0.5, func(v): _ed._token_size = v)
@@ -466,6 +550,12 @@ func _rebuild_tool_options() -> void:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
+	elif _ed._tool == ToolsScript.WATER_PAINT:
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._water_brush), 1, func(v): _ed._water_brush = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Profondeur", 0.1, 2.0, _ed._water_depth, 0.1, func(v): _ed._water_depth = v)
+		_option_note("Peint de l'eau en creusant le sol sous le niveau d'eau. Maj : effacer l'eau (remonte le sol).")
 	elif _ed._tool == ToolsScript.PROC_POLY_ROOF:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)

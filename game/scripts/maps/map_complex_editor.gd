@@ -81,6 +81,9 @@ var _terrain_spline_mode: String = "ridge"
 var _material_id: int = 0
 var _material_radius: float = 1.5
 var _fog_brush: int = 1
+## Peinture eau : rayon du pinceau (en cases) et profondeur de creusement.
+var _water_brush: int = 1
+var _water_depth: float = 0.5
 ## Gomme ciblée : -1 = tout effacer, sinon id du calque à effacer.
 var _erase_target: int = -1
 ## Sélection ciblée : -1 = tous les calques, sinon id du calque à sélectionner.
@@ -1279,7 +1282,7 @@ func _rebuild_palette_v2() -> void:
 			groups.append(_group_def("Épinglés", _pinned_tool_ids))
 		groups.append(_group_def("Navigation", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE]))
 		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.BRIDGE, ToolsScript.AREA]))
-		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
+		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT, ToolsScript.WATER_PAINT]))
 		groups.append(_group_def("Objets", [ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE]))
 		# Le groupe « Avancé » n'est plus dans la colonne : il vit dans le volant
 		# « Plus d'outils » (MapEditorToolFlyout) + les 3 récents épinglés.
@@ -2130,6 +2133,26 @@ func _paint_fog(grid: Vector2) -> void:
 		doc.reveal_fog(cells)
 	else:
 		doc.hide_fog(cells)
+	_sync_engine()
+
+## Peint de l'eau en creusant le sol sous le niveau d'eau (Maj : remonte le sol).
+func _paint_water(grid: Vector2, erase: bool = false) -> void:
+	var cx := int(roundf(grid.x))
+	var cy := int(roundf(grid.y))
+	var level := float(doc.map_data.get("waterLevel", -1.0))
+	if level <= -0.5:
+		# Aucun plan d'eau : on l'active à une hauteur de départ.
+		level = 0.2
+		doc.map_data["waterLevel"] = level
+	for dy in range(-_water_brush, _water_brush + 1):
+		for dx in range(-_water_brush, _water_brush + 1):
+			var x := cx + dx
+			var y := cy + dy
+			if not _in_bounds(Vector2(x, y)):
+				continue
+			var h := doc.terrain_height(x, y)
+			var value := maxf(h, level + 0.05) if erase else minf(h, level - _water_depth)
+			doc.set_terrain_height(x, y, value, "Peinture eau")
 	_sync_engine()
 
 # ===========================================================================
@@ -3259,7 +3282,7 @@ func _refresh_ghost() -> void:
 			"color": mat_colors.get(_material_id, Color(0.7, 0.7, 0.7)),
 		}
 	elif ToolsScript.is_paint_tool(_tool):
-		var brush := float(_brush_size if _tool == ToolsScript.PAINT else _fog_brush) * 2.0 + 1.0
+		var brush := float(_brush_size if _tool == ToolsScript.PAINT else (_water_brush if _tool == ToolsScript.WATER_PAINT else _fog_brush)) * 2.0 + 1.0
 		_overlay.ghost = {
 			"x": roundf(_overlay.hover_grid.x),
 			"y": roundf(_overlay.hover_grid.y),
