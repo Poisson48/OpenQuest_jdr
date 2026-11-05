@@ -286,7 +286,8 @@ func _test_editor_prop_tool(md) -> void:
 
 	var mods := {"shift": false, "ctrl": false, "alt": false}
 	_assert("tool_prop_is_pose", ToolsScript.is_pose_tool(ToolsScript.PROP))
-	_assert("tool_prop_shortcut", ToolsScript.tool_for_shortcut("P") == ToolsScript.PROP)
+	# Le raccourci « P » est désormais réservé à l'outil Chemin (spec UI).
+	_assert("tool_prop_shortcut", ToolsScript.tool_for_shortcut("P") == ToolsScript.PROC_PATH)
 
 	# Sans asset choisi, poser ne crée rien mais ne casse rien non plus.
 	editor._set_tool(ToolsScript.PROP)

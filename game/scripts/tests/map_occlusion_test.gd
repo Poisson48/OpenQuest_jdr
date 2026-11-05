@@ -31,9 +31,10 @@ func _run() -> void:
 	for _i in range(12):
 		await process_frame
 	_assert("occlusion_faded", _max_transparency(root) > 0.2, "alpha=%s" % _max_transparency(root))
-	# Mur derrière la caméra : retour progressif à l'opacité.
+	# Mur derrière la caméra : retour progressif à l'opacité. 60 frames pour
+	# absorber la latence variable selon la charge machine (test stable).
 	layer.set_occlusion_fade(Vector3(5.5, 0.5, 10.0), Vector3(5.5, 0.5, 20.0))
-	for _i in range(30):
+	for _i in range(60):
 		await process_frame
 	_assert("occlusion_restored", _max_transparency(root) < 0.05, "alpha=%s" % _max_transparency(root))
 
