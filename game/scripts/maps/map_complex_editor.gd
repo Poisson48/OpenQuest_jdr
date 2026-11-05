@@ -195,6 +195,7 @@ var _flyout = null
 var _more_tools_btn: Button = null
 var _recent_buttons: Array = []
 var _recent_tool_ids: Array = []
+var _pinned_tool_ids: Array = []
 var _icon_manifest: Dictionary = {}
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
@@ -379,6 +380,12 @@ func _bind_ui() -> void:
 	_fps_lbl.add_theme_color_override("font_color", Color("#718087"))
 	if _status_lbl != null and _status_lbl.get_parent() is Container:
 		_status_lbl.get_parent().add_child(_fps_lbl)
+	# Échelle typographique (§5) : statut et aide à 12 px.
+	if _status_lbl != null:
+		_status_lbl.add_theme_font_size_override("font_size", 12)
+	if _hint_lbl != null:
+		_hint_lbl.add_theme_font_size_override("font_size", 12)
+		_hint_lbl.add_theme_color_override("font_color", Color("#A1AFB2"))
 
 	_populate_tools(%ToolHost)
 	_populate_snap(%SnapOption)
@@ -1268,6 +1275,8 @@ func _rebuild_palette_v2() -> void:
 	if _path_focus:
 		groups.append(_group_def("Chemins", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]))
 	else:
+		if not _pinned_tool_ids.is_empty():
+			groups.append(_group_def("Épinglés", _pinned_tool_ids))
 		groups.append(_group_def("Navigation", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE]))
 		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.BRIDGE, ToolsScript.AREA]))
 		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
@@ -1329,6 +1338,8 @@ func _build_more_tools() -> void:
 		_flyout = MapEditorToolFlyoutScript.new()
 		add_child(_flyout)
 		_flyout.tool_chosen.connect(_on_flyout_tool_chosen)
+		if _flyout.has_signal("pinned"):
+			_flyout.pinned.connect(_on_flyout_pinned)
 		_flyout.setup(_flyout_categories())
 	if _more_tools_btn == null:
 		_more_tools_btn = Button.new()
@@ -1381,6 +1392,17 @@ func _open_flyout() -> void:
 func _on_flyout_tool_chosen(tool_id: String, _keep_open: bool) -> void:
 	_set_tool(tool_id)
 	_add_recent_tool(tool_id)
+
+## Clic droit sur une tuile du volant : épingle l'outil dans la colonne
+## (groupe « Épinglés », maximum 3).
+func _on_flyout_pinned(tool_id: String) -> void:
+	if tool_id.is_empty() or _pinned_tool_ids.has(tool_id):
+		return
+	_pinned_tool_ids.push_front(tool_id)
+	while _pinned_tool_ids.size() > 3:
+		_pinned_tool_ids.pop_back()
+	_set_status("Outil épinglé : %s." % ToolsScript.label(tool_id))
+	_rebuild_palette_v2()
 
 func _add_recent_tool(tool_id: String) -> void:
 	_recent_tool_ids.erase(tool_id)

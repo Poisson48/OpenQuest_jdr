@@ -35,6 +35,16 @@ static func build() -> Theme:
 	t.set_color("icon_pressed_color", "Button", Color("#55D6BE"))
 	t.set_color("icon_focus_color", "Button", Color("#55D6BE"))
 
+	# Échelle typographique (§5) — tailles par usage.
+	t.set_font_size("font_size", "Label", 13)
+	t.set_font_size("font_size", "Button", 13)
+	t.set_font_size("font_size", "LineEdit", 12)
+	t.set_font_size("font_size", "OptionButton", 13)
+	t.set_font_size("font_size", "SpinBox", 12)
+	t.set_font_size("font_size", "TabContainer", 13)
+	t.set_font_size("font_size", "TooltipLabel", 12)
+	t.set_font_size("font_size", "PopupMenu", 13)
+
 	# Panels
 	t.set_stylebox("panel", "PanelContainer", _panel(panel, border, 8))
 	t.set_stylebox("panel", "Panel", _panel(panel, border, 8))

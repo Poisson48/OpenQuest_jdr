@@ -47,6 +47,7 @@ project/assembly_name="OpenQuest JDR"
 [gui]
 
 theme/custom="res://theme/openquest_theme.tres"
+timers/tooltip_delay_sec=0.45
 
 [internationalization]
 
