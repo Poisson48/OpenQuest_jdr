@@ -24,6 +24,7 @@ const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_ed
 const MapEditorPaletteV2Script := preload("res://scripts/maps/editor/v2/palette.gd")
 const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
 const MapEditorFloatingPanelScript := preload("res://scripts/maps/editor/v2/floating_panel.gd")
+const MapEditorToolFlyoutScript := preload("res://scripts/maps/editor/v2/tool_flyout.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
@@ -187,6 +188,10 @@ var _ui_hidden := false
 var _history_panel = null
 var _history_floating_panel = null
 var _library_dock = null
+var _flyout = null
+var _more_tools_btn: Button = null
+var _recent_buttons: Array = []
+var _recent_tool_ids: Array = []
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -380,6 +385,7 @@ func _bind_ui() -> void:
 	_palette_v2.tool_selected.connect(_set_tool)
 	%ToolHost.visible = false
 	_rebuild_palette_v2()
+	_build_more_tools()
 	_path_panel = MapEditorPathUIScript.new()
 	_left_panel.add_child(_path_panel)
 	_left_panel.move_child(_path_panel, _tool_options.get_index() + 1)
@@ -1256,7 +1262,8 @@ func _rebuild_palette_v2() -> void:
 		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.AREA]))
 		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
 		groups.append(_group_def("Objets", [ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE]))
-		groups.append(_group_def("Avancé", _advanced_tool_ids()))
+		# Le groupe « Avancé » n'est plus dans la colonne : il vit dans le volant
+		# « Plus d'outils » (MapEditorToolFlyout) + les 3 récents épinglés.
 	_palette_v2.setup(groups)
 	_palette_v2.set_active(_tool)
 
@@ -1286,6 +1293,90 @@ func _advanced_tool_ids() -> Array:
 		if not main.has(id):
 			out.append(id)
 	return out
+
+# ---------------------------------------------------------------------------
+# Volant « Plus d'outils » (groupe Avancé)
+# ---------------------------------------------------------------------------
+
+func _build_more_tools() -> void:
+	if _flyout == null:
+		_flyout = MapEditorToolFlyoutScript.new()
+		add_child(_flyout)
+		_flyout.tool_chosen.connect(_on_flyout_tool_chosen)
+		_flyout.setup(_flyout_categories())
+	if _more_tools_btn == null:
+		_more_tools_btn = Button.new()
+		_more_tools_btn.text = "▦"
+		_more_tools_btn.tooltip_text = "Plus d'outils (A)"
+		_more_tools_btn.custom_minimum_size = Vector2(42, 38)
+		_more_tools_btn.pressed.connect(_open_flyout)
+		_left_panel.add_child(_more_tools_btn)
+	_refresh_recent_buttons()
+
+func _flyout_categories() -> Dictionary:
+	return {
+		"Bâtir": _flyout_tools([
+			ToolsScript.MESH_WALL, ToolsScript.ROOM_3D, ToolsScript.ROOF_3D,
+			ToolsScript.DOOR_3D, ToolsScript.WINDOW_3D, ToolsScript.STAIRS_3D,
+			ToolsScript.FENCE_3D, ToolsScript.INTERIOR_3D, ToolsScript.HOUSE_3D,
+			ToolsScript.FLOOR_3D, ToolsScript.PATH_3D, ToolsScript.PROC_ROOF,
+			ToolsScript.PROC_POLY_ROOF,
+		]),
+		"Mobilier": _flyout_tools([ToolsScript.FURNISH_3D, ToolsScript.TEMPLATE, ToolsScript.PROP]),
+		"Ambiance": _flyout_tools([
+			ToolsScript.LIGHT, ToolsScript.FOG_REVEAL, ToolsScript.FOG_HIDE,
+			ToolsScript.EFFECT, ToolsScript.SCENE_GEN, ToolsScript.SCENE_ZONE,
+		]),
+		"Jeu": _flyout_tools([ToolsScript.TOKEN, ToolsScript.MARKER, ToolsScript.LINK, ToolsScript.NOTE]),
+		"Tracés": _flyout_tools([
+			ToolsScript.ORGANIC, ToolsScript.PROC_WALL, ToolsScript.PROC_FENCE,
+			ToolsScript.TERRAIN_SPLINE, ToolsScript.CONTEXT_DECOR, ToolsScript.PATH_BRUSH,
+			ToolsScript.BUCKET,
+		]),
+	}
+
+func _flyout_tools(ids: Array) -> Array:
+	var out: Array = []
+	for tool_id in ids:
+		var def: Dictionary = ToolsScript.get_def(str(tool_id))
+		out.append({
+			"id": str(tool_id),
+			"icon": str(def.get("icon", "•")),
+			"label": str(def.get("label", tool_id)),
+		})
+	return out
+
+func _open_flyout() -> void:
+	if _flyout == null or _more_tools_btn == null:
+		return
+	var pos := _more_tools_btn.get_global_rect().position
+	_flyout.open_at(pos + Vector2(48, 0))
+
+func _on_flyout_tool_chosen(tool_id: String, _keep_open: bool) -> void:
+	_set_tool(tool_id)
+	_add_recent_tool(tool_id)
+
+func _add_recent_tool(tool_id: String) -> void:
+	_recent_tool_ids.erase(tool_id)
+	_recent_tool_ids.push_front(tool_id)
+	while _recent_tool_ids.size() > 3:
+		_recent_tool_ids.pop_back()
+	_refresh_recent_buttons()
+
+func _refresh_recent_buttons() -> void:
+	for b in _recent_buttons:
+		if is_instance_valid(b):
+			b.queue_free()
+	_recent_buttons.clear()
+	for tool_id in _recent_tool_ids:
+		var def: Dictionary = ToolsScript.get_def(str(tool_id))
+		var b := Button.new()
+		b.text = str(def.get("icon", "•"))
+		b.tooltip_text = str(def.get("label", tool_id))
+		b.custom_minimum_size = Vector2(42, 38)
+		b.pressed.connect(_set_tool.bind(str(tool_id)))
+		_left_panel.add_child(b)
+		_recent_buttons.append(b)
 
 func _set_tool(tool_id: String) -> void:
 	_tool = tool_id
@@ -2459,6 +2550,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_focus_map()
 		KEY_B:
 			_toggle_library_dock()
+		KEY_A:
+			_open_flyout()
 		KEY_I:
 			if _right_tabs != null:
 				_right_tabs.current_tab = 0
