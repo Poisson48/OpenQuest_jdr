@@ -128,8 +128,10 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		_ed._paint_fog(grid)
 		return
 	if _ed._tool == ToolsScript.ERASE:
+		# Gomme « au trait » : on efface au clic ET en glissant, comme une
+		# gomme de dessin. Le mode reste actif jusqu'au relâchement.
 		_ed._erase_at(screen)
-		_ed._press_mode = "none"
+		_ed._press_mode = "erase"
 		return
 	if _ed._tool == ToolsScript.LINK:
 		_ed._handle_link_click(screen)
@@ -248,6 +250,8 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 	match _ed._press_mode:
 		"pan":
 			_ed._engine.update_view_pan(screen)
+		"erase":
+			_ed._erase_at(screen)
 		"band":
 			_ed._overlay.band_end = screen
 			_ed._press_moved = true
@@ -341,6 +345,8 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 	match _ed._press_mode:
 		"pan":
 			_ed._engine.end_view_pan()
+		"erase":
+			_ed._press_moved = false
 		"band":
 			_ed._overlay.band_active = false
 			_ed._band_base_selection.clear()

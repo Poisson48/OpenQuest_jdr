@@ -523,6 +523,22 @@ func configure(
 	trace_event("CONFIGURE_AFTER", "same=%s preserve=%s" % [same_map, preserve_camera])
 	_rebuild_layers()
 
+## Reconstruit UNIQUEMENT la couche des objets (meshes 3D, props, murs) sans
+## toucher au terrain, à la végétation, à l'eau, à l'ambiance ni aux lumières.
+## Utilisé par la gomme pour supprimer un objet instantanément au lieu de
+## déclencher un rebuild complet de la carte (gel de plusieurs secondes).
+func refresh_meshes_only() -> void:
+	if _meshes_layer and _meshes_layer.has_method("configure"):
+		var meshes = map_data.get("meshes", [])
+		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
+	if _props_layer and _props_layer.has_method("configure"):
+		var props = map_data.get("props", [])
+		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+	if _walls_layer and _walls_layer.has_method("configure"):
+		var walls = map_data.get("walls", [])
+		var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
+		_walls_layer.configure(walls if walls is Array else [], _cell_size, bool(cfg.get("volumetricWalls", true)))
+
 func request_fit_to_view() -> void:
 	_fit_pending = true
 	_fit_retries = 0

@@ -1857,8 +1857,18 @@ func _erase_at(screen: Vector2) -> void:
 	var hit: String = _overlay.element_at_screen_on_layer(screen, _erase_target)
 	if hit.is_empty():
 		return
+	# Un élément qui a creusé le terrain (chemin, dallage) doit déclencher un
+	# rebuild complet (le sol change). Les autres : rafraîchissement de la seule
+	# couche des objets, instantané (pas de gel).
+	var elem: Dictionary = doc.get_element(hit)
+	var restore: Variant = elem.get("terrain_restore", {})
+	var touches_terrain: bool = restore is Dictionary and not (restore as Dictionary).is_empty()
 	doc.remove_element(hit)
-	_sync_engine()
+	if touches_terrain or _engine == null or not _engine.has_method("refresh_meshes_only"):
+		_sync_engine()
+	else:
+		_engine.call("refresh_meshes_only")
+		_refresh_overlay()
 
 func _handle_link_click(screen: Vector2) -> void:
 	var hit: String = _overlay.element_at_screen(screen)
