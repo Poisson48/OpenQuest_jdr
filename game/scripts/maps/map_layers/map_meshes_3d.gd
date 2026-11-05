@@ -62,6 +62,7 @@ const ProceduralTentMeshScript := preload("res://scripts/maps/construction/proce
 const ProceduralCampfireMeshScript := preload("res://scripts/maps/construction/procedural_campfire_mesh.gd")
 const ProceduralPolyRoofScript := preload("res://scripts/maps/construction/procedural_poly_roof.gd")
 const ProceduralRockMeshScript := preload("res://scripts/maps/construction/procedural_rock_mesh.gd")
+const ProceduralBridgeMeshScript := preload("res://scripts/maps/construction/procedural_bridge_mesh.gd")
 
 ## Couleur neutre du volume de substitution (#8a7a60).
 const FALLBACK_COLOR := Color(0.541176, 0.478431, 0.376471)
@@ -361,6 +362,16 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		mesh_instance.material_override = path_mat
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return mesh_instance
+	elif asset == "procedural://bridge":
+		mesh_instance.name = "ProceduralBridge"
+		mesh_instance.mesh = ProceduralBridgeMeshScript.build(_bridge_mesh_params(mesh))
+		mesh_instance.set_meta("terrain_baked", true)
+		mesh_instance.set_meta("world_space", true)
+		material.vertex_color_use_as_albedo = true
+		material.albedo_color = Color.WHITE
+		material.roughness = 0.9
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		return mesh_instance
 	elif asset == "procedural://path":
 		mesh_instance.name = "ProceduralPath"
 		mesh_instance.mesh = ProceduralPathMeshScript.build_from_element(mesh, _path_detail_for(mesh))
@@ -578,6 +589,34 @@ func _mesh_point_to_vector(value) -> Vector2:
 ## UV.y en travers. Subdivisé en largeur pour que le centre soit opaque et les
 ## bords semi-transparents (COLOR.a) estompés par le shader `path_ribbon`.
 const PATH_ACROSS := 4
+
+## Paramètres du pont procédural : extrémités converties de la grille (cases,
+## hauteur en cases) vers le monde, plus le sol le plus bas sous le tablier
+## (pour que les piles descendent jusqu'au terrain).
+func _bridge_mesh_params(mesh: Dictionary) -> Dictionary:
+	var start: Dictionary = mesh.get("start", {}) if mesh.get("start") is Dictionary else {}
+	var end: Dictionary = mesh.get("end", {}) if mesh.get("end") is Dictionary else {}
+	var sx := float(start.get("x", 0.0))
+	var sy := float(start.get("y", 0.0))
+	var sh := float(start.get("h", 0.0))
+	var ex := float(end.get("x", 0.0))
+	var ey := float(end.get("y", 0.0))
+	var eh := float(end.get("h", 0.0))
+	var ground_y := 1.0e9
+	for i in range(9):
+		var t := float(i) / 8.0
+		var gx := lerpf(sx, ex, t)
+		var gy := lerpf(sy, ey, t)
+		ground_y = minf(ground_y, _terrain_surface_height_at(gx + 0.5, gy + 0.5) * _cell_size)
+	if ground_y > 1.0e8:
+		ground_y = 0.0
+	return {
+		"start": Vector3((sx + 0.5) * _cell_size, sh * _cell_size, (sy + 0.5) * _cell_size),
+		"end": Vector3((ex + 0.5) * _cell_size, eh * _cell_size, (ey + 0.5) * _cell_size),
+		"width": maxf(0.4, float(mesh.get("width", 1.6))) * _cell_size,
+		"seed": int(mesh.get("seed", 1)),
+		"ground_y": ground_y,
+	}
 
 func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 	var raw_points: Array = mesh.get("points", [])

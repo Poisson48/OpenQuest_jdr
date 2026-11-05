@@ -1269,7 +1269,7 @@ func _rebuild_palette_v2() -> void:
 		groups.append(_group_def("Chemins", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.PROC_PATH, ToolsScript.PATH_BRUSH]))
 	else:
 		groups.append(_group_def("Navigation", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE]))
-		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.AREA]))
+		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.BRIDGE, ToolsScript.AREA]))
 		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
 		groups.append(_group_def("Objets", [ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE]))
 		# Le groupe « Avancé » n'est plus dans la colonne : il vit dans le volant
@@ -1492,6 +1492,8 @@ func _finish_draw(to: Vector2) -> void:
 		_create_rect_zone(from, to)
 	elif _tool == ToolsScript.PLATFORM:
 		_create_platform(from, to)
+	elif _tool == ToolsScript.BRIDGE:
+		_create_bridge(from, to)
 	elif _tool == ToolsScript.WALL:
 		_construction._create_wall(from, to)
 	elif _tool == ToolsScript.MESH_WALL:
@@ -1707,7 +1709,37 @@ func _create_platform(from: Vector2, to: Vector2) -> void:
 	doc.select_only(id)
 
 
-# --- Construction de carte : module extrait ----------------------------------
+## Pont procédural entre deux points (hauteurs différentes gérées). Le tablier,
+## les garde-corps et les piles sont cuits en coordonnées monde par le moteur ;
+## les deux extrémités sont stockées pour pouvoir les déplacer ensuite.
+func _create_bridge(from: Vector2, to: Vector2) -> void:
+	if from.distance_to(to) < 0.6:
+		_set_status("Pont : tracé trop court (tirez d'un bord à l'autre).")
+		return
+	var width := 1.6
+	var h_from := doc.terrain_height(int(roundf(from.x)), int(roundf(from.y)))
+	var h_to := doc.terrain_height(int(roundf(to.x)), int(roundf(to.y)))
+	var delta := to - from
+	var length := delta.length()
+	var rotation := rad_to_deg(atan2(delta.y, delta.x))
+	var center := (from + to) * 0.5
+	doc.begin_transaction()
+	var id: String = doc.add_element({
+		"x": center.x, "y": center.y,
+		"w": length, "h": width,
+		"sizeX": length, "sizeZ": width,
+		"asset": "procedural://bridge",
+		"start": {"x": from.x, "y": from.y, "h": h_from},
+		"end": {"x": to.x, "y": to.y, "h": h_to},
+		"width": width,
+		"seed": _scene_seed + 7,
+		"label": "Pont", "layer": 1,
+		"display": {"rotation": rotation, "scale": 1.0},
+	}, DocumentScript.KIND_MESH, "Pont")
+	doc.select_only(id)
+	doc.commit_transaction()
+	_sync_engine()
+	_set_status("Pont créé : %.1f case(s) de long, hauteurs %.2f → %.2f." % [length, h_from, h_to])
 # Wrappers fins conservés pour les tests et l'API existante.
 var _construction = ConstructionScript.new()
 

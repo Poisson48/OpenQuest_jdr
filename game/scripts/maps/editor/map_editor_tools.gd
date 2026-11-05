@@ -15,6 +15,7 @@ const ZONE := "zone"
 const ZONE_RECT := "zone_rect"
 const ZONE_POLY := "zone_poly"
 const PLATFORM := "platform"
+const BRIDGE := "bridge"
 const WALL := "wall"
 const MESH_WALL := "mesh_wall"
 const ROOM_3D := "room_3d"
@@ -61,7 +62,7 @@ const MESH := "mesh"
 const POSE_TOOLS := [TOKEN, MARKER, EFFECT, ZONE, NOTE, LIGHT, PROP, MESH, DOOR_3D, WINDOW_3D, FURNISH_3D, STAIRS_3D, INTERIOR_3D, CONTEXT_DECOR, SCENE_GEN]
 
 ## Outils qui se dessinent par glisser (press → drag → release).
-const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, AREA, SCENE_ZONE]
+const DRAG_TOOLS := [ZONE_RECT, WALL, MESH_WALL, ROOM_3D, ROOF_3D, PROC_ROOF, FLOOR_3D, HOUSE_3D, FENCE_3D, PATH_3D, MEASURE, PLATFORM, BRIDGE, AREA, SCENE_ZONE]
 
 ## Outils qui peignent la grille de terrain en continu.
 const PAINT_TOOLS := [PAINT, FOG_REVEAL, FOG_HIDE]
@@ -104,6 +105,10 @@ const DEFS := [
 	{
 		"id": PLATFORM, "icon": "🟫", "label": "Plateforme", "shortcut": "T", "group": "place",
 		"hint": "Clic-glisser : tracer une plateforme surélevée (étage, pont, estrade).",
+	},
+	{
+		"id": BRIDGE, "icon": "🌉", "label": "Pont", "shortcut": "", "group": "place",
+		"hint": "Clic-glisser d'un bord à l'autre : pont procédural entre deux points (hauteurs différentes possibles), avec garde-corps et piles. Points déplaçables après coup.",
 	},
 	{
 		"id": WALL, "icon": "🧱", "label": "Mur", "shortcut": "W", "group": "place",

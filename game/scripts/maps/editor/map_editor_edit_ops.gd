@@ -151,7 +151,16 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 		var handle_elem: Dictionary = _ed.doc.get_element(hid)
 		if not handle_elem.is_empty():
 			_ed.doc.select_only(hid)
-			_ed._press_mode = str(handle.get("kind", "resize"))
+			var hkind := str(handle.get("kind", "resize"))
+			# Pont : deux extrémités déplaçables (début / fin).
+			if hkind == "bridge_start" or hkind == "bridge_end":
+				_ed._press_mode = hkind
+				_ed._press_moved = false
+				_ed._drag_ids = [hid]
+				_ed._handle_state = {"id": hid, "kind": hkind}
+				_ed._refresh_overlay()
+				return
+			_ed._press_mode = hkind
 			_ed._drag_ids = [hid]
 			var display: Dictionary = handle_elem.get("display", {}) if handle_elem.get("display") is Dictionary else {}
 			var handle_w := float(handle_elem.get("w", 1.0))
@@ -259,6 +268,9 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 			_ed._engine.update_view_pan(screen)
 		"erase":
 			_ed._erase_at(screen)
+		"bridge_start", "bridge_end":
+			_ed._press_moved = true
+			_apply_bridge_endpoint_drag(grid)
 		"band":
 			_ed._overlay.band_end = screen
 			_ed._press_moved = true
@@ -354,6 +366,11 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._engine.end_view_pan()
 		"erase":
 			_ed._press_moved = false
+		"bridge_start", "bridge_end":
+			if _ed._press_moved:
+				_ed.doc.commit_live_edit(_ed._drag_ids, "Déplacer extrémité du pont")
+			_ed._drag_ids.clear()
+			_ed._handle_state.clear()
 		"band":
 			_ed._overlay.band_active = false
 			_ed._band_base_selection.clear()
@@ -503,6 +520,41 @@ func _apply_handle_resize(grid: Vector2) -> void:
 		_ed._refresh_light_mask_live()
 		return
 	_ed.doc.set_live_fields(id, fields)
+
+## Déplacement d'une extrémité de pont : met à jour start/end, recentre le
+## rectangle englobant, puis reconstruit la seule couche des objets.
+func _apply_bridge_endpoint_drag(grid: Vector2) -> void:
+	if _ed._handle_state.is_empty():
+		return
+	var id := str(_ed._handle_state.get("id", ""))
+	var elem: Dictionary = _ed.doc.get_element(id)
+	if elem.is_empty():
+		return
+	var is_start := str(_ed._handle_state.get("kind", "")) == "bridge_start"
+	var h: float = _ed.doc.terrain_height(int(roundf(grid.x)), int(roundf(grid.y)))
+	var pt := {"x": grid.x, "y": grid.y, "h": h}
+	var start: Dictionary = (elem.get("start", {}) as Dictionary).duplicate()
+	var end: Dictionary = (elem.get("end", {}) as Dictionary).duplicate()
+	if is_start:
+		start = pt
+	else:
+		end = pt
+	var from := Vector2(float(start.get("x", 0.0)), float(start.get("y", 0.0)))
+	var to := Vector2(float(end.get("x", 0.0)), float(end.get("y", 0.0)))
+	var delta := to - from
+	var center := (from + to) * 0.5
+	var width := float(elem.get("width", 1.6))
+	var length := maxf(0.5, delta.length())
+	_ed.doc.set_live_fields(id, {
+		"start": start, "end": end,
+		"x": center.x, "y": center.y,
+		"w": length, "h": width,
+		"sizeX": length, "sizeZ": width,
+		"display": {"rotation": rad_to_deg(atan2(delta.y, delta.x)), "scale": 1.0},
+	})
+	if _ed._engine != null and _ed._engine.has_method("refresh_meshes_only"):
+		_ed._engine.call("refresh_meshes_only")
+	_ed._refresh_overlay()
 
 func _apply_handle_rotate(grid: Vector2) -> void:
 	if _ed._handle_state.is_empty():

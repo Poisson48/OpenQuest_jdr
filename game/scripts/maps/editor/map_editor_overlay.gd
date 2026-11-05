@@ -427,7 +427,9 @@ func _draw_selection() -> void:
 	if selected.size() == 1:
 		var sole: Dictionary = doc.get_element(str(selected[0]))
 		var sole_kind := str(sole.get("kind", ""))
-		if (sole_kind == DocumentScript.KIND_PROP or sole_kind == DocumentScript.KIND_MESH) \
+		if _is_bridge(sole):
+			_draw_bridge_handles(sole)
+		elif (sole_kind == DocumentScript.KIND_PROP or sole_kind == DocumentScript.KIND_MESH) \
 				and not bool(sole.get("locked", false)):
 			_draw_prop_handles(sole)
 	if selected.size() > 1:
@@ -668,6 +670,32 @@ func elements_in_band(rect: Rect2) -> Array:
 
 const HANDLE_HIT := 10.0
 
+## Vrai si l'élément est un pont procédural (deux extrémités déplaçables).
+func _is_bridge(elem: Dictionary) -> bool:
+	return str(elem.get("asset", "")) == "procedural://bridge"
+
+## Positions écran des deux extrémités d'un pont `[start, end]`.
+func bridge_endpoint_screen(elem: Dictionary) -> Array:
+	var start: Dictionary = elem.get("start", {}) if elem.get("start") is Dictionary else {}
+	var end: Dictionary = elem.get("end", {}) if elem.get("end") is Dictionary else {}
+	if start.is_empty() or end.is_empty():
+		return []
+	return [
+		_p(float(start.get("x", 0.0)), float(start.get("y", 0.0))),
+		_p(float(end.get("x", 0.0)), float(end.get("y", 0.0))),
+	]
+
+## Deux poignées rondes aux extrémités du pont + une ligne entre elles.
+func _draw_bridge_handles(elem: Dictionary) -> void:
+	var pts: Array = bridge_endpoint_screen(elem)
+	if pts.size() != 2:
+		return
+	draw_line(pts[0], pts[1], COL_SELECT, 1.2, true)
+	for i in range(2):
+		var p: Vector2 = pts[i]
+		draw_circle(p, 7.0, Color(0.12, 0.10, 0.08, 0.9))
+		draw_arc(p, 7.0, 0.0, TAU, 24, COL_SELECT, 2.0, true)
+
 ## Poignées d'un décor : 4 coins (resize) + 1 poignée de rotation au-dessus.
 func prop_handle_points(elem: Dictionary) -> Dictionary:
 	var pts := _footprint(elem)
@@ -700,6 +728,16 @@ func handle_at_screen(pos: Vector2, radius: float = HANDLE_HIT) -> Dictionary:
 		return {}
 	var id := str(selected[0])
 	var elem: Dictionary = doc.get_element(id)
+	if _is_bridge(elem):
+		if bool(elem.get("locked", false)):
+			return {}
+		var bpts: Array = bridge_endpoint_screen(elem)
+		if bpts.size() == 2:
+			if bpts[0].distance_to(pos) <= radius:
+				return {"id": id, "kind": "bridge_start", "corner": -1}
+			if bpts[1].distance_to(pos) <= radius:
+				return {"id": id, "kind": "bridge_end", "corner": -1}
+		return {}
 	var elem_kind := str(elem.get("kind", ""))
 	if elem_kind != DocumentScript.KIND_PROP and elem_kind != DocumentScript.KIND_MESH:
 		return {}
