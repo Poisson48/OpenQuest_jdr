@@ -192,6 +192,7 @@ var _flyout = null
 var _more_tools_btn: Button = null
 var _recent_buttons: Array = []
 var _recent_tool_ids: Array = []
+var _icon_manifest: Dictionary = {}
 var _last_path_points: Array = []
 var _last_path_painted: bool = false
 var _scene_seed: int = 1
@@ -221,7 +222,7 @@ var _left_panel: VBoxContainer
 var _left_scroll: ScrollContainer
 var _right_tabs: TabContainer
 var _right_scroll: ScrollContainer = null
-var _tool_options: VBoxContainer
+var _tool_options: BoxContainer
 var _history_list: VBoxContainer
 var _template_list: VBoxContainer
 var _asset_grid: GridContainer
@@ -384,6 +385,7 @@ func _bind_ui() -> void:
 	_left_panel.move_child(_palette_v2, 0)
 	_palette_v2.tool_selected.connect(_set_tool)
 	%ToolHost.visible = false
+	_icon_manifest = _load_icon_manifest()
 	_rebuild_palette_v2()
 	_build_more_tools()
 	_path_panel = MapEditorPathUIScript.new()
@@ -1003,10 +1005,15 @@ func _move_tool_options_to_top() -> void:
 		label.get_parent().remove_child(label)
 	var bar := PanelContainer.new()
 	bar.name = "OptionsBar"
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 2)
+	bar.custom_minimum_size = Vector2(0, 44)
+	var box := HBoxContainer.new()
+	box.name = "OptionsRow"
+	box.add_theme_constant_override("separation", 8)
 	if label != null:
 		box.add_child(label)
+		var sep := VSeparator.new()
+		sep.custom_minimum_size = Vector2(1, 20)
+		box.add_child(sep)
 	box.add_child(_tool_options)
 	bar.add_child(box)
 	var idx := 0
@@ -1267,13 +1274,29 @@ func _rebuild_palette_v2() -> void:
 	_palette_v2.setup(groups)
 	_palette_v2.set_active(_tool)
 
+func _load_icon_manifest() -> Dictionary:
+	var path := "res://assets/icons/lucide/manifest.json"
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	return parsed if parsed is Dictionary else {}
+
+## Icône d'un outil : chemin SVG Lucide (manifeste) sinon emoji de secours.
+func _icon_for(tool_id: String, def: Dictionary) -> String:
+	var svg := str(_icon_manifest.get(tool_id, ""))
+	return svg if not svg.is_empty() else str(def.get("icon", "•"))
+
 func _group_def(title: String, ids: Array) -> Dictionary:
 	var tools: Array = []
 	for tool_id in ids:
 		var def: Dictionary = ToolsScript.get_def(str(tool_id))
 		tools.append({
 			"id": str(tool_id),
-			"icon": str(def.get("icon", "•")),
+			"icon": _icon_for(str(tool_id), def),
 			"label": str(def.get("label", tool_id)),
 			"shortcut": str(def.get("shortcut", "")),
 		})
@@ -1341,7 +1364,7 @@ func _flyout_tools(ids: Array) -> Array:
 		var def: Dictionary = ToolsScript.get_def(str(tool_id))
 		out.append({
 			"id": str(tool_id),
-			"icon": str(def.get("icon", "•")),
+			"icon": _icon_for(str(tool_id), def),
 			"label": str(def.get("label", tool_id)),
 		})
 	return out

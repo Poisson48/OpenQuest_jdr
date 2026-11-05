@@ -2,11 +2,14 @@ extends RefCounted
 
 ## Options d'outils de l'éditeur de carte — extrait de `map_complex_editor.gd`.
 ##
-## Reconstruit le panneau « Options de l'outil » (_rebuild_tool_options) : un
-## bloc par outil (murs, pièce, toit, dallage, porte/fenêtre, meubles, organique,
-## végétation, décors, objets 3D, lieux, terrain, relief, templates…) avec ses
-## widgets et callbacks. Le module reçoit une référence à l'éditeur (`setup`)
-## et utilise les helpers UI de l'éditeur via `_ed` (`_section`, `_spin`…).
+## Reconstruit la barre d'options contextuelle HORIZONTALE (_rebuild_tool_options)
+## : une seule ligne compacte sous la barre supérieure, un réglage par outil
+## (murs, pièce, toit, dallage, porte/fenêtre, meubles, organique, végétation,
+## décors, objets 3D, lieux, terrain, relief, templates…). Chaque réglage est un
+## HBox « Label 12px #A1AFB2 + champ 28px » (_field_hbox), séparé du suivant par
+## un VSeparator 1×20 #414E54 (_sep). Le module reçoit une référence à l'éditeur
+## (`setup`) ; la logique métier (callbacks, valeurs `_ed.*`, branches par outil)
+## est inchangée.
 const ConstructionScript := preload("res://scripts/maps/editor/map_editor_construction.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
@@ -20,23 +23,72 @@ var _ed
 func setup(editor) -> void:
 	_ed = editor
 
+# ===========================================================================
+# Barre d'options horizontale — widgets compacts
+# ===========================================================================
+
+func _field_hbox(parent: Control, label_text: String, control: Control) -> HBoxContainer:
+	# Un réglage de la barre : HBox { Label 12px #A1AFB2 + champ 28px }.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	parent.add_child(row)
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color("#A1AFB2"))
+	row.add_child(lbl)
+	control.custom_minimum_size.y = 28.0
+	row.add_child(control)
+	return row
+
+func _sep(parent: Control) -> void:
+	# VSeparator 1×20 #414E54 entre deux réglages ; ignoré en tête de barre
+	# (les enfants déjà queue_free() d'un rebuild ne comptent pas).
+	for child in parent.get_children():
+		if child.is_queued_for_deletion():
+			continue
+		var sep := VSeparator.new()
+		sep.custom_minimum_size = Vector2(1, 20)
+		sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var sep_bg := StyleBoxFlat.new()
+		sep_bg.bg_color = Color("#414E54")
+		sep.add_theme_stylebox_override("separator", sep_bg)
+		parent.add_child(sep)
+		return
+
+func _spin_field(parent: Control, label_text: String, min_v: float, max_v: float, value: float, step: float, on_change: Callable) -> SpinBox:
+	# Version horizontale de _ed._spin : label et champ groupés dans un HBox de
+	# la barre. Valeurs et callbacks inchangés.
+	var spin := SpinBox.new()
+	spin.min_value = min_v
+	spin.max_value = max_v
+	spin.step = step
+	spin.set_value_no_signal(clampf(value, min_v, max_v))
+	spin.value_changed.connect(func(v): on_change.call(v))
+	_field_hbox(parent, label_text, spin)
+	return spin
+
+func _line_field(parent: Control, label_text: String, value: String, on_change: Callable) -> LineEdit:
+	# Version horizontale de _ed._line_row : label et champ groupés dans un HBox
+	# de la barre. Callbacks inchangés.
+	var edit := LineEdit.new()
+	edit.text = value
+	edit.text_submitted.connect(func(text): on_change.call(text))
+	edit.focus_exited.connect(func(): on_change.call(edit.text))
+	_field_hbox(parent, label_text, edit)
+	return edit
+
 func _rebuild_tool_options() -> void:
 	if _ed._tool_options == null:
 		return
 	for child in _ed._tool_options.get_children():
 		child.queue_free()
 	if _ed._tool == ToolsScript.TOKEN:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Taille", 0.5, 6.0, _ed._token_size, 0.5, func(v): _ed._token_size = v)
-		_ed._line_row(_ed._hbox(_ed._tool_options), "Nom", _ed._token_label, func(text): _ed._token_label = text)
-		var kind_col := VBoxContainer.new()
-		kind_col.add_theme_constant_override("separation", 1)
-		kind_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_ed._hbox(_ed._tool_options).add_child(kind_col)
-		var kind_lbl := Label.new()
-		kind_lbl.text = "Type"
-		kind_lbl.add_theme_font_size_override("font_size", 10)
-		kind_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		kind_col.add_child(kind_lbl)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Taille", 0.5, 6.0, _ed._token_size, 0.5, func(v): _ed._token_size = v)
+		_sep(_ed._tool_options)
+		_line_field(_ed._tool_options, "Nom", _ed._token_label, func(text): _ed._token_label = text)
 		var kind_opt := OptionButton.new()
 		for kind_entry in [["member", "Joueur"], ["npc", "PNJ"], ["monster", "Monstre"]]:
 			var idx := kind_opt.item_count
@@ -48,19 +100,24 @@ func _rebuild_tool_options() -> void:
 			_ed._token_kind = str(kind_opt.get_item_metadata(index))
 			_rebuild_tool_options()
 		)
-		kind_col.add_child(kind_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Type", kind_opt)
 		if _ed._token_kind == "npc":
-			_ed._line_row(_ed._hbox(_ed._tool_options), "Dialogue", _ed._token_dialogue, func(text): _ed._token_dialogue = text)
+			_sep(_ed._tool_options)
+			_line_field(_ed._tool_options, "Dialogue", _ed._token_dialogue, func(text): _ed._token_dialogue = text)
 	elif _ed._tool == ToolsScript.MESH_WALL:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
 		_option_note("Glissez le long du tracé : segments de mur 3D (mur.glb) orientés et alignés au terrain. Idéal pour fermer une cour ou un bâtiment.")
 	elif _ed._tool == ToolsScript.ROOM_3D:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
 		var room_flatten := CheckBox.new()
 		room_flatten.text = "Aplatir l'emprise"
 		room_flatten.button_pressed = _ed._flatten_build_footprint
 		room_flatten.tooltip_text = "Nivelle le sol sous la pièce (moyenne des hauteurs) avant de poser les murs."
 		room_flatten.toggled.connect(func(on): _ed._flatten_build_footprint = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(room_flatten)
 		_option_note("Glissez un rectangle : 4 murs pour une pièce fermée, sol aplati. Ajoutez ensuite dallage, portes, fenêtres et toit.")
 	elif _ed._tool == ToolsScript.ROOF_3D:
@@ -72,8 +129,10 @@ func _rebuild_tool_options() -> void:
 			if str(roof_style["path"]) == _ed._roof_asset:
 				roof_opt.select(i)
 		roof_opt.item_selected.connect(func(index: int): _ed._roof_asset = str(roof_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(roof_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.2, 10.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Style", roof_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.2, 10.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
 		_option_note("Glissez un rectangle au-dessus d'une pièce : génère une grille de tuiles de toit 2 pans.")
 	elif _ed._tool == ToolsScript.FLOOR_3D:
 		var floor_opt := OptionButton.new()
@@ -84,40 +143,48 @@ func _rebuild_tool_options() -> void:
 			if int(floor_mat["id"]) == _ed._floor_material:
 				floor_opt.select(i)
 		floor_opt.item_selected.connect(func(index: int): _ed._floor_material = int(floor_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(floor_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Matière", floor_opt)
 		var flatten_chk := CheckBox.new()
 		flatten_chk.text = "Niveler le sol"
 		flatten_chk.button_pressed = _ed._floor_flatten
 		flatten_chk.toggled.connect(func(on): _ed._floor_flatten = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(flatten_chk)
 		_option_note("Glissez un rectangle à l'intérieur d'une pièce : dallage de pierre (matière 2) et sol à plat.")
 	elif _ed._tool == ToolsScript.HOUSE_3D:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur murs", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur murs", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
 		var house_flatten := CheckBox.new()
 		house_flatten.text = "Aplatir l'emprise"
 		house_flatten.button_pressed = _ed._flatten_build_footprint
 		house_flatten.tooltip_text = "Nivelle le sol sous la maison avant murs, dallage et toit."
 		house_flatten.toggled.connect(func(on): _ed._flatten_build_footprint = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(house_flatten)
 		var auto_interior := CheckBox.new()
 		auto_interior.text = "Intérieur lié automatique"
 		auto_interior.button_pressed = _ed._house_auto_interior
 		auto_interior.tooltip_text = "Crée une carte intérieure liée derrière la porte, avec le mobilier de base."
 		auto_interior.toggled.connect(func(on): _ed._house_auto_interior = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(auto_interior)
 		var auto_windows := CheckBox.new()
 		auto_windows.text = "Fenêtres automatiques"
 		auto_windows.button_pressed = _ed._house_auto_windows
 		auto_windows.tooltip_text = "Pose une fenêtre sur chaque mur latéral (murs assez hauts requis)."
 		auto_windows.toggled.connect(func(on): _ed._house_auto_windows = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(auto_windows)
 		var proc_roof_chk := CheckBox.new()
 		proc_roof_chk.text = "Toit procédural"
 		proc_roof_chk.button_pressed = _ed._house_proc_roof
 		proc_roof_chk.tooltip_text = "Utilise un seul mesh de toit (tuiles/ardoise/chaume) au lieu des modules."
 		proc_roof_chk.toggled.connect(func(on): _ed._house_proc_roof = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(proc_roof_chk)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Étages", 1, 3, float(_ed._house_floors), 1, func(v): _ed._house_floors = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Étages", 1, 3, float(_ed._house_floors), 1, func(v): _ed._house_floors = int(v))
 		_option_note("Glissez un rectangle : murs + dallage + toit + porte au centre du mur avant, sol aplati, en une seule action.")
 	elif _ed._tool == ToolsScript.WINDOW_3D:
 		_option_note("Cliquez sur un mur 3D : fenêtre à volets sur la façade extérieure. Murs hauts recommandés.")
@@ -132,7 +199,8 @@ func _rebuild_tool_options() -> void:
 		furnish_opt.item_selected.connect(func(index: int):
 			_ed._furnish_preset = str(furnish_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(furnish_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Mobilier", furnish_opt)
 		_option_note("Cliquez dans une pièce : l'ensemble de mobilier est posé autour du point, aligné au sol.")
 	elif _ed._tool == ToolsScript.STAIRS_3D:
 		_option_note("Cliquez près d'un mur : escalier extérieur adossé à la façade ; ailleurs, escalier libre.")
@@ -147,10 +215,12 @@ func _rebuild_tool_options() -> void:
 			if str(fence_style["path"]) == _ed._fence_asset:
 				fence_opt.select(i)
 		fence_opt.item_selected.connect(func(index: int): _ed._fence_asset = str(fence_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(fence_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Style", fence_opt)
 		_option_note("Glissez le long d'une limite : clôture modulaire alignée au terrain.")
 	elif _ed._tool == ToolsScript.PATH_3D:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 1, 4, float(_ed._path_width), 1, func(v): _ed._path_width = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Largeur", 1, 4, float(_ed._path_width), 1, func(v): _ed._path_width = int(v))
 		var path_opt := OptionButton.new()
 		for i in range(ConstructionScript.FLOOR_MATERIALS.size()):
 			var path_mat: Dictionary = ConstructionScript.FLOOR_MATERIALS[i]
@@ -159,7 +229,8 @@ func _rebuild_tool_options() -> void:
 			if int(path_mat["id"]) == _ed._path_material:
 				path_opt.select(i)
 		path_opt.item_selected.connect(func(index: int): _ed._path_material = int(path_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(path_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Matière", path_opt)
 		_option_note("Glissez un tracé : chemin peint au sol (terre par défaut), largeur réglable.")
 	elif _ed._tool == ToolsScript.PROC_WALL:
 		var wall_style_opt := OptionButton.new()
@@ -175,9 +246,12 @@ func _rebuild_tool_options() -> void:
 			if str(wall_styles[i][0]) == _ed._proc_wall_color:
 				wall_style_opt.select(i)
 		wall_style_opt.item_selected.connect(func(index: int): _ed._proc_wall_color = str(wall_style_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(wall_style_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Style", wall_style_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : génère un seul mesh de mur continu (mitres) à partir de la courbe. Style, hauteur et lissage réglables.")
 	elif _ed._tool == ToolsScript.PROC_FENCE:
 		var fence_tone_opt := OptionButton.new()
@@ -188,10 +262,14 @@ func _rebuild_tool_options() -> void:
 			if str(fence_tones[i][0]) == _ed._proc_fence_tone:
 				fence_tone_opt.select(i)
 		fence_tone_opt.item_selected.connect(func(index: int): _ed._proc_fence_tone = str(fence_tone_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(fence_tone_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 2.5, _ed._proc_fence_height, 0.1, func(v): _ed._proc_fence_height = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Teinte", fence_tone_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.3, 2.5, _ed._proc_fence_height, 0.1, func(v): _ed._proc_fence_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Espacement", 0.4, 4.0, _ed._proc_fence_spacing, 0.1, func(v): _ed._proc_fence_spacing = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : poteaux + lisses en un seul mesh le long de la courbe. Matière, hauteur et espacement réglables.")
 	elif _ed._tool == ToolsScript.PROC_PATH or _ed._tool == ToolsScript.PATH_BRUSH:
 		var path_color_opt := OptionButton.new()
@@ -206,10 +284,14 @@ func _rebuild_tool_options() -> void:
 			if str(path_colors[i][0]) == _ed._proc_path_color:
 				path_color_opt.select(i)
 		path_color_opt.item_selected.connect(func(index: int): _ed._proc_path_color = str(path_color_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(path_color_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 0.3, 4.0, _ed._proc_path_width, 0.1, func(v): _ed._proc_path_width = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Creux", 0.0, 0.2, _ed._proc_path_depth, 0.005, func(v): _ed._proc_path_depth = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Couleur", path_color_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Largeur", 0.3, 4.0, _ed._proc_path_width, 0.1, func(v): _ed._proc_path_width = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Creux", 0.0, 0.2, _ed._proc_path_depth, 0.005, func(v): _ed._proc_path_depth = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
 		_option_note("Clic-glisser libre : chemin peint dans le terrain, légèrement creusé, qui suit pentes et creux. Les bords sont irréguliers et la matière se fond dans le sol.")
 	elif _ed._tool == ToolsScript.ORGANIC:
 		var organic_opt := OptionButton.new()
@@ -222,10 +304,14 @@ func _rebuild_tool_options() -> void:
 		organic_opt.item_selected.connect(func(index: int):
 			_ed._organic_asset = str(organic_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(organic_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
-		_ed._spin(_ed._hbox(_ed._tool_options), "Espacement", 0.0, 6.0, _ed._organic_spacing, 0.1, func(v): _ed._organic_spacing = v)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Style", organic_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.5, 5.0, _ed._wall_height, 0.1, func(v): _ed._wall_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Lissage", 1, 10, float(_ed._organic_smoothing), 1, func(v): _ed._organic_smoothing = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Espacement", 0.0, 6.0, _ed._organic_spacing, 0.1, func(v): _ed._organic_spacing = v)
 		_option_note("Clic-glisser libre : courbe lissée (Catmull-Rom), modules orientés sur la tangente, sans trou. Relâchez pour construire (un seul undo).")
 	elif _ed._tool == ToolsScript.SCATTER:
 		var scatter_opt := OptionButton.new()
@@ -238,10 +324,15 @@ func _rebuild_tool_options() -> void:
 		scatter_opt.item_selected.connect(func(index: int):
 			_ed._scatter_mode = str(scatter_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(scatter_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.2, 4.0, _ed._scatter_density, 0.1, func(v): _ed._scatter_density = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Taille", 0.3, 3.0, _ed._scatter_size, 0.1, func(v): _ed._scatter_size = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Rayon", 0.3, 5.0, _ed._scatter_radius, 0.1, func(v): _ed._scatter_radius = v)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Mode", scatter_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Densité", 0.2, 4.0, _ed._scatter_density, 0.1, func(v): _ed._scatter_density = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Taille", 0.3, 3.0, _ed._scatter_size, 0.1, func(v): _ed._scatter_size = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Rayon", 0.3, 5.0, _ed._scatter_radius, 0.1, func(v): _ed._scatter_radius = v)
+		_sep(_ed._tool_options)
 		_ed._checkbox(_ed._tool_options, "Remplir la zone (sinon bordure du tracé)", _ed._scatter_zone_mode,
 			func(on): _ed._scatter_zone_mode = on)
 		_option_note("Clic-glisser : disperse %s autour du trait (rotations/échelles variées, sans doublon de case, eau évitée). Un seul undo par trait." % OrganicScatterScript.mode_label(_ed._scatter_mode).to_lower())
@@ -256,13 +347,18 @@ func _rebuild_tool_options() -> void:
 		flower_opt.item_selected.connect(func(index: int):
 			_ed._flower_zone_type = str(flower_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(flower_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.5, 8.0, _ed._flower_zone_density, 0.5, func(v): _ed._flower_zone_density = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Taille", 0.08, 0.6, _ed._flower_zone_size, 0.02, func(v): _ed._flower_zone_size = v)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Fleur", flower_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Densité", 0.5, 8.0, _ed._flower_zone_density, 0.5, func(v): _ed._flower_zone_density = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Taille", 0.08, 0.6, _ed._flower_zone_size, 0.02, func(v): _ed._flower_zone_size = v)
 		_option_note("Clic-glisser pour dessiner une zone fermée : les fleurs du type choisi apparaissent uniquement dedans. Aucune herbe automatique.")
 	elif _ed._tool == ToolsScript.CONTEXT_DECOR:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Rayon", 0.5, 8.0, _ed._context_decor_radius, 0.5, func(v): _ed._context_decor_radius = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.1, 2.0, _ed._context_decor_density, 0.1, func(v): _ed._context_decor_density = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Rayon", 0.5, 8.0, _ed._context_decor_radius, 0.5, func(v): _ed._context_decor_radius = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Densité", 0.1, 2.0, _ed._context_decor_density, 0.1, func(v): _ed._context_decor_density = v)
 		var reseed_btn := Button.new()
 		reseed_btn.text = "Nouvelle graine"
 		reseed_btn.add_theme_font_size_override("font_size", 10)
@@ -270,6 +366,7 @@ func _rebuild_tool_options() -> void:
 			_ed._context_decor_seed += 1
 			_ed._set_status("Décor contextuel : nouvelle graine.")
 		)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(reseed_btn)
 		_option_note("Cliquez près d'un mur : buissons, rochers et haies sont semés le long de ses abords. Un seul undo, variations déterministes.")
 	elif _ed._tool == ToolsScript.SCENE_GEN or _ed._tool == ToolsScript.SCENE_ZONE:
@@ -283,9 +380,12 @@ func _rebuild_tool_options() -> void:
 		style_opt.item_selected.connect(func(index: int):
 			_ed._scene_style = str(style_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(style_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Graine", 1.0, 99999.0, float(_ed._scene_seed), 1.0, func(v): _ed._scene_seed = int(v))
-		_ed._spin(_ed._hbox(_ed._tool_options), "Densité", 0.3, 2.0, _ed._scene_density, 0.1, func(v): _ed._scene_density = v)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Style", style_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Graine", 1.0, 99999.0, float(_ed._scene_seed), 1.0, func(v): _ed._scene_seed = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Densité", 0.3, 2.0, _ed._scene_density, 0.1, func(v): _ed._scene_density = v)
 		var regen_btn := Button.new()
 		regen_btn.text = "Nouvelle graine"
 		regen_btn.add_theme_font_size_override("font_size", 10)
@@ -293,25 +393,31 @@ func _rebuild_tool_options() -> void:
 			_ed._scene_seed += 1
 			_ed._set_status("Scène : nouvelle graine %d." % _ed._scene_seed)
 		)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(regen_btn)
 		_option_note("Clic-glisser une zone : génère un %s uniquement dans cette zone. Les grandes lignes viennent du MJ, le procédural complète le reste." % ProceduralSceneGeneratorScript.style_label(_ed._scene_style).to_lower())
 	elif _ed._tool == ToolsScript.MARKER:
 		_option_note("Type : %s %s" % [MapData.get_marker_emoji(_ed._marker_type), MapData.get_marker_label(_ed._marker_type)])
 	elif _ed._tool == ToolsScript.EFFECT:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Rayon", 0.25, 8.0, _ed._effect_radius, 0.25, func(v): _ed._effect_radius = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Rayon", 0.25, 8.0, _ed._effect_radius, 0.25, func(v): _ed._effect_radius = v)
 		_option_note("Preset : %s" % _ed._effect_preset)
 	elif _ed._tool in [ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY]:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Rayon", 0.25, 12.0, _ed._zone_radius, 0.25, func(v): _ed._zone_radius = v)
-		_ed._line_row(_ed._hbox(_ed._tool_options), "Nom", _ed._zone_label, func(text): _ed._zone_label = text)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Rayon", 0.25, 12.0, _ed._zone_radius, 0.25, func(v): _ed._zone_radius = v)
+		_sep(_ed._tool_options)
+		_line_field(_ed._tool_options, "Nom", _ed._zone_label, func(text): _ed._zone_label = text)
 	elif _ed._tool == ToolsScript.PROP:
 		if _ed._prop_asset.is_empty():
 			_option_note("Aucun décor sélectionné. Ouvrez l'onglet Biblio pour en choisir un.")
 		else:
 			_option_note("Décor : %s" % _ed._prop_asset.get_file())
-		_ed._spin(_ed._hbox(_ed._tool_options), "Taille (cases)", 0.25, 40.0, _ed._prop_size, 0.25, func(v):
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Taille (cases)", 0.25, 40.0, _ed._prop_size, 0.25, func(v):
 			_ed._prop_size = v
 			_ed._refresh_ghost()
 		)
+		_sep(_ed._tool_options)
 		_ed._checkbox(_ed._tool_options, "Dressé face caméra", _ed._prop_standing, func(on):
 			_ed._prop_standing = on
 			_ed._refresh_ghost()
@@ -322,7 +428,8 @@ func _rebuild_tool_options() -> void:
 			_option_note("Aucun objet 3D sélectionné. Ouvrez l'onglet Biblio → Objets 3D.")
 		else:
 			_option_note("Objet 3D : %s" % _ed._mesh_asset.get_file())
-		_ed._spin(_ed._hbox(_ed._tool_options), "Échelle", 0.1, 10.0, _ed._mesh_scale, 0.1, func(v):
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Échelle", 0.1, 10.0, _ed._mesh_scale, 0.1, func(v):
 			_ed._mesh_scale = v
 			_ed._refresh_ghost()
 		)
@@ -331,16 +438,19 @@ func _rebuild_tool_options() -> void:
 		snap_chk.button_pressed = _ed._mesh_snap_modules
 		snap_chk.tooltip_text = "Toits et façades se posent automatiquement sur le bâtiment le plus proche."
 		snap_chk.toggled.connect(func(on): _ed._mesh_snap_modules = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(snap_chk)
 		var stack_chk := CheckBox.new()
 		stack_chk.text = "Empilement automatique"
 		stack_chk.button_pressed = _ed._auto_stack
 		stack_chk.tooltip_text = "Pose l'objet sur le dessus d'un objet existant qui recouvre son emprise."
 		stack_chk.toggled.connect(func(on): _ed._auto_stack = on)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(stack_chk)
 		_option_note("Rotation : %d° (R pour pivoter)" % int(_ed._mesh_rotation))
 	elif _ed._tool == ToolsScript.AREA:
-		_ed._line_row(_ed._hbox(_ed._tool_options), "Nom du lieu", _ed._area_label, func(text): _ed._area_label = text)
+		_sep(_ed._tool_options)
+		_line_field(_ed._tool_options, "Nom du lieu", _ed._area_label, func(text): _ed._area_label = text)
 		var cat := OptionButton.new()
 		for i in range(MapData.AREA_CATEGORIES.size()):
 			var category: Dictionary = MapData.AREA_CATEGORIES[i]
@@ -349,21 +459,28 @@ func _rebuild_tool_options() -> void:
 			if str(category["id"]) == _ed._area_category:
 				cat.select(i)
 		cat.item_selected.connect(func(index): _ed._area_category = str(cat.get_item_metadata(index)))
-		_ed._tool_options.add_child(cat)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Catégorie", cat)
 		_option_note("Glissez pour délimiter le lieu, puis reliez-lui une carte depuis l'inspecteur.")
 	elif _ed._tool == ToolsScript.PAINT:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
 	elif _ed._tool == ToolsScript.PROC_POLY_ROOF:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur", 0.3, 3.0, _ed._proc_poly_roof_height, 0.1, func(v): _ed._proc_poly_roof_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur", 0.3, 3.0, _ed._proc_poly_roof_height, 0.1, func(v): _ed._proc_poly_roof_height = v)
 		_option_note("Clic-glisser libre : dessinez l'emprise, le toit est triangulé depuis un sommet central. Couvre les formes irrégulières (L, U, courbes).")
 	elif _ed._tool == ToolsScript.PROC_ROOF:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v):
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v):
 			_ed._roof_height = v
 		)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Hauteur du toit", 0.3, 3.0, _ed._proc_roof_height, 0.1, func(v): _ed._proc_roof_height = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Débord", 0.0, 1.5, _ed._proc_roof_overhang, 0.05, func(v): _ed._proc_roof_overhang = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Hauteur du toit", 0.3, 3.0, _ed._proc_roof_height, 0.1, func(v): _ed._proc_roof_height = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Débord", 0.0, 1.5, _ed._proc_roof_overhang, 0.05, func(v): _ed._proc_roof_overhang = v)
 		var roof_style_opt := OptionButton.new()
 		roof_style_opt.add_item("Deux pans", 0)
 		roof_style_opt.set_item_metadata(0, "gable")
@@ -371,7 +488,8 @@ func _rebuild_tool_options() -> void:
 		roof_style_opt.set_item_metadata(1, "hip")
 		roof_style_opt.select(0 if _ed._proc_roof_style == "gable" else 1)
 		roof_style_opt.item_selected.connect(func(index: int): _ed._proc_roof_style = str(roof_style_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(roof_style_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Forme", roof_style_opt)
 		var roof_tone_opt := OptionButton.new()
 		var roof_tones := [["tuiles", "Tuiles rouges"], ["ardoise", "Ardoise"], ["chaume", "Chaume"]]
 		for i in range(roof_tones.size()):
@@ -380,7 +498,8 @@ func _rebuild_tool_options() -> void:
 			if str(roof_tones[i][0]) == _ed._proc_roof_tone:
 				roof_tone_opt.select(i)
 		roof_tone_opt.item_selected.connect(func(index: int): _ed._proc_roof_tone = str(roof_tone_opt.get_item_metadata(index)))
-		_ed._tool_options.add_child(roof_tone_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Teinte", roof_tone_opt)
 		_option_note("Clic-glisser un rectangle : un seul mesh à deux pans ou à croupe (débord + pignons), avec teinte tuiles/ardoise/chaume.")
 	elif _ed._tool == ToolsScript.TERRAIN_SPLINE:
 		var spline_mode_opt := OptionButton.new()
@@ -396,10 +515,14 @@ func _rebuild_tool_options() -> void:
 		spline_mode_opt.item_selected.connect(func(index):
 			_ed._terrain_spline_mode = str(spline_mode_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(spline_mode_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Largeur", 0.5, 10.0, _ed._terrain_spline_width, 0.5, func(v): _ed._terrain_spline_width = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Force", 0.05, 2.0, _ed._terrain_spline_strength, 0.05, func(v): _ed._terrain_spline_strength = v)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Lissage", 1, 10, float(_ed._terrain_spline_smoothing), 1, func(v): _ed._terrain_spline_smoothing = int(v))
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Mode", spline_mode_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Largeur", 0.5, 10.0, _ed._terrain_spline_width, 0.5, func(v): _ed._terrain_spline_width = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Force", 0.05, 2.0, _ed._terrain_spline_strength, 0.05, func(v): _ed._terrain_spline_strength = v)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Lissage", 1, 10, float(_ed._terrain_spline_smoothing), 1, func(v): _ed._terrain_spline_smoothing = int(v))
 		_option_note("Clic-glisser libre : déforme le terrain le long du tracé. Crête/vallée pour les collines, aplatir pour une plateforme, lisser pour adoucir.")
 	elif _ed._tool == ToolsScript.TERRAIN_HEIGHT:
 		var mode_opt := OptionButton.new()
@@ -415,12 +538,15 @@ func _rebuild_tool_options() -> void:
 		mode_opt.item_selected.connect(func(index):
 			_ed._relief_mode = str(mode_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(mode_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Mode", mode_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Pinceau (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
 			_ed._relief_radius = v
 			_ed._refresh_ghost()
 		)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Force (cases)", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Force (cases)", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
 			_ed._relief_strength = v
 		)
 		var flatten_btn := Button.new()
@@ -432,6 +558,7 @@ func _rebuild_tool_options() -> void:
 			_ed._sync_engine()
 			_ed._set_status("Relief nivelé à zéro.")
 		)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(flatten_btn)
 		var lower_btn := Button.new()
 		lower_btn.text = "Mode baisser"
@@ -442,6 +569,7 @@ func _rebuild_tool_options() -> void:
 			_ed._set_status("Relief : mode Baisser — glissez pour creuser.")
 			_ed._rebuild_tool_options()
 		)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(lower_btn)
 		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _ed._tool == ToolsScript.GROUND_MATERIAL:
@@ -461,8 +589,10 @@ func _rebuild_tool_options() -> void:
 		mat_opt.item_selected.connect(func(index):
 			_ed._material_id = int(mat_opt.get_item_metadata(index))
 		)
-		_ed._tool_options.add_child(mat_opt)
-		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau (cases)", 0.5, 8.0, _ed._material_radius, 0.5, func(v):
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Matière", mat_opt)
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Pinceau (cases)", 0.5, 8.0, _ed._material_radius, 0.5, func(v):
 			_ed._material_radius = v
 			_ed._refresh_ghost()
 		)
@@ -475,10 +605,12 @@ func _rebuild_tool_options() -> void:
 			_ed._sync_engine()
 			_ed._set_status("Sol entièrement repeint.")
 		)
+		_sep(_ed._tool_options)
 		_ed._tool_options.add_child(fill_mat_btn)
 		_option_note("Peint la matière du sol. La carte doit être en mode sol 3D (terrain3d). Matière enregistrée avec la carte.")
 	elif _ed._tool == ToolsScript.FOG_REVEAL or _ed._tool == ToolsScript.FOG_HIDE:
-		_ed._spin(_ed._hbox(_ed._tool_options), "Pinceau", 0, 6, float(_ed._fog_brush), 1, func(v): _ed._fog_brush = int(v))
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._fog_brush), 1, func(v): _ed._fog_brush = int(v))
 	elif _ed._tool == ToolsScript.ERASE:
 		var target_opt := OptionButton.new()
 		target_opt.add_item("Tout effacer", -1)
@@ -498,7 +630,8 @@ func _rebuild_tool_options() -> void:
 			_ed._erase_target = int(target_opt.get_item_metadata(index))
 			_ed._set_status("Gomme : %s." % target_opt.get_item_text(index))
 		)
-		_ed._tool_options.add_child(target_opt)
+		_sep(_ed._tool_options)
+		_field_hbox(_ed._tool_options, "Cible", target_opt)
 		_option_note("Efface l'élément sous le curseur. Ciblez un calque pour ne retirer que ce calque (ex. le chemin sans les fleurs). Effacer un chemin remet aussi le terrain comme avant.")
 	elif _ed._tool == ToolsScript.TEMPLATE:
 		_option_note("Template : %s (rotation %d°)" % [
@@ -509,12 +642,9 @@ func _rebuild_tool_options() -> void:
 		_option_note(ToolsScript.hint(_ed._tool))
 
 func _option_note(text: String) -> void:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	_ed._tool_options.add_child(lbl)
+	# Déduplication (§5) : la note d'aide ne crée plus de label redondant dans la
+	# barre d'options ; elle descend dans la barre d'état.
+	_ed._set_status(text)
 
 # ===========================================================================
 # Statut & aide

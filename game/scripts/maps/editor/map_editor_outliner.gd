@@ -2,6 +2,7 @@ extends VBoxContainer
 class_name MapEditorOutliner
 
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+const EmptyStateScript := preload("res://scripts/maps/editor/v2/empty_state.gd")
 
 ## Arborescence des éléments de la carte, groupés par calque.
 ## Recherche, visibilité/verrou par calque et par élément, sélection croisée
@@ -25,15 +26,18 @@ func _ready() -> void:
 		_filter = text.strip_edges().to_lower()
 		rebuild()
 	)
-	%BtnAddLayer.pressed.connect(func():
-		if doc == null:
-			return
-		doc.add_layer()
-		rebuild()
-	)
+	%BtnAddLayer.pressed.connect(add_layer)
 
 func set_document(p_doc) -> void:
 	doc = p_doc
+	rebuild()
+
+## Crée un calque puis rafraîchit l'arborescence.
+## Partagé par le bouton « ＋ Calque » et l'état vide « Aucun calque ».
+func add_layer() -> void:
+	if doc == null:
+		return
+	doc.add_layer()
 	rebuild()
 
 func rebuild() -> void:
@@ -62,6 +66,10 @@ func rebuild() -> void:
 	_counter.text = "%d élément(s)%s" % [total, "" if _filter.is_empty() else " · %d affiché(s)" % shown]
 
 	var layers: Array = doc.map_data.get("layers", [])
+	# Liste de calques vide : état vide avec création directe.
+	if layers.is_empty():
+		_add_layers_empty_state()
+		return
 	# Premier plan en haut de l'arborescence (comme Photoshop / GIMP).
 	for i in range(layers.size() - 1, -1, -1):
 		var layer_def: Dictionary = layers[i]
@@ -88,6 +96,13 @@ func rebuild() -> void:
 		_add_orphan_header(int(layer_id))
 		for elem_variant in by_layer[layer_id]:
 			_add_element_row(elem_variant)
+
+## État vide affiché quand la carte n'a aucun calque.
+func _add_layers_empty_state() -> void:
+	var empty_state := EmptyStateScript.new()
+	empty_state.setup("▤", "Aucun calque", "Créez un calque pour organiser la carte.",
+		"Nouveau calque", add_layer)
+	_tree_host.add_child(empty_state)
 
 func _matches(elem: Dictionary) -> bool:
 	if _filter.is_empty():

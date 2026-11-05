@@ -5,15 +5,7 @@ const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd"
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
 const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
-const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
-
-## Outils de construction mis en avant dans l'état vide de l'inspecteur.
-## (Identifiants du catalogue `MapEditorTools`, volontairement en clair pour
-## rester lisible sans dépendre de l'ordre de déclaration du catalogue.)
-const BUILD_TOOL_IDS := [
-	"mesh_wall", "room_3d", "roof_3d", "floor_3d", "door_3d",
-	"house_3d", "window_3d", "furnish_3d", "interior_3d",
-]
+const EmptyStateScript := preload("res://scripts/maps/editor/v2/empty_state.gd")
 
 ## Inspecteur de l'élément (ou du lot) sélectionné : identité, transformation,
 ## effets visuels, propriétés spécifiques au type et liens sortants/entrants.
@@ -655,46 +647,16 @@ func _apply_mesh_scale(factor: float, natural: Vector3) -> void:
 # Aide contextuelle, actions rapides et état vide
 # ===========================================================================
 
-## État vide : au lieu d'un simple texte, on guide vers les outils de
-## construction, la navigation 3D et les recettes les plus courantes.
+## État vide : aucune sélection. Un widget épuré invite à sélectionner un
+## objet sur la carte ou à tracer un rectangle de sélection.
 func _build_empty_state() -> void:
-	_title("🧭 Aucune sélection")
-	_add_note("Cliquez un objet sur la carte pour l'éditer. Glissez dans le vide pour sélectionner plusieurs objets.")
-	_add_note("Astuce : la palette de gauche arme un outil ; l'inspecteur décrit ensuite l'objet sélectionné.")
-
-	_section("🏗 Outils de construction")
-	_add_note("Armés dans la palette, puis posés au clic ou au glisser :")
-	for tool_id in BUILD_TOOL_IDS:
-		_add_tool_row(tool_id)
-
-	_section("🧭 Navigation 3D")
-	_add_note("Clic droit glissé : déplacer la vue · Maj + clic droit : orbite autour du point visé.")
-	_add_note("Molette : zoom · F : recadrer · Échap : annuler.")
-	_add_note("Clic : sélectionner · glisser : rectangle de sélection · Ctrl+clic : ajouter/retirer.")
-
-	_section("💡 Recettes express")
-	_add_note("Maison : Pièce 3D → Toit 3D → Porte 3D → Fenêtre 3D → Meubler.")
-	_add_note("Intérieur : pose une Porte 3D, puis l'outil Intérieur (ou le bouton de l'inspecteur de la porte).")
-	_add_note("Relief : ⛰ Relief (U) pour monter/baisser le sol ; le niveau d'eau se règle dans Carte → Terrain & eau.")
-
-## Une ligne « icône + nom (+ raccourci) » pour l'aide à la construction.
-func _add_tool_row(tool_id: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	add_child(row)
-	var icon := Label.new()
-	icon.text = ToolsScript.icon(tool_id)
-	icon.add_theme_font_size_override("font_size", 14)
-	row.add_child(icon)
-	var lbl := Label.new()
-	var shortcut := str(ToolsScript.get_def(tool_id).get("shortcut", ""))
-	lbl.text = str(ToolsScript.label(tool_id)) + ("" if shortcut.is_empty() else "  (%s)" % shortcut)
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT)
-	lbl.tooltip_text = ToolsScript.tooltip(tool_id)
-	lbl.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(lbl)
+	var empty := EmptyStateScript.new()
+	empty.setup(
+		"◇",
+		"Aucune sélection",
+		"Cliquez un objet sur la carte, ou tracez un rectangle pour en sélectionner plusieurs."
+	)
+	add_child(empty)
 
 ## Bandeau d'actions contextuelles : les gestes les plus fréquents sont
 ## accessibles sans connaître les raccourcis.

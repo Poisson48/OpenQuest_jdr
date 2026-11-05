@@ -74,10 +74,18 @@ func _make_button(tool_data: Dictionary) -> Button:
 	var shortcut := str(tool_data.get("shortcut", ""))
 
 	var b := Button.new()
-	b.text = icon if not icon.is_empty() else label.substr(0, 1)
 	b.toggle_mode = true
 	b.button_group = _button_group
 	b.custom_minimum_size = Vector2(42, 38)
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if icon.begins_with("res://") or icon.begins_with("user://"):
+		# Icône TEXTURE : charger la Texture2D et l'afficher sans texte.
+		b.icon = load(icon) as Texture2D
+		b.text = ""
+	else:
+		# Comportement emoji existant : l'icône est du texte.
+		b.text = icon if not icon.is_empty() else label.substr(0, 1)
 	b.tooltip_text = label if shortcut.is_empty() else "%s (%s)" % [label, shortcut]
 	b.set_meta("tool_id", id)
 	b.pressed.connect(_on_pressed.bind(id))
