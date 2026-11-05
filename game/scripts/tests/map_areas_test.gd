@@ -253,7 +253,7 @@ func _test_editor_area_tool(md) -> void:
 	editor._area_category = "shop"
 	editor._set_tool(ToolsScript.AREA)
 	_assert("tool_area_is_drag", ToolsScript.is_drag_tool(ToolsScript.AREA))
-	_assert("tool_area_shortcut", ToolsScript.tool_for_shortcut("A") == ToolsScript.AREA)
+	_assert("tool_area_shortcut", ToolsScript.tool_for_shortcut("J") == ToolsScript.AREA)
 
 	# Tracé du lieu au glisser.
 	editor._on_pointer_pressed(Vector2(8, 6), Vector2(100, 100), MOUSE_BUTTON_LEFT, mods)

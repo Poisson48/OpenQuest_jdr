@@ -35,6 +35,9 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 	# Peinture eau : traitée avant la sélection (Maj = effacer l'eau).
 	if _ed._tool == ToolsScript.WATER_PAINT:
 		_ed._press_mode = "water"
+		# Un trait = une seule étape d'undo (transaction ouverte au press,
+		# fermée au release).
+		_ed.doc.begin_transaction()
 		_ed._paint_water(grid, bool(mods.get("shift", false)))
 		return
 
@@ -423,8 +426,10 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 		"paint":
 			_ed._painted_cells.clear()
 		"water":
-			# Peinture eau : rien à valider, on remet juste le mode à zéro.
-			_ed._press_mode = "none"
+			# Un trait complet = une seule étape d'undo.
+			_ed.doc.commit_transaction()
+			_ed._sync_engine()
+			_ed._set_status("Peinture d'eau terminée.")
 		"relief":
 			_ed.doc.commit_transaction()
 			_ed._sync_engine()

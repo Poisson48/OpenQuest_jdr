@@ -502,7 +502,12 @@ func _test_editor_material_options() -> void:
 	await process_frame
 
 	var found := false
+	var candidates: Array = []
 	for child in editor._tool_options.get_children():
+		candidates.append(child)
+		for sub in child.get_children():
+			candidates.append(sub)
+	for child in candidates:
 		if child is OptionButton and (child as OptionButton).item_count >= 5:
 			var labels := ""
 			var ids: Array = []

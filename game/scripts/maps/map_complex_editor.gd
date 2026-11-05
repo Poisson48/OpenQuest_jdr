@@ -2165,8 +2165,16 @@ func _paint_water(grid: Vector2, erase: bool = false) -> void:
 			if not _in_bounds(Vector2(x, y)):
 				continue
 			var h := doc.terrain_height(x, y)
-			var value := maxf(h, level + 0.05) if erase else minf(h, level - _water_depth)
-			doc.set_terrain_height(x, y, value, "Peinture eau")
+			if erase:
+				# Retire l'eau : remonte le sol sous le niveau au-dessus du niveau.
+				if h < level:
+					doc.set_terrain_height(x, y, level + 0.05, "Effacer eau")
+			else:
+				# Remplit / creuse : on ne touche PAS les cases déjà sous le
+				# niveau (un creux existant se remplit d'eau tout seul) ; seules
+				# les cases AU-DESSUS du niveau sont abaissées pour créer le lit.
+				if h >= level - 0.01:
+					doc.set_terrain_height(x, y, level - _water_depth, "Peinture eau")
 	_sync_engine()
 
 # ===========================================================================
@@ -3356,6 +3364,7 @@ func _refresh_breadcrumb() -> void:
 		btn.flat = true
 		btn.disabled = is_current
 		btn.clip_text = true
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		btn.custom_minimum_size = Vector2(0, 26)
 		btn.add_theme_font_size_override("font_size", 11)
 		if is_current:

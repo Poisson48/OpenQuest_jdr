@@ -50,7 +50,7 @@ func _test_tools() -> void:
 	var def := ToolsScript.get_def(ToolsScript.MESH)
 	_assert("tool_mesh_exists", not def.is_empty() and str(def.get("id", "")) == ToolsScript.MESH)
 	_assert("tool_mesh_label", ToolsScript.label(ToolsScript.MESH) == "Objet 3D")
-	_assert("tool_mesh_shortcut", ToolsScript.tool_for_shortcut("O") == ToolsScript.MESH)
+	_assert("tool_mesh_shortcut", ToolsScript.tool_for_shortcut("Q") == ToolsScript.MESH)
 	_assert("tool_mesh_pose", ToolsScript.is_pose_tool(ToolsScript.MESH))
 	_assert("tool_mesh_icon", not ToolsScript.icon(ToolsScript.MESH).is_empty())
 
