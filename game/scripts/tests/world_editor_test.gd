@@ -54,7 +54,11 @@ func _run() -> void:
 	var panel = editor._world_panel
 	_assert("world_panel_bound", panel != null)
 	_assert("world_zone_count", panel != null and panel.zones.size() >= 3)
-	_assert("world_tab_exists", editor._right_tabs != null and editor._right_tabs.get_tab_count() >= 6)
+	# Onglet Monde présent dans le conteneur d'onglets (le relooking ui-v2
+	# détache la biblio/l'historique en panneaux flottants : le nombre total
+	# d'onglets n'est plus fixe, on vérifie l'onglet concerné lui-même).
+	_assert("world_tab_exists", editor._right_tabs != null and panel != null
+		and editor._right_tabs.get_tab_idx_from_control(panel) >= 0)
 
 	# Ouvrir l'onglet Monde et rafraîchir.
 	var tab_index: int = editor._right_tabs.get_tab_idx_from_control(panel)

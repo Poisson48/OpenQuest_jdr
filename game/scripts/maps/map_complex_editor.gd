@@ -24,6 +24,7 @@ const MapEditorEnvironPaletteScript := preload("res://scripts/maps/editor/map_ed
 const MapEditorPaletteV2Script := preload("res://scripts/maps/editor/v2/palette.gd")
 const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
 const MapEditorFloatingPanelScript := preload("res://scripts/maps/editor/v2/floating_panel.gd")
+const MapEditorDraggablePaletteScript := preload("res://scripts/maps/editor/draggable_palette.gd")
 const MapEditorToolFlyoutScript := preload("res://scripts/maps/editor/v2/tool_flyout.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
@@ -71,6 +72,173 @@ var _brush_size: int = 0
 var _relief_radius: float = 1.5
 var _relief_strength: float = 0.35
 var _relief_mode: String = "raise"
+## Relief 3D (modes carve « creuser » / fill « remblayer ») : primitives SDF
+## sphériques posées le long du trait (cf. `map_data["terrainCarves"]`).
+var _carve_radius: float = 1.2
+var _carve_offset: float = 0.4
+## Force de la brosse de sculpture (cases de déplacement par tampon) — le
+## tampon accumule un noyau doux, sans former de « boules ».
+var _sculpt_strength: float = 0.6
+## Dégradé de la brosse (courbe de falloff façon Blender : doux, sphère,
+## racine, net, linéaire, constant) et auto-lissage léger du pourtour.
+var _brush_falloff: int = 0
+var _brush_auto_smooth: float = 0.0
+## Cible de la brosse « Aplatir (3D) » : hauteur du point de départ du trait.
+var _flatten_target_y: float = -INF
+## Sondage de debug des traits de sculpture (tests uniquement).
+var _sculpt_probe: bool = false
+# --- Interface façon Blender : symétrie et raccourcis ------------------------
+## Symétrie de sculpture (comme Blender) : chaque tampon est répété en miroir.
+## X = gauche/droite, Y = avant/arrière (plan de la carte), Z = vertical
+## (inverse la composante verticale des déformations).
+var _sym_x: bool = false
+var _sym_y: bool = false
+var _sym_z: bool = false
+
+## Points de sculpture d'un geste : le point visé + ses miroirs de symétrie
+## (groupés dans la transaction du trait = un seul undo). Chaque entrée porte
+## ses drapeaux de reflet pour les brosses de déformation.
+func _sym_points(p: Vector3, _prev: Vector3, ctrl: bool = false) -> Array:
+	var pts: Array = [{"p": p, "sx": false, "sy": false, "ctrl": ctrl}]
+	var size := doc.terrain_size()
+	var w := float(size.x)
+	var h := float(size.y)
+	if _sym_x:
+		pts.append({"p": Vector3(w - p.x, p.y, p.z), "sx": true, "sy": false, "ctrl": ctrl})
+	if _sym_y:
+		pts.append({"p": Vector3(p.x, p.y, h - p.z), "sx": false, "sy": true, "ctrl": ctrl})
+	if _sym_x and _sym_y:
+		pts.append({"p": Vector3(w - p.x, p.y, h - p.z), "sx": true, "sy": true, "ctrl": ctrl})
+	return pts
+# --- Outil eau : peinture de niveau, rivières, lacs -------------------------
+## Mode de l'outil eau : "paint" (niveau historique), "river" (tracé libre),
+## "lake" (rectangle rempli jusqu'à son niveau).
+var _water_mode: String = "paint"
+var _water_river_width: float = 1.2
+var _water_flow_speed: float = 0.35
+var _water_lake_level: float = 0.35
+## Profondeur du lit creusé sous la rivière (cases) — la nappe coule DANS un
+## canal au lieu d'être peinte sur la pente. 0 = pas de creusement.
+var _water_river_bed: float = 0.5
+## Profondeur d'eau du lit (cases) : hauteur de la nappe au-dessus du fond
+## creusé — la rivière remplit le creux qu'elle a creusé.
+var _water_river_depth: float = 0.35
+## Points du tracé de rivière en cours (Vector3 cases, y = niveau d'eau).
+var _water_river_points: Array = []
+
+## Fin de tracé de rivière : le sens du tracé devient le sens d'écoulement
+## (le shader y dérive les vagues) et les dénivelés deviennent des **cascades**.
+## Le lit est creusé le long du tracé (un seul undo avec la création).
+func _finish_water_river() -> void:
+	var pts := _water_river_points
+	_water_river_points = []
+	_overlay.polygon_points = []
+	_refresh_overlay()
+	if pts.size() < 2:
+		_set_status("Rivière : tracé trop court.")
+		return
+	var path: Array = []
+	for p in pts:
+		path.append([snappedf((p as Vector3).x, 0.05),
+			snappedf((p as Vector3).y, 0.05),
+			snappedf((p as Vector3).z, 0.05)])
+	# L'eau coule TOUJOURS vers le bas : si le tracé a été dessiné de l'aval
+	# vers l'amont, on l'inverse pour que courant et tracé descendent ensemble.
+	if path.size() >= 2 and float(path[0][1]) < float(path[path.size() - 1][1]):
+		path.reverse()
+	doc.begin_transaction()
+	if _water_river_bed > 0.01:
+		_carve_river_bed(path)
+	doc.add_water_body({
+		"kind": "river", "width": _water_river_width,
+		"flow_speed": _water_flow_speed, "depth": _water_river_depth,
+		"path": path,
+	}, "Rivière")
+	doc.commit_transaction()
+	_write_river_trace(path)
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	var falls := 0
+	for i in range(path.size() - 1):
+		if absf(float(path[i][1]) - float(path[i + 1][1])) > 0.45:
+			falls += 1
+	_set_status("Rivière créée (%d points, %d cascade(s), lit creusé) — le courant suit le tracé." % [path.size(), falls])
+	_refresh_panels()
+	_refresh_overlay()
+
+## Creuse un canal sous le tracé (« lit de rivière ») : la nappe d'eau se
+## retrouve encaissée dans le relief au lieu d'être posée dessus.
+func _carve_river_bed(path: Array) -> void:
+	var base_radius := maxf(0.35, _water_river_width * 0.5 + 0.1)
+	# 1) creuse, puis 2) LISSE le fond : les tampons successifs créent des
+	# ondulations que la nappe suivait (elle plongeait sous le sol par
+	# intermittence → rivière en pointillés). La LARGEUR ondule doucement le
+	# long du tracé (mouilles plus larges, rétrécissements) : une rivière n'a
+	# pas une largeur constante.
+	for mode in ["lower", "smooth"]:
+		var strength: float = _water_river_bed if mode == "lower" else 1.0
+		var last := Vector2(INF, INF)
+		var run := 0.0
+		var had_last := false
+		for i in range(path.size() - 1):
+			var a := Vector2(float(path[i][0]), float(path[i][2]))
+			var b := Vector2(float(path[i + 1][0]), float(path[i + 1][2]))
+			var steps := maxi(1, ceili(a.distance_to(b) / 0.4))
+			for s in range(steps + 1):
+				var t := float(s) / float(steps)
+				var p := a.lerp(b, t)
+				if had_last and p.distance_to(last) < 0.3:
+					continue
+				if had_last:
+					run += p.distance_to(last)
+				last = p
+				had_last = true
+				var rad := base_radius * (1.0 + 0.18 * sin(run * 1.3) + 0.07 * sin(run * 2.9))
+				doc.paint_terrain_brush(p, maxf(0.3, rad), strength, mode, "Lit de rivière")
+
+## Exporte le dernier tracé de rivière (QA) : je peux rejouer EXACTEMENT le
+## tracé de l'utilisateur dans une sonde, sans le recréer à la main.
+func _write_river_trace(path: Array) -> void:
+	var size := doc.terrain_size()
+	var data := {
+		"path": path, "width": _water_river_width,
+		"bed": _water_river_bed, "depth": _water_river_depth,
+		"mapW": size.x, "mapH": size.y,
+	}
+	var f := FileAccess.open("user://last_river_trace.json", FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(data, "  "))
+		f.close()
+		print("[riviere] tracé exporté -> user://last_river_trace.json (%d points)" % path.size())
+
+## Fin de rectangle de lac/mare : rempli jusqu'à `_water_lake_level` — l'eau
+## ne remplit que les creux sous ce niveau.
+func _finish_water_lake(a: Vector2, b: Vector2) -> void:
+	var x0 := snappedf(minf(a.x, b.x), 0.5)
+	var x1 := snappedf(maxf(a.x, b.x), 0.5)
+	var z0 := snappedf(minf(a.y, b.y), 0.5)
+	var z1 := snappedf(maxf(a.y, b.y), 0.5)
+	_overlay.polygon_points = []
+	_refresh_overlay()
+	if x1 - x0 < 0.5 or z1 - z0 < 0.5:
+		_set_status("Lac : rectangle trop petit.")
+		return
+	doc.add_water_body({
+		"kind": "lake", "level": _water_lake_level,
+		"area": [[x0, z0], [x1, z0], [x1, z1], [x0, z1]],
+	}, "Lac")
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	_set_status("Lac créé (niveau %.2f) — il remplit uniquement les creux sous ce niveau." % _water_lake_level)
+	_refresh_panels()
+	_refresh_overlay()
+## Dernier point tamponné du trait carve/fill (espacement 3D des sphères) ;
+## INF = aucun tampon depuis le début du trait.
+var _carve_spacing_last: Vector3 = Vector3(INF, INF, INF)
+## Dernière position du curseur (coordonnées écran du contrôle) — sert à la
+## sculpture 3D : le point visé est l'intersection du rayon de vue avec la
+## géométrie visible, pas la hauteur de la case.
+var _pointer_screen: Vector2 = Vector2.ZERO
 ## Relief tracé : courbe, largeur, force, lissage, mode.
 var _terrain_spline_points: Array = []
 var _terrain_spline_width: float = 2.0
@@ -302,9 +470,8 @@ func set_editable(on: bool) -> void:
 	_editable = on
 	if _left_scroll:
 		_left_scroll.visible = on
-	if _right_tabs:
-		_right_tabs.visible = on
-	elif _right_scroll:
+	_apply_palette_visibility()
+	if _right_scroll:
 		_right_scroll.visible = on
 	if _engine and _engine.has_method("set_editor_mode"):
 		_engine.set_editor_mode(on)
@@ -368,6 +535,21 @@ func _bind_ui() -> void:
 	_right_tabs = %RightTabs
 	_right_scroll = null
 	_move_tool_options_to_top()
+	_float_right_palette()
+
+## Palette droite (Inspecteur / Calques / Carte / Monde) flottante au-dessus
+## de la carte, à la manière du N-panel de Blender — déplaçable par sa barre
+## de titre.
+func _float_right_palette() -> void:
+	if _right_tabs == null:
+		return
+	var palette := _float_palette(_right_tabs, Control.PRESET_RIGHT_WIDE,
+		Vector2(300, 0), "Inspecteur / Calques", "right")
+	if palette != null:
+		palette.offset_left = -318.0
+		palette.offset_top = 8.0
+		palette.offset_right = -8.0
+		palette.offset_bottom = -8.0
 	# Colonne de gauche épurée (plan) : icônes seules. Aimantation et mini-carte
 	# sortent de la colonne (grille/magnétisme restent dans l'onglet Carte).
 	for path in ["%LblSnap", "%SnapOption", "%LblMinimap", "%MinimapHost"]:
@@ -685,6 +867,12 @@ func _build_action_bar() -> void:
 			_engine.request_fit_to_view()
 	)
 	bar.add_child(VSeparator.new())
+	# Palettes repliables (façon Blender/GIMP) : la carte occupe tout l'écran,
+	# les panneaux se déplient à la demande.
+	_icon_button(bar, "⚙", "Palette des options d'outil (S)", func(): _toggle_palette("opts"))
+	_icon_button(bar, "🗂", "Palette bibliothèque de décors (B)", func(): _toggle_palette("lib"))
+	_icon_button(bar, "📋", "Palette inspecteur / calques / carte (N)", func(): _toggle_palette("right"))
+	bar.add_child(VSeparator.new())
 	_icon_button(bar, "‹", "Zone précédente du monde", func(): _cycle_world_map(-1))
 	_icon_button(bar, "›", "Zone suivante du monde", func(): _cycle_world_map(1))
 	var test_btn := Button.new()
@@ -821,36 +1009,44 @@ func _apply_responsive_layout() -> void:
 		_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if _right_tabs:
 		_right_tabs.custom_minimum_size = Vector2(right_w if right_w > 1.0 else 0.0, 0)
-		_right_tabs.visible = _editable and not _path_focus
+		# Palette flottante : sa visibilité dépend des préférences de palette.
 		_right_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_apply_palette_visibility()
 
 	# split_offset depuis la largeur ÉDITEUR mesurée (pas size interne stale).
 	if _editable:
-		_split_outer.split_offset = int(left_w)
-		var center_w := maxf(total - left_w - right_w, min_center)
-		_split_inner.split_offset = int(center_w)
+		# NB : split_offset s'AJOUTE à la largeur minimale du premier enfant —
+		# le bandeau gauche se dimensionne déjà par son min (56 px), donc 0.
+		_split_outer.split_offset = 0
+		# La palette droite flotte AU-DESSUS de la vue : elle ne prend plus de
+		# place dans le split — le centre reçoit toute la largeur restante.
+		if _right_tabs != null and _right_tabs.get_parent() == _split_inner:
+			var center_w := maxf(total - left_w - right_w, min_center)
+			_split_inner.split_offset = int(center_w)
+		else:
+			_split_inner.split_offset = 0
 	else:
 		_split_outer.split_offset = 0
 		if _split_inner:
-			_split_inner.split_offset = int(maxi(80, int(total)))
+			_split_inner.split_offset = 0
 
 	_adapt_tool_chrome(total, total_h)
 
 func _adapt_tool_chrome(total_w: float, total_h: float = 800.0) -> void:
 	var btn_w := 46.0
 	var btn_h := 38.0
-	var cols := 4
+	# Barre d'outils VERTICALE façon Blender : une seule colonne dans le
+	# bandeau de 56 px — jamais de grille qui élargit le bandeau.
+	var cols := 1
 	if total_w < 1280.0 or total_h < 720.0:
 		btn_w = 42.0
 		btn_h = 34.0
 	if total_w < 980.0 or total_h < 600.0:
 		btn_w = 38.0
 		btn_h = 32.0
-		cols = 3
 	if total_w < 820.0:
 		btn_w = 34.0
 		btn_h = 30.0
-		cols = 3
 	for btn in _tool_buttons.values():
 		if btn is Button:
 			(btn as Button).custom_minimum_size = Vector2(btn_w, btn_h)
@@ -983,6 +1179,97 @@ func _bind_library_tab() -> void:
 	_library_panel.refresh_templates_pressed.connect(_refresh_templates)
 	_move_library_to_bottom()
 
+# ===========================================================================
+# Palettes flottantes (façon Blender / GIMP)
+# ===========================================================================
+#
+# La carte 3D occupe TOUTE la fenêtre : les panneaux ne prennent plus de
+# place dans la mise en page — ils recouvrent la vue et se déplient à la
+# demande, comme les docks de GIMP ou le N-panel de Blender.
+#   N = palette droite (Inspecteur / Calques / Carte / Monde)
+#   B = bibliothèque de décors (déjà en place)
+#   S = options de l'outil actif
+
+## Palettes repliables : droite (inspecteur), bibliothèque, options d'outil.
+var _palette_right: bool = false
+var _palette_lib: bool = false
+var _palette_opts: bool = true
+var _options_bar = null
+## Conteneurs déplaçables des palettes (clé -> MapEditorDraggablePalette).
+var _palette_wrappers: Dictionary = {}
+
+func _apply_palette_visibility() -> void:
+	var show_right := _editable and _palette_right and not _path_focus
+	if _right_tabs != null:
+		_right_tabs.visible = show_right
+	if _palette_wrappers.has("right"):
+		(_palette_wrappers["right"] as CanvasItem).visible = show_right
+	if _library_dock != null and _library_dock is CanvasItem:
+		(_library_dock as CanvasItem).visible = _editable and _palette_lib
+	if _options_bar != null and _options_bar is CanvasItem:
+		(_options_bar as CanvasItem).visible = _editable and _palette_opts
+
+## État courant d'une palette.
+func _palette_open(which: String) -> bool:
+	match which:
+		"right":
+			return _palette_right
+		"lib":
+			return _palette_lib
+		_:
+			return _palette_opts
+
+## Ouvre/ferme une palette (raccourcis N / B / S, boutons, ✕ des palettes).
+func _set_palette(which: String, open: bool) -> void:
+	match which:
+		"right":
+			_palette_right = open
+			_set_status("Palette droite : %s." % ("ouverte" if open else "fermée"))
+		"lib":
+			_palette_lib = open
+			_set_status("Bibliothèque : %s." % ("ouverte" if open else "fermée"))
+		"opts":
+			_palette_opts = open
+			_set_status("Options d'outil : %s." % ("ouvertes" if open else "fermées"))
+	_apply_palette_visibility()
+
+func _toggle_palette(which: String) -> void:
+	_set_palette(which, not _palette_open(which))
+
+## Positionne un panneau en palette flottante **déplaçable** (glisser la barre
+## de titre) au-dessus de la carte. `key` = "right"/"lib"/"opts".
+func _float_palette(panel: Control, preset: int, size: Vector2,
+		title: String, key: String) -> Control:
+	if panel == null:
+		return null
+	if panel.get_parent() != null:
+		panel.get_parent().remove_child(panel)
+	var palette: Control = MapEditorDraggablePaletteScript.new()
+	add_child(palette)
+	# Re-propriéter le sous-arbre : après un déplacement manuel, le cache des
+	# noms de scène uniques (%) ne suit plus — `owner` doit être réaffirmé.
+	if palette.has_method("setup"):
+		palette.setup(title, panel)
+	else:
+		palette.add_child(panel)
+	_reown_recursive(palette)
+	palette.set_anchors_and_offsets_preset(preset)
+	# Minimum modeste : les palettes sont redimensionnables (poignée ◢).
+	palette.custom_minimum_size = Vector2(220.0, 120.0)
+	palette.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	palette.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_palette_wrappers[key] = palette
+	if palette.has_signal("close_pressed"):
+		palette.close_pressed.connect(func(): _set_palette(key, false))
+	return palette
+
+## Réaffirme `owner = self` sur tout un sous-arbre (garde les `%` résolubles).
+func _reown_recursive(node: Node) -> void:
+	if node != self:
+		node.owner = self
+	for child in node.get_children():
+		_reown_recursive(child)
+
 ## Déplace la bibliothèque depuis l'onglet droit vers un dock inférieur
 ## (direction artistique « Cartographer's Desk » : la bibliothèque est en bas).
 func _move_library_to_bottom() -> void:
@@ -992,33 +1279,32 @@ func _move_library_to_bottom() -> void:
 	if biblio_tab == null or biblio_tab.get_parent() != _right_tabs:
 		return
 	_right_tabs.remove_child(biblio_tab)
-	var dock := PanelContainer.new()
-	dock.name = "LibraryDock"
-	dock.custom_minimum_size = Vector2(0, 190)
-	dock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var status_row: Node = _status_lbl.get_parent() if _status_lbl != null else null
-	_center_column.add_child(dock)
-	if status_row != null and status_row.get_parent() == _center_column:
-		_center_column.move_child(dock, status_row.get_index())
 	biblio_tab.visible = true
 	biblio_tab.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	dock.add_child(biblio_tab)
-	_library_dock = dock
+	# Palette flottante déplaçable en bas de la carte (touche B).
+	var palette := _float_palette(biblio_tab, Control.PRESET_BOTTOM_WIDE,
+		Vector2(0, 220), "Bibliothèque de décors", "lib")
+	if palette != null:
+		palette.offset_left = 64.0
+		palette.offset_top = -238.0
+		palette.offset_right = -12.0
+		palette.offset_bottom = -8.0
+	_library_dock = palette
 
-## Déplace les options de l'outil actif de la colonne de gauche vers une barre
-## contextuelle sous la barre supérieure (au-dessus de la vue).
+## Déplace les options de l'outil actif en **palette flottante** en haut à
+## gauche de la carte (comme l'en-tête de Blender : Rayon/Force/symétrie sous
+## la barre d'actions) — plus aucune hauteur de vue n'est volée.
 func _move_tool_options_to_top() -> void:
 	if _tool_options == null or _center_column == null:
 		return
 	var label := get_node_or_null("%LblToolOptions")
-	var action_bar := get_node_or_null("%ActionBarScroll")
 	if _tool_options.get_parent() != null:
 		_tool_options.get_parent().remove_child(_tool_options)
 	if label != null and label.get_parent() != null:
 		label.get_parent().remove_child(label)
-	var bar := PanelContainer.new()
-	bar.name = "OptionsBar"
-	bar.custom_minimum_size = Vector2(0, 44)
+	var stack := VBoxContainer.new()
+	stack.name = "OptionsStack"
+	stack.add_theme_constant_override("separation", 6)
 	var box := HBoxContainer.new()
 	box.name = "OptionsRow"
 	box.add_theme_constant_override("separation", 8)
@@ -1028,12 +1314,27 @@ func _move_tool_options_to_top() -> void:
 		sep.custom_minimum_size = Vector2(1, 20)
 		box.add_child(sep)
 	box.add_child(_tool_options)
-	bar.add_child(box)
-	var idx := 0
-	if action_bar != null and action_bar.get_parent() == _center_column:
-		idx = action_bar.get_index() + 1
-	_center_column.add_child(bar)
-	_center_column.move_child(bar, idx)
+	stack.add_child(box)
+	# TOUT ce qui n'est pas la colonne d'icônes quitte le bandeau gauche
+	# (aimantation, mini-carte, libellés…) — le bandeau redevient une simple
+	# colonne de 56 px, comme la toolbar de Blender.
+	var left_panel := get_node_or_null("%LeftPanel")
+	if left_panel != null:
+		for child in left_panel.get_children():
+			if child.name == "ToolHost":
+				continue
+			left_panel.remove_child(child)
+			stack.add_child(child)
+	# Palette flottante déplaçable : recouvre la carte, sous la barre d'actions.
+	var palette := _float_palette(stack, Control.PRESET_TOP_LEFT,
+		Vector2(560, 0), "Options de l'outil", "opts")
+	if palette != null:
+		palette.offset_left = 64.0
+		palette.offset_top = 56.0
+		palette.offset_right = 700.0
+		palette.offset_bottom = 56.0
+		palette.grow_vertical = Control.GROW_DIRECTION_END
+	_options_bar = palette
 
 func _bind_history_tab() -> void:
 	var panel = %History
@@ -1250,7 +1551,7 @@ func _set_path_focus(on: bool) -> void:
 		_tool_buttons.clear()
 		_populate_tools(host as VBoxContainer)
 	if _right_tabs != null:
-		_right_tabs.visible = not on
+		_right_tabs.visible = (not on) and _editable and _palette_right
 	if _path_panel != null:
 		_path_panel.visible = on
 		_path_panel.set_path_focus_enabled(on)
@@ -2010,14 +2311,220 @@ func _paint_terrain(grid: Vector2) -> void:
 		doc.paint_tiles(cells)
 		_sync_engine()
 
-func _paint_relief(grid: Vector2) -> void:
+func _paint_relief(grid: Vector2, mods: Dictionary = {}) -> void:
+	# Modes volumétriques : le trait sculpte le déplacement de terre (ajout,
+	# retrait, lissage, aplatissement…) au lieu de déformer le heightfield.
+	if _relief_mode in ["carve", "fill", "smooth3d", "flatten3d",
+			"scrape3d", "fillh3d", "pinch3d", "layer3d", "clay3d", "claystrips3d",
+			"grab3d", "snake3d", "thumb3d", "elastic3d", "inflate3d", "blob3d",
+			"sharp3d", "boundary3d", "simplify3d", "pose3d", "cloth3d"] \
+			or bool(mods.get("shift", false)):
+		_paint_carve(grid, mods)
+		return
 	doc.paint_terrain_brush(grid, _relief_radius, _relief_strength, _relief_mode, "Relief")
-	# Aperçu fluide : le moteur reconfigure seulement le sol + les objets posés.
+	# Aperçu fluide « en direct » : qualité d'aperçu pendant le trait (les
+	# clusters de creusements voisins sont rebâtis vite), polis à la relâche.
+	if _engine != null and _engine.has_method("set_terrain_carve_preview"):
+		_engine.call("set_terrain_carve_preview", true)
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
 	var h := doc.terrain_height(int(round(grid.x)), int(round(grid.y)))
 	_set_status("Relief %s : hauteur %.2f case(s)." % [_relief_mode_label(), h])
 	_refresh_overlay()
+
+## Sculpture volumétrique **3D** (façon argile de Blender/Planet Zoo) : chaque
+## pas de souris **déplace la surface** avec un noyau doux — ajout (remblayer),
+## retrait (creuser), lissage ou aplatissement — là où pointe le curseur, sur
+## la géométrie visible (sol, flanc de butte, paroi, voûte). Aucune primitive :
+## la terre se déforme en continu, sans « boules ».
+func _paint_carve(grid: Vector2, mods: Dictionary = {}) -> void:
+	var spacing := maxf(0.25, _carve_radius * 0.35)
+	var hit := _carve_hit(grid)
+	if _carve_spacing_last.distance_to(hit) < spacing:
+		return
+	var prev := _carve_spacing_last
+	var first := is_inf(prev.x)
+	_carve_spacing_last = hit
+	# Raccourcis façon Blender : Maj = lisser quoi qu'il arrive, Ctrl =
+	# inverser la brosse courante (ajout ↔ retrait, gonfler ↔ dégonfler…).
+	var mode := _relief_mode
+	if bool(mods.get("shift", false)):
+		mode = "smooth3d"
+	elif bool(mods.get("ctrl", false)):
+		mode = _inverted_mode(_relief_mode)
+	var note := "Sculpture 3D"
+	# Symétrie : chaque geste est répété sur ses miroirs (un seul undo — la
+	# transaction du trait est déjà ouverte).
+	var entries := _sym_points(hit, prev, bool(mods.get("ctrl", false)))
+	if OS.is_debug_build() and _sculpt_probe:
+		print("  [paint] hit=%s entries=%d mode=%s" % [str(hit), entries.size(), mode])
+	for entry in entries:
+		_sculpt_op_at(entry, mode, prev, first)
+	match mode:
+		"carve":
+			note = "Creusement 3D"
+		"fill":
+			note = "Remblai 3D"
+		"clay3d":
+			note = "Argile"
+		"claystrips3d":
+			note = "Bandes d'argile"
+		"smooth3d":
+			note = "Sculpture lissée"
+		"flatten3d":
+			note = "Sculpture aplanie"
+		"scrape3d":
+			note = "Sculpture rabotée"
+		"fillh3d":
+			note = "Sculpture remplie"
+		"pinch3d":
+			note = "Sculpture pincée"
+		"layer3d":
+			note = "Sculpture en couches"
+		"grab3d":
+			note = "Sculpture attrapée"
+		"snake3d":
+			note = "Sculpture serpent"
+		"thumb3d":
+			note = "Sculpture pouce"
+		"elastic3d":
+			note = "Sculpture élastique"
+		"inflate3d":
+			note = "Sculpture gonflée"
+		"blob3d":
+			note = "Sculpture boule"
+		"sharp3d":
+			note = "Dessin net"
+		"boundary3d":
+			note = "Bords lissés"
+		"simplify3d":
+			note = "Sculpture simplifiée"
+		"pose3d":
+			note = "Sculpture pivotée"
+		"cloth3d":
+			note = "Sculpture drapée"
+	# Aperçu fluide « en direct » : qualité d'aperçu pendant le trait (le
+	# polissage à pleine résolution se fait à la relâche, cf.
+	# `_finish_carve_stroke`), puis rafraîchissement incrémental du sol.
+	if _engine != null and _engine.has_method("set_terrain_carve_preview"):
+		_engine.call("set_terrain_carve_preview", true)
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
+	_set_status("%s : rayon %.2f, force %.2f — sculpté en (%.1f, %.1f, %.1f)." % [
+		note, _carve_radius, _sculpt_strength, hit.x, hit.y, hit.z])
+	_refresh_overlay()
+
+## Mode inversé (Ctrl maintenu, comme Blender) : ajout ↔ retrait.
+func _inverted_mode(mode: String) -> String:
+	match mode:
+		"carve":
+			return "fill"
+		"fill":
+			return "carve"
+		"scrape3d":
+			return "fillh3d"
+		"fillh3d":
+			return "scrape3d"
+		"inflate3d":
+			return "inflate3d"   # sens inversé par la force négative ci-dessous
+		_:
+			return mode
+
+## Applique une opération de brosse en UN point (le geste est répété sur les
+## miroirs par `_paint_carve`). `entry` = {p, sx, sy} pour refléter les
+## déplacements des brosses de déformation.
+func _sculpt_op_at(entry: Dictionary, mode: String, prev: Vector3,
+		first: bool) -> void:
+	var p: Vector3 = entry["p"]
+	var sx := -1.0 if bool(entry["sx"]) else 1.0
+	var sy := -1.0 if bool(entry["sy"]) else 1.0
+	var sign_flip := -1.0 if bool(entry["ctrl"]) else 1.0
+	var dv := (p - prev) * Vector3(sx, 1.0, sy)
+	match mode:
+		"carve":
+			doc.sculpt_stamp(p, _carve_radius, -_sculpt_strength, "Creusement 3D",
+				0, 0.0, _brush_falloff, _brush_auto_smooth)
+		"fill":
+			doc.sculpt_stamp(p, _carve_radius, _sculpt_strength, "Remblai 3D",
+				0, 0.0, _brush_falloff, _brush_auto_smooth)
+		"clay3d":
+			doc.sculpt_stamp(p, _carve_radius, _sculpt_strength, "Argile",
+				1, 0.0, _brush_falloff, _brush_auto_smooth)
+		"claystrips3d":
+			var ang := atan2(dv.z, dv.x) if Vector2(dv.x, dv.z).length() > 0.01 else 0.0
+			doc.sculpt_clay_strips(p, _carve_radius, _sculpt_strength, ang, "Bandes d'argile")
+		"smooth3d":
+			doc.sculpt_smooth(p, _carve_radius, "Sculpture lissée")
+		"flatten3d":
+			if first:
+				_flatten_target_y = p.y
+			doc.sculpt_flatten(p, _carve_radius, _flatten_target_y, _sculpt_strength, "Sculpture aplanie")
+		"scrape3d":
+			if first:
+				_flatten_target_y = p.y
+			doc.sculpt_scrape(p, _carve_radius, _flatten_target_y, _sculpt_strength, "Sculpture rabotée")
+		"fillh3d":
+			if first:
+				_flatten_target_y = p.y
+			doc.sculpt_fill(p, _carve_radius, _flatten_target_y, _sculpt_strength, "Sculpture remplie")
+		"pinch3d":
+			doc.sculpt_pinch(p, _carve_radius, _sculpt_strength, "Sculpture pincée")
+		"layer3d":
+			if first:
+				_flatten_target_y = p.y + _sculpt_strength
+			doc.sculpt_layer(p, _carve_radius, _flatten_target_y, _sculpt_strength, "Sculpture en couches")
+		"grab3d":
+			doc.sculpt_grab(p, _carve_radius, dv * (_sculpt_strength * 2.0), "Sculpture attrapée")
+		"snake3d":
+			var anchor := Vector3(prev.x * sx, prev.y, prev.z * sy)
+			doc.sculpt_snake(p, _carve_radius, dv * (_sculpt_strength * 3.0), anchor, "Sculpture serpent")
+		"thumb3d":
+			if Vector2(dv.x, dv.z).length() > 0.001:
+				doc.sculpt_thumb(p, _carve_radius,
+					dv.normalized() * _sculpt_strength, "Sculpture pouce")
+		"elastic3d":
+			doc.sculpt_elastic(p, _carve_radius, dv * (_sculpt_strength * 2.5), "Sculpture élastique")
+		"inflate3d":
+			doc.sculpt_inflate(p, _carve_radius, _sculpt_strength * 0.5 * sign_flip, "Sculpture gonflée")
+		"blob3d":
+			doc.sculpt_blob(p, _carve_radius, _sculpt_strength * 0.5, "Sculpture boule")
+		"sharp3d":
+			doc.sculpt_draw_sharp(p, _carve_radius, _sculpt_strength, "Dessin net")
+		"boundary3d":
+			doc.sculpt_boundary(p, _carve_radius, "Bords lissés")
+		"simplify3d":
+			doc.sculpt_simplify(p, _carve_radius, "Sculpture simplifiée")
+		"pose3d":
+			doc.sculpt_pose(p, _carve_radius, _sculpt_strength * 0.8 * sx * sy, "Sculpture pivotée")
+		"cloth3d":
+			doc.sculpt_cloth(p, _carve_radius, _sculpt_strength, "Sculpture drapée")
+
+## Point 3D visé par le curseur (en cases) : vraie intersection avec la surface
+## courante (creusements compris) via le raycast du moteur ; repli sur la
+## hauteur de la case si le rayon ne rencontre rien (hors carte, ciel).
+func _carve_hit(grid: Vector2) -> Vector3:
+	var fallback := Vector3(
+		grid.x,
+		doc.terrain_height(int(round(grid.x)), int(round(grid.y))),
+		grid.y)
+	if _engine == null or not _engine.has_method("_raycast_ground") \
+			or not _engine.has_method("_control_to_viewport"):
+		return fallback
+	var world: Vector3 = _engine._raycast_ground(_engine._control_to_viewport(_pointer_screen))
+	if world == Vector3.INF:
+		return fallback
+	var cell := float(_engine.get_cell_size())
+	if cell <= 0.0:
+		return fallback
+	return world / cell
+
+## Fin d'un trait de creusement/remblai : repasse le sol en pleine résolution
+## (polissage du creusement) et rafraîchit une dernière fois.
+func _finish_carve_stroke() -> void:
+	if _engine != null and _engine.has_method("set_terrain_carve_preview"):
+		_engine.call("set_terrain_carve_preview", false)
+	if _engine != null and _engine.has_method("refresh_terrain"):
+		_engine.call("refresh_terrain", doc.map_data)
 
 func _relief_mode_label() -> String:
 	match _relief_mode:
@@ -2027,6 +2534,48 @@ func _relief_mode_label() -> String:
 			return "aplati"
 		"smooth":
 			return "lissé"
+		"carve":
+			return "creusé"
+		"fill":
+			return "remblayé"
+		"smooth3d":
+			return "lissé (3D)"
+		"flatten3d":
+			return "aplati (3D)"
+		"scrape3d":
+			return "raboté (3D)"
+		"fillh3d":
+			return "rempli (3D)"
+		"pinch3d":
+			return "pincé (3D)"
+		"layer3d":
+			return "posé en couche (3D)"
+		"clay3d":
+			return "posé en argile"
+		"claystrips3d":
+			return "posé en bandes d'argile"
+		"grab3d":
+			return "attrapé (3D)"
+		"snake3d":
+			return "étiré (serpent)"
+		"thumb3d":
+			return "poussé (pouce)"
+		"elastic3d":
+			return "déformé (élastique)"
+		"inflate3d":
+			return "gonflé (3D)"
+		"blob3d":
+			return "gonflé (boule)"
+		"sharp3d":
+			return "détaillé (net)"
+		"boundary3d":
+			return "bords lissés"
+		"simplify3d":
+			return "simplifié"
+		"pose3d":
+			return "pivoté"
+		"cloth3d":
+			return "drapé"
 		_:
 			return "monté"
 
@@ -2627,6 +3176,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
+	# Raccourcis façon Blender : [ ] = rayon de brosse − / + (sculpture).
+	if key.keycode in [KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
+		if _tool == ToolsScript.TERRAIN_HEIGHT:
+			var factor := 0.9 if key.keycode == KEY_BRACKETLEFT else 1.1
+			_carve_radius = clampf(_carve_radius * factor, 0.3, 6.0)
+			_rebuild_tool_options()
+			_refresh_ghost()
+			_set_status("Rayon de brosse : %.2f case(s)." % _carve_radius)
+			get_viewport().set_input_as_handled()
+		return
+
 	if key.ctrl_pressed:
 		match key.keycode:
 			KEY_Z:
@@ -2712,7 +3272,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_HOME:
 			_focus_map()
 		KEY_B:
-			_toggle_library_dock()
+			_toggle_palette("lib")
+		KEY_N:
+			# N comme le N-panel de Blender : palette droite (Inspecteur…).
+			_toggle_palette("right")
+		KEY_S:
+			# S : options de l'outil actif (Rayon, Force, symétrie…).
+			_toggle_palette("opts")
 		KEY_A:
 			_open_flyout()
 		KEY_I:
@@ -2788,8 +3354,7 @@ func _focus_map() -> void:
 
 ## Affiche / masque le dock de bibliothèque (B).
 func _toggle_library_dock() -> void:
-	if _library_dock is CanvasItem:
-		(_library_dock as CanvasItem).visible = not (_library_dock as CanvasItem).visible
+	_toggle_palette("lib")
 
 func _do_undo() -> void:
 	if doc.undo():
@@ -3278,7 +3843,9 @@ func _refresh_ghost() -> void:
 			"rotation": float(_template_rotation * 90),
 		}
 	elif _tool == ToolsScript.TERRAIN_HEIGHT:
-		var relief_brush := _relief_radius * 2.0
+		# Modes 3D (creuser/remblayer) : l'aperçu épouse le rayon du creusement.
+		var brush_radius := _carve_radius if _relief_mode == "carve" or _relief_mode == "fill" else _relief_radius
+		var relief_brush := brush_radius * 2.0
 		_overlay.ghost = {
 			"x": _overlay.hover_grid.x,
 			"y": _overlay.hover_grid.y,
@@ -3325,7 +3892,9 @@ func _ghost_icon_for_tool() -> String:
 	return ToolsScript.icon(_tool)
 func _ghost_size() -> Vector2:
 	if _tool == ToolsScript.TERRAIN_HEIGHT:
-		return Vector2(_relief_radius * 2.0, _relief_radius * 2.0)
+		# Modes 3D (creuser/remblayer) : même rayon que le pinceau de creusement.
+		var gsize := _carve_radius if _relief_mode == "carve" or _relief_mode == "fill" else _relief_radius
+		return Vector2(gsize * 2.0, gsize * 2.0)
 	if _tool == ToolsScript.GROUND_MATERIAL:
 		return Vector2(_material_radius * 2.0, _material_radius * 2.0)
 	if _tool == ToolsScript.TOKEN:

@@ -38,6 +38,9 @@ const MapEffect3DScript := preload("res://scripts/maps/map_layers/map_effect_3d.
 const MapZone3DScript := preload("res://scripts/maps/map_layers/map_zone_3d.gd")
 const MapFog3DScript := preload("res://scripts/maps/map_layers/map_fog_3d.gd")
 const MapElevations3DScript := preload("res://scripts/maps/map_layers/map_elevations_3d.gd")
+## Creusements volumétriques (Voie B) — préchargement explicite (fiable en
+## headless, indépendant du cache global `class_name`).
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
 const MapWalls3DScript := preload("res://scripts/maps/map_layers/map_walls_3d.gd")
 const MapLights3DScript := preload("res://scripts/maps/map_layers/map_lights_3d.gd")
 const MapProps3DScript := preload("res://scripts/maps/map_layers/map_props_3d.gd")
@@ -84,6 +87,15 @@ var _cell_size: float = 1.0
 ## Relief M6 : hauteurs par case lues dans `map_data["terrainHeights"]`
 ## (tableau plat de floats, en cases, index y*width + x, 0 = plat).
 var _terrain_heights: Array = []
+## Creusements volumétriques (Voie B) : primitives SDF de `terrainCarves`.
+var _terrain_carves: Array = []
+## Sculpture volumétrique (déplacement lissé, `map_data["terrainSculpt"]`).
+var _terrain_sculpt: Dictionary = {}
+## Champ terre/vide (heightfield + carves) : sol visible, normales, picking.
+var _terrain_field: TerrainCarveField = null
+## Qualité d'aperçu des creusements (pendant un trait de pinceau de l'éditeur) :
+## résolution MC réduite au fil du geste, polie à la relâche.
+var _terrain_carve_preview: bool = false
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 var _terrain_relief: bool = false
@@ -854,7 +866,9 @@ func _load_ground(p_ground_mode: String = "") -> void:
 			_terrain_heights,
 			_ground_mode,
 			_terrain_materials,
-			int(map_data.get("terrainDetail", 1))
+			int(map_data.get("terrainDetail", 1)),
+			_terrain_carves,
+			_terrain_sculpt
 		)
 	if _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
@@ -949,7 +963,9 @@ func _load_vegetation() -> void:
 		_vegetation_layer.configure(
 			w, h, _cell_size, _terrain_heights, _terrain_materials,
 			water_level, MapData.is_night_mode(map_data), true,
-			float(map_data.get("vegetationDensity", 1.0))
+			float(map_data.get("vegetationDensity", 1.0)),
+			_terrain_carves,
+			_terrain_sculpt
 		)
 
 ## Vrai si de la végétation est rendue.
@@ -1041,7 +1057,13 @@ func _load_water() -> void:
 	var night_mode := MapData.is_night_mode(map_data)
 	if _water_layer.has_method("configure"):
 		_water_layer.configure(w, h, _cell_size, _water_level, _terrain_heights, night_mode,
-			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0)))
+			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0)),
+			_terrain_carves, _terrain_sculpt, map_data.get("waterBodies", []))
+	# BERGE : la couche d'eau fournit au terrain sa texture de terre mouillée
+	# (construite avec les bassins) — la rive se fond dans le sol.
+	if _ground != null and _ground.has_method("set_shore_texture") \
+			and _water_layer.has_method("get_shore_texture"):
+		_ground.call("set_shore_texture", _water_layer.get_shore_texture())
 
 ## Change le niveau d'eau **sans toucher au document** (outils/tests ; l'éditeur
 ## passera par `refresh_terrain(map_data)`). Niveau en cases ; < 0 retire l'eau.
@@ -1057,7 +1079,8 @@ func set_water_level(level: float) -> void:
 		var h: int = int(map_data.get("height", 12))
 		_water_layer.configure(
 			w, h, _cell_size, _water_level, _terrain_heights, MapData.is_night_mode(map_data),
-			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0))
+			int(map_data.get("waterDecorSeed", 1)), float(map_data.get("waterDecorDensity", 1.0)),
+			_terrain_carves, _terrain_sculpt, map_data.get("waterBodies", [])
 		)
 
 ## Niveau d'eau courant, en cases (-1 = pas d'eau).
@@ -1153,6 +1176,11 @@ func _sync_terrain_from_map() -> void:
 				_terrain_relief = true
 				break
 	_terrain_materials = _normalize_terrain_materials(map_data.get("terrainMaterials", []))
+	_terrain_carves = TerrainCarveField.normalize_carves(map_data.get("terrainCarves", []))
+	_terrain_sculpt = map_data.get("terrainSculpt", {}) \
+		if map_data.get("terrainSculpt") is Dictionary else {}
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
 
 ## Matières normalisées (0..4 : herbe, terre, pierre, neige, sable),
 ## dimensionnées width*height ; vide si la carte n'en fournit pas (matériau de
@@ -1220,6 +1248,12 @@ func set_ground_mode(mode: String = "") -> void:
 ## Interpolation bilinéaire entre les centres des cases ; 0 hors carte / sans
 ## relief.
 func terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_carves.is_empty() and _terrain_field != null:
+		# Creusements volumétriques : sol visible depuis le dessus (toit, fond
+		# de trou ou sol de grotte selon la colonne).
+		if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+			return 0.0
+		return _terrain_field.top_surface_at(gx, gy)
 	if not _terrain_relief or _terrain_heights.is_empty():
 		return 0.0
 	# Bords de la carte, en coordonnées grille : -0.5 … width-0.5.
@@ -1243,6 +1277,8 @@ func terrain_height_at(gx: float, gy: float) -> float:
 ## échantillonnées à ±0.5 case → `Vector3(-dh/dx, 1, -dh/dz).normalized()`.
 ## `Vector3.UP` sur terrain plat / hors relief.
 func terrain_normal_at(gx: float, gy: float) -> Vector3:
+	if not _terrain_carves.is_empty() and _terrain_field != null:
+		return _terrain_field.normal_at(gx, gy)
 	if not _terrain_relief:
 		return Vector3.UP
 	const STEP := 0.5
@@ -1251,6 +1287,14 @@ func terrain_normal_at(gx: float, gy: float) -> Vector3:
 	if absf(dhdx) < TERRAIN_RELIEF_EPSILON and absf(dhdz) < TERRAIN_RELIEF_EPSILON:
 		return Vector3.UP
 	return Vector3(-dhdx, 1.0, -dhdz).normalized()
+
+## Bascule la qualité d'aperçu des creusements (résolution MC réduite pendant
+## un trait de pinceau ; `false` à la relâche polit à pleine résolution).
+func set_terrain_carve_preview(on: bool) -> void:
+	_terrain_carve_preview = on
+	if _ground != null and is_instance_valid(_ground) \
+			and _ground.has_method("set_terrain_carve_preview"):
+		_ground.set_terrain_carve_preview(on)
 
 ## Met à jour le relief **sans reconstruire le viewport** (retour visuel du
 ## pinceau de relief de l'éditeur, appelé à chaque mouvement de souris).
@@ -1277,16 +1321,25 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		if _ground.has_method("set_terrain_materials"):
 			_ground.set_terrain_materials(_terrain_materials)
 		_ground.set_terrain_heights(_terrain_heights)
+		if _ground.has_method("set_terrain_carves"):
+			_ground.set_terrain_carves(_terrain_carves, _terrain_carve_preview)
+		if _ground.has_method("set_terrain_sculpt"):
+			_ground.set_terrain_sculpt(_terrain_sculpt, _terrain_carve_preview)
 	elif _ground.has_method("configure"):
 		_load_ground()
 	# Fond de plateau : dépend des dimensions, du mode de sol et de la nuit.
 	_load_backdrop()
-	# Eau : dépend du niveau (`waterLevel`), des hauteurs et du mode de sol.
-	_load_water()
 	# Ambiance animée : dépend de `ambientFx`, du mode de sol et de la nuit.
 	_load_ambient_fx()
+	# Eau : dépend du niveau (`waterLevel`), des hauteurs et du mode de sol.
 	# Végétation : dépend des matières peintes, des hauteurs et de l'eau.
-	_load_vegetation()
+	# Pendant un trait de creusement (qualité d'aperçu), ces calques ne sont
+	# PAS reconstruits à chaque tampon (rebuilds complets coûteux) : ils sont
+	# rattrapés au polissage de la relâche, quand les carves ont leur forme
+	# finale. Les objets posés restent, eux, repositionnés en direct.
+	if not _terrain_carve_preview:
+		_load_water()
+		_load_vegetation()
 	var w: int = int(map_data.get("width", 16))
 	var h: int = int(map_data.get("height", 12))
 	var map_size := Vector2i(w, h)
@@ -1294,11 +1347,19 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 	# les calques (pas de rechargement de textures ni de réinstanciation des GLB).
 	if _props_layer and _props_layer.has_method("set_terrain_heights"):
 		_props_layer.set_terrain_heights(_terrain_heights, map_size)
+		if _props_layer.has_method("set_terrain_carves"):
+			_props_layer.set_terrain_carves(_terrain_carves)
+		if _props_layer.has_method("set_terrain_sculpt"):
+			_props_layer.set_terrain_sculpt(_terrain_sculpt)
 	elif _props_layer and _props_layer.has_method("configure"):
 		var props = map_data.get("props", [])
 		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
 	if _meshes_layer and _meshes_layer.has_method("set_terrain_heights"):
 		_meshes_layer.set_terrain_heights(_terrain_heights, map_size)
+		if _meshes_layer.has_method("set_terrain_carves"):
+			_meshes_layer.set_terrain_carves(_terrain_carves)
+		if _meshes_layer.has_method("set_terrain_sculpt"):
+			_meshes_layer.set_terrain_sculpt(_terrain_sculpt)
 	elif _meshes_layer and _meshes_layer.has_method("configure"):
 		var meshes = map_data.get("meshes", [])
 		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
@@ -1306,14 +1367,22 @@ func refresh_terrain(p_map: Dictionary = {}) -> void:
 		var node = _token_nodes[tid]
 		if node != null and is_instance_valid(node) and node.has_method("set_terrain_heights"):
 			node.set_terrain_heights(_terrain_heights, map_size)
+			if node.has_method("set_terrain_carves"):
+				node.set_terrain_carves(_terrain_carves)
+				if node.has_method("set_terrain_sculpt"):
+					node.set_terrain_sculpt(_terrain_sculpt)
 	if _ground != null and _ground.has_method("get_map_extent"):
 		_map_extent = _ground.get_map_extent()
 	_ensure_camera_above_terrain()
 
 ## Si le relief monte sous la caméra, on la remonte pour éviter une vue noire
-## (caméra enterrée dans la colline).
+## (caméra enterrée dans la colline). Jamais pendant un geste de l'utilisateur
+## (pan/orbite) ni pendant un trait de sculpture : ces gestes pilotent la
+## caméra, la remonter au milieu d'eux donnait des sauts « bizarres ».
 func _ensure_camera_above_terrain() -> void:
 	if _camera == null or table_view:
+		return
+	if _pan_dragging or _orbit_dragging or _terrain_carve_preview:
 		return
 	var focus := _ground_focus()
 	var ground := terrain_height_at(focus.x, focus.y) * _cell_size
@@ -1644,6 +1713,10 @@ func _rebuild_layers() -> void:
 				# `repose = false` : ne pas téléporter le token sur la nouvelle
 				# case avant l'animation de marche (c'est move_to_grid qui gère).
 				node.set_terrain_heights(_terrain_heights, Vector2i(w, h), false)
+				if node.has_method("set_terrain_carves"):
+					node.set_terrain_carves(_terrain_carves, false)
+					if node.has_method("set_terrain_sculpt"):
+						node.set_terrain_sculpt(_terrain_sculpt, false)
 			if node.has_method("move_to_grid"):
 				node.move_to_grid(
 					float(tok.get("x", 0.0)), float(tok.get("y", 0.0)), true)
@@ -1679,6 +1752,10 @@ func _create_token_node(tok: Dictionary, w: int, h: int) -> Node:
 	if table_view:
 		use_cutout = false
 	node.setup(tok, _cell_size, _party, readonly, use_cutout, _terrain_heights, Vector2i(w, h))
+	if node.has_method("set_terrain_carves"):
+		node.set_terrain_carves(_terrain_carves)
+		if node.has_method("set_terrain_sculpt"):
+			node.set_terrain_sculpt(_terrain_sculpt)
 	if table_view and node.has_method("set_pawn_mode"):
 		node.set_pawn_mode(true)
 	# En carte 2.5D, les membres sans portrait deviennent des figurines 3D
@@ -1843,6 +1920,28 @@ func _ground_span_per_pixel() -> Vector2:
 		return fallback
 	return span
 
+## Unités monde couvertes par un pixel écran **à une position d'écran donnée**.
+## La perspective étire le sol dans la profondeur : le span du centre ne vaut
+## pas celui du haut de l'écran — c'est ce qui faisait dériver le
+## zoom-vers-curseur près des bords.
+func _ground_span_at(screen_pos: Vector2) -> Vector2:
+	var fallback := _ground_span_per_pixel()
+	if _camera == null:
+		return fallback
+	var probe := _GROUND_PROBE_PX
+	var origin := _raycast_ground(_control_to_viewport(screen_pos))
+	var right := _raycast_ground(_control_to_viewport(screen_pos + Vector2(probe, 0.0)))
+	var down := _raycast_ground(_control_to_viewport(screen_pos + Vector2(0.0, probe)))
+	if origin == Vector3.INF or right == Vector3.INF or down == Vector3.INF:
+		return fallback
+	var span := Vector2(
+		absf(right.x - origin.x) / probe,
+		absf(down.z - origin.z) / probe
+	)
+	if span.x < 0.00001 or span.y < 0.00001:
+		return fallback
+	return span
+
 ## Étendue de sol visible à l'écran, en unités monde.
 func _visible_ground_size() -> Vector2:
 	var vp := _usable_viewport_size()
@@ -1891,6 +1990,17 @@ func _update_fit_base() -> void:
 		if visible.x > 0.001 and visible.y > 0.001:
 			var needed := maxf(_map_extent.x / visible.x, _map_extent.y / visible.y)
 			_camera.position.y *= maxf(needed, 0.01) * 1.08
+			# Vérification : avec la caméra inclinée, l'estimation sous-estime
+			# l'axe vertical — on monte tant que la carte n'est pas entièrement
+			# couverte (sinon « Cadrer » laissait la carte déborder).
+			for _iteration in range(4):
+				var check := _visible_ground_size()
+				if check.x >= _map_extent.x and check.y >= _map_extent.y:
+					break
+				var deficit := maxf(
+					_map_extent.x / maxf(check.x, 0.001),
+					_map_extent.y / maxf(check.y, 0.001))
+				_camera.position.y *= maxf(deficit, 1.01) * 1.03
 		else:
 			var aspect := maxf(_viewport_aspect(), 0.1)
 			var target_h := maxf(_map_extent.y, _map_extent.x / aspect) * 1.08
@@ -1951,14 +2061,19 @@ func _clamp_camera() -> void:
 	# reporte l'écart, ce qui reste juste même avec une caméra inclinée.
 	var offset := Vector2(_camera.position.x, _camera.position.z) - focus
 	var target := focus
+	# Marge d'un tiers d'écran au-delà des bords : laisse le zoom-vers-curseur
+	# s'achever près des bords (le fond de plateau habille l'extérieur) sans
+	# laisser la vue partir dans le vide.
+	var mx := visible.x * 0.35
+	var my := visible.y * 0.35
 	if visible.x >= _map_extent.x:
 		target.x = _map_extent.x * 0.5
 	else:
-		target.x = clampf(target.x, visible.x * 0.5, _map_extent.x - visible.x * 0.5)
+		target.x = clampf(target.x, visible.x * 0.5 - mx, _map_extent.x - visible.x * 0.5 + mx)
 	if visible.y >= _map_extent.y:
 		target.y = _map_extent.y * 0.5
 	else:
-		target.y = clampf(target.y, visible.y * 0.5, _map_extent.y - visible.y * 0.5)
+		target.y = clampf(target.y, visible.y * 0.5 - my, _map_extent.y - visible.y * 0.5 + my)
 	_camera.position.x = target.x + offset.x
 	_camera.position.z = target.y + offset.y
 	view_changed.emit()
@@ -1974,15 +2089,40 @@ func _apply_zoom(factor: float, anchor: Vector2) -> void:
 		_update_ortho_size()
 		zoom_changed.emit(zoom)
 		return
+	# Zoom **vers le curseur** : le point du monde sous la souris doit y rester.
+	# On le fige une fois, puis on corrige la caméra par itérations en espace
+	# écran (précis quel que soit le relief — l'ancienne double mesure de
+	# rayon dérivait quand un rayon rasait une montagne sculptée).
 	var world_before := _raycast_ground(_control_to_viewport(anchor))
 	zoom = new_zoom
 	_update_ortho_size()
-	# On replace la caméra pour que le point du sol sous le curseur y reste.
 	if world_before != Vector3.INF:
-		var world_after := _raycast_ground(_control_to_viewport(anchor))
-		if world_after != Vector3.INF:
-			_camera.position.x += world_before.x - world_after.x
-			_camera.position.z += world_before.z - world_after.z
+		var anchor_vp := _control_to_viewport(anchor)
+		for _iteration in range(6):
+			var span := _ground_span_at(anchor)
+			span.x = clampf(span.x, 0.002, 0.35)
+			span.y = clampf(span.y, 0.002, 0.35)
+			var seen: Vector2 = _camera.unproject_position(world_before)
+			var drift := seen - anchor_vp
+			if absf(drift.x) < 0.5 and absf(drift.y) < 0.5:
+				break
+			# Le contenu suit la souris : pour ramener le point vu de `drift`
+			# vers l'ancre, la caméra avance dans le sens de la dérive — selon
+			# SES axes (droite / avant), pour rester juste après une orbite.
+			var basis := _camera.global_transform.basis
+			var right_xz := Vector2(basis.x.x, basis.x.z)
+			var fwd_xz := Vector2(-basis.z.x, -basis.z.z)
+			if right_xz.length_squared() > 0.00001:
+				right_xz = right_xz.normalized()
+			else:
+				right_xz = Vector2.RIGHT
+			if fwd_xz.length_squared() > 0.00001:
+				fwd_xz = fwd_xz.normalized()
+			else:
+				fwd_xz = Vector2.DOWN
+			var move := right_xz * (drift.x * span.x) - fwd_xz * (drift.y * span.y)
+			_camera.position.x += move.x
+			_camera.position.z += move.y
 	_clamp_camera()
 	zoom_changed.emit(zoom)
 
@@ -2013,8 +2153,18 @@ func _raycast_ground(viewport_pos: Vector2) -> Vector3:
 	if t < 0.0:
 		return Vector3.INF
 	var world := origin + direction * t
-	if not _terrain_relief:
+	if not _terrain_relief and _terrain_carves.is_empty():
 		return world
+	if not _terrain_carves.is_empty() and _terrain_field != null:
+		# Creusements volumétriques : la surface n'est plus une fonction
+		# z=f(x,y) — on marche le rayon sur le champ terre/vide (unités cases,
+		# échelle uniforme cell_size sur les 3 axes).
+		var cs := maxf(0.001, _cell_size)
+		var max_dist := float(_terrain_w + _terrain_h) * 2.0 + 16.0
+		var hit := _terrain_field.raycast(origin / cs, direction, max_dist)
+		if not hit.is_empty():
+			return (hit["position"] as Vector3) * cs
+		return Vector3.INF
 	# Relief : le rayon coupe d'abord le plan y=0 ; on lit la hauteur de la case
 	# touchée puis on reprojette le rayon sur le plan horizontal à cette
 	# hauteur. Deux itérations suffisent pour les pentes de carte et convergent
@@ -2595,10 +2745,13 @@ func _pan_from_motion(motion: InputEventMouseMotion) -> void:
 	span.y = clampf(span.y, 0.002, 0.35)
 	_camera.position.x = _pan_start.x - delta_pos.x * span.x
 	_camera.position.z = _pan_start.z - delta_pos.y * span.y
-	_pan_velocity = Vector2(
-		-(motion.position.x - _last_pan_pos.x) * span.x,
-		-(motion.position.y - _last_pan_pos.y) * span.y
-	) / maxf(get_process_delta_time(), 0.001)
+	# Pas d'inertie en mode éditeur : la vue doit s'arrêter net au relâchement
+	# (le glissement post-relâche du clic droit était perçu comme un bug).
+	if not editor_mode:
+		_pan_velocity = Vector2(
+			-(motion.position.x - _last_pan_pos.x) * span.x,
+			-(motion.position.y - _last_pan_pos.y) * span.y
+		) / maxf(get_process_delta_time(), 0.001)
 	_last_pan_pos = motion.position
 	_clamp_camera()
 
@@ -2683,7 +2836,7 @@ func _editor_gui_input(event: InputEvent) -> void:
 		var motion := event as InputEventMouseMotion
 		if _right_nav_down:
 			if not _right_nav_dragging \
-					and motion.position.distance_to(_right_nav_start) >= 4.0:
+					and motion.position.distance_to(_right_nav_start) >= 8.0:
 				_right_nav_dragging = true
 				if _right_nav_shift:
 					# Maj + clic droit : orbite.
@@ -2730,12 +2883,18 @@ func _begin_orbit_drag(screen_pos: Vector2) -> void:
 	_orbit_dragging = true
 	_orbit_enabled = true
 	_pan_dragging = false
-	var center := size * 0.5
-	var world := _raycast_ground(_control_to_viewport(center))
-	if world == Vector3.INF:
-		world = Vector3(_camera.position.x, 0.0, _camera.position.z)
-	_orbit_target = world
-	_orbit_distance = maxf(12.0, _camera.position.distance_to(world))
+	# Ancre = le VRAI point visé de la caméra (zone utile, hors HUD).
+	var world := _raycast_ground(_control_to_viewport(_focus_screen_pos()))
+	var forward := -_camera.global_transform.basis.z
+	var dist := 12.0
+	if world != Vector3.INF:
+		dist = _camera.position.distance_to(world)
+	dist = maxf(dist, 0.5)
+	# Reconstruction EXACTE de la position courante (cible = position + axe ×
+	# distance) : le premier mouvement d'orbite ne peut pas faire sauter la
+	# caméra — c'était le « reset » du clic molette.
+	_orbit_target = _camera.position + forward * dist
+	_orbit_distance = dist
 	_orbit_start = screen_pos
 	_orbit_start_yaw = _camera.rotation_degrees.y
 	_orbit_start_pitch = _camera.rotation_degrees.x

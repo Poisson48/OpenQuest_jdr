@@ -819,9 +819,17 @@ func ensure_map_schema(map_data: Dictionary) -> Dictionary:
 	# Matières du sol : une par case (0 = herbe, 1 = terre, 2 = pierre).
 	if not map_data.has("terrainMaterials") or typeof(map_data["terrainMaterials"]) != TYPE_ARRAY:
 		map_data["terrainMaterials"] = []
+	# Creusements volumétriques (Voie B) : primitives SDF (trous, grottes,
+	# tunnels, remblais) combinées au heightfield de relief.
+	if not map_data.has("terrainCarves") or typeof(map_data["terrainCarves"]) != TYPE_ARRAY:
+		map_data["terrainCarves"] = []
 	# Eau : niveau du plan d'eau en cases (-1 = aucune eau).
 	if not map_data.has("waterLevel"):
 		map_data["waterLevel"] = -1.0
+	# Bassins d'eau (lacs, mares, rivières, cascades) : chacun a son niveau,
+	# son aire (polygone) ou son tracé (rivière avec sens d'écoulement).
+	if not map_data.has("waterBodies") or typeof(map_data["waterBodies"]) != TYPE_ARRAY:
+		map_data["waterBodies"] = []
 	# Ambiance animée : "" (aucune), fireflies, dust, leaves.
 	if not map_data.has("ambientFx"):
 		map_data["ambientFx"] = ""

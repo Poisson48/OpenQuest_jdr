@@ -56,6 +56,11 @@ var _overlay_texture: Texture2D = null
 var _overlay_height: float = 1.0
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
 var _terrain_heights: Array = []
+## Creusements volumétriques (Voie B) + champ terre/vide associé.
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
+var _terrain_carves: Array = []
+var _terrain_sculpt: Dictionary = {}
+var _terrain_field: TerrainCarveField = null
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 var _terrain_relief: bool = false
@@ -93,17 +98,44 @@ func set_terrain_heights(
 	_terrain_relief = false
 	if _terrain_w <= 0 or _terrain_h <= 0 or _terrain_heights.size() != _terrain_w * _terrain_h:
 		_terrain_heights = []
-		return
 	for value in _terrain_heights:
 		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
 			_terrain_relief = true
 			break
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
+	if repose and is_inside_tree():
+		_sync_position()
+
+## Met à jour les creusements volumétriques (Voie B) : le token est reposé sur
+## le sol visible (fond de trous / sol de grotte si concerné). `repose = false`
+## évite de téléporter le token avant une animation de marche (même contrat que
+## `set_terrain_heights`).
+func set_terrain_carves(carves: Array, repose: bool = true) -> void:
+	_terrain_carves = TerrainCarveField.normalize_carves(carves)
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
+	if repose and is_inside_tree():
+		_sync_position()
+
+## Met à jour la sculpture volumétrique (déplacement lissé) : le token est
+## reposé sur la terre sculptée. `repose = false` évite de téléporter avant une
+## animation de marche (même contrat que `set_terrain_heights`).
+func set_terrain_sculpt(sculpt: Dictionary, repose: bool = true) -> void:
+	_terrain_sculpt = sculpt if sculpt is Dictionary else {}
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
 	if repose and is_inside_tree():
 		_sync_position()
 
 ## Hauteur du terrain (en cases) aux coordonnées grille **centrées case** —
-## même convention que `ComplexMapEngine3D.terrain_height_at`.
+## même convention que `ComplexMapEngine3D.terrain_height_at`. Avec creusements
+## (Voie B) : sol visible depuis le dessus.
 func _terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_carves.is_empty() and _terrain_field != null:
+		if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+			return 0.0
+		return _terrain_field.top_surface_at(gx, gy)
 	if not _terrain_relief or _terrain_heights.is_empty():
 		return 0.0
 	if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
@@ -124,8 +156,6 @@ func _terrain_height_at(gx: float, gy: float) -> float:
 
 ## Hauteur monde du pied du token (0 sur terrain plat).
 func _terrain_base_y(gx: float, gy: float) -> float:
-	if not _terrain_relief:
-		return 0.0
 	return _terrain_height_at(gx, gy) * cell_size
 
 ## Repose le token sur la hauteur du terrain courant (après un déplacement).
@@ -625,8 +655,9 @@ func update_drag_world(world_pos: Vector3) -> void:
 		return
 	position.x = world_pos.x
 	position.z = world_pos.z
-	# Le point de sol renvoyé par le moteur tient déjà compte du relief.
-	var base_y := world_pos.y if _terrain_relief else 0.0
+	# Le point de sol renvoyé par le moteur tient déjà compte du relief
+	# (creusements compris) ; à plat, world_pos.y vaut 0 de toute façon.
+	var base_y := world_pos.y
 	if selected_state:
 		position.y = base_y + cell_size * (0.06 if diorama_mode else 0.12)
 	else:
@@ -651,8 +682,6 @@ func _grid_to_world(gx: float, gy: float) -> Vector3:
 
 ## Hauteur du terrain sous une position monde (pour `set_selected`).
 func _terrain_base_y_at_world(world: Vector3) -> float:
-	if not _terrain_relief:
-		return 0.0
 	var gx := (world.x - cell_size * 0.5) / cell_size
 	var gy := (world.z - cell_size * 0.5) / cell_size
 	return _terrain_base_y(gx, gy)

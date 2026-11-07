@@ -33,6 +33,11 @@ var _atmosphere: Color = Color(0.10, 0.10, 0.14)
 var _prefer_flat: bool = false
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
 var _terrain_heights: Array = []
+## Creusements volumétriques (Voie B) + champ terre/vide associé.
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
+var _terrain_carves: Array = []
+var _terrain_sculpt: Dictionary = {}
+var _terrain_field: TerrainCarveField = null
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 var _terrain_relief: bool = false
@@ -76,8 +81,29 @@ func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.Z
 		"width": map_size.x if map_size.x > 0 else _terrain_w,
 		"height": map_size.y if map_size.y > 0 else _terrain_h,
 		"terrainHeights": terrain_heights,
+		"terrainCarves": _terrain_carves,
 	}
 	_read_terrain(data)
+	_reseat_nodes()
+
+## Met à jour les creusements volumétriques (Voie B) : les décors sont reposés
+## sur le sol visible (fond de trou / sol de grotte si concernés).
+func set_terrain_carves(carves: Array) -> void:
+	_terrain_carves = TerrainCarveField.normalize_carves(carves)
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
+	_reseat_nodes()
+
+## Met à jour la sculpture volumétrique (déplacement lissé) : les décors sont
+## reposés sur la terre sculptée.
+func set_terrain_sculpt(sculpt: Dictionary) -> void:
+	_terrain_sculpt = sculpt if sculpt is Dictionary else {}
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
+	_reseat_nodes()
+
+## Repose le pied de chaque décor sur la hauteur courante du terrain.
+func _reseat_nodes() -> void:
 	for id in _nodes:
 		var node: Node3D = _nodes[id]
 		var prop: Dictionary = _prop_entries.get(id, {})
@@ -88,27 +114,36 @@ func set_terrain_heights(terrain_heights: Array, map_size: Vector2i = Vector2i.Z
 			+ _terrain_base_y(float(prop.get("x", 0.0)), float(prop.get("y", 0.0)))
 		)
 
-## Lit le relief fourni par le document (`terrainHeights` + dimensions carte).
-## Tableau absent / mal dimensionné → terrain plat (comportement historique).
+## Lit le relief fourni par le document (`terrainHeights` + `terrainCarves` +
+## dimensions carte). Tableau absent / mal dimensionné → terrain plat
+## (comportement historique).
 func _read_terrain(map_data: Dictionary) -> void:
 	_terrain_heights = []
 	_terrain_w = maxi(0, int(map_data.get("width", 0)))
 	_terrain_h = maxi(0, int(map_data.get("height", 0)))
 	_terrain_relief = false
-	if _terrain_w <= 0 or _terrain_h <= 0:
-		return
-	var raw = map_data.get("terrainHeights", [])
-	if not (raw is Array) or (raw as Array).size() != _terrain_w * _terrain_h:
-		return
-	_terrain_heights = raw
-	for value in _terrain_heights:
-		if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
-			_terrain_relief = true
-			return
+	_terrain_carves = TerrainCarveField.normalize_carves(map_data.get("terrainCarves", []))
+	_terrain_sculpt = map_data.get("terrainSculpt", {}) \
+		if map_data.get("terrainSculpt") is Dictionary else {}
+	if _terrain_w > 0 and _terrain_h > 0:
+		var raw = map_data.get("terrainHeights", [])
+		if (raw is Array) and (raw as Array).size() == _terrain_w * _terrain_h:
+			_terrain_heights = raw
+			for value in _terrain_heights:
+				if absf(float(value)) > TERRAIN_RELIEF_EPSILON:
+					_terrain_relief = true
+					break
+	_terrain_field = TerrainCarveField.new(
+		_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
 
 ## Hauteur du terrain (en cases) aux coordonnées grille **centrées case** —
-## même convention que `ComplexMapEngine3D.terrain_height_at`.
+## même convention que `ComplexMapEngine3D.terrain_height_at`. Avec creusements
+## (Voie B) : sol visible depuis le dessus (toit, fond de trou, sol de grotte).
 func _terrain_height_at(gx: float, gy: float) -> float:
+	if not _terrain_carves.is_empty() and _terrain_field != null:
+		if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
+			return 0.0
+		return _terrain_field.top_surface_at(gx, gy)
 	if not _terrain_relief or _terrain_heights.is_empty():
 		return 0.0
 	if gx < -0.5 or gy < -0.5 or gx > float(_terrain_w) - 0.5 or gy > float(_terrain_h) - 0.5:
@@ -129,8 +164,6 @@ func _terrain_height_at(gx: float, gy: float) -> float:
 
 ## Hauteur monde du pied d'un décor sur le terrain (0 sur terrain plat).
 func _terrain_base_y(gx: float, gy: float) -> float:
-	if not _terrain_relief:
-		return 0.0
 	return _terrain_height_at(gx, gy) * _cell_size
 
 func _build_prop(prop: Dictionary) -> Node3D:

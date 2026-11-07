@@ -431,7 +431,56 @@ func _test_editor_ui(base: Dictionary) -> void:
 	_assert("ui_dock_right_wide", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
 	_assert("ui_docks_fit_wide", editor._dock_left_w + editor._dock_right_w < 1280.0 - 120.0)
 	_assert("ui_right_min_w", editor._right_tabs != null and editor._right_tabs.custom_minimum_size.x >= 200.0)
+	# Contrat palettes (façon Blender/GIMP) : la carte occupe toute la fenêtre,
+	# la palette droite est repliée par défaut et se déplie à la demande.
+	await process_frame
+	_assert("ui_map_full_width",
+		editor._viewport_frame.size.x >= editor.size.x * 0.9)
+	_assert("ui_right_hidden_default", not editor._right_tabs.visible)
+	editor._toggle_palette("right")
+	await process_frame
 	_assert("ui_right_visible", editor._right_tabs.visible)
+	# Palettes DÉPLAÇABLES : glisser la barre de titre déplace la palette,
+	# son bouton ✕ la replie (contrat « fenêtres flottantes »).
+	var pal = editor._palette_wrappers.get("right")
+	_assert("palette_wrapped", pal != null and pal.has_method("_on_title_input"))
+	if pal != null:
+		var before_pos: Vector2 = pal.global_position
+		var bar = pal.get_node_or_null("PaletteStack/TitleBar")
+		var press_ev := InputEventMouseButton.new()
+		press_ev.button_index = MOUSE_BUTTON_LEFT
+		press_ev.pressed = true
+		bar.gui_input.emit(press_ev)
+		var move_ev := InputEventMouseMotion.new()
+		move_ev.relative = Vector2(120, -40)
+		bar.gui_input.emit(move_ev)
+		var release_ev := InputEventMouseButton.new()
+		release_ev.button_index = MOUSE_BUTTON_LEFT
+		release_ev.pressed = false
+		bar.gui_input.emit(release_ev)
+		_assert("palette_moved", pal.global_position.distance_to(before_pos) > 60.0)
+		# Poignée ◢ : redimensionner la palette.
+		var grip = pal.get_node_or_null("PaletteStack/GripRow/ResizeGrip")
+		_assert("palette_resizable", grip != null)
+		if grip != null:
+			var size_before: Vector2 = pal.size
+			var gpress := InputEventMouseButton.new()
+			gpress.button_index = MOUSE_BUTTON_LEFT
+			gpress.pressed = true
+			grip.gui_input.emit(gpress)
+			var gmove := InputEventMouseMotion.new()
+			gmove.relative = Vector2(90, 60)
+			grip.gui_input.emit(gmove)
+			var grelease := InputEventMouseButton.new()
+			grelease.button_index = MOUSE_BUTTON_LEFT
+			grelease.pressed = false
+			grip.gui_input.emit(grelease)
+			_assert("palette_resized",
+				pal.size.x > size_before.x + 60.0 and pal.size.y > size_before.y + 40.0)
+		pal.close_pressed.emit()
+		_assert("palette_close_hides", not pal.visible)
+		editor._toggle_palette("right")
+		await process_frame
 
 	# Aide rapide disponible depuis la barre d'actions.
 	editor._open_help()

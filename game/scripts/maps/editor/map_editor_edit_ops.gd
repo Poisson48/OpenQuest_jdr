@@ -24,8 +24,11 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 		return
 	_ed._press_start_grid = grid
 	_ed._press_start_screen = screen
+	_ed._pointer_screen = screen
 	_ed._press_moved = false
 	_ed._painted_cells.clear()
+	# Trait creusement/remblai 3D : l'espacement des tampons repart à zéro.
+	_ed._carve_spacing_last = Vector3(INF, INF, INF)
 
 	if _ed._space_held or _ed._tool == ToolsScript.PAN:
 		_ed._press_mode = "pan"
@@ -34,6 +37,19 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 
 	# Peinture eau : traitée avant la sélection (Maj = effacer l'eau).
 	if _ed._tool == ToolsScript.WATER_PAINT:
+		if _ed._water_mode == "river":
+			# Tracé de rivière : le sens du glissé devient le sens du courant.
+			_ed._press_mode = "water_river"
+			var y0: float = _ed._engine.terrain_height_at(grid.x, grid.y) + 0.06
+			_ed._water_river_points = [Vector3(grid.x, y0, grid.y)]
+			_ed._overlay.polygon_points = [grid]
+			_ed._refresh_overlay()
+			_ed._set_status("Rivière : glissez le tracé (le sens = le sens du courant).")
+			return
+		if _ed._water_mode == "lake":
+			_ed._press_mode = "water_lake"
+			_ed._set_status("Lac : glissez le rectangle (rempli jusqu'au niveau réglé).")
+			return
 		_ed._press_mode = "water"
 		# Un trait = une seule étape d'undo (transaction ouverte au press,
 		# fermée au release).
@@ -121,7 +137,7 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 	if _ed._tool == ToolsScript.TERRAIN_HEIGHT:
 		_ed._press_mode = "relief"
 		_ed.doc.begin_transaction()
-		_ed._paint_relief(grid)
+		_ed._paint_relief(grid, mods)
 		return
 	if _ed._tool == ToolsScript.GROUND_MATERIAL:
 		_ed._press_mode = "ground_material"
@@ -269,6 +285,7 @@ func _start_move_drag(ids: Array) -> void:
 	_ed._refresh_overlay()
 
 func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void:
+	_ed._pointer_screen = screen
 	_ed._overlay.hover_grid = grid
 	_ed._overlay.hover_valid = _ed._in_bounds(grid)
 	_ed._update_status_position(grid)
@@ -362,8 +379,24 @@ func _on_pointer_moved(grid: Vector2, screen: Vector2, mods: Dictionary) -> void
 		"water":
 			# Maj maintenu : le trait efface l'eau (remonte le sol).
 			_ed._paint_water(grid, bool(mods.get("shift", false)))
+		"water_river":
+			# Tracé de rivière : un point tous les ~0.7 case (y = niveau d'eau
+			# local : les dénivelés deviennent des cascades).
+			var last: Vector3 = _ed._water_river_points[_ed._water_river_points.size() - 1]
+			if Vector2(last.x, last.z).distance_to(grid) >= 0.7:
+				var y: float = float(_ed._engine.terrain_height_at(grid.x, grid.y)) + 0.06
+				_ed._water_river_points.append(Vector3(grid.x, y, grid.y))
+				_ed._overlay.polygon_points.append(grid)
+				_ed._set_status("Rivière : %d points." % _ed._water_river_points.size())
+		"water_lake":
+			_ed._overlay.polygon_points = [
+				Vector2(_ed._press_start_grid.x, _ed._press_start_grid.y),
+				Vector2(grid.x, _ed._press_start_grid.y),
+				Vector2(grid.x, grid.y),
+				Vector2(_ed._press_start_grid.x, grid.y),
+			]
 		"relief":
-			_ed._paint_relief(grid)
+			_ed._paint_relief(grid, mods)
 		"ground_material":
 			_ed._paint_ground_material(grid)
 	_ed._refresh_ghost()
@@ -430,10 +463,24 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed.doc.commit_transaction()
 			_ed._sync_engine()
 			_ed._set_status("Peinture d'eau terminée.")
+		"water_river":
+			_ed._finish_water_river()
+		"water_lake":
+			_ed._finish_water_lake(_ed._press_start_grid, grid)
 		"relief":
+			# Un trait complet = une seule étape d'undo (creusements 3D compris).
 			_ed.doc.commit_transaction()
-			_ed._sync_engine()
-			_ed._set_status("Relief appliqué — les objets 3D s'adaptent à la hauteur.")
+			# Polissage à pleine résolution du trait (sculpture 3D comme
+			# relief classique) + rafraîchissement final.
+			_ed._finish_carve_stroke()
+			if _ed._relief_mode in ["carve", "fill", "smooth3d", "flatten3d",
+					"scrape3d", "fillh3d", "pinch3d", "layer3d",
+					"clay3d", "claystrips3d", "grab3d", "snake3d",
+					"thumb3d", "elastic3d", "inflate3d", "blob3d",
+					"sharp3d", "boundary3d", "simplify3d", "pose3d", "cloth3d"]:
+				_ed._set_status("Terrain %s — trait annulable en une seule fois." % _ed._relief_mode_label())
+			else:
+				_ed._set_status("Relief appliqué — les objets 3D s'adaptent à la hauteur.")
 		"ground_material":
 			_ed.doc.commit_transaction()
 			_ed._sync_engine()

@@ -51,6 +51,10 @@ class_name MapGround3D
 
 const NIGHT_SHADER := preload("res://shaders/map_night_reveal.gdshader")
 const TERRAIN_SPLAT_SHADER := preload("res://shaders/terrain_splat.gdshader")
+## Creusements volumétriques (Voie B) — préchargements explicites : fiables en
+## headless, indépendantes du cache global `class_name`.
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
+const TerrainCarveChunks := preload("res://scripts/maps/terrain/terrain_carve_chunks.gd")
 ## Dossier des textures de matières (tuilables, générées par le pipeline Blender).
 const TERRAIN_TEXTURE_DIR := "res://assets/terrain/"
 ## Matières du sol (mêmes valeurs que le document / `MapData`).
@@ -127,12 +131,33 @@ var _splat_image: Image = null
 var _splat2_texture: ImageTexture = null
 var _splat2_image: Image = null
 var _splat_active: bool = false
+## Texture de BERGE fournie par la couche d'eau (bande mouillée autour de
+## l'eau) : teinte la terre au bord de l'eau dans le shader de matières.
+var _shore_texture: Texture2D = null
 ## Textures de matières (chargées à la demande) :
 ## "grass" / "dirt" / "stone" / "snow" / "sand".
 var _terrain_textures: Dictionary = {}
 ## Bornes des hauteurs (pour la palette du terrain3d).
 var _terrain_min: float = 0.0
 var _terrain_max: float = 0.0
+# --- Creusements volumétriques (Voie B : trous / grottes / tunnels) --------
+## Primitives SDF normalisées (`map_data["terrainCarves"]`).
+var _terrain_carves: Array = []
+## Sculpture volumétrique (déplacement lissé, `map_data["terrainSculpt"]`).
+var _terrain_sculpt: Dictionary = {}
+## Champ scalaire terre/vide (heightfield + carves) partagé avec les clusters.
+var _carve_field: TerrainCarveField = null
+## Clusters de creusement (emprises + bornes verticales).
+var _carve_clusters: Array = []
+## Un MeshInstance3D par cluster, indexé par clé (emprise + membres) : les
+## clusters inchangés ne sont jamais rebâtis pendant un trait de pinceau.
+var _carve_cluster_nodes: Dictionary = {}
+## Dernière empreinte découpée dans le heightfield (pour ne le rebâtir que si
+## la découpe a changé).
+var _last_cut_mask: PackedByteArray = PackedByteArray()
+## Qualité d'aperçu (pendant un trait de pinceau) : résolution MC réduite,
+## polie à la relâche. Voir `set_terrain_carve_preview`.
+var _carve_preview: bool = false
 
 func _ready() -> void:
 	_ensure_mesh_instance()
@@ -167,7 +192,9 @@ func configure(
 	terrain_heights: Array = [],
 	ground_mode: String = "",
 	terrain_materials: Array = [],
-	terrain_detail: int = 1
+	terrain_detail: int = 1,
+	terrain_carves: Array = [],
+	terrain_sculpt: Dictionary = {}
 ) -> void:
 	_cfg = {
 		"texture": texture,
@@ -184,6 +211,8 @@ func configure(
 		"ground_mode": ground_mode,
 		"terrain_materials": terrain_materials,
 		"terrain_detail": terrain_detail,
+		"terrain_carves": terrain_carves,
+		"terrain_sculpt": terrain_sculpt,
 	}
 	_apply_config()
 
@@ -199,7 +228,183 @@ func set_terrain_heights(heights: Array) -> void:
 		return
 	if _arrays_equal(_terrain_heights, next):
 		return
+	# Chemin incrémental (terrain3d avec creusements) : les clusters de
+	# creusement éloignés des cellules modifiées ne sont pas rebâtis — c'est ce
+	# qui garde le pinceau de relief classique « en direct » sur une carte
+	# sculptée. Sans creusement, on garde le chemin historique complet.
+	if is_terrain3d() and _carve_field != null and not _terrain_carves.is_empty():
+		var changed := _changed_height_rect(_terrain_heights, next)
+		_terrain_heights = next
+		_compute_terrain_bounds()
+		_carve_field.set_data(_terrain_heights, _terrain_w, _terrain_h, _terrain_carves)
+		var cell_size := float(_cfg.get("cell_size", 1.0))
+		_last_cut_mask = _carve_cut_mask()
+		_mesh_instance.mesh = _make_terrain_mesh(cell_size)
+		_rebuild_clusters_in_rect(changed, cell_size)
+		_rebuild_cliff(cell_size, bool(_cfg.get("night_mode", false)))
+		return
 	_apply_config()
+
+## Rectangle des cellules dont la hauteur change entre deux états (les
+## clusters touchés par ce rectangle seuls sont à rebâtir).
+func _changed_height_rect(old_h: Array, new_h: Array) -> Rect2:
+	var r := Rect2()
+	var first := true
+	var n := mini(old_h.size(), new_h.size())
+	for i in range(n):
+		if absf(float(old_h[i]) - float(new_h[i])) > 0.0001:
+			var p := Vector2(float(i % _terrain_w), float(i / _terrain_w))
+			if first:
+				r = Rect2(p, Vector2.ZERO)
+				first = false
+			else:
+				r = r.expand(p)
+	return r
+
+## Ne rebâtit que les clusters dont l'emprise touche le rectangle modifié
+## (marge d'une case pour les raccords de champ).
+func _rebuild_clusters_in_rect(changed: Rect2, cell_size: float) -> void:
+	if _carve_clusters.is_empty():
+		return
+	var zone := changed.grow(1.0)
+	for cluster in _carve_clusters:
+		var rect: Rect2i = cluster.get("rect", Rect2i())
+		var crect := Rect2(Vector2(rect.position), Vector2(rect.size))
+		if not crect.intersects(zone):
+			continue
+		var key := _cluster_key(cluster)
+		if _carve_cluster_nodes.has(key):
+			var old = _carve_cluster_nodes[key]
+			if old != null and is_instance_valid(old):
+				old.queue_free()
+			_carve_cluster_nodes.erase(key)
+		_build_cluster_node(cluster, cell_size)
+
+## Met à jour les **creusements volumétriques** (primitives SDF) de façon
+## incrémentale : seuls les clusters dont l'emprise ou les membres ont changé
+## sont rebâtis, et le heightfield n'est reconstruit que si la découpe des
+## quads a changé. C'est ce chemin qui rend le pinceau « en direct ».
+func set_terrain_carves(carves: Array, preview: bool = false) -> void:
+	var next := TerrainCarveField.normalize_carves(carves)
+	_cfg["terrain_carves"] = next
+	if not _cfg.has("map_width"):
+		_terrain_carves = next
+		return
+	var preview_changed := preview != _carve_preview
+	_carve_preview = preview
+	if _carves_equal(_terrain_carves, next) and not preview_changed:
+		return
+	if not is_terrain3d() or _carve_field == null:
+		_apply_config()
+		return
+	_terrain_carves = next
+	_carve_field.set_carves(next)
+	var sculpt_regions: Array = _carve_field.sculpt_regions()
+	_carve_clusters = [] if next.is_empty() and sculpt_regions.is_empty() \
+		else TerrainCarveChunks.compute_clusters(next, sculpt_regions)
+	var cell_size := float(_cfg.get("cell_size", 1.0))
+	_rebuild_dirty_carve_meshes(cell_size, preview_changed)
+	var mask := _carve_cut_mask()
+	if not _byte_arrays_equal(mask, _last_cut_mask):
+		_last_cut_mask = mask
+		_mesh_instance.mesh = _make_terrain_mesh(cell_size)
+
+## Met à jour la **sculpture volumétrique** (déplacement lissé) de façon
+## incrémentale : les clusters sont rebâtis (le tampon modifie le champ sans
+## déplacer les emprises) et le heightfield n'est reconstruit que si la découpe
+## des quads a changé.
+func set_terrain_sculpt(sculpt: Dictionary, preview: bool = false) -> void:
+	var next: Dictionary = sculpt if sculpt is Dictionary else {}
+	_cfg["terrain_sculpt"] = next
+	if not _cfg.has("map_width"):
+		_terrain_sculpt = next
+		return
+	if str(_terrain_sculpt) == str(next):
+		return
+	if not is_terrain3d() or _carve_field == null:
+		_apply_config()
+		return
+	_terrain_sculpt = next
+	_carve_field.set_sculpt(next)
+	var regions: Array = _carve_field.sculpt_regions()
+	_carve_clusters = [] if _terrain_carves.is_empty() and regions.is_empty() \
+		else TerrainCarveChunks.compute_clusters(_terrain_carves, regions)
+	var cell_size := float(_cfg.get("cell_size", 1.0))
+	_rebuild_dirty_carve_meshes(cell_size, true)
+	var mask := _carve_cut_mask()
+	if not _byte_arrays_equal(mask, _last_cut_mask):
+		_last_cut_mask = mask
+		_mesh_instance.mesh = _make_terrain_mesh(cell_size)
+
+## Bascule la qualité d'aperçu (résolution MC réduite pendant un trait de
+## pinceau). Un changement rebâtit les clusters — la relâche « polit » le
+## creusement à pleine résolution.
+func set_terrain_carve_preview(on: bool) -> void:
+	if on == _carve_preview:
+		return
+	_carve_preview = on
+	if _carve_clusters.is_empty() or not is_terrain3d():
+		return
+	_rebuild_dirty_carve_meshes(float(_cfg.get("cell_size", 1.0)), true)
+
+## Résolution MC d'un cluster : aperçu adaptatif (rapide quel que soit la
+## longueur du trait, pour un suivi « en direct »), pleine qualité à la
+## relâche — plafonnée pour les très grands clusters afin que le polissage
+## reste bref.
+func _carve_resolution_for(cluster: Dictionary) -> int:
+	var rect: Rect2i = cluster.get("rect", Rect2i())
+	var area := rect.size.x * rect.size.y
+	if _carve_preview:
+		return 2 if area <= 40 else 1
+	# Qualité finale : pleine résolution presque partout (le polissage est
+	# ponctuel, à la relâche du pinceau) ; seuls les clusters monstres
+	# (> 400 cases) restent en 2 pour que ce polissage reste bref.
+	if area > 400:
+		return 2
+	return maxi(3, _terrain_detail)
+
+static func _byte_arrays_equal(a: PackedByteArray, b: PackedByteArray) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in range(a.size()):
+		if a[i] != b[i]:
+			return false
+	return true
+
+## Vrai si des creusements volumétriques sont actifs.
+func is_carve_active() -> bool:
+	return not _terrain_carves.is_empty()
+
+## Copie des primitives de creusement ([] si aucune).
+func get_terrain_carves() -> Array:
+	return TerrainCarveField.to_json_carves(_terrain_carves)
+
+## Nombre de clusters MC rendus (0 sans creusement) — tests / diagnostics.
+func get_carve_cluster_count() -> int:
+	return _carve_cluster_nodes.size()
+
+## Champ terre/vide courant (null sans carte terrain3d).
+func get_carve_field() -> TerrainCarveField:
+	return _carve_field
+
+static func _carves_equal(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in range(a.size()):
+		var da: Dictionary = a[i]
+		var db: Dictionary = b[i]
+		for key in da.keys():
+			if not db.has(key):
+				return false
+			if da[key] is Vector3:
+				if not (db[key] is Vector3) or (da[key] as Vector3).distance_to(db[key]) > 0.00001:
+					return false
+			elif da[key] is Array:
+				if not (db[key] is Array) or str(da[key]) != str(db[key]):
+					return false
+			elif da[key] != db[key]:
+				return false
+	return true
 
 ## Met à jour les **matières du sol** sans reconstruire le viewport : met à jour
 ## la texture de splat (peinture fluide) et bascule le matériau seulement si
@@ -324,6 +529,15 @@ func _apply_config() -> void:
 		_compute_terrain_bounds()
 		_terrain_materials = _normalize_materials(_cfg.get("terrain_materials", []))
 		_splat_active = _compute_splat_active()
+		# Creusements volumétriques : champ terre/vide + clusters MC à jour.
+		_terrain_carves = TerrainCarveField.normalize_carves(_cfg.get("terrain_carves", []))
+		_terrain_sculpt = _cfg.get("terrain_sculpt", {}) \
+			if _cfg.get("terrain_sculpt") is Dictionary else {}
+		_carve_field = TerrainCarveField.new(
+			_terrain_heights, _terrain_w, _terrain_h, _terrain_carves, _terrain_sculpt)
+		var sculpt_regions: Array = _carve_field.sculpt_regions()
+		_carve_clusters = [] if _terrain_carves.is_empty() and sculpt_regions.is_empty() \
+			else TerrainCarveChunks.compute_clusters(_terrain_carves, sculpt_regions)
 		_mesh_instance.mesh = _make_terrain_mesh(cell_size)
 		_mesh_instance.position = Vector3.ZERO
 		_mesh_instance.rotation_degrees = Vector3.ZERO
@@ -336,10 +550,15 @@ func _apply_config() -> void:
 			_splat_image = null
 			_splat2_texture = null
 			_splat2_image = null
+		_rebuild_carve_meshes(cell_size)
 		_rebuild_cliff(cell_size, night_mode)
 		return
 
 	# Mode illustré (legacy) : quad plat, ratio du PNG, aucune déformation.
+	_clear_carve_meshes()
+	_terrain_carves = []
+	_carve_field = null
+	_carve_clusters = []
 	_clear_cliff()
 	_splat_active = false
 	_splat_texture = null
@@ -407,6 +626,18 @@ func _apply_day_material(texture: Texture2D, unshaded: bool) -> void:
 
 ## Matériau du terrain 3D.
 ##
+## Texture de BERGE (bande mouillée autour de l'eau) fournie par la couche
+## d'eau : la terre au bord de l'eau est assombrie et brunie.
+func set_shore_texture(tex: Texture2D) -> void:
+	_shore_texture = tex
+	if _mesh_instance == null:
+		return
+	var mat := _mesh_instance.material_override
+	if mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter("shore_tex", tex)
+		(mat as ShaderMaterial).set_shader_parameter(
+			"shore_enabled", 1.0 if tex != null else 0.0)
+
 ## Si les matières sont actives : `ShaderMaterial` `terrain_splat.gdshader` qui
 ## mélange les cinq textures tuilées (UV) via les deux splats (UV2) et multiplie
 ## par les vertex colors d'ombrage ; il reste éclairé (spatial). `albedo_tint`
@@ -430,6 +661,9 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		)
 		shader_mat.set_shader_parameter("vertex_color_strength", 1.0)
 		shader_mat.set_shader_parameter("blend_sharpness", 1.0)
+		if _shore_texture != null:
+			shader_mat.set_shader_parameter("shore_tex", _shore_texture)
+			shader_mat.set_shader_parameter("shore_enabled", 1.0)
 		_mesh_instance.material_override = shader_mat
 		return
 	var mat := StandardMaterial3D.new()
@@ -772,8 +1006,15 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 	var indices := PackedInt32Array()
 	indices.resize(cell_cols * cell_rows * 6)
 	var n := 0
+	# Découpe : les quads des cellules creusées sont rendus par le maillage
+	# Marching Cubes du cluster (même surface, raccord au bord de cellule).
+	var cut := _carve_cut_mask()
 	for j in range(cell_rows):
 		for i in range(cell_cols):
+			if not cut.is_empty():
+				var cell_idx := (j / detail) * _terrain_w + (i / detail)
+				if cell_idx >= 0 and cell_idx < cut.size() and cut[cell_idx] != 0:
+					continue
 			var a := j * cols + i
 			var b := a + 1
 			var c := (j + 1) * cols + i
@@ -785,6 +1026,8 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 			indices[n + 4] = d
 			indices[n + 5] = c
 			n += 6
+	# Quads découpés (creusements) : tronquer à la taille réelle.
+	indices.resize(n)
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -905,6 +1148,98 @@ func get_cell_height(cx: int, cy: int) -> float:
 ## Copie des hauteurs par case ([] si la carte n'en fournit pas).
 func get_terrain_heights() -> Array:
 	return _terrain_heights.duplicate()
+
+# ---------------------------------------------------------------------------
+# Creusements volumétriques (Voie B) — clusters Marching Cubes
+# ---------------------------------------------------------------------------
+
+## Masque par case (1 = cellule rendue par un cluster MC, donc découpée dans le
+## maillage heightfield). Vide sans creusement (chemin rapide historique).
+func _carve_cut_mask() -> PackedByteArray:
+	var mask := PackedByteArray()
+	if _carve_clusters.is_empty() or _terrain_w <= 0 or _terrain_h <= 0:
+		return mask
+	mask.resize(_terrain_w * _terrain_h)
+	for cluster in _carve_clusters:
+		var rect: Rect2i = cluster.get("rect", Rect2i())
+		var x0 := clampi(rect.position.x, 0, _terrain_w)
+		var y0 := clampi(rect.position.y, 0, _terrain_h)
+		var x1 := clampi(rect.end.x, 0, _terrain_w)
+		var y1 := clampi(rect.end.y, 0, _terrain_h)
+		for cy in range(y0, y1):
+			for cx in range(x0, x1):
+				mask[cy * _terrain_w + cx] = 1
+	return mask
+
+## (Re)construit les maillages MC des clusters (chemin complet : configure,
+## changement de matières…) avec le même matériau que le sol (splat ou repli)
+## pour un rendu homogène.
+func _rebuild_carve_meshes(cell_size: float) -> void:
+	_clear_carve_meshes()
+	if _carve_clusters.is_empty() or _carve_field == null:
+		_last_cut_mask = PackedByteArray()
+		return
+	for cluster in _carve_clusters:
+		_build_cluster_node(cluster, cell_size)
+	_last_cut_mask = _carve_cut_mask()
+
+## Reconstruction **incrémentale** : ne rebâtit que les clusters dont la clé
+## (emprise + membres) a changé, ou tous si `force` (bascule de qualité).
+## C'est ce qui rend le pinceau de creusement « en direct ».
+func _rebuild_dirty_carve_meshes(cell_size: float, force: bool = false) -> void:
+	if _carve_field == null:
+		return
+	var seen := {}
+	for cluster in _carve_clusters:
+		var key := _cluster_key(cluster)
+		seen[key] = true
+		if not force and _carve_cluster_nodes.has(key):
+			continue
+		if _carve_cluster_nodes.has(key):
+			var old = _carve_cluster_nodes[key]
+			if old != null and is_instance_valid(old):
+				old.queue_free()
+			_carve_cluster_nodes.erase(key)
+		_build_cluster_node(cluster, cell_size)
+	for key in _carve_cluster_nodes.keys().duplicate():
+		if not seen.has(key):
+			var node = _carve_cluster_nodes[key]
+			if node != null and is_instance_valid(node):
+				node.queue_free()
+			_carve_cluster_nodes.erase(key)
+
+## Clé d'identité d'un cluster : emprise de cases + membres triés.
+func _cluster_key(cluster: Dictionary) -> String:
+	var ids: Array = (cluster.get("ids", []) as Array).duplicate()
+	ids.sort()
+	return "%s|%s" % [str(cluster.get("rect", Rect2i())), ",".join(ids)]
+
+## Construit et instancie le maillage MC d'un cluster.
+func _build_cluster_node(cluster: Dictionary, cell_size: float) -> void:
+	var color_fn := func(hv: float, normal: Vector3, i: int, j: int) -> Color:
+		if _splat_active:
+			return _terrain_vertex_shade(normal, i, j)
+		return _terrain_vertex_color(hv, normal, i, j)
+	var mesh := TerrainCarveChunks.build_cluster_mesh(
+		_carve_field, cluster,
+		_terrain_w, _terrain_h, TERRAIN_TILE_CELLS, cell_size,
+		color_fn, _carve_resolution_for(cluster))
+	if mesh.get_surface_count() == 0:
+		return
+	var node := MeshInstance3D.new()
+	node.name = "CarveCluster"
+	node.mesh = mesh
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.material_override = _mesh_instance.material_override
+	add_child(node)
+	_carve_cluster_nodes[_cluster_key(cluster)] = node
+
+func _clear_carve_meshes() -> void:
+	for key in _carve_cluster_nodes.keys():
+		var node = _carve_cluster_nodes[key]
+		if node != null and is_instance_valid(node):
+			node.queue_free()
+	_carve_cluster_nodes = {}
 
 ## Taille de la grille du sol en cases.
 func get_terrain_size() -> Vector2i:

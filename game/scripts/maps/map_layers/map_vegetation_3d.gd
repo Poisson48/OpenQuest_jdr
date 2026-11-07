@@ -15,9 +15,17 @@ class_name MapVegetation3D
 ## variées, aucune ombre portée, aucune collision. Les cases non-herbe et les
 ## cases immergées (sous `water_level`) sont ignorées. La nuit, `albedo_tint`
 ## assombrit/refroidit l'ensemble.
+##
+## Hauteur de pose : le **sol visible** (`TerrainCarveField.top_surface_at`,
+## creusements volumétriques de `map_data["terrainCarves"]` compris) remplace la
+## hauteur de case brute. Sans creusement, le sol visible est exactement la
+## hauteur de case historique : aucun décalage, aucune règle de spawn changée.
 
 ## Densité de touffes par case d'herbe (0..1).
 const TUFT_DENSITY := 0.85
+## Creusements volumétriques (Voie B) — préchargement explicite (fiable en
+## headless, indépendant du cache global `class_name`).
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
 ## Densité de fleurs par case d'herbe (0..1).
 const FLOWER_DENSITY := 0.18
 ## Densité de buissons par case d'herbe (0..1).
@@ -138,7 +146,8 @@ func _ensure_instances() -> void:
 
 ## Configure la végétation (no-op si paramètres identiques).
 ## `heights` : tableau plat de hauteurs en cases ; `materials` : IDs de matière ;
-## `water_level` : niveau d'eau en cases (-1 = aucune eau).
+## `water_level` : niveau d'eau en cases (-1 = aucune eau) ; `terrain_carves` :
+## creusements volumétriques normalisés (Voie B, optionnel).
 func configure(
 	map_width: int,
 	map_height: int,
@@ -148,7 +157,9 @@ func configure(
 	water_level: float = -1.0,
 	night_mode: bool = false,
 	enabled: bool = true,
-	density: float = 1.0
+	density: float = 1.0,
+	terrain_carves: Array = [],
+	terrain_sculpt: Dictionary = {}
 ) -> void:
 	var next_w := maxi(0, map_width)
 	var next_h := maxi(0, map_height)
@@ -161,7 +172,9 @@ func configure(
 			and night_mode == _night_mode and enabled == _last_enabled \
 			and is_equal_approx(next_density, _density) \
 			and _arrays_equal(heights, _last_heights) \
-			and _arrays_equal(materials, _last_materials):
+			and _arrays_equal(materials, _last_materials) \
+			and _carves_equal(terrain_carves, _last_carves) \
+			and str(terrain_sculpt) == str(_last_sculpt):
 		return
 	_has_config = true
 	_last_enabled = enabled
@@ -173,6 +186,8 @@ func configure(
 	_water_level = next_water
 	_last_heights = heights.duplicate() if heights is Array else []
 	_last_materials = materials.duplicate() if materials is Array else []
+	_last_carves = terrain_carves.duplicate(true) if terrain_carves is Array else []
+	_last_sculpt = terrain_sculpt.duplicate(true) if terrain_sculpt is Dictionary else {}
 	if not enabled or next_w <= 0 or next_h <= 0:
 		clear()
 		return
@@ -242,6 +257,7 @@ func clear() -> void:
 	_last_enabled = true
 	_last_heights = []
 	_last_materials = []
+	_last_carves = []
 	if _tuft_instance != null and is_instance_valid(_tuft_instance):
 		_tuft_instance.multimesh = null
 		_tuft_instance.visible = false
@@ -267,6 +283,12 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	_ensure_instances()
 	var expected: int = _map_w * _map_h
 	var has_materials := materials is Array and materials.size() == expected
+	# Champ « terre/vide » (Voie B) : hauteurs + creusements volumétriques. Les
+	# hauteurs de taille incomplète sont ignorées (repli historique : hauteur 0).
+	var field_heights: Array = heights \
+		if (heights is Array and heights.size() == expected) else []
+	var field := TerrainCarveField.new(
+		field_heights, _map_w, _map_h, _last_carves, _last_sculpt)
 	var tuft_transforms: Array = []
 	var tuft_colors: Array = []
 	var flower_transforms: Array = []
@@ -287,10 +309,11 @@ func _rebuild(heights: Array, materials: Array) -> void:
 				material = int(materials[idx])
 			if material != MATERIAL_GRASS:
 				continue
-			var cell_height := 0.0
-			if heights is Array and heights.size() == expected:
-				cell_height = float(heights[idx])
-			if _water_level >= 0.0 and cell_height < _water_level:
+			# Règle d'évitement de l'eau inchangée (h < water_level), mais
+			# mesurée sur le sol visible : sans creusement, strictement égale
+			# à la hauteur de case historique.
+			var top := field.top_surface_at(float(x), float(y))
+			if _water_level >= 0.0 and top < _water_level:
 				continue
 			cells.append(Vector2i(x, y))
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
@@ -298,13 +321,12 @@ func _rebuild(heights: Array, materials: Array) -> void:
 	for cell: Vector2i in cells:
 		var x := cell.x
 		var y := cell.y
-		var idx := y * _map_w + x
-		var cell_height := 0.0
-		if heights is Array and heights.size() == expected:
-			cell_height = float(heights[idx])
+		# Hauteur de pose : sol visible (creusements compris), = hauteur de case
+		# historique sans creusement.
+		var top := field.top_surface_at(float(x), float(y))
 		var base := Vector3(
 			(float(x) + 0.5) * _cell_size,
-			cell_height * _cell_size,
+			top * _cell_size,
 			(float(y) + 0.5) * _cell_size
 		)
 		if _hash01(x, y, 11) < TUFT_DENSITY * _density and tuft_transforms.size() < MAX_TUFTS:
@@ -542,7 +564,32 @@ static func _arrays_equal(a: Array, b: Array) -> bool:
 			return false
 	return true
 
+## Vrai si deux listes de creusements (déjà normalisées) ont le même contenu
+## (même convention que `MapGround3D._carves_equal`).
+static func _carves_equal(a: Array, b: Array) -> bool:
+	if not (a is Array) or not (b is Array):
+		return false
+	if a.size() != b.size():
+		return false
+	for i in range(a.size()):
+		var da: Dictionary = a[i]
+		var db: Dictionary = b[i]
+		for key in da.keys():
+			if not db.has(key):
+				return false
+			if da[key] is Vector3:
+				if not (db[key] is Vector3) or (da[key] as Vector3).distance_to(db[key]) > 0.00001:
+					return false
+			elif da[key] is Array:
+				if not (db[key] is Array) or str(da[key]) != str(db[key]):
+					return false
+			elif da[key] != db[key]:
+				return false
+	return true
+
 var _last_heights: Array = []
 var _last_materials: Array = []
+var _last_carves: Array = []
+var _last_sculpt: Dictionary = {}
 var _water_level: float = -1.0
 var _last_enabled: bool = true

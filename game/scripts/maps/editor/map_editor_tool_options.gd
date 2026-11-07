@@ -32,6 +32,10 @@ var _saved_per_tool := {}
 var _options_tool_id := ""
 ## Index du prochain champ numérique créé pendant le rebuild courant.
 var _spin_field_index := 0
+## Famille de champs affichée pour l'outil relief (true = modes creuser/remblayer
+## 3D) : pinceau/force et rayon/profondeur n'ont pas le même sens, une valeur
+## mémorisée d'une famille ne doit pas être restaurée dans l'autre.
+var _relief_options_volumetric := false
 
 func setup(editor) -> void:
 	_ed = editor
@@ -56,6 +60,43 @@ func _field_hbox(parent: Control, label_text: String, control: Control) -> HBoxC
 	# Pair label (enfant 0) + SpinBox (enfant 1) : le label devient scrubbable.
 	if control is SpinBox:
 		_make_scrubbable(lbl, control as SpinBox)
+	return row
+
+## Curseur compact façon Blender (label + HSlider + valeur éditable) pour la
+## barre de sculpture : Rayon / Force.
+func _slider_field(parent: Control, label_text: String, min_v: float,
+		max_v: float, value: float, step: float, on_change: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.custom_minimum_size = Vector2(84, 0)
+	row.add_child(lbl)
+	var slider := HSlider.new()
+	slider.min_value = min_v
+	slider.max_value = max_v
+	slider.step = step
+	slider.value = value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slider)
+	var spin := SpinBox.new()
+	spin.min_value = min_v
+	spin.max_value = max_v
+	spin.step = step
+	spin.value = value
+	spin.custom_minimum_size = Vector2(74, 0)
+	row.add_child(spin)
+	slider.value_changed.connect(func(v):
+		if not is_equal_approx(spin.value, v):
+			spin.value = v
+		on_change.call(v)
+	)
+	spin.value_changed.connect(func(v):
+		if not is_equal_approx(slider.value, v):
+			slider.value = v
+	)
+	parent.add_child(row)
 	return row
 
 func _sep(parent: Control) -> void:
@@ -551,11 +592,73 @@ func _rebuild_tool_options() -> void:
 		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
 	elif _ed._tool == ToolsScript.WATER_PAINT:
+		var water_opt := OptionButton.new()
+		var water_modes := [
+			["paint", "Peindre (niveau)"],
+			["river", "Rivière (tracé)"],
+			["lake", "Lac / mare (rectangle)"],
+		]
+		for i in range(water_modes.size()):
+			water_opt.add_item(str(water_modes[i][1]), i)
+			water_opt.set_item_metadata(i, str(water_modes[i][0]))
+			if str(water_modes[i][0]) == _ed._water_mode:
+				water_opt.select(i)
+		water_opt.item_selected.connect(func(index):
+			_ed._water_mode = str(water_opt.get_item_metadata(index))
+			_ed._rebuild_tool_options()
+		)
 		_sep(_ed._tool_options)
-		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._water_brush), 1, func(v): _ed._water_brush = int(v))
-		_sep(_ed._tool_options)
-		_spin_field(_ed._tool_options, "Profondeur", 0.1, 2.0, _ed._water_depth, 0.1, func(v): _ed._water_depth = v)
-		_option_note("Peint de l'eau en creusant le sol sous le niveau d'eau. Maj : effacer l'eau (remonte le sol).")
+		_field_hbox(_ed._tool_options, "Mode", water_opt)
+		if _ed._water_mode != "paint":
+			var clear_water := Button.new()
+			clear_water.text = "Supprimer tous les bassins"
+			clear_water.tooltip_text = "Retire lacs, mares et rivières créés (annulable). Le niveau d'eau historique n'est pas touché."
+			clear_water.add_theme_font_size_override("font_size", 10)
+			clear_water.pressed.connect(func():
+				var ids: Array = []
+				for b in _ed.doc.water_bodies():
+					ids.append(str((b as Dictionary).get("id", "")))
+				for body_id in ids:
+					_ed.doc.remove_water_body(body_id)
+				if _ed._engine != null and _ed._engine.has_method("refresh_terrain"):
+					_ed._engine.call("refresh_terrain", _ed.doc.map_data)
+				_ed._refresh_overlay()
+				_ed._refresh_panels()
+				_ed._set_status("Bassins d'eau supprimés (%d)." % ids.size())
+			)
+			_sep(_ed._tool_options)
+			_ed._tool_options.add_child(clear_water)
+		match _ed._water_mode:
+			"river":
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Largeur (cases)", 0.5, 6.0, _ed._water_river_width, 0.1, func(v):
+					_ed._water_river_width = v
+				)
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Vitesse du courant", 0.0, 1.5, _ed._water_flow_speed, 0.05, func(v):
+					_ed._water_flow_speed = v
+				)
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Lit à creuser (cases)", 0.0, 0.8, _ed._water_river_bed, 0.02, func(v):
+					_ed._water_river_bed = v
+				)
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Profondeur d'eau (cases)", 0.05, 1.0, _ed._water_river_depth, 0.05, func(v):
+					_ed._water_river_depth = v
+				)
+				_option_note("Clic-glisser : tracez la rivière — le sens du tracé devient le sens du courant, les dénivelés deviennent des cascades, et la rivière creuse son lit puis le remplit d'eau sur la Profondeur réglée.")
+			"lake":
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Niveau (cases)", -1.0, 12.0, _ed._water_lake_level, 0.05, func(v):
+					_ed._water_lake_level = v
+				)
+				_option_note("Glissez un rectangle : le lac se remplit jusqu'au niveau réglé — il n'apparaît que dans les creux sculptés sous ce niveau (lacs, mares, étangs).")
+			_:
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._water_brush), 1, func(v): _ed._water_brush = int(v))
+				_sep(_ed._tool_options)
+				_spin_field(_ed._tool_options, "Profondeur", 0.1, 2.0, _ed._water_depth, 0.1, func(v): _ed._water_depth = v)
+				_option_note("Peint de l'eau en creusant le sol sous le niveau d'eau. Maj : effacer l'eau (remonte le sol).")
 	elif _ed._tool == ToolsScript.PROC_POLY_ROOF:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Élévation", 0.0, 8.0, _ed._roof_height, 0.1, func(v): _ed._roof_height = v)
@@ -619,6 +722,17 @@ func _rebuild_tool_options() -> void:
 		var relief_modes := [
 			["raise", "Monter"], ["lower", "Baisser"],
 			["flatten", "Aplatir"], ["smooth", "Lisser"],
+			["carve", "Creuser (3D)"], ["fill", "Remblayer (3D)"],
+			["smooth3d", "Lisser (3D)"], ["flatten3d", "Aplatir (3D)"],
+			["clay3d", "Argile (Clay)"], ["claystrips3d", "Bandes d'argile"],
+			["scrape3d", "Raboter (Scrape)"], ["fillh3d", "Remplir (Fill)"],
+			["pinch3d", "Crête / Pincer"], ["layer3d", "Couche (Layer)"],
+			["grab3d", "Attraper (Grab)"], ["snake3d", "Serpent (Snake Hook)"],
+			["thumb3d", "Pouce (Thumb)"], ["elastic3d", "Élastique"],
+			["inflate3d", "Gonfler (Inflate)"], ["blob3d", "Boule (Blob)"],
+			["sharp3d", "Dessin net (Draw Sharp)"], ["boundary3d", "Bords (Boundary)"],
+			["simplify3d", "Simplifier (Simplify)"], ["pose3d", "Pivoter (Pose)"],
+			["cloth3d", "Drapé (Cloth)"],
 		]
 		for i in range(relief_modes.size()):
 			mode_opt.add_item(str(relief_modes[i][1]), i)
@@ -627,41 +741,164 @@ func _rebuild_tool_options() -> void:
 				mode_opt.select(i)
 		mode_opt.item_selected.connect(func(index):
 			_ed._relief_mode = str(mode_opt.get_item_metadata(index))
-		)
-		_sep(_ed._tool_options)
-		_field_hbox(_ed._tool_options, "Mode", mode_opt)
-		_sep(_ed._tool_options)
-		_spin_field(_ed._tool_options, "Pinceau (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
-			_ed._relief_radius = v
-			_ed._refresh_ghost()
-		)
-		_sep(_ed._tool_options)
-		_spin_field(_ed._tool_options, "Force (cases)", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
-			_ed._relief_strength = v
-		)
-		var flatten_btn := Button.new()
-		flatten_btn.text = "Niveler tout"
-		flatten_btn.tooltip_text = "Remet toutes les hauteurs à zéro (annulable)."
-		flatten_btn.add_theme_font_size_override("font_size", 10)
-		flatten_btn.pressed.connect(func():
-			_ed.doc.clear_all_terrain()
-			_ed._sync_engine()
-			_ed._set_status("Relief nivelé à zéro.")
-		)
-		_sep(_ed._tool_options)
-		_ed._tool_options.add_child(flatten_btn)
-		var lower_btn := Button.new()
-		lower_btn.text = "Mode baisser"
-		lower_btn.tooltip_text = "Passe le pinceau en mode Baisser (creuser)."
-		lower_btn.add_theme_font_size_override("font_size", 10)
-		lower_btn.pressed.connect(func():
-			_ed._relief_mode = "lower"
-			_ed._set_status("Relief : mode Baisser — glissez pour creuser.")
+			# Les réglages changent de famille (classique ↔ 3D) : la barre est
+			# reconstruite pour afficher/masquer les champs et boutons concernés.
 			_ed._rebuild_tool_options()
 		)
 		_sep(_ed._tool_options)
-		_ed._tool_options.add_child(lower_btn)
-		_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
+		_field_hbox(_ed._tool_options, "Mode", mode_opt)
+		var volumetric: bool = _ed._relief_mode in ["carve", "fill", "smooth3d",
+			"flatten3d", "scrape3d", "fillh3d", "pinch3d", "layer3d",
+			"clay3d", "claystrips3d", "grab3d", "snake3d", "thumb3d",
+			"elastic3d", "inflate3d", "blob3d", "sharp3d", "boundary3d",
+			"simplify3d", "pose3d", "cloth3d"]
+		# Mémorisation par outil : pinceau/force (classique) et rayon/profondeur
+		# (3D) se partagent les mêmes index — on ne restaure pas une valeur d'une
+		# famille dans l'autre lors d'un changement de mode.
+		if volumetric != _relief_options_volumetric:
+			_saved_per_tool[_options_tool_id] = {}
+		_relief_options_volumetric = volumetric
+		if volumetric:
+			_sep(_ed._tool_options)
+			# En-tête façon Blender : Rayon / Force en curseurs compacts +
+			# bascules de symétrie X/Y/Z.
+			_slider_field(_ed._tool_options, "Rayon", 0.3, 6.0, _ed._carve_radius, 0.05, func(v):
+				_ed._carve_radius = v
+				_ed._refresh_ghost()
+			)
+			if _ed._relief_mode != "smooth3d":
+				_slider_field(_ed._tool_options, "Force", 0.05, 4.0, _ed._sculpt_strength, 0.01, func(v):
+					_ed._sculpt_strength = v
+				)
+				# Dégradé (falloff) façon Blender + auto-lissage du pourtour.
+				var falloff_opt := OptionButton.new()
+				var falloffs := [
+					["Doux", 0], ["Sphère", 1], ["Racine", 2],
+					["Net", 3], ["Linéaire", 4], ["Constant", 5],
+				]
+				for fi in range(falloffs.size()):
+					falloff_opt.add_item(str(falloffs[fi][0]), fi)
+					falloff_opt.set_item_metadata(fi, int(falloffs[fi][1]))
+					if int(falloffs[fi][1]) == _ed._brush_falloff:
+						falloff_opt.select(fi)
+				falloff_opt.item_selected.connect(func(index):
+					_ed._brush_falloff = int(falloff_opt.get_item_metadata(index))
+				)
+				_field_hbox(_ed._tool_options, "Dégradé", falloff_opt)
+				_slider_field(_ed._tool_options, "Auto-lissage", 0.0, 1.0, _ed._brush_auto_smooth, 0.05, func(v):
+					_ed._brush_auto_smooth = v
+				)
+			_sep(_ed._tool_options)
+			var sym_row := HBoxContainer.new()
+			var sym_label := Label.new()
+			sym_label.text = "Symétrie"
+			sym_label.custom_minimum_size = Vector2(84, 0)
+			sym_row.add_child(sym_label)
+			for axis in [["X", "_sym_x"], ["Y", "_sym_y"], ["Z", "_sym_z"]]:
+				var btn := Button.new()
+				btn.text = str(axis[0])
+				btn.toggle_mode = true
+				btn.button_pressed = bool(_ed.get(axis[1]))
+				btn.tooltip_text = "Miroir %s : le geste est répété symétriquement (un seul undo)." % str(axis[0])
+				btn.custom_minimum_size = Vector2(34, 0)
+				var axis_name: String = str(axis[1])
+				btn.toggled.connect(func(on: bool):
+					_ed.set(axis_name, on)
+					_ed._set_status("Symétrie %s : %s." % [str(axis[0]), "activée" if on else "désactivée"])
+				)
+				sym_row.add_child(btn)
+			_ed._tool_options.add_child(sym_row)
+			var clear_btn := Button.new()
+			clear_btn.text = "Effacer la sculpture 3D"
+			clear_btn.tooltip_text = "Remet à zéro la sculpture ET les creusements (grottes/tunnels) — annulable."
+			clear_btn.add_theme_font_size_override("font_size", 10)
+			clear_btn.pressed.connect(func():
+				_ed.doc.clear_sculpt()
+				_ed.doc.clear_carves()
+				if _ed._engine != null and _ed._engine.has_method("refresh_terrain"):
+					_ed._engine.call("refresh_terrain", _ed.doc.map_data)
+				_ed._refresh_overlay()
+				_ed._refresh_panels()
+				_ed._set_status("Sculpture 3D effacée.")
+			)
+			_sep(_ed._tool_options)
+			_ed._tool_options.add_child(clear_btn)
+			match _ed._relief_mode:
+				"carve":
+					_option_note("Clic-glisser : retire la terre là où pointe le curseur — sol, flancs, parois, voûtes — en continu, comme une brosse d'argile. Undo par trait.")
+				"fill":
+					_option_note("Clic-glisser : ajoute de la terre là où pointe le curseur (buttes, talus, surplombs), en continu. Undo par trait.")
+				"smooth3d":
+					_option_note("Clic-glisser : lisse le relief sculpté (gomme les bosses et les creux). Undo par trait.")
+				"clay3d":
+					_option_note("Argile (Clay de Blender) : pose de la terre par couches franches, profil en plateau. Undo par trait.")
+				"claystrips3d":
+					_option_note("Bandes d'argile (Clay Strips) : pose rectangulaire orientée le long du trait — empilement typique de l'argile. Undo par trait.")
+				"scrape3d":
+					_option_note("Raboter (Scrape) : n'abaisse que les points hauts vers le niveau de départ du trait — écrête une crête sans toucher les creux. Undo par trait.")
+				"fillh3d":
+					_option_note("Remplir (Fill) : ne relève que les creux vers le niveau de départ du trait — comble les fissures sans écraser les reliefs. Undo par trait.")
+				"pinch3d":
+					_option_note("Crête / Pincer : attire la surface vers la hauteur du point central — crée des crêtes nettes et des plis. Undo par trait.")
+				"layer3d":
+					_option_note("Couche (Layer) : chaque trait monte d'une couche (la Force) et s'y arrête — empile des terrasses régulières. Undo par trait.")
+				"grab3d":
+					_option_note("Attraper (Grab) : la matière suit ta souris — tire une bosse, une bosse la suit. Undo par trait.")
+				"snake3d":
+					_option_note("Serpent (Snake Hook) : étire une langue de terre le long du geste (corniches, bras de falaise). Undo par trait.")
+				"thumb3d":
+					_option_note("Pouce (Thumb) : pousse la matière dans la direction du geste, comme un pouce dans l'argile. Undo par trait.")
+				"elastic3d":
+					_option_note("Élastique : tire la surface avec un dégradé large — le centre suit davantage que les bords. Undo par trait.")
+				"inflate3d":
+					_option_note("Gonfler (Inflate) : dilate la matière autour du curseur. Maj : dégonfler. Undo par trait.")
+				"blob3d":
+					_option_note("Boule (Blob) : le volume gonfle dans toutes les directions (le sommet monte et s'élargit). Undo par trait.")
+				"sharp3d":
+					_option_note("Dessin net (Draw Sharp) : traits fins à parois raides — détails, craquelures, fissures. Undo par trait.")
+				"boundary3d":
+					_option_note("Bords (Boundary) : lissage LATÉRAL — assouplit pourtours, parois et raccords sans toucher aux hauteurs. Undo par trait.")
+				"simplify3d":
+					_option_note("Simplifier (Simplify) : réduit le détail du relief (micro-reliefs gommés, forme générale conservée). Undo par trait.")
+				"pose3d":
+					_option_note("Pivoter (Pose) : fait tourner la matière autour du curseur — tord un relief, crée une spirale. Undo par trait.")
+				"cloth3d":
+					_option_note("Drapé (Cloth) : la matière s'affaisse vers les creux — plis doux, tassement naturel. Undo par trait.")
+				_:
+					_option_note("Clic-glisser : aplatit la terre vers le niveau du point de départ du trait — plateaux, terrasses, plages. Undo par trait.")
+		else:
+			_sep(_ed._tool_options)
+			_spin_field(_ed._tool_options, "Pinceau (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
+				_ed._relief_radius = v
+				_ed._refresh_ghost()
+			)
+			_sep(_ed._tool_options)
+			_spin_field(_ed._tool_options, "Force (cases)", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
+				_ed._relief_strength = v
+			)
+			var flatten_btn := Button.new()
+			flatten_btn.text = "Niveler tout"
+			flatten_btn.tooltip_text = "Remet toutes les hauteurs à zéro (annulable)."
+			flatten_btn.add_theme_font_size_override("font_size", 10)
+			flatten_btn.pressed.connect(func():
+				_ed.doc.clear_all_terrain()
+				_ed._sync_engine()
+				_ed._set_status("Relief nivelé à zéro.")
+			)
+			_sep(_ed._tool_options)
+			_ed._tool_options.add_child(flatten_btn)
+			var lower_btn := Button.new()
+			lower_btn.text = "Mode baisser"
+			lower_btn.tooltip_text = "Passe le pinceau en mode Baisser (creuser)."
+			lower_btn.add_theme_font_size_override("font_size", 10)
+			lower_btn.pressed.connect(func():
+				_ed._relief_mode = "lower"
+				_ed._set_status("Relief : mode Baisser — glissez pour creuser.")
+				_ed._rebuild_tool_options()
+			)
+			_sep(_ed._tool_options)
+			_ed._tool_options.add_child(lower_btn)
+			_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _ed._tool == ToolsScript.GROUND_MATERIAL:
 		var mat_opt := OptionButton.new()
 		var materials := [

@@ -93,7 +93,9 @@ func _run() -> void:
 	print("=== SCENE LOAD TEST ===")
 	if failed.is_empty():
 		print("ALL_OK=true count=", SCENES.size())
+		print("scene_load_test:PASS")
 		quit(0)
 	else:
 		print("ALL_OK=false failed=", JSON.stringify(failed))
+		print("scene_load_test:FAIL")
 		quit(1)

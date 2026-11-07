@@ -30,6 +30,12 @@ uniform vec4 albedo_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform float vertex_color_strength : hint_range(0.0, 1.0) = 1.0;
 // 1.0 = mélange linéaire (doux) ; > 1 accentue la matière dominante.
 uniform float blend_sharpness : hint_range(0.001, 4.0) = 1.0;
+// BERGE : texture construite par la couche d'eau (1 = eau, dégradé = bande
+// de terre mouillée). `shore_enabled` évite tout effet quand la carte n'a
+// pas d'eau (l'échantillonneur non lié renvoie du blanc).
+uniform sampler2D shore_tex : filter_linear, repeat_disable;
+uniform vec4 shore_tint : source_color = vec4(0.30, 0.26, 0.18, 1.0);
+uniform float shore_enabled : hint_range(0.0, 1.0) = 0.0;
 
 // Échantillonnage « anti-tiling » : trois lectures tournées/décalées de la même
 // texture. Le motif ne se répète plus de façon lisible, pour un coût de 3
@@ -71,6 +77,12 @@ void fragment() {
 	// Légère variation macro pour casser les répétitions lointaines.
 	float macro = sin(UV.x * 7.7 + UV.y * 11.3) * sin(UV.y * 6.1 - UV.x * 9.7);
 	albedo *= 0.92 + 0.08 * macro;
+	// BERGE MOUILLÉE : assombrit et brunit la terre au bord de l'eau.
+	if (shore_enabled > 0.001) {
+		float shore = texture(shore_tex, UV2).r;
+		shore = smoothstep(0.10, 0.75, shore) * shore_enabled;
+		albedo = mix(albedo, mix(albedo * 0.55, shore_tint.rgb, 0.45), shore);
+	}
 	ALBEDO = albedo * albedo_tint.rgb;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;

@@ -15,6 +15,9 @@ signal history_changed()
 signal dirty_changed(is_dirty: bool)
 
 const MAX_HISTORY := 120
+## Creusements volumétriques (Voie B) — préchargement explicite (fiable en
+## headless, indépendant du cache global `class_name`).
+const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
 
 # --- Types de delta ---------------------------------------------------------
 const D_ELEM_ADD := "elem_add"
@@ -24,6 +27,9 @@ const D_META := "meta"
 const D_TILES := "tiles"
 const D_TERRAIN := "terrain"
 const D_TERRAIN_MATERIAL := "terrain_material"
+const D_CARVE := "carve"
+const D_SCULPT := "sculpt"
+const D_WATER_BODY := "water_body"
 const D_FOG := "fog"
 const D_LIGHT_REVEAL := "light_reveal"
 const D_ORDER := "order"
@@ -118,6 +124,7 @@ func load_map(source: Dictionary) -> void:
 	_redo_stack.clear()
 	_pending.clear()
 	_transaction_depth = 0
+	_sculpt_field = null
 	_deserialize()
 	_commit_all_shadows()
 	_set_dirty(false)
@@ -140,6 +147,12 @@ func _ensure_editor_schema() -> void:
 		map_data["terrainHeights"] = []
 	if not map_data.has("terrainMaterials") or typeof(map_data["terrainMaterials"]) != TYPE_ARRAY:
 		map_data["terrainMaterials"] = []
+	if not map_data.has("terrainCarves") or typeof(map_data["terrainCarves"]) != TYPE_ARRAY:
+		map_data["terrainCarves"] = []
+	if not map_data.has("terrainSculpt") or typeof(map_data["terrainSculpt"]) != TYPE_DICTIONARY:
+		map_data["terrainSculpt"] = {}
+	if not map_data.has("waterBodies") or typeof(map_data["waterBodies"]) != TYPE_ARRAY:
+		map_data["waterBodies"] = []
 	if not map_data.has("backgroundTransform") or typeof(map_data["backgroundTransform"]) != TYPE_DICTIONARY:
 		map_data["backgroundTransform"] = {"offsetX": 0.0, "offsetY": 0.0, "scale": 1.0, "opacity": 1.0}
 	if not map_data.has("measure") or typeof(map_data["measure"]) != TYPE_DICTIONARY:
@@ -430,6 +443,7 @@ func to_map_data() -> Dictionary:
 	out["meshes"] = meshes
 	out["terrainHeights"] = _terrain_buffer()
 	out["terrainMaterials"] = _material_buffer()
+	out["terrainCarves"] = TerrainCarveField.to_json_carves(terrain_carves())
 	out["markers"] = simple_markers
 	var lighting: Dictionary = out.get("lighting", {}).duplicate(true) if out.get("lighting") is Dictionary else {}
 	lighting["sources"] = lights
@@ -672,6 +686,12 @@ func _step_label(step: Array) -> String:
 			return "Relief%s" % suffix
 		D_TERRAIN_MATERIAL:
 			return "Peinture du sol%s" % suffix
+		D_CARVE:
+			return "Creusement 3D%s" % suffix
+		D_SCULPT:
+			return "Sculpture 3D%s" % suffix
+		D_WATER_BODY:
+			return "Bassin d'eau%s" % suffix
 		D_FOG:
 			return "Brouillard"
 		D_ORDER:
@@ -766,6 +786,23 @@ func _apply_delta(delta: Dictionary, use_before: bool) -> void:
 					if midx >= 0 and midx < materials.size():
 						materials[midx] = int((materials_delta as Dictionary)[key])
 				map_data["terrainMaterials"] = materials
+		D_CARVE:
+			var carves = delta.get("before" if use_before else "after", [])
+			if carves is Array:
+				map_data["terrainCarves"] = (carves as Array).duplicate(true)
+		D_SCULPT:
+			var payload = delta.get("before" if use_before else "after", {})
+			if payload is Dictionary:
+				var field := _sculpt_support()
+				if str(payload.get("mode", "")) == "full":
+					field.set_sculpt(payload.get("sculpt", {}))
+				else:
+					field.sculpt_apply_delta(payload.get("values", {}))
+				map_data["terrainSculpt"] = field.get_sculpt()
+		D_WATER_BODY:
+			var bodies = delta.get("before" if use_before else "after", [])
+			if bodies is Array:
+				map_data["waterBodies"] = (bodies as Array).duplicate(true)
 		D_FOG:
 			var fog = delta.get("before" if use_before else "after", [])
 			if fog is Array:
@@ -1439,6 +1476,313 @@ func clear_all_terrain(note: String = "Nivellement") -> void:
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
+
+# --- Creusements volumétriques (Voie B : trous / grottes / tunnels) --------
+## Primitives SDF éditables stockées dans `map_data["terrainCarves"]` :
+## `op = "subtract"` creuse (trou, grotte, tunnel), `op = "union"` remblaye.
+## Coordonnées en cases (même repère que `terrainHeights`).
+
+## Liste normalisée des primitives de creusement (forme JSON-sûre).
+func terrain_carves() -> Array:
+	var raw = map_data.get("terrainCarves", [])
+	if typeof(raw) != TYPE_ARRAY:
+		raw = []
+		map_data["terrainCarves"] = raw
+	return TerrainCarveField.to_json_carves(TerrainCarveField.normalize_carves(raw))
+
+## Ajoute une primitive de creusement (entrée brute, normalisée en interne :
+## sphere/capsule/box, `op` subtract|union). Une seule étape d'undo par appel ;
+## l'éditeur regroupe un trait complet dans une transaction. Renvoie l'id.
+func add_carve(entry: Dictionary, note: String = "Creusement 3D") -> String:
+	var carve := TerrainCarveField.to_json_carve(TerrainCarveField.normalize_carve(entry))
+	var before := TerrainCarveField.to_json_carves(terrain_carves())
+	var after := before.duplicate(true)
+	after.append(carve)
+	map_data["terrainCarves"] = after
+	_push_delta({"type": D_CARVE, "before": before, "after": after, "note": note})
+	changed.emit("terrain")
+	return str(carve.get("id", ""))
+
+## Retire toutes les primitives de creusement (une seule étape d'undo).
+func clear_carves(note: String = "Creusement effacé") -> void:
+	var before := TerrainCarveField.to_json_carves(terrain_carves())
+	if before.is_empty():
+		return
+	map_data["terrainCarves"] = []
+	_push_delta({"type": D_CARVE, "before": before, "after": [], "note": note})
+	changed.emit("terrain")
+
+# --- Sculpture volumétrique (déplacement lissé, façon argile) ----------------
+## Les brosses sculptent une grille de **déplacement** `G` (ajout/retrait lissé,
+## accumulatif) — le vrai terraforming. `map_data["terrainSculpt"]` en est la
+## forme JSON (chunks quantifiés) ; un `TerrainCarveField` sert de support de
+## calcul éditable entre deux sérialisations.
+
+var _sculpt_field: TerrainCarveField = null
+
+func _sculpt_support() -> TerrainCarveField:
+	var size := terrain_size()
+	if _sculpt_field == null or _sculpt_field.size() != size:
+		_sculpt_field = TerrainCarveField.new(
+			_terrain_buffer(), size.x, size.y, [], map_data.get("terrainSculpt", {}))
+	return _sculpt_field
+
+## Tampon de sculpture (brosse « argile ») : `strength` > 0 ajoute de la terre
+## (butte, talus), < 0 en retire (fosse, tranchée). Noyau doux — la surface se
+## déforme en continu, sans « boules ». `kernel` : 0 = rond (Draw),
+## 1 = plateau (Clay), 2 = rectangle orienté (Clay Strips). `falloff` : courbe
+## du noyau (0 = doux, 1 = sphère, 2 = racine, 3 = net, 4 = linéaire,
+## 5 = constant). `smooth_after` : auto-lissage léger, même undo. Un pas d'undo.
+func sculpt_stamp(center: Vector3, radius: float, strength: float,
+		note: String = "Sculpture 3D", kernel: int = 0,
+		angle: float = 0.0, falloff: int = 0,
+		smooth_after: float = 0.0) -> void:
+	var field := _sculpt_support()
+	var delta: Array = field.sculpt_stamp(center, radius, strength, kernel,
+		angle, falloff, smooth_after)
+	if delta.is_empty():
+		return
+	map_data["terrainSculpt"] = field.get_sculpt()
+	_push_delta({
+		"type": D_SCULPT,
+		"before": {"mode": "voxels", "values": delta[0]},
+		"after": {"mode": "voxels", "values": delta[1]},
+		"note": note,
+	})
+	changed.emit("terrain")
+
+## Lissage local du relief sculpté (brosse « Lisser »). Une étape d'undo.
+func sculpt_smooth(center: Vector3, radius: float,
+		note: String = "Sculpture lissée") -> void:
+	var field := _sculpt_support()
+	var delta: Array = field.sculpt_smooth(center, radius)
+	if delta.is_empty():
+		return
+	map_data["terrainSculpt"] = field.get_sculpt()
+	_push_delta({
+		"type": D_SCULPT,
+		"before": {"mode": "voxels", "values": delta[0]},
+		"after": {"mode": "voxels", "values": delta[1]},
+		"note": note,
+	})
+	changed.emit("terrain")
+
+## Aplatit vers `target_y` dans la boule (brosse « Aplatir » façon Blender /
+## Planet Zoo) : plateaux, terrasses, plages. Une étape d'undo par appel.
+func sculpt_flatten(center: Vector3, radius: float, target_y: float,
+		strength: float = 0.6, note: String = "Sculpture aplanie") -> void:
+	var field := _sculpt_support()
+	# Les hauteurs de base peuvent avoir bougé (relief classique) : on les
+	# rafraîchit pour que la cible d'aplat soit juste.
+	field.update_heights(_terrain_buffer())
+	var delta: Array = field.sculpt_flatten(center, radius, target_y, strength)
+	if delta.is_empty():
+		return
+	map_data["terrainSculpt"] = field.get_sculpt()
+	_push_delta({
+		"type": D_SCULPT,
+		"before": {"mode": "voxels", "values": delta[0]},
+		"after": {"mode": "voxels", "values": delta[1]},
+		"note": note,
+	})
+	changed.emit("terrain")
+
+## Efface toute la sculpture (une seule étape d'undo).
+func clear_sculpt(note: String = "Sculpture effacée") -> void:
+	var field := _sculpt_support()
+	if not field.has_sculpt():
+		return
+	var before: Dictionary = field.get_sculpt()
+	map_data["terrainSculpt"] = {}
+	_sculpt_field = null
+	_push_delta({
+		"type": D_SCULPT,
+		"before": {"mode": "full", "sculpt": before},
+		"after": {"mode": "full", "sculpt": {}},
+		"note": note,
+	})
+	changed.emit("terrain")
+
+# --- Brosses de sculpture « façon Blender » --------------------------------
+## Scrape/Raboter, Fill/Remplir, Pinch/Crête, Layer/Couche, Clay Strips —
+## même contrat : un tampon = une étape d'undo.
+
+## Raboter (Scrape) : n'abaisse que les points hauts vers `target_y`.
+func sculpt_scrape(center: Vector3, radius: float, target_y: float,
+		strength: float = 0.6, note: String = "Sculpture rabotée") -> void:
+	var field := _sculpt_support()
+	field.update_heights(_terrain_buffer())
+	_push_sculpt_delta(field, field.sculpt_scrape(center, radius, target_y, strength), note)
+
+## Remplir (Fill) : ne relève que les creux vers `target_y`.
+func sculpt_fill(center: Vector3, radius: float, target_y: float,
+		strength: float = 0.6, note: String = "Sculpture remplie") -> void:
+	var field := _sculpt_support()
+	field.update_heights(_terrain_buffer())
+	_push_sculpt_delta(field, field.sculpt_fill(center, radius, target_y, strength), note)
+
+## Pincer / Crête (Pinch) : attire la surface vers la hauteur du point central.
+func sculpt_pinch(center: Vector3, radius: float,
+		strength: float = 0.6, note: String = "Sculpture pincée") -> void:
+	var field := _sculpt_support()
+	field.update_heights(_terrain_buffer())
+	_push_sculpt_delta(field, field.sculpt_pinch(center, radius, strength), note)
+
+## Couche (Layer) : monte/descend jusqu'à la cible, jamais au-delà.
+func sculpt_layer(center: Vector3, radius: float, target_y: float,
+		strength: float = 0.6, note: String = "Sculpture en couches") -> void:
+	var field := _sculpt_support()
+	field.update_heights(_terrain_buffer())
+	_push_sculpt_delta(field, field.sculpt_layer(center, radius, target_y, strength), note)
+
+## Bandes d'argile (Clay Strips) : ajout à noyau rectangulaire orienté.
+func sculpt_clay_strips(center: Vector3, radius: float, strength: float,
+		angle: float = 0.0, note: String = "Bandes d'argile") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_clay_strips(center, radius, strength, angle), note)
+
+# --- Brosses de déformation (Grab, Snake Hook, Thumb, Élastique…) -----------
+
+## Attraper (Grab) : la matière suit le déplacement `disp` (le geste de souris).
+func sculpt_grab(center: Vector3, radius: float, disp: Vector3,
+		note: String = "Sculpture attrapée") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_warp(center, radius, disp, 0), note)
+
+## Serpent (Snake Hook) : tire la matière le long du segment [anchor → centre].
+func sculpt_snake(center: Vector3, radius: float, disp: Vector3,
+		anchor: Vector3, note: String = "Sculpture serpent") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_snake(center, radius, disp, anchor), note)
+
+## Pouce (Thumb) : pousse la matière dans la direction du geste.
+func sculpt_thumb(center: Vector3, radius: float, disp: Vector3,
+		note: String = "Sculpture pouce") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_warp(center, radius, disp, 0), note)
+
+## Déformation élastique : tire avec un dégradé large (le centre suit davantage).
+func sculpt_elastic(center: Vector3, radius: float, disp: Vector3,
+		note: String = "Sculpture élastique") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_warp(center, radius, disp, 2), note)
+
+## Gonfler / Dégonfler (Inflate / Deflate) : dilatation horizontale.
+func sculpt_inflate(center: Vector3, radius: float, strength: float,
+		note: String = "Sculpture gonflée") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_inflate(center, radius, strength), note)
+
+## Boule (Blob) : dilatation 3D du volume.
+func sculpt_blob(center: Vector3, radius: float, strength: float,
+		note: String = "Sculpture boule") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_blob(center, radius, strength), note)
+
+# --- Dernière famille : Bords, Simplifier, Pivoter, Drapé -------------------
+
+## Dessin net (Draw Sharp) : dépôt à noyau étroit — traits fins, détails.
+func sculpt_draw_sharp(center: Vector3, radius: float, strength: float,
+		note: String = "Dessin net") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_stamp(center, radius, strength, 3), note)
+
+## Bords (Boundary) : lissage latéral — assouplit pourtours et parois.
+func sculpt_boundary(center: Vector3, radius: float,
+		note: String = "Bords lissés") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_boundary(center, radius), note)
+
+## Simplifier (Simplify) : réduit le détail du relief sculpté.
+func sculpt_simplify(center: Vector3, radius: float,
+		note: String = "Sculpture simplifiée") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_simplify(center, radius), note)
+
+## Pivoter (équivalent terrain de Pose) : rotation de la matière autour de
+## l'axe vertical du curseur.
+func sculpt_pose(center: Vector3, radius: float, angle: float,
+		note: String = "Sculpture pivotée") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_pose(center, radius, angle), note)
+
+## Drapé (équivalent terrain de Cloth) : la matière s'affaisse vers les creux.
+func sculpt_cloth(center: Vector3, radius: float, strength: float,
+		note: String = "Sculpture drapée") -> void:
+	var field := _sculpt_support()
+	_push_sculpt_delta(field, field.sculpt_cloth(center, radius, strength), note)
+
+## Pousse un delta de champ de sculpture (stockage JSON + undo).
+func _push_sculpt_delta(field, delta: Array, note: String) -> void:
+	if delta.is_empty():
+		return
+	map_data["terrainSculpt"] = field.get_sculpt()
+	_push_delta({
+		"type": D_SCULPT,
+		"before": {"mode": "voxels", "values": delta[0]},
+		"after": {"mode": "voxels", "values": delta[1]},
+		"note": note,
+	})
+	changed.emit("terrain")
+
+# --- Bassins d'eau (lacs, mares, rivières, cascades) ------------------------
+## Chaque bassin porte son propre niveau : lac/mares = `area` (polygone de
+## cases) rempli jusqu'à `level` — l'eau suit les creux sculptés ; rivière =
+## `path` ([[x, niveau, z], ...]) avec `width` et un sens d'écoulement déduit
+## du tracé (les dénivelés deviennent des cascades).
+
+## Liste des bassins (forme JSON-sûre).
+func water_bodies() -> Array:
+	var raw = map_data.get("waterBodies", [])
+	if typeof(raw) != TYPE_ARRAY:
+		raw = []
+		map_data["waterBodies"] = raw
+	return (raw as Array).duplicate(true)
+
+## Ajoute un bassin d'eau. Renvoie son id.
+func add_water_body(body: Dictionary, note: String = "Bassin d'eau") -> String:
+	var before := water_bodies()
+	var entry := body.duplicate(true)
+	if str(entry.get("id", "")).strip_edges().is_empty():
+		entry["id"] = "eau_%d_%d" % [Time.get_ticks_usec(), randi() % 100000]
+	var after := before.duplicate(true)
+	after.append(entry)
+	map_data["waterBodies"] = after
+	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
+	changed.emit("water_body")
+	return str(entry["id"])
+
+## Applique un correctif à un bassin existant (niveau, largeur, vitesse…).
+func update_water_body(body_id: String, patch: Dictionary,
+		note: String = "Bassin modifié") -> void:
+	var before := water_bodies()
+	var after: Array = []
+	var found := false
+	for entry in before:
+		var e: Dictionary = (entry as Dictionary).duplicate(true)
+		if str(e.get("id", "")) == body_id:
+			for key in patch.keys():
+				e[key] = patch[key]
+			found = true
+		after.append(e)
+	if not found:
+		return
+	map_data["waterBodies"] = after
+	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
+	changed.emit("water_body")
+
+## Supprime un bassin (annulable).
+func remove_water_body(body_id: String, note: String = "Bassin supprimé") -> void:
+	var before := water_bodies()
+	var after: Array = []
+	for entry in before:
+		if str((entry as Dictionary).get("id", "")) != body_id:
+			after.append(entry)
+	if after.size() == before.size():
+		return
+	map_data["waterBodies"] = after
+	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
+	changed.emit("water_body")
 
 ## Remplit toute la carte avec une matière (une seule étape d'undo).
 func fill_all_material(value: int, note: String = "Remplissage du sol") -> void:
