@@ -28,6 +28,10 @@ func _apply_to_tree() -> void:
 func _apply_to_button(button: BaseButton) -> void:
 	if button == null or not is_instance_valid(button):
 		return
+	# Exemption : les tuiles d'icônes (flyout de l'éditeur, grilles) gèrent
+	# leur propre taille — la hauteur standard de 48 px les écraserait.
+	if button.has_meta("skip_button_sizing"):
+		return
 	# Hauteur unique : on écrase toute hauteur déclarée dans les scènes
 	# (autrefois 32, 34, 40, 44, 50 px selon les écrans).
 	button.custom_minimum_size.y = BUTTON_HEIGHT

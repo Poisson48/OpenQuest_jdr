@@ -323,6 +323,9 @@ func _make_tile(entry: Dictionary) -> Button:
 	var button := Button.new()
 	button.name = "Tool_" + tool_id
 	button.custom_minimum_size = TILE_SIZE
+	# Exemption de la hauteur standard 48 px : une tuile d'icônes 62×56 garde
+	# sa propre taille (cf. ButtonSizing).
+	button.set_meta("skip_button_sizing", true)
 	button.focus_mode = Control.FOCUS_CLICK
 	button.clip_contents = true
 	button.set_meta("tool_id", tool_id)
