@@ -10,8 +10,7 @@ script = ExtResource("1_script")
 
 [node name="LblBg" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🖼 Fond de carte"
 
 [node name="LblBgStatus" type="Label" parent="."]
@@ -56,8 +55,7 @@ autowrap_mode = 3
 
 [node name="LblSize" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "📐 Dimensions (cases)"
 
 [node name="SizeRow" type="HBoxContainer" parent="."]
@@ -72,7 +70,6 @@ theme_override_constants/separation = 1
 [node name="LblWidth" type="Label" parent="SizeRow/WidthCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Largeur"
 
 [node name="SpinWidth" type="SpinBox" parent="SizeRow/WidthCol"]
@@ -93,7 +90,6 @@ theme_override_constants/separation = 1
 [node name="LblHeight" type="Label" parent="SizeRow/HeightCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Hauteur"
 
 [node name="SpinHeight" type="SpinBox" parent="SizeRow/HeightCol"]
@@ -108,8 +104,7 @@ step = 1.0
 
 [node name="LblGrid" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "⊞ Grille"
 
 [node name="ChkGrid" type="CheckBox" parent="."]
@@ -138,7 +133,6 @@ theme_override_constants/separation = 1
 [node name="LblGridSize" type="Label" parent="GridRow/GridSizeCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Taille px"
 
 [node name="SpinGridSize" type="SpinBox" parent="GridRow/GridSizeCol"]
@@ -158,7 +152,6 @@ theme_override_constants/separation = 1
 [node name="LblGridOp" type="Label" parent="GridRow/GridOpCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Opacité"
 
 [node name="SpinGridOpacity" type="SpinBox" parent="GridRow/GridOpCol"]
@@ -189,8 +182,7 @@ color = Color(1, 1, 1, 1)
 
 [node name="LblMeasure" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "📏 Échelle"
 
 [node name="MeasureRow" type="HBoxContainer" parent="."]
@@ -205,7 +197,6 @@ theme_override_constants/separation = 1
 [node name="LblPerCell" type="Label" parent="MeasureRow/MeasureCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Par case"
 
 [node name="SpinMeasure" type="SpinBox" parent="MeasureRow/MeasureCol"]
@@ -225,7 +216,6 @@ theme_override_constants/separation = 1
 [node name="LblUnit" type="Label" parent="MeasureRow/UnitCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Unité"
 
 [node name="EditUnit" type="LineEdit" parent="MeasureRow/UnitCol"]
@@ -236,8 +226,7 @@ text = "m"
 
 [node name="LblFog" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🌫 Brouillard de guerre"
 
 [node name="ChkFog" type="CheckBox" parent="."]
@@ -256,7 +245,6 @@ text = "Ligne de vue (murs bloquants)"
 [node name="LblLosNote" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "En session, le brouillard se révèle automatiquement selon ce que voient les tokens, murs et portes compris."
 autowrap_mode = 3
 
@@ -280,8 +268,7 @@ text = "Tout révéler"
 
 [node name="LblStyle" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🎨 Style de rendu"
 
 [node name="OptRenderStyle" type="OptionButton" parent="."]
@@ -299,14 +286,12 @@ popup/item_2/id = 2
 [node name="LblStyleHint" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Diorama + fond : vue dessus (props à plat). VTT : tactique 3D. Hybride DD2 : fond illustré + caméra inclinée + personnages dressés."
 autowrap_mode = 3
 
 [node name="LblPersp" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "📷 Perspective"
 
 [node name="OptPerspective" type="OptionButton" parent="."]
@@ -323,8 +308,7 @@ popup/item_2/id = 2
 
 [node name="LblAtmo" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🌘 Atmosphère"
 
 [node name="ChkAtmo" type="CheckBox" parent="."]
@@ -361,7 +345,6 @@ theme_override_constants/separation = 1
 [node name="LblAtmoOp" type="Label" parent="AtmoRow/AtmoOpCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Opacité"
 
 [node name="SpinAtmoOpacity" type="SpinBox" parent="AtmoRow/AtmoOpCol"]
@@ -381,7 +364,6 @@ theme_override_constants/separation = 1
 [node name="LblAtmoVig" type="Label" parent="AtmoRow/AtmoVigCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Vignettage"
 
 [node name="SpinAtmoVignette" type="SpinBox" parent="AtmoRow/AtmoVigCol"]
@@ -395,8 +377,7 @@ value = 0.18
 
 [node name="LblLight" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "💡 Éclairage global"
 
 [node name="LblLightPreset" type="Label" parent="."]
@@ -440,7 +421,6 @@ theme_override_constants/separation = 1
 [node name="LblLightInt" type="Label" parent="LightIntRow/LightIntCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Intensité"
 
 [node name="SpinLightIntensity" type="SpinBox" parent="LightIntRow/LightIntCol"]
@@ -454,8 +434,7 @@ value = 0.35
 
 [node name="LblNight" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🌙 Nuit / lumières"
 
 [node name="ChkNight" type="CheckBox" parent="."]
@@ -476,7 +455,6 @@ theme_override_constants/separation = 1
 [node name="LblNightAmb" type="Label" parent="NightAmbRow/NightAmbCol"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Ambiance nuit"
 
 [node name="SpinNightAmbient" type="SpinBox" parent="NightAmbRow/NightAmbCol"]
@@ -491,7 +469,6 @@ value = 0.22
 [node name="LblNightHint" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = "Comme le brouillard : la carte est nocturne ; chaque lumière révèle le jour dans son rayon. Déplacer une lumière déplace son halo (mis à jour en direct)."
 autowrap_mode = 3
 
@@ -507,8 +484,7 @@ text = "Effacer zones éclairées"
 
 [node name="LblDisplay" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "👁 Affichage éditeur"
 
 [node name="ChkShowLinks" type="CheckBox" parent="."]
@@ -532,8 +508,7 @@ text = "Aperçu ligne de vue"
 
 [node name="LblSave" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "💾 Sauvegarde"
 
 [node name="OptSavePolicy" type="OptionButton" parent="."]

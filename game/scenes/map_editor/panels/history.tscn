@@ -10,8 +10,7 @@ script = ExtResource("1_script")
 
 [node name="LblHistory" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🕘 Historique"
 
 [node name="HistoryActions" type="HBoxContainer" parent="."]
@@ -35,8 +34,7 @@ theme_override_constants/separation = 1
 
 [node name="LblShortcuts" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "⌨ Raccourcis"
 
 [node name="LblShortcutsHint" type="Label" parent="."]

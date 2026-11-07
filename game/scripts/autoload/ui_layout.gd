@@ -22,8 +22,9 @@ func _ready() -> void:
 		get_tree().root.size_changed.connect(_on_root_size_changed)
 
 func _on_root_size_changed() -> void:
-	# Fullscreen / resize : rien à forcer ici — les contrôles ancrés
-	# FILL utilisent déjà get_visible_rect(). On évite tout re-lock de ratio.
+	# Fullscreen / resize / restore : rien à forcer ici — les contrôles ancrés
+	# FILL utilisent déjà get_visible_rect(). Ne JAMAIS appeler reset_size() ici :
+	# cela ramènerait la fenêtre à sa taille minimale à chaque redimensionnement.
 	pass
 
 static func is_narrow_viewport() -> bool:
@@ -31,6 +32,12 @@ static func is_narrow_viewport() -> bool:
 
 static func is_compact_viewport() -> bool:
 	return DisplayServer.window_get_size().x < BREAKPOINT_COMPACT
+
+## Replie/étend une grille selon la largeur de fenêtre.
+static func apply_grid_columns(grid: GridContainer, wide: int, narrow: int) -> void:
+	if grid == null:
+		return
+	grid.columns = narrow if is_narrow_viewport() else wide
 
 static func apply_full_rect(control: Control) -> void:
 	control.set_anchors_preset(Control.PRESET_FULL_RECT)

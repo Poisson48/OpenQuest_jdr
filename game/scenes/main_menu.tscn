@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3 uid="uid://main_menu_001"]
 
-[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -10,8 +11,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("2_script")
 theme = ExtResource("1_theme")
+script = ExtResource("2_script")
 
 [node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
@@ -20,7 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="ScrollContainer" type="ScrollContainer" parent="."]
 layout_mode = 1
@@ -33,91 +34,45 @@ grow_vertical = 2
 [node name="Margin" type="MarginContainer" parent="ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/margin_left = 40
-theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 40
-theme_override_constants/margin_bottom = 28
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
 
 [node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 20
 
-[node name="HeaderBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="AppHeader" parent="ScrollContainer/Margin/VBox" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 6
-alignment = 1
+size_flags_horizontal = 3
 
-[node name="Eyebrow" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 14
-text = "JEU DE RÔLE · SOLO & MULTIJOUEUR LOCAL"
-horizontal_alignment = 1
-
-[node name="Title" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 36
-text = "🗺️ OpenQuest JDR"
-horizontal_alignment = 1
-
-[node name="Tagline" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 16
-text = "Invente ton monde, rassemble ton groupe et vis des aventures où chaque action compte — avec un MJ humain ou une IA qui s'adapte à tes choix."
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="LanguageRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HeaderBox"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 8
-
-[node name="LblLanguage" type="Label" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Langue :"
-
-[node name="OptLanguage" type="OptionButton" parent="ScrollContainer/Margin/VBox/HeaderBox/LanguageRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 0)
-layout_mode = 2
-
-[node name="HeroActions" type="HBoxContainer" parent="ScrollContainer/Margin/VBox"]
+[node name="HeroActions" type="HFlowContainer" parent="ScrollContainer/Margin/VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="BtnPlay" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
-text = "🎮 Lancer une partie"
-
 [node name="BtnOngoing" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+
 text = "🗺️ Partie en cours"
 
 [node name="BtnDiscover" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+
 text = "🏛️ Hub & Gestion"
 
 [node name="BtnDiscord" type="Button" parent="ScrollContainer/Margin/VBox/HeroActions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+
 tooltip_text = "Rejoindre la communauté OpenQuest sur Discord"
 text = "💬 Discord"
 
@@ -149,9 +104,9 @@ text = "← Accueil"
 [node name="PlayStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/OngoingPage/OngoingVBox/OngoingHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
+
 text = "Partie en cours"
 
 [node name="SavedGamesList" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/OngoingPage/OngoingVBox"]
@@ -161,7 +116,7 @@ theme_override_constants/separation = 8
 
 [node name="BtnPlayNew" type="Button" parent="ScrollContainer/Margin/VBox/OngoingPage/OngoingVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 44)
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 text = "⚙️ Nouvelle Partie"
 
@@ -174,8 +129,7 @@ theme_override_constants/separation = 8
 
 [node name="LblStepsTitle" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/StepsPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 18
+theme_type_variation = &"GoldHeadingLabel"
 text = "Comment ça marche ?"
 
 [node name="LblStep1" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/StepsPanel/VBox"]
@@ -200,6 +154,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="ModesGrid" type="GridContainer" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 16
@@ -217,15 +172,15 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"GoldLabel"
+
 text = "⚔️ Aventure"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardAdventure/VBox"]
 layout_mode = 2
+theme_type_variation = &"MutedLabel"
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
+
 text = "One-shots en une session (3–4 h) ou campagnes longues sur plusieurs chapitres — exploration, combat et arcs narratifs."
 autowrap_mode = 3
 
@@ -240,200 +195,23 @@ theme_override_constants/separation = 8
 
 [node name="Lbl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"InvestigationLabel"
+
 text = "🔍 Enquête"
 
 [node name="Desc" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/ModesCardsPanel/ModesGrid/CardInv/VBox"]
 layout_mode = 2
+theme_type_variation = &"MutedLabel"
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
+
 text = "Mystères urbains, interrogatoires, indices cachés et déductions policières en mode polar."
 autowrap_mode = 3
-
-[node name="PoolingPanel" type="PanelContainer" parent="ScrollContainer/Margin/VBox/HomePage"]
-layout_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblPoolingTitle" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 16
-text = "🎲 Salon multijoueur (P2P)"
-
-[node name="LblPoolingHint" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
-text = "Le MJ crée la partie (pooling + ENet). Les joueurs rejoignent via le code à 4 chiffres."
-autowrap_mode = 2
-
-[node name="RoleRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblRole" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoleRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Rôle :"
-
-[node name="OptPoolingRole" type="OptionButton" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoleRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="NameRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblPlayerName" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/NameRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Pseudo :"
-
-[node name="PlayerNameInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/NameRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Votre pseudo"
-text = "Joueur"
-
-[node name="PoolingUrlRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblPoolingUrl" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingUrlRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Pooling :"
-
-[node name="PoolingUrlInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingUrlRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "ws://127.0.0.1:8080"
-text = "ws://127.0.0.1:8080"
-
-[node name="PoolingConnectRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnConnectPooling" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingConnectRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "🔌 Connexion pooling"
-
-[node name="PoolingStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingConnectRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = "○ Non connecté"
-
-[node name="RoomActionsRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="BtnCreateRoom" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoomActionsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "🎲 Créer une partie (MJ)"
-
-[node name="RoomCodeInput" type="LineEdit" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoomActionsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(80, 0)
-placeholder_text = "4827"
-max_length = 4
-
-[node name="BtnJoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoomActionsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "🔗 Rejoindre une partie"
-
-[node name="BtnRejoinRoom" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoomActionsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "↩ Reconnecter"
-
-[node name="BtnLeaveRoom" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/RoomActionsRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "✕ Quitter"
-
-[node name="RoomCodeLabel" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 18
-text = ""
-
-[node name="P2pStatusLabel" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-text = ""
-
-[node name="LblPoolingPlayers" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 14
-text = "👥 Joueurs du salon"
-
-[node name="PoolingPlayersVBox" type="VBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="PoolingCharRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblPoolingChar" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingCharRow"]
-layout_mode = 2
-custom_minimum_size = Vector2(110, 0)
-text = "Personnage :"
-
-[node name="OptPoolingChar" type="OptionButton" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingCharRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="BtnPoolingRegisterChar" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "✓ Enregistrer mon personnage (salon)"
-
-[node name="PoolingLaunchRow" type="HBoxContainer" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="BtnLaunchPoolingGame" type="Button" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingLaunchRow"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 16
-text = "🚀 Lancer la partie"
-
-[node name="LblWaitingMj" type="Label" parent="ScrollContainer/Margin/VBox/HomePage/PoolingPanel/VBox/PoolingLaunchRow"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 15
-text = "⏳ En attente du MJ..."
 
 [node name="ConfirmDeleteResume" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
 title = "Effacer la partie"
 initial_position = 2
-size = Vector2i(420, 120)
+size = Vector2i(460, 140)
 dialog_text = "Effacer cette partie ? Toute la progression sera perdue."
 ok_button_text = "Effacer"
 cancel_button_text = "Annuler"

@@ -1,8 +1,9 @@
 extends Control
 
 const CharacterCardScene := preload("res://scenes/hub/panels/character_card.tscn")
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 
-@onready var char_list_container: VBoxContainer = %CharacterList
+@onready var char_list_container: GridContainer = %CharacterList
 @onready var form_panel: PanelContainer = %FormPanel
 @onready var tier_picker_panel: PanelContainer = %TierPickerPanel
 @onready var tier_overlay: ColorRect = %TierOverlay
@@ -10,7 +11,7 @@ const CharacterCardScene := preload("res://scenes/hub/panels/character_card.tscn
 @onready var form_title: Label = %FormTitle
 @onready var roster_filter: OptionButton = %RosterFilter
 @onready var entity_filter: OptionButton = %EntityFilter
-@onready var page_title: Label = $MainLayout/TopBar/Title
+@onready var top_bar = %TopBar
 
 @onready var input_name: LineEdit = %InputName
 @onready var input_race: LineEdit = %InputRace
@@ -77,13 +78,16 @@ var current_is_bot: bool = false
 var _locked_roster: String = ""
 var _locked_entity_type: String = ""
 var _pending_new_tier: String = ""
+var _dirty: bool = false
+var _pending_action: Callable = Callable()
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(_on_back_pressed)
+	%TopBar.back_pressed.connect(_on_back_pressed)
 	%BtnNewChar.pressed.connect(_on_new_character_pressed)
 	%BtnSave.pressed.connect(_on_save_pressed)
 	%BtnCancel.pressed.connect(_on_cancel_pressed)
 	%BtnCloseForm.pressed.connect(_on_cancel_pressed)
+	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
 	%BtnTierSimple.pressed.connect(func(): _begin_new_with_tier("simple"))
 	%BtnTierMedium.pressed.connect(func(): _begin_new_with_tier("medium"))
 	%BtnTierComplete.pressed.connect(func(): _begin_new_with_tier("complete"))
@@ -95,7 +99,7 @@ func _ready() -> void:
 	input_entity_type.item_selected.connect(func(_idx): _apply_entity_type_visibility())
 
 	for spin in [input_str, input_dex, input_con, input_int, input_wis, input_cha]:
-		spin.value_changed.connect(func(_v): _refresh_modifiers_label())
+		spin.value_changed.connect(func(_v): _refresh_modifiers_label(); _dirty = true)
 
 	GameData.characters_updated.connect(refresh_list)
 	GameData.bots_updated.connect(refresh_list)
@@ -108,9 +112,30 @@ func _ready() -> void:
 	form_panel.visible = false
 	_set_tier_picker_visible(false)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if UiShortcuts.is_cancel(event):
+		# Consommer AVANT d'agir : _on_back_pressed() change de scène et
+		# get_viewport() devient nul juste après.
+		_consume_input()
+		if tier_picker_panel.visible:
+			_set_tier_picker_visible(false)
+		elif form_panel.visible:
+			_on_cancel_pressed()
+		else:
+			_on_back_pressed()
+		return
+	if form_panel.visible and (UiShortcuts.is_submit(event) or UiShortcuts.is_save(event)):
+		_consume_input()
+		_on_save_pressed()
+
+func _consume_input() -> void:
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
+
 func _configure_panels() -> void:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.121569, 0.0980392, 0.0784314, 0.98)
+	style.bg_color = Color(0.121569, 0.101961, 0.168627, 0.98)
 	style.border_color = ThemeColors.BORDER
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(10)
@@ -121,7 +146,7 @@ func _configure_panels() -> void:
 	form_panel.add_theme_stylebox_override("panel", style)
 
 	var tier_style := style.duplicate()
-	tier_style.bg_color = Color(0.101961, 0.0784314, 0.0627451, 0.98)
+	tier_style.bg_color = Color(0.078431, 0.066667, 0.109804, 0.98)
 	tier_picker_panel.add_theme_stylebox_override("panel", tier_style)
 	UiLayout.center_modal(tier_picker_panel, Vector2(480, 260))
 
@@ -141,16 +166,21 @@ func _apply_entry_context() -> void:
 		_locked_entity_type = str(get_tree().get_meta("preselected_entity_type"))
 		get_tree().remove_meta("preselected_entity_type")
 
+	if _locked_roster.is_empty():
+		# Sans contexte hub : rester en aventure (pas de mélange).
+		_locked_roster = "general"
+
 	if _locked_roster == "investigation":
-		page_title.text = "🔍 Enquêteurs & Bots"
+		top_bar.set_title("🔍 Enquêteurs & Bots")
 		roster_filter.selected = 2
 		roster_filter.disabled = true
-	elif _locked_roster == "general":
-		page_title.text = "👥 Héros d'Aventure"
+		roster_filter.visible = false
+	else:
+		_locked_roster = "general"
+		top_bar.set_title("👥 Héros d'Aventure")
 		roster_filter.selected = 1
 		roster_filter.disabled = true
-	else:
-		page_title.text = "👥 Fiches Personnages & Bots"
+		roster_filter.visible = false
 
 	if _locked_entity_type == "bot":
 		entity_filter.selected = 2
@@ -158,6 +188,8 @@ func _apply_entry_context() -> void:
 	elif _locked_entity_type == "player":
 		entity_filter.selected = 1
 		entity_filter.disabled = true
+
+	_rebuild_input_roster_options()
 
 func _setup_filters() -> void:
 	roster_filter.clear()
@@ -171,11 +203,7 @@ func _setup_filters() -> void:
 	entity_filter.add_item("Bots (IA)", 2)
 
 func _setup_form_options() -> void:
-	input_roster.clear()
-	input_roster.add_item("Aventure (Standard)", 0)
-	input_roster.set_item_metadata(0, "general")
-	input_roster.add_item("Enquête (Investigation)", 1)
-	input_roster.set_item_metadata(1, "investigation")
+	_rebuild_input_roster_options()
 
 	input_entity_type.clear()
 	input_entity_type.add_item("Personnage joueur (PC)", 0)
@@ -190,6 +218,19 @@ func _setup_form_options() -> void:
 	input_ruleset_tier.set_item_metadata(1, "medium")
 	input_ruleset_tier.add_item("Complet (D&D)", 2)
 	input_ruleset_tier.set_item_metadata(2, "complete")
+
+func _rebuild_input_roster_options() -> void:
+	input_roster.clear()
+	if _locked_roster == "investigation":
+		input_roster.add_item("Enquête (Investigation)", 0)
+		input_roster.set_item_metadata(0, "investigation")
+		input_roster.select(0)
+		input_roster.disabled = true
+	else:
+		input_roster.add_item("Aventure (Standard)", 0)
+		input_roster.set_item_metadata(0, "general")
+		input_roster.select(0)
+		input_roster.disabled = true
 
 func _get_active_roster_filter() -> String:
 	if _locked_roster == "investigation":
@@ -339,8 +380,8 @@ func _load_form_from_dict(c: Dictionary, is_bot: bool, is_new: bool) -> void:
 	input_name.text = c.get("name", "")
 	input_race.text = c.get("race", "")
 	input_class.text = c.get("class", "")
-	input_roster.selected = 1 if roster == "investigation" else 0
-	input_roster.disabled = not _locked_roster.is_empty()
+	input_roster.selected = 0
+	input_roster.disabled = true
 	input_entity_type.selected = 1 if is_bot else 0
 	input_entity_type.disabled = not is_new or not _locked_entity_type.is_empty()
 	_set_selected_tier(tier)
@@ -455,7 +496,9 @@ func _collect_form_data() -> Dictionary:
 	if name_val.is_empty():
 		name_val = "Bot sans nom" if _is_bot_mode() else "Héros sans nom"
 
-	var r_meta := "investigation" if input_roster.selected == 1 else "general"
+	var r_meta := "general"
+	if input_roster.selected >= 0:
+		r_meta = str(input_roster.get_item_metadata(input_roster.selected))
 	if _locked_roster == "investigation":
 		r_meta = "investigation"
 	elif _locked_roster == "general":
@@ -515,6 +558,7 @@ func _collect_form_data() -> Dictionary:
 	return GameData.normalize_character(entity)
 
 func _on_save_pressed() -> void:
+	_dirty = false
 	var data: Dictionary = _collect_form_data()
 	if _is_bot_mode() or current_is_bot:
 		GameData.save_bot(data)
@@ -523,7 +567,17 @@ func _on_save_pressed() -> void:
 	form_panel.visible = false
 
 func _on_cancel_pressed() -> void:
-	form_panel.visible = false
+	if _dirty:
+		_pending_action = func(): form_panel.visible = false; _dirty = false
+		%ConfirmDiscard.popup_centered()
+	else:
+		form_panel.visible = false
+		_dirty = false
+
+func _on_confirm_discard() -> void:
+	if _pending_action.is_valid():
+		_pending_action.call()
+		_pending_action = Callable()
 	_set_tier_picker_visible(false)
 
 func _delete_entry(id: String, is_bot: bool) -> void:
@@ -535,4 +589,9 @@ func _delete_entry(id: String, is_bot: bool) -> void:
 		GameData.delete_character(id)
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+	var hub_tab := "Enquêtes" if _locked_roster == "investigation" else "Aventures"
+	if _dirty:
+		_pending_action = func(): GameData.go_to_hub(hub_tab)
+		%ConfirmDiscard.popup_centered()
+		return
+	GameData.go_to_hub(hub_tab)

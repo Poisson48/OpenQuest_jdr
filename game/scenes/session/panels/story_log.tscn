@@ -8,7 +8,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 260)
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_type_variation = &"DockPanel"
@@ -33,12 +33,12 @@ theme_type_variation = &"InsetPanel"
 
 [node name="LogText" type="RichTextLabel" parent="Col/Frame"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/line_separation = 5
-theme_override_font_sizes/normal_font_size = 15
+theme_override_font_sizes/normal_font_size = 16
 bbcode_enabled = true
 scroll_following = true
 autowrap_mode = 3

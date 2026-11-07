@@ -17,7 +17,7 @@ script = ExtResource("1_script")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 52.0
+offset_bottom = 72.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 12
@@ -35,7 +35,6 @@ theme_override_constants/separation = 10
 
 [node name="BtnLeave" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "← Quitter"
@@ -43,11 +42,10 @@ text = "← Quitter"
 [node name="LblTitle" type="Label" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.95, 0.9, 0.78, 0.9)
-theme_override_font_sizes/font_size = 15
 text = ""
 clip_text = true
 
@@ -55,16 +53,15 @@ clip_text = true
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
-theme_override_font_sizes/font_size = 14
 text = "En attente…"
 horizontal_alignment = 2
 
 [node name="BtnZoomOut" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 32)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Dézoomer"
@@ -72,7 +69,7 @@ text = "−"
 
 [node name="BtnZoomIn" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 32)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Zoomer"
@@ -80,7 +77,6 @@ text = "+"
 
 [node name="BtnFit" type="Button" parent="TopBar/TopPanel/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Afficher toute la carte"
@@ -94,9 +90,9 @@ layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 160.0
-offset_top = 56.0
+offset_top = 76.0
 offset_right = -160.0
-offset_bottom = 96.0
+offset_bottom = 116.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_type_variation = &"AlertPanel"
@@ -105,7 +101,6 @@ theme_type_variation = &"AlertPanel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_colors/font_color = Color(0.95, 0.86, 0.7, 1)
 text = "Sans lanterne, vous êtes aveugle"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -117,9 +112,9 @@ anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -276.0
-offset_top = 56.0
+offset_top = 76.0
 offset_right = -8.0
-offset_bottom = -118.0
+offset_bottom = -200.0
 grow_horizontal = 0
 grow_vertical = 2
 mouse_filter = 2
@@ -143,15 +138,14 @@ layout_mode = 2
 
 [node name="LblJournalTitle" type="Label" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
-theme_override_font_sizes/font_size = 14
 text = "Histoire"
 
 [node name="BtnClearFocus" type="Button" parent="JournalDock/JournalPanel/JournalCol/JournalHeader"]
 unique_name_in_owner = true
 visible = true
-custom_minimum_size = Vector2(28, 28)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "«"
@@ -174,7 +168,7 @@ bbcode_enabled = true
 fit_content = true
 scroll_active = false
 autowrap_mode = 3
-theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/normal_font_size = 17
 theme_override_constants/line_separation = 4
 
 [node name="HeroDock" type="MarginContainer" parent="."]
@@ -184,7 +178,7 @@ anchor_top = 1.0
 anchor_bottom = 1.0
 offset_top = -234.0
 offset_right = 226.0
-offset_bottom = -122.0
+offset_bottom = -204.0
 grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/margin_left = 10
@@ -217,21 +211,19 @@ theme_override_constants/separation = 2
 [node name="LblHeroName" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
+
 text = "—"
 
 [node name="LblHeroSub" type="Label" parent="HeroDock/HeroPanel/HeroCol/HeroTop/HeroMeta"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.62, 0.5, 1)
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"MicroLabel"
 text = ""
 
 [node name="LblHeroHp" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.45, 0.4, 1)
-theme_override_font_sizes/font_size = 13
+theme_type_variation = &"DangerLabel"
 text = "PV —"
 
 [node name="HeroHpBar" type="ProgressBar" parent="HeroDock/HeroPanel/HeroCol"]
@@ -245,8 +237,7 @@ value = 1.0
 [node name="LblInventoryPreview" type="Label" parent="HeroDock/HeroPanel/HeroCol"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.8, 0.7, 1)
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"MicroLabel"
 text = "Sac vide"
 autowrap_mode = 3
 
@@ -256,7 +247,6 @@ theme_override_constants/separation = 6
 
 [node name="BtnMySheet" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"AccentButton"
@@ -264,7 +254,6 @@ text = "Ma fiche"
 
 [node name="BtnInventory" type="Button" parent="HeroDock/HeroPanel/HeroCol/HeroBtns"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"ToolButton"
@@ -279,9 +268,9 @@ anchors_preset = -1
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 10.0
-offset_top = -600.0
+offset_top = -682.0
 offset_right = 330.0
-offset_bottom = -368.0
+offset_bottom = -450.0
 grow_vertical = 0
 mouse_filter = 0
 theme_type_variation = &"DockPanel"
@@ -295,14 +284,13 @@ layout_mode = 2
 
 [node name="LblInvTitle" type="Label" parent="InventoryPanel/InvCol/InvHeader"]
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
-theme_override_font_sizes/font_size = 16
 text = "Inventaire"
 
 [node name="BtnCloseInv" type="Button" parent="InventoryPanel/InvCol/InvHeader"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(34, 34)
+custom_minimum_size = Vector2(34, 0)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 text = "✕"
@@ -324,7 +312,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -118.0
+offset_top = -200.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
@@ -354,7 +342,6 @@ theme_override_constants/separation = 6
 
 [node name="BtnExplore" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'explore attentivement les environs à la recherche d'indices."
@@ -362,7 +349,6 @@ text = "Explorer"
 
 [node name="BtnTalk" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'engage la conversation avec les personnes présentes."
@@ -370,7 +356,6 @@ text = "Discuter"
 
 [node name="BtnInspect" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "J'examine minutieusement cet endroit."
@@ -378,7 +363,6 @@ text = "Examiner"
 
 [node name="BtnFight" type="Button" parent="BottomBar/Bar/Col/SuggestRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 tooltip_text = "Je dégaine mon arme et me prépare au combat !"
@@ -397,21 +381,20 @@ placeholder_text = "Que faites-vous ?"
 
 [node name="BtnSend" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_type_variation = &"AccentButton"
 text = "Envoyer"
 
 [node name="BtnD6" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(48, 38)
+custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d6"
 
 [node name="BtnD20" type="Button" parent="BottomBar/Bar/Col/ActionRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(52, 38)
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
 theme_type_variation = &"ToolButton"
 text = "d20"

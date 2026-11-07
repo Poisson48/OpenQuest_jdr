@@ -1,67 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/hub/panels/bot_card.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/card_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/hub/panels/bot_card.gd" id="2_script"]
 
-[node name="BotCard" type="PanelContainer"]
-size_flags_horizontal = 3
-theme_type_variation = &"InsetPanel"
-script = ExtResource("1_script")
-
-[node name="VBox" type="VBoxContainer" parent="."]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="LblName" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 16
-text = "🤖 Compagnon"
-autowrap_mode = 3
-
-[node name="LblMode" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "⚔️ Aventure"
-
-[node name="LblMeta" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
-text = "Race · Classe"
-autowrap_mode = 3
-
-[node name="LblTag" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"BadgeLabel"
-theme_override_colors/font_color = Color(0.533333, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 14
-text = "PERSONNALITÉ"
-
-[node name="LblTraits" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = ""
-autowrap_mode = 3
-
-[node name="LblStats" type="Label" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
-text = "PV 10 · CA 10 · FOR 10"
-
-[node name="Spacer" type="Control" parent="VBox"]
-custom_minimum_size = Vector2(0, 2)
-layout_mode = 2
-
-[node name="BtnDelete" type="Button" parent="VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_type_variation = &"DangerButton"
-text = "Supprimer"
+[node name="BotCard" instance=ExtResource("1_base")]
+script = ExtResource("2_script")

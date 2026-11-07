@@ -28,6 +28,7 @@ LocaleSettings="*res://scripts/autoload/locale_settings.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 MapData="*res://scripts/autoload/map_data.gd"
 MultiplayerManager="*res://scripts/multiplayer/multiplayer_manager.gd"
+ButtonSizing="*res://scripts/autoload/button_sizing.gd"
 
 [display]
 
@@ -37,8 +38,8 @@ window/size/window_width_override=1152
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/size/min_width=800
-window/size/min_height=500
+window/size/min_width=640
+window/size/min_height=400
 
 [dotnet]
 

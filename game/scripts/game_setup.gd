@@ -1,5 +1,7 @@
 extends Control
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 const SetupToggleRowScene := preload("res://scenes/hub/panels/setup_toggle_row.tscn")
 
@@ -28,12 +30,14 @@ var selected_map_ids: Array[String] = []
 var _current_scenario_id: String = ""
 var _current_quest_format: String = "oneshot"
 var _waiting_server_start: bool = false
+var _format_locked: bool = false
+var _entry_hub_tab: String = "Aventures"
 var _is_joiner: bool = false
 var _is_pooling_joiner: bool = false
 var _is_pooling_host: bool = false
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(_on_back_pressed)
+	%TopBar.back_pressed.connect(_on_back_pressed)
 	%BtnStartGame.pressed.connect(_on_start_game_pressed)
 	%BtnJoinerRegister.pressed.connect(_on_joiner_register_pressed)
 
@@ -52,8 +56,14 @@ func _ready() -> void:
 		preselected_format = GameData.get_quest_format_for_scenario(preselected_id)
 	if preselected_format.is_empty():
 		preselected_format = "adventure"
+	else:
+		_format_locked = true
 
+	_entry_hub_tab = "Enquête" if preselected_format == "investigation" else "Aventures"
 	_set_quest_format_option(preselected_format)
+	if _format_locked:
+		opt_quest_format.disabled = true
+		opt_quest_format.visible = false
 	_populate_data(preselected_id)
 
 	opt_quest_format.item_selected.connect(_on_quest_format_selected)
@@ -484,6 +494,17 @@ func _on_joiner_register_pressed() -> void:
 	MultiplayerManager.register_character(_build_character_from_option(opt_joiner_char))
 	%LblJoinerHint.text = "✓ Personnage enregistré — en attente du lancement par le MJ."
 
+func _unhandled_input(event: InputEvent) -> void:
+	var vp := get_viewport()
+	if UiShortcuts.is_cancel(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_back_pressed()
+	elif UiShortcuts.is_submit(event):
+		if vp != null:
+			vp.set_input_as_handled()
+		_on_start_game_pressed()
+
 func _on_start_game_pressed() -> void:
 	if _is_joiner:
 		return
@@ -634,5 +655,4 @@ func _apply_responsive_layout() -> void:
 		columns.visible = true
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://scenes/hub.tscn")
-
+	GameData.go_to_hub(_entry_hub_tab)

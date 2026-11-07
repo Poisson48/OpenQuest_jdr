@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3 uid="uid://game_setup_001"]
 
-[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/game_setup.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="GameSetup" type="Control"]
 layout_mode = 3
@@ -20,36 +22,31 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
+offset_left = 20.0
 offset_top = 16.0
-offset_right = -24.0
+offset_right = -20.0
 offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+[node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 12
+compact = true
 
-[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "← Retour au Hub"
-
-[node name="Title" type="Label" parent="MainLayout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
-text = "⚙️ Configuration de la Partie"
+crumb_text = "Hub › Configuration"
+back_text = "← Retour"
+title_text = "⚙️ Configuration de la Partie"
 
 [node name="ScrollBody" type="ScrollContainer" parent="MainLayout"]
 layout_mode = 2
@@ -77,7 +74,7 @@ theme_override_constants/separation = 8
 
 [node name="LblScnTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "1. Choix du Scénario"
 
 [node name="OptScenario" type="OptionButton" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelScenario/VBox"]
@@ -99,7 +96,7 @@ theme_override_constants/separation = 8
 
 [node name="LblRulesTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "2. Format & Mode de Jeu"
 
 [node name="LblQuestFormat" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
@@ -129,8 +126,8 @@ layout_mode = 2
 [node name="NetStatusLabel" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelRules/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 13
+theme_type_variation = &"MutedLabel"
+
 text = "○ Serveur non connecté"
 
 [node name="PanelMaps" type="PanelContainer" parent="MainLayout/ScrollBody/Columns/LeftCol"]
@@ -142,15 +139,14 @@ theme_override_constants/separation = 8
 
 [node name="LblMapsTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "3. Cartes associées"
 
 [node name="MapsHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"MicroLabel"
 autowrap_mode = 3
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 12
 text = "Coche les cartes à inclure dans la partie (monde + scènes locales)."
 
 [node name="MapsScroll" type="ScrollContainer" parent="MainLayout/ScrollBody/Columns/LeftCol/PanelMaps/VBox"]
@@ -174,13 +170,13 @@ theme_override_constants/separation = 8
 
 [node name="LblJoinerTitle" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "⏳ En attente de l'hôte"
 
 [node name="LblJoinerHint" type="Label" parent="MainLayout/ScrollBody/Columns/LeftCol/JoinerPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MutedLabel"
 autowrap_mode = 2
 text = "Choisissez votre personnage ci-dessous. L'hôte lancera la partie quand tout le monde est prêt."
 
@@ -212,7 +208,7 @@ theme_override_constants/separation = 8
 
 [node name="LblPartyTitle" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "4. Composition du Groupe"
 
 [node name="LblMainChar" type="Label" parent="MainLayout/ScrollBody/Columns/RightCol/PanelParty/VBox"]
@@ -257,8 +253,7 @@ alignment = 1
 
 [node name="BtnStartGame" type="Button" parent="MainLayout/BottomAction/HBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
+theme_type_variation = &"AccentButtonLarge"
 text = "🚀 Lancer l'Aventure !"

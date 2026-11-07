@@ -76,19 +76,18 @@ theme_override_constants/separation = 2
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"TitleLabel"
-theme_override_font_sizes/font_size = 28
 text = "AVENTURIER"
 
 [node name="LblSubtitle" type="Label" parent="Frame/Root/Left/LeftBody/Top/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+
 text = "?  ·  ?"
 
 [node name="BtnClose" type="Button" parent="Frame/Root/Left/LeftBody/Top"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(36, 36)
+custom_minimum_size = Vector2(36, 0)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 tooltip_text = "Fermer"
@@ -98,7 +97,7 @@ text = "✕"
 custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
 size_flags_horizontal = 3
-color = Color(0.788235, 0.635294, 0.152941, 1)
+color = Color(0.788235, 0.643137, 0.298039, 1)
 
 [node name="StatsPage" type="ScrollContainer" parent="Frame/Root/Left/LeftBody"]
 unique_name_in_owner = true
@@ -205,7 +204,7 @@ theme_type_variation = &"InsetPanel"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 15
+
 text = "« … »"
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -254,7 +253,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+
 text = "Surveille toujours les sorties."
 autowrap_mode = 3
 
@@ -265,7 +264,6 @@ theme_override_constants/separation = 10
 
 [node name="BtnStory" type="Button" parent="Frame/Root/Left/LeftBody/Footer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Histoire ▸"

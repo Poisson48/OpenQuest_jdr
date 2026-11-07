@@ -13,15 +13,15 @@ const PRESET_GM := "gm"
 const PRESET_IMMERSIVE := "immersive"
 
 const LEFT_MIN := 300
-const RIGHT_MIN := 268
+const RIGHT_MIN := 300
 const MAP_MIN := 380
 
 ## Largeurs cibles par palier de fenêtre : (largeur mini, dock gauche, dock droit).
 const BREAKPOINTS := [
-	{ "from": 1600, "left": 340, "right": 410 },
-	{ "from": 1360, "left": 320, "right": 372 },
-	{ "from": 1120, "left": 300, "right": 330 },
-	{ "from": 0, "left": 300, "right": 290 },
+	{ "from": 1600, "left": 340, "right": 440 },
+	{ "from": 1360, "left": 320, "right": 400 },
+	{ "from": 1120, "left": 300, "right": 340 },
+	{ "from": 0, "left": 300, "right": 300 },
 ]
 
 ## En dessous, le dock gauche se replie automatiquement pour laisser vivre la carte.

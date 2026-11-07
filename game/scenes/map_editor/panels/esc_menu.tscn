@@ -31,8 +31,7 @@ theme_override_constants/separation = 4
 
 [node name="LblMenu" type="Label" parent="Scroll/MenuBox"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "☰ Menu éditeur"
 
 [node name="BtnSave" type="Button" parent="Scroll/MenuBox"]
@@ -67,8 +66,7 @@ text = "🧹 Vider la sélection"
 
 [node name="LblFile" type="Label" parent="Scroll/MenuBox"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "Fichier"
 
 [node name="BtnImportJson" type="Button" parent="Scroll/MenuBox"]
@@ -85,8 +83,7 @@ text = "⬆ Exporter JSON…"
 
 [node name="LblPolicy" type="Label" parent="Scroll/MenuBox"]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "Sauvegarde auto"
 
 [node name="PolicyRow" type="HBoxContainer" parent="Scroll/MenuBox"]
@@ -116,6 +113,5 @@ text = "Toutes les 30 s"
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 10
 text = ""
 autowrap_mode = 3

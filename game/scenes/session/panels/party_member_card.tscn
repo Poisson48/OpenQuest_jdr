@@ -46,8 +46,8 @@ theme_override_constants/separation = 0
 [node name="LblName" type="Label" parent="Row/Texts"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"SectionLabel"
 mouse_filter = 2
-theme_override_font_sizes/font_size = 13
 text = "Aventurier"
 clip_text = true
 

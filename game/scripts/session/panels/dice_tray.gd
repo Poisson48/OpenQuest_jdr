@@ -1,6 +1,8 @@
 extends PanelContainer
 class_name DiceTrayPanel
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 ## Jets de dés : raccourcis, formule libre, jet secret du MJ.
 ## Structure dans `scenes/session/panels/dice_tray.tscn`.
 ##
@@ -28,6 +30,16 @@ func _ready() -> void:
 			btn.pressed.connect(func(): _emit(formula))
 	_formula.text_submitted.connect(func(_t: String): _emit(_formula.text))
 	_btn_roll.pressed.connect(func(): _emit(_formula.text))
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not UiShortcuts.is_submit(event):
+		return
+	if not _formula.editable:
+		return
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
+	_emit(_formula.text)
 
 ## « d20 » → « 1d20 », mais « 2d6 » reste tel quel.
 static func _formula_for(label: String) -> String:

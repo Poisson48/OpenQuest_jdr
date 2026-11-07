@@ -2,7 +2,7 @@ extends Control
 
 const MapModeScript := preload("res://scripts/maps/map_mode.gd")
 
-@onready var title_lbl: Label = %MapTitle
+@onready var top_bar = %TopBar
 
 var _map_data: Dictionary = {}
 var _edit_mode: bool = false
@@ -15,7 +15,7 @@ var _simple_editor: Control
 var _complex_editor: Control
 
 func _ready() -> void:
-	%BtnBack.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/hub.tscn"))
+	top_bar.back_pressed.connect(_on_back_pressed)
 	_edit_mode = MapData.editor_mode == "edit"
 	_bind_ui()
 	_sync_chrome()
@@ -67,7 +67,7 @@ func _bind_ui() -> void:
 
 func _sync_chrome() -> void:
 	_title_input.visible = _edit_mode
-	title_lbl.visible = not _edit_mode
+	top_bar.set_title_visible(not _edit_mode)
 	%BtnSave.visible = _edit_mode
 	%BtnEdit.visible = not _edit_mode
 	%BtnPreview.visible = _edit_mode
@@ -144,7 +144,7 @@ func _load_map() -> void:
 	if _map_data.is_empty() and not MapData.maps.is_empty():
 		_map_data = MapData.maps[0].duplicate(true)
 	if _map_data.is_empty():
-		title_lbl.text = "🗺️ Aucune carte"
+		top_bar.set_title("🗺️ Aucune carte")
 		return
 
 	_sync_title_from_map()
@@ -158,7 +158,7 @@ func _sync_title_from_map() -> void:
 	var title: String = _map_data.get("title", "Carte")
 	if _title_input:
 		_title_input.text = title
-	title_lbl.text = "🗺️ %s" % title
+	top_bar.set_title("🗺️ %s" % title)
 
 func _apply_pending_link_target() -> void:
 	if MapData.pending_link_target_id.is_empty():
@@ -224,7 +224,7 @@ func _save_map() -> void:
 		_simple_editor.mark_saved()
 	else:
 		MapData.update_map(_map_data)
-	title_lbl.text = "🗺️ %s" % _map_data.get("title", "Carte")
+	top_bar.set_title("🗺️ %s" % _map_data.get("title", "Carte"))
 
 func _rebuild_for_mode() -> void:
 	_sync_chrome()
@@ -243,3 +243,29 @@ func _on_editor_open_map(map_id: String) -> void:
 	_sync_editor_mode()
 	_update_hint()
 	_refresh_map_view(true)
+
+var _dirty: bool = false
+var _pending_action: Callable = Callable()
+
+func _on_back_pressed() -> void:
+	if _dirty:
+		_pending_action = func(): get_tree().change_scene_to_file("res://scenes/hub.tscn")
+		_show_discard_dialog()
+		return
+	get_tree().change_scene_to_file("res://scenes/hub.tscn")
+
+func _show_discard_dialog() -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = "Modifications non sauvegardées"
+	dlg.dialog_text = "Vous avez des modifications non sauvegardées. Voulez-vous les perdre ?"
+	dlg.ok_button_text = "Perdre les modifications"
+	dlg.cancel_button_text = "Continuer l'édition"
+	dlg.confirmed.connect(func():
+		if _pending_action.is_valid():
+			_pending_action.call()
+			_pending_action = Callable()
+		dlg.queue_free()
+	)
+	dlg.canceled.connect(func(): dlg.queue_free())
+	get_tree().root.add_child(dlg)
+	dlg.popup_centered()

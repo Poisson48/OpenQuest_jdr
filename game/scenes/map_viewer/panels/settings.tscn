@@ -10,8 +10,7 @@ script = ExtResource("1_script")
 
 [node name="LblSize" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "📐 Grille"
 
 [node name="SizeRow" type="HBoxContainer" parent="."]
@@ -44,8 +43,7 @@ value = 12.0
 
 [node name="LblFog" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "🌫 Brouillard"
 
 [node name="ChkFog" type="CheckBox" parent="."]
@@ -71,8 +69,7 @@ text = "Tout révéler"
 
 [node name="LblMeasure" type="Label" parent="."]
 layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 12
+theme_type_variation = &"SectionLabel"
 text = "📏 Échelle"
 
 [node name="MeasureRow" type="HBoxContainer" parent="."]
@@ -98,6 +95,5 @@ placeholder_text = "unité"
 [node name="LblHint" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 11
 text = "La grille 2D reste à plat. Murs, lumières et diorama restent dans l'éditeur complexe."
 autowrap_mode = 3

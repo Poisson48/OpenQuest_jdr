@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3 uid="uid://scenario_list_001"]
 
-[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/scenario_list.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="ScenarioList" type="Control"]
 layout_mode = 3
@@ -20,7 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -35,44 +37,38 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+[node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 12
+compact = true
 
-[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "← Retour au Hub"
+crumb_text = "Hub › Scénarios"
+back_text = "← Retour"
+title_text = "📜 Bibliothèque de Scénarios"
 
-[node name="Title" type="Label" parent="MainLayout/TopBar"]
+[node name="LblModeFilter" type="Label" parent="MainLayout/TopBar/Actions"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 24
-text = "📜 Bibliothèque de Scénarios"
+theme_type_variation = &"GoldLabel"
 
-[node name="LblModeFilter" type="Label" parent="MainLayout/TopBar"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
-theme_override_font_sizes/font_size = 16
 text = "Mode :"
 
-[node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar"]
+[node name="ModeFilter" type="OptionButton" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(180, 0)
 
-[node name="BtnNewScenario" type="Button" parent="MainLayout/TopBar"]
+[node name="BtnNewScenario" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"AccentButton"
 text = "+ Nouveau scénario"
 
-[node name="ScenariosCountLabel" type="Label" parent="MainLayout/TopBar"]
+[node name="ScenariosCountLabel" type="Label" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"MutedLabel"
 text = "0 scénario(s)"
 
 [node name="LibraryTabs" type="HBoxContainer" parent="MainLayout"]
@@ -137,9 +133,8 @@ size_flags_horizontal = 3
 [node name="DetailTitle" type="Label" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox/DetailHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"TitleLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 22
 text = "Titre du Scénario"
 autowrap_mode = 3
 
@@ -190,15 +185,15 @@ text = "✏️ Modifier le scénario"
 [node name="BtnPlayDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"AccentButton"
 text = "🎮 Lancer cette aventure"
 
 [node name="BtnPublishDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+theme_type_variation = &"AccentButton"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "📚 Publier dans le catalogue"
 
 [node name="BtnUnpublishDetail" type="Button" parent="MainLayout/ContentArea/DetailPanel/DetailScroll/DetailVBox"]
@@ -217,7 +212,7 @@ text = "Supprimer"
 unique_name_in_owner = true
 title = "Supprimer le scénario"
 initial_position = 2
-size = Vector2i(440, 120)
+size = Vector2i(460, 140)
 dialog_text = "Supprimer ce scénario ?"
 ok_button_text = "Supprimer"
 cancel_button_text = "Annuler"
@@ -226,7 +221,7 @@ cancel_button_text = "Annuler"
 unique_name_in_owner = true
 title = "Publier le scénario"
 initial_position = 2
-size = Vector2i(480, 140)
+size = Vector2i(460, 140)
 dialog_text = "Publier ce scénario dans le catalogue ?"
 ok_button_text = "Publier"
 cancel_button_text = "Annuler"

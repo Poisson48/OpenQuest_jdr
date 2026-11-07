@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3 uid="uid://scenario_editor_001"]
 
-[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/scenario_editor.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="ScenarioEditor" type="Control"]
 layout_mode = 3
@@ -20,57 +22,52 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 12.0
-offset_right = -16.0
-offset_bottom = -12.0
+offset_left = 20.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+[node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 10
+compact = true
 
-[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "← Bibliothèque"
+crumb_text = "Hub › Scénarios › Éditeur"
+back_text = "← Retour"
+title_text = "✏️ Éditeur de scénario"
 
-[node name="Title" type="Label" parent="MainLayout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
-text = "✏️ Éditeur de scénario"
-
-[node name="LblStatus" type="Label" parent="MainLayout/TopBar"]
+[node name="LblStatus" type="Label" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Prêt"
 
-[node name="BtnAddScene" type="Button" parent="MainLayout/TopBar"]
+[node name="BtnAddScene" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "+ Scène"
 
-[node name="BtnAddNpc" type="Button" parent="MainLayout/TopBar"]
+[node name="BtnAddNpc" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "+ PNJ"
 
-[node name="BtnSave" type="Button" parent="MainLayout/TopBar"]
+[node name="BtnSave" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"AccentButton"
 text = "💾 Enregistrer"
 
 [node name="BodySplit" type="HSplitContainer" parent="MainLayout"]
@@ -92,7 +89,7 @@ theme_override_constants/separation = 8
 
 [node name="LblMeta" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "📋 Métadonnées"
 
 [node name="MetaTitle" type="LineEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
@@ -152,7 +149,7 @@ layout_mode = 2
 
 [node name="NpcPanel" type="PanelContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 240)
+custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"InsetPanel"
@@ -176,8 +173,8 @@ theme_override_constants/separation = 8
 
 [node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "👤 PNJ"
 
 [node name="BtnAddNpcPanel" type="Button" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
@@ -187,7 +184,7 @@ text = "+ Ajouter"
 
 [node name="NpcScroll" type="ScrollContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 180)
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -222,8 +219,8 @@ theme_override_constants/separation = 8
 
 [node name="LblGraph" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
 text = "🕸️ Graphe narratif"
 
 [node name="BtnAutoLayout" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
@@ -247,21 +244,19 @@ text = "Valider"
 [node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.266667, 0.666667, 0.6, 1)
+theme_type_variation = &"SuccessLabel"
 text = "✓ Graphe"
 autowrap_mode = 3
 
 [node name="LblGraphLegend" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  clic scène → éditer  ·  glisser le fond → vue  ·  glisser un nœud → déplacer  ·  coin → redimensionner  ·  glisser un port → branche  ·  clic droit → aller à une scène"
 autowrap_mode = 3
 
 [node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(420, 360)
+custom_minimum_size = Vector2(280, 240)
 layout_mode = 2
 size_flags_vertical = 3
 right_disconnects = true
@@ -288,13 +283,13 @@ theme_override_constants/separation = 8
 
 [node name="LblScenePanel" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"HeadingLabel"
 text = "📍 Scène sélectionnée"
 
 [node name="LblNoSelection" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
+theme_type_variation = &"MutedLabel"
 text = "Cliquez un nœud du graphe pour éditer la scène, ou ajoutez-en une avec « + Scène »."
 autowrap_mode = 3
 
@@ -307,8 +302,7 @@ theme_override_constants/separation = 8
 [node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
+theme_type_variation = &"SectionLabel"
 text = "★ Scène"
 
 [node name="SceneIdRow" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -318,9 +312,8 @@ theme_override_constants/separation = 6
 [node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"MicroLabel"
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.607843, 0.498039, 0.368627, 1)
 text = "id: —"
 
 [node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
@@ -337,8 +330,7 @@ text = "Supprimer"
 
 [node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "Titre"
 
 [node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -348,8 +340,7 @@ placeholder_text = "Titre de la scène"
 
 [node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "Tags"
 
 [node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -359,8 +350,7 @@ placeholder_text = "acte-1, carrefour, fin"
 
 [node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "Cartes liées"
 
 [node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -372,15 +362,13 @@ allow_reselect = true
 
 [node name="LblSceneMapsHint" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "Clique pour lier/délier une carte. La première cochée devient la carte active en jeu."
 autowrap_mode = 3
 
 [node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.603922, 0.533333, 0.439216, 1)
+theme_type_variation = &"MicroLabel"
 text = "Narration"
 
 [node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -392,7 +380,7 @@ wrap_mode = 1
 
 [node name="LblTransitions" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Branches sortantes"
 
 [node name="TransitionsList" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
@@ -404,6 +392,15 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 layout_mode = 2
 text = "+ Ajouter une branche"
+
+[node name="ConfirmDiscard" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Modifications non sauvegardées"
+initial_position = 2
+size = Vector2i(460, 140)
+dialog_text = "Vous avez des modifications non sauvegardées. Voulez-vous les perdre ?"
+ok_button_text = "Perdre les modifications"
+cancel_button_text = "Continuer l'édition"
 
 [node name="ConfirmDeleteScene" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

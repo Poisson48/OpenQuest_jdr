@@ -21,10 +21,9 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+theme_type_variation = &"InvestigationLabel"
 size_flags_horizontal = 3
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.470588, 0.54902, 0.784314, 1)
-theme_override_font_sizes/font_size = 14
 text = ""
 autowrap_mode = 3
 
@@ -36,7 +35,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 mouse_filter = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 14
+
 text = "(contenu vide)"
 autowrap_mode = 3
 
@@ -46,7 +45,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 theme_type_variation = &"CaptionLabel"
-theme_override_font_sizes/font_size = 13
+
 text = "⚑ Fin de branche"
 autowrap_mode = 3
 
@@ -54,7 +53,6 @@ autowrap_mode = 3
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+theme_type_variation = &"DangerLabel"
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.8, 0.266667, 0.266667, 1)
-theme_override_font_sizes/font_size = 13
 text = "⚠ Inatteignable"

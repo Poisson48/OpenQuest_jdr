@@ -1,6 +1,8 @@
 extends PanelContainer
 class_name ActionBarPanel
 
+const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
+
 ## Tour en cours et saisie d'action du joueur.
 ## Structure dans `scenes/session/panels/action_bar.tscn`.
 ##
@@ -29,6 +31,16 @@ func _ready() -> void:
 			btn.pressed.connect(func(): _submit(phrase))
 	_input.text_submitted.connect(func(text: String): _submit(text))
 	_send.pressed.connect(func(): _submit(_input.text))
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not UiShortcuts.is_submit(event):
+		return
+	if not _input_row.visible or not _input.editable:
+		return
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
+	_submit(_input.text)
 
 func set_turn(turn: Dictionary) -> void:
 	_headline.text = str(turn.get("headline", ""))

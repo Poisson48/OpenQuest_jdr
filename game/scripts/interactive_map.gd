@@ -629,7 +629,7 @@ func _draw_nameplate(rect: Rect2, text: String) -> void:
 	var fs := maxi(10, int(get_cell_size() * 0.28))
 	var pos := Vector2(rect.position.x, rect.end.y + fs * 0.15)
 	draw_string(font, pos + Vector2(1, 1), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x * 1.6, fs, Color(0, 0, 0, 0.55))
-	draw_string(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x * 1.6, fs, Color(0.95, 0.9, 0.78, 0.95))
+	draw_string(font, pos, label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x * 1.6, fs, Color(0.925490, 0.878431, 0.768627, 0.95))
 
 func _is_suppressed_marker(x: int, y: int) -> bool:
 	return suppressed_markers.has(_marker_key(x, y))

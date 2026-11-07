@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3 uid="uid://char_editor_001"]
 
-[ext_resource type="Theme" path="res://theme/openquest_theme.tres" id="1_theme"]
+[ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/character_editor.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
 
 [node name="CharacterEditor" type="Control"]
 layout_mode = 3
@@ -20,7 +22,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.101961, 0.0784314, 0.0627451, 1)
+color = Color(0.078431, 0.066667, 0.109804, 1)
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -35,31 +37,26 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="TopBar" type="HBoxContainer" parent="MainLayout"]
+[node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
 layout_mode = 2
-theme_override_constants/separation = 12
+compact = true
 
-[node name="BtnBack" type="Button" parent="MainLayout/TopBar"]
+[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
 unique_name_in_owner = true
 layout_mode = 2
-text = "← Retour au Hub"
+crumb_text = "Hub › Personnages"
+back_text = "← Retour"
+title_text = "👥 Fiches de Personnages"
 
-[node name="Title" type="Label" parent="MainLayout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 20
-text = "👥 Fiches de Personnages"
-
-[node name="RosterFilter" type="OptionButton" parent="MainLayout/TopBar"]
+[node name="RosterFilter" type="OptionButton" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="EntityFilter" type="OptionButton" parent="MainLayout/TopBar"]
+[node name="EntityFilter" type="OptionButton" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="BtnNewChar" type="Button" parent="MainLayout/TopBar"]
+[node name="BtnNewChar" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "+ Nouveau Personnage"
@@ -78,11 +75,13 @@ grow_horizontal = 2
 grow_vertical = 2
 horizontal_scroll_mode = 0
 
-[node name="CharacterList" type="VBoxContainer" parent="MainLayout/ContentArea/ListScroll"]
+[node name="CharacterList" type="GridContainer" parent="MainLayout/ContentArea/ListScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+columns = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="TierOverlay" type="ColorRect" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
@@ -118,14 +117,13 @@ theme_override_constants/separation = 12
 
 [node name="TierPickerTitle" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 16
+theme_type_variation = &"SectionLabel"
 text = "Choisir la complexité de la fiche"
 horizontal_alignment = 1
 
 [node name="TierPickerHint" type="Label" parent="MainLayout/ContentArea/TierPickerPanel/TierPickerVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+theme_type_variation = &"MutedLabel"
 text = "Style Naheulbeuk, JDR classique ou fiche D&D complète."
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -158,6 +156,15 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Annuler"
 
+[node name="ConfirmDiscard" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Modifications non sauvegardées"
+initial_position = 2
+size = Vector2i(460, 140)
+dialog_text = "Vous avez des modifications non sauvegardées. Voulez-vous les perdre ?"
+ok_button_text = "Perdre les modifications"
+cancel_button_text = "Continuer l'édition"
+
 [node name="FormPanel" type="PanelContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
 visible = false
@@ -185,24 +192,40 @@ vertical_scroll_mode = 2
 [node name="FormVBox" type="VBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 10
 
 [node name="FormHeader" type="HBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 8
 
 [node name="FormTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.909804, 0.772549, 0.278431, 1)
-theme_override_font_sizes/font_size = 18
+size_flags_vertical = 4
+
 text = "Éditer le Personnage"
 autowrap_mode = 3
+
+[node name="BtnSave" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "💾 Enregistrer"
+
+[node name="BtnCancel" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = "Annuler"
 
 [node name="BtnCloseForm" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/FormHeader"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 4
 text = "✕ Fermer"
 
 [node name="GridIdentity" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -273,12 +296,13 @@ layout_mode = 2
 [node name="LblSimpleStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Stats simplifiées (Naheulbeuk) :"
 
 [node name="GridSimpleStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblSimpleForce" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
@@ -288,6 +312,7 @@ text = "Force :"
 [node name="InputSimpleForce" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -299,6 +324,7 @@ text = "Ruse :"
 [node name="InputSimpleRuse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -310,6 +336,7 @@ text = "Robustesse :"
 [node name="InputSimpleRobustesse" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -321,6 +348,7 @@ text = "Charisme :"
 [node name="InputSimpleCharisme" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridSimpleStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -342,12 +370,13 @@ layout_mode = 2
 [node name="LblStatsTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Caractéristiques (1-30) :"
 
 [node name="GridStats" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblStr" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
@@ -357,6 +386,7 @@ text = "Force (FOR) :"
 [node name="InputStr" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -368,6 +398,7 @@ text = "Dextérité (DEX) :"
 [node name="InputDex" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -379,6 +410,7 @@ text = "Constitution (CON) :"
 [node name="InputCon" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -390,6 +422,7 @@ text = "Intelligence (INT) :"
 [node name="InputInt" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -401,6 +434,7 @@ text = "Sagesse (SAG) :"
 [node name="InputWis" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -412,6 +446,7 @@ text = "Charisme (CHA) :"
 [node name="InputCha" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridStats"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 30.0
 value = 10.0
@@ -421,6 +456,7 @@ layout_mode = 2
 
 [node name="GridCombat" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 4
 
 [node name="LblHp" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
@@ -430,6 +466,7 @@ text = "Points de Vie (PV) :"
 [node name="InputHp" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 999.0
 value = 10.0
@@ -441,6 +478,7 @@ text = "Classe d'Armure (CA) :"
 [node name="InputAc" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 50.0
 value = 10.0
@@ -453,6 +491,7 @@ text = "Niveau :"
 [node name="InputLevel" type="SpinBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridCombat"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 min_value = 1.0
 max_value = 20.0
 value = 1.0
@@ -463,7 +502,7 @@ layout_mode = 2
 [node name="LblMediumExtraTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Compétences & personnalité :"
 
 [node name="LblSkills" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -506,12 +545,13 @@ layout_mode = 2
 [node name="LblCompleteTitle" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.788235, 0.635294, 0.152941, 1)
+theme_type_variation = &"GoldLabel"
 text = "Fiche avancée (D&D) :"
 
 [node name="GridComplete" type="GridContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 columns = 2
 
 [node name="LblAlignment" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
@@ -522,6 +562,7 @@ text = "Alignement :"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_horizontal = 3
 placeholder_text = "ex: Loyal Bon"
 
 [node name="LblSpellcasting" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
@@ -531,6 +572,7 @@ text = "Lanceur de sorts :"
 [node name="InputSpellcasting" type="CheckBox" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/GridComplete"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Oui"
 
 [node name="LblProficiencies" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
@@ -588,7 +630,7 @@ size_flags_horizontal = 3
 [node name="LblModifiers" type="Label" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.607843, 0.564706, 0.501961, 1)
+theme_type_variation = &"MutedLabel"
 text = "Modificateurs : FOR +0 | DEX +0 | CON +0 | INT +0 | SAG +0 | CHA +0"
 autowrap_mode = 3
 
@@ -605,18 +647,4 @@ custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 placeholder_text = "Courte description, motivation, passé du personnage..."
 
-[node name="BtnRow" type="HBoxContainer" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-alignment = 1
 
-[node name="BtnSave" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/BtnRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-text = "💾 Enregistrer"
-
-[node name="BtnCancel" type="Button" parent="MainLayout/ContentArea/FormPanel/FormScroll/FormVBox/BtnRow"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Annuler"

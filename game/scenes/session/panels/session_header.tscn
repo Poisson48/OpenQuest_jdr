@@ -17,7 +17,6 @@ theme_override_constants/separation = 10
 
 [node name="BtnLeave" type="Button" parent="Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"DangerButton"
 tooltip_text = "Retourner au hub"
@@ -54,7 +53,6 @@ text = "Maître du Jeu"
 
 [node name="BtnDocks" type="Button" parent="Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 toggle_mode = true
@@ -64,7 +62,6 @@ text = "Panneaux"
 
 [node name="BtnPreview" type="Button" parent="Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_type_variation = &"GhostButton"
 toggle_mode = true

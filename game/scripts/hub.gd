@@ -14,17 +14,16 @@ const BotCardScene := preload("res://scenes/hub/panels/bot_card.tscn")
 @onready var inv_summary_lbl: Label = %InvSummaryLabel
 @onready var maps_sections_root: VBoxContainer = %MapsSectionsRoot
 @onready var maps_sort: OptionButton = %MapsSort
+@onready var maps_mode_filter: OptionButton = %MapsModeFilter
 @onready var maps_library_tabs: HBoxContainer = %MapsLibraryTabs
-@onready var btn_home: Button = %BtnHome
+@onready var top_bar = %TopBar
 @onready var btn_adv_new_char: Button = %BtnAdvNewChar
 @onready var btn_adv_scenarios: Button = %BtnAdvScenarios
 @onready var btn_adv_play: Button = %BtnAdvPlay
 @onready var btn_inv_new_char: Button = %BtnInvNewChar
 @onready var btn_inv_scenarios: Button = %BtnInvScenarios
 @onready var btn_inv_play: Button = %BtnInvPlay
-@onready var btn_new_map_world: Button = %BtnNewMapWorld
-@onready var btn_new_map_adv: Button = %BtnNewMapAdv
-@onready var btn_new_map_inv: Button = %BtnNewMapInv
+@onready var menu_maps_create: MenuButton = %MenuMapsCreate
 @onready var confirm_delete_map: ConfirmationDialog = %ConfirmDeleteMap
 @onready var confirm_publish_map: ConfirmationDialog = %ConfirmPublishMap
 @onready var confirm_delete_bot: ConfirmationDialog = %ConfirmDeleteBot
@@ -38,7 +37,7 @@ var _maps_library_tab_group: ButtonGroup
 
 func _ready() -> void:
 	# @onready résout les % avant ce corps ; ne pas reparente les onglets avant les connexions.
-	btn_home.pressed.connect(_on_home_pressed)
+	top_bar.back_pressed.connect(_on_home_pressed)
 	MultiplayerManager.game_started.connect(_on_remote_game_started)
 
 	btn_adv_new_char.pressed.connect(func(): GameData.go_to_character_editor("general"))
@@ -49,15 +48,12 @@ func _ready() -> void:
 	btn_inv_scenarios.pressed.connect(func(): GameData.go_to_scenario_list("investigation"))
 	btn_inv_play.pressed.connect(func(): GameData.go_to_game_setup("investigation"))
 
-	btn_new_map_world.pressed.connect(func(): _create_map("general", "world"))
-	btn_new_map_adv.pressed.connect(func(): _create_map("general", "local"))
-	btn_new_map_inv.pressed.connect(func(): _create_map("investigation", "local"))
-	_add_vtt_map_button()
+	menu_maps_create.get_popup().id_pressed.connect(_on_maps_create_selected)
 	confirm_delete_map.confirmed.connect(_on_confirm_delete_map)
 	confirm_publish_map.confirmed.connect(_on_confirm_publish_map)
 	confirm_delete_bot.confirmed.connect(_on_confirm_delete_bot)
 
-	_ensure_tab_scroll(["Aventures", "Enquête", "Cartes", "Bots"])
+	_ensure_tab_scroll(["Aventures", "Enquêtes", "Cartes", "Bots", "Multijoueur"])
 	_setup_full_width_tabs()
 	_apply_pending_hub_tab()
 	MapData.maps_updated.connect(_render_maps_tab)
@@ -65,9 +61,21 @@ func _ready() -> void:
 	LocaleSettings.locale_changed.connect(_on_locale_changed)
 	_setup_maps_library_tabs()
 	_setup_maps_sort()
+	_setup_maps_mode_filter()
 	_setup_bots_filter()
 	
 	_populate_hub_data()
+	get_tree().root.size_changed.connect(_apply_responsive_layout)
+	_apply_responsive_layout()
+
+## Replie les grilles d'action du hub quand la fenêtre est étroite.
+func _apply_responsive_layout() -> void:
+	var narrow := UiLayout.is_narrow_viewport()
+	for grid in tab_container.find_children("*", "GridContainer", true, false):
+		grid.columns = 1 if narrow else 2
+	for btn in tab_nav.get_children():
+		if btn is Button:
+			(btn as Button).clip_text = true
 
 func _on_locale_changed(_locale: String) -> void:
 	_setup_bots_filter()
@@ -89,20 +97,24 @@ func _apply_pending_hub_tab() -> void:
 			return
 
 func _setup_bots_filter() -> void:
-	var prev := _current_bots_filter_mode() if bots_filter.item_count > 0 else "all"
+	var prev := _current_bots_filter_mode() if bots_filter.item_count > 0 else "adventure"
+	if prev == "all":
+		prev = "adventure"
 	bots_filter.clear()
-	bots_filter.add_item(tr("Tous les modes"), 0)
-	bots_filter.set_item_metadata(0, "all")
-	bots_filter.add_item(tr("⚔️ Aventure & one-shots"), 1)
-	bots_filter.set_item_metadata(1, "adventure")
-	bots_filter.add_item(tr("🔍 Enquête"), 2)
-	bots_filter.set_item_metadata(2, "investigation")
+	bots_filter.add_item(tr("⚔️ Aventure & one-shots"), 0)
+	bots_filter.set_item_metadata(0, "adventure")
+	bots_filter.add_item(tr("🔍 Enquête"), 1)
+	bots_filter.set_item_metadata(1, "investigation")
 	if not bots_filter.item_selected.is_connected(_on_bots_filter_selected):
 		bots_filter.item_selected.connect(_on_bots_filter_selected)
+	var found := false
 	for i in bots_filter.item_count:
 		if str(bots_filter.get_item_metadata(i)) == prev:
 			bots_filter.selected = i
+			found = true
 			break
+	if not found:
+		bots_filter.selected = 0
 	if not bots_scroll.resized.is_connected(_on_bots_scroll_resized):
 		bots_scroll.resized.connect(_on_bots_scroll_resized)
 
@@ -119,8 +131,9 @@ func _on_bots_scroll_resized() -> void:
 func _current_bots_filter_mode() -> String:
 	var idx := bots_filter.selected
 	if idx >= 0 and idx < bots_filter.item_count:
-		return str(bots_filter.get_item_metadata(idx))
-	return "all"
+		var mode := str(bots_filter.get_item_metadata(idx))
+		return mode if mode != "all" else "adventure"
+	return "adventure"
 
 func _populate_hub_data() -> void:
 	# Stats aventures
@@ -143,6 +156,60 @@ func _setup_maps_sort() -> void:
 	maps_sort.add_item("Taille (grande → petite)", 2)
 	maps_sort.add_item("Scénario lié", 3)
 	maps_sort.item_selected.connect(func(_idx): _render_maps_tab())
+
+func _setup_maps_mode_filter() -> void:
+	if maps_mode_filter == null:
+		return
+	maps_mode_filter.clear()
+	maps_mode_filter.add_item("⚔️ Aventure", 0)
+	maps_mode_filter.set_item_metadata(0, "adventure")
+	maps_mode_filter.add_item("🔍 Enquête", 1)
+	maps_mode_filter.set_item_metadata(1, "investigation")
+	maps_mode_filter.selected = 0
+	if not maps_mode_filter.item_selected.is_connected(_on_maps_mode_selected):
+		maps_mode_filter.item_selected.connect(_on_maps_mode_selected)
+	_sync_maps_create_buttons()
+
+func _on_maps_mode_selected(_idx: int) -> void:
+	_sync_maps_create_buttons()
+	_render_maps_tab()
+
+func _current_maps_mode() -> String:
+	if maps_mode_filter == null or maps_mode_filter.selected < 0:
+		return "adventure"
+	return str(maps_mode_filter.get_item_metadata(maps_mode_filter.selected))
+
+## Menu unique de création : 2 entrées utiles selon le mode courant.
+const MAP_CREATE_WORLD := 0
+const MAP_CREATE_LOCAL := 1
+const MAP_CREATE_INV := 2
+const MAP_CREATE_VTT := 3
+const MAP_CREATE_VTT_INV := 4
+
+func _sync_maps_create_buttons() -> void:
+	var inv := _current_maps_mode() == "investigation"
+	var popup: PopupMenu = menu_maps_create.get_popup()
+	popup.clear()
+	if inv:
+		popup.add_item("🔍 Carte d'enquête", MAP_CREATE_INV)
+		popup.add_item("🧱 Battlemap enquête 3D", MAP_CREATE_VTT_INV)
+	else:
+		popup.add_item("🌍 Carte monde", MAP_CREATE_WORLD)
+		popup.add_item("⚔️ Carte d'aventure", MAP_CREATE_LOCAL)
+		popup.add_item("🧱 Battlemap 3D", MAP_CREATE_VTT)
+
+func _on_maps_create_selected(id: int) -> void:
+	match id:
+		MAP_CREATE_WORLD:
+			_create_map("general", "world")
+		MAP_CREATE_LOCAL:
+			_create_map("general", "local")
+		MAP_CREATE_INV:
+			_create_map("investigation", "local")
+		MAP_CREATE_VTT:
+			_create_complex_map("general")
+		MAP_CREATE_VTT_INV:
+			_create_complex_map("investigation")
 
 func _setup_maps_library_tabs() -> void:
 	if maps_library_tabs == null:
@@ -202,12 +269,21 @@ func _render_maps_tab() -> void:
 		child.queue_free()
 	var sort_mode := _current_maps_sort_mode()
 	var tab := _maps_library_tab
+	var maps_mode := _current_maps_mode()
 	var draft_prefix := "📝 " if tab == "draft" else ""
+
+	if maps_mode == "investigation":
+		var investigation := MapData.sort_maps(MapData.get_maps_by_category("investigation", tab), sort_mode)
+		_add_maps_section(
+			"%s🔍 Enquête" % draft_prefix,
+			"Lieux pour les dossiers d’enquête." if tab == "catalog" else "Brouillons de cartes d’enquête.",
+			investigation,
+			"investigation"
+		)
+		return
 
 	var world := MapData.sort_maps(MapData.get_maps_by_category("world", tab), sort_mode)
 	var adventure := MapData.sort_maps(MapData.get_maps_by_category("adventure", tab), sort_mode)
-	var investigation := MapData.sort_maps(MapData.get_maps_by_category("investigation", tab), sort_mode)
-
 	var simple_maps: Array = []
 	var complex_maps: Array = []
 	for m in adventure:
@@ -234,12 +310,6 @@ func _render_maps_tab() -> void:
 		complex_maps,
 		"adventure"
 	)
-	_add_maps_section(
-		"%s🔍 Enquête" % draft_prefix,
-		"Lieux pour les dossiers d’enquête." if tab == "catalog" else "Brouillons de cartes d’enquête.",
-		investigation,
-		"investigation"
-	)
 
 func _add_maps_section(title: String, hint: String, map_list: Array, category: String) -> void:
 	var section := VBoxContainer.new()
@@ -262,9 +332,9 @@ func _add_maps_section(title: String, hint: String, map_list: Array, category: S
 	if map_list.is_empty():
 		var empty := Label.new()
 		if _maps_library_tab == "draft":
-			empty.text = "Aucun brouillon ici — utilise les boutons « + » ci-dessus pour en créer un."
+			empty.text = "Aucun brouillon ici — utilise le menu « ＋ Nouvelle carte » ci-dessus."
 		else:
-			empty.text = "Aucune carte — publie un brouillon, ou crée-en une avec les boutons « + »."
+			empty.text = "Aucune carte — publie un brouillon, ou crée-en une avec le menu « ＋ Nouvelle carte »."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
 		section.add_child(empty)
@@ -313,27 +383,6 @@ func _create_map(roster: String, map_kind: String) -> void:
 	MapData.preview_map_id = map.get("id", "")
 	MapData.editor_mode = "edit"
 	get_tree().change_scene_to_file("res://scenes/map_viewer.tscn")
-
-func _add_vtt_map_button() -> void:
-	var row: Node = get_node_or_null("%MapsCreateRow")
-	if row == null:
-		if btn_new_map_adv == null or btn_new_map_adv.get_parent() == null:
-			return
-		row = btn_new_map_adv.get_parent()
-	var btn_vtt := Button.new()
-	btn_vtt.text = "+ Battlemap 3D"
-	btn_vtt.tooltip_text = "Crée une carte VTT complexe (tokens, brouillard, effets 3D)"
-	btn_vtt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_vtt.custom_minimum_size = Vector2(0, 40)
-	btn_vtt.pressed.connect(func(): _create_complex_map("general"))
-	row.add_child(btn_vtt)
-	var btn_vtt_inv := Button.new()
-	btn_vtt_inv.text = "+ Battlemap enquête 3D"
-	btn_vtt_inv.tooltip_text = "Battlemap VTT pour scénarios d'enquête"
-	btn_vtt_inv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_vtt_inv.custom_minimum_size = Vector2(0, 40)
-	btn_vtt_inv.pressed.connect(func(): _create_complex_map("investigation"))
-	row.add_child(btn_vtt_inv)
 
 func _create_complex_map(roster: String) -> void:
 	_maps_library_tab = "draft"
@@ -424,11 +473,7 @@ func _sorted_bots(bots: Array) -> Array:
 	return copy
 
 func _bot_grid_columns() -> int:
-	var available := int(bots_scroll.size.x)
-	if available < 320:
-		available = int(get_viewport().get_visible_rect().size.x) - 96
-	var cols := clampi(available / 210, 4, 5)
-	return cols
+	return 4
 
 func _add_bots_empty_state() -> void:
 	var empty_lbl := Label.new()
