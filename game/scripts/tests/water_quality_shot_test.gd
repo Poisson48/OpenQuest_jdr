@@ -96,14 +96,34 @@ func _run() -> void:
 		return
 
 	# Plan rapproché 1 : rive du lac (la caméra regarde vers −Z, l'eau à 0.42
-	# de haut ; rasante, on vise la rive NORD pour voir la mousse de contact).
-	engine._camera.position = Vector3(7.0, 2.0, 6.6)
-	engine._camera.rotation_degrees = Vector3(-25.0, 0.0, 0.0)
+	# de haut ; plongeante, on voit la rive NORD, la mousse de contact ET le
+	# haut-fond où la réfraction du lit doit dominer).
+	engine._camera.position = Vector3(7.0, 2.5, 6.7)
+	engine._camera.rotation_degrees = Vector3(-38.0, 0.0, 0.0)
 	for _i in range(3):
 		await process_frame
 	var lake_img: Image = await _shot(engine, SHOT_NAMES[0])
 	if lake_img != null:
 		_assert("lake_not_blank", not _is_blank(lake_img))
+
+	# --- A/B RÉFRACTION ÉCRAN (même caméra, lac) ----------------------------
+	# 0 = état exact précédent (lit jamais déformé), 1 = lit réfracté dans les
+	# hauts-fonds. On capture dans les deux sens pour juger le gain visuel.
+	var refr_mats := _refraction_materials(water)
+	_assert("refraction_materials", refr_mats.size() >= 2,
+		"n=%d" % refr_mats.size())
+	_set_refraction(refr_mats, 0.0)
+	var lake_refr_off: Image = await _shot(engine, "water_quality_lake_refr_off")
+	_set_refraction(refr_mats, 1.0)
+	var lake_refr_on: Image = await _shot(engine, "water_quality_lake_refr_on")
+	if lake_refr_off != null:
+		_assert("lake_refr_off_not_blank", not _is_blank(lake_refr_off))
+	if lake_refr_on != null:
+		_assert("lake_refr_on_not_blank", not _is_blank(lake_refr_on))
+	_assert("refraction_restored",
+		refr_mats.size() > 0 and is_equal_approx(
+			float((refr_mats[0] as ShaderMaterial)
+				.get_shader_parameter("refraction_enabled")), 1.0))
 
 	# Plan rapproché 2 : rivière (lit creusé, courant vers l'aval, rives du
 	# ruban) — caméra en aval du bief rectiligne, léger quart pour voir les rives.
@@ -115,12 +135,50 @@ func _run() -> void:
 	if river_img != null:
 		_assert("river_not_blank", not _is_blank(river_img))
 
+	# --- A/B RÉFRACTION ÉCRAN (même caméra, rivière) ------------------------
+	_set_refraction(refr_mats, 0.0)
+	var river_refr_off: Image = await _shot(engine, "water_quality_river_refr_off")
+	_set_refraction(refr_mats, 1.0)
+	var river_refr_on: Image = await _shot(engine, "water_quality_river_refr_on")
+	if river_refr_off != null:
+		_assert("river_refr_off_not_blank", not _is_blank(river_refr_off))
+	if river_refr_on != null:
+		_assert("river_refr_on_not_blank", not _is_blank(river_refr_on))
+
 	if _failed:
 		print("water_quality_shot_test:FAIL")
 		quit(1)
 		return
 	print("water_quality_shot_test:PASS")
 	quit(0)
+
+## Matériaux de SURFACE d'eau portant la réfraction écran (`refraction_enabled`)
+## — les matériaux de chute n'ont pas l'uniform et sont ignorés.
+func _refraction_materials(water) -> Array:
+	var mats: Array = []
+	if water == null:
+		return mats
+	for node in water._body_nodes:
+		if node == null or not is_instance_valid(node):
+			continue
+		var candidates: Array = []
+		if node.material_override is ShaderMaterial:
+			candidates.append(node.material_override)
+		if node.mesh is ArrayMesh:
+			for si in range((node.mesh as ArrayMesh).get_surface_count()):
+				var sm = (node.mesh as ArrayMesh).surface_get_material(si)
+				if sm is ShaderMaterial:
+					candidates.append(sm)
+		for m in candidates:
+			if (m as ShaderMaterial).get_shader_parameter("refraction_enabled") != null \
+					and not mats.has(m):
+				mats.append(m)
+	return mats
+
+## Bascule A/B de la réfraction écran (0 = état exact précédent, 1 = activée).
+func _set_refraction(mats: Array, on: float) -> void:
+	for m in mats:
+		(m as ShaderMaterial).set_shader_parameter("refraction_enabled", on)
 
 func _shot(engine: Control, name: String) -> Image:
 	for _i in range(4):

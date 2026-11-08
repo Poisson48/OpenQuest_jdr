@@ -42,6 +42,15 @@ render_mode blend_mix, cull_disabled;
 //   figé. Poids : le Fresnel existant (rasant = fort, vertical = faible),
 //   mixé avec le dégradé de ciel. `reflection_enabled = 0` rend EXACTEMENT
 //   l'ancien rendu (A/B réversible), `reflection_strength` dose le mélange.
+// - RÉFRACTION ÉCRAN (screen-space, méthode « Cities: Skylines II ») : le LIT
+//   déjà rendu (terrain sous la nappe, dans la copie opaque `screen_tex`)
+//   transparaît dans les hauts-fonds, légèrement déformé par les micro-vagues
+//   (`refr_uv = SCREEN_UV + normale_xz * refraction_scale * facteur_depth`).
+//   Le lit réfracté DOMINE en très faible profondeur et s'efface avec
+//   l'absorption ; il est cuit dans l'albédo à hauteur de la transmittance
+//   restante, donc mousse de rive, réflexions et glint gardent exactement
+//   leur poids. `refraction_enabled = 0` rend EXACTEMENT l'état précédent
+//   (A/B réversible), `refraction_strength` dose la distorsion.
 // - FLOW MAP À DEUX PHASES : deux advections décalées d'une demi-période,
 //   fondues par une fonction triangle — le courant défile sans couture.
 // - `night_tint` assombrit l'eau la nuit (même logique que le sol).
@@ -110,6 +119,13 @@ uniform float reflection_enabled : hint_range(0.0, 1.0) = 1.0;
 // Force du mélange du reflet d'écran (défaut doux : la surface reste de
 // l'eau, le décor n'y apparaît qu'en reflet).
 uniform float reflection_strength : hint_range(0.0, 1.0) = 0.35;
+// --- RÉFRACTION ÉCRAN (screen-space) ---------------------------------------
+// 0 = coupe la réfraction du lit et rend EXACTEMENT l'état précédent (A/B) ;
+// 1 = le lit déjà rendu transparaît, déformé par les micro-vagues.
+uniform float refraction_enabled : hint_range(0.0, 1.0) = 1.0;
+// Force de la distorsion du lit réfracté (défaut doux : 0.35 — la déformation
+// reste naturelle, jamais une loupe qui tord le fond).
+uniform float refraction_strength : hint_range(0.0, 1.0) = 0.35;
 
 // ===========================================================================
 // Bruits procéduraux (aucune texture, aucun asset)
@@ -230,6 +246,36 @@ void fragment() {
 	NORMAL = normalize(NORMAL + vec3(-tilt.x, 0.0, -tilt.y));
 	vec3 wave_normal = normalize(vec3(-tilt.x, 1.0, -tilt.y));
 
+	// --- RÉFRACTION ÉCRAN : échantillonnage du LIT (screen-space) -----------
+	// Le LIT déjà rendu (terrain sous la nappe — `screen_tex` est la copie
+	// OPAQUE, l'eau n'y est jamais présente) transparaît dans les hauts-fonds,
+	// déformé par la normale des micro-vagues. Facteur de PROFONDEUR : nul au
+	// contact exact (la mousse de rive garde la berge) et dès que l'absorption
+	// domine, plein sur la plage des hauts-fonds où le lit réfracté domine
+	// (depth01 < ~0.35) — la distorsion et le mélange suivent le même facteur.
+	float refr_depth = smoothstep(0.015, 0.09, depth01)
+		* (1.0 - smoothstep(0.30, 0.62, depth01));
+	vec3 refr_bed = vec3(0.0);
+	float refr_act = 0.0;
+	if (refraction_enabled > 0.5 && refr_depth > 0.001) {
+		// Distorsion BORNÉE (jamais plus de 0.045 UV écran) : pas de
+		// « ghosting » du lit qui traverserait la berge, jamais de déformation
+		// criarde.
+		vec2 refr_shift = clamp(
+			wave_normal.xz * (refraction_strength * 0.14) * refr_depth,
+			vec2(-0.045), vec2(0.045));
+		vec2 refr_uv = SCREEN_UV + refr_shift;
+		// Clampé, repli sur la couleur d'eau si hors écran (le poids tombe à 0).
+		vec2 refr_safe = clamp(refr_uv, vec2(0.0), vec2(1.0));
+		float refr_inside = smoothstep(0.0, 0.02, refr_uv.x)
+			* smoothstep(0.0, 0.02, 1.0 - refr_uv.x)
+			* smoothstep(0.0, 0.02, refr_uv.y)
+			* smoothstep(0.0, 0.02, 1.0 - refr_uv.y);
+		// LOD 0 : on veut le lit NET (les réflexions, elles, restent floues).
+		refr_bed = textureLod(screen_tex, refr_safe, 0.0).rgb;
+		refr_act = refr_depth * refr_inside * edge_fade;
+	}
+
 	// --- Scintillement solaire STRUCTURÉ (rare et filigrané) -----------------
 	// Deux bruits fins très haute fréquence, seuillés HAUT : quelques éclats
 	// isolés sur les crêtes des micro-vagues, jamais un voile de plaques. Les
@@ -258,6 +304,20 @@ void fragment() {
 	// teinte du fond transparaît d'autant plus que l'eau est mince.
 	float bed = 1.0 - smoothstep(0.0, 0.38, depth_tint);
 	water = mix(water, bed_color.rgb, bed * 0.26);
+	// --- RÉFRACTION : le lit réfracté DOMINE la lame d'eau claire ----------
+	// En très faible profondeur (depth01 < ~0.35) le corps d'eau n'est presque
+	// plus qu'une vitre : la couleur du corps devient le LIT réfracté, qui
+	// disparaît avec la profondeur (absorption). La teinte plate `bed_color`
+	// ci-dessus ne reste qu'un support teinté sous le lit réel. Les couches
+	// SUPÉRIEURES (relief, réflexions, glint, mousse) sont posées APRÈS :
+	// la réfraction ne les écrase jamais.
+	if (refraction_enabled > 0.5 && refr_act > 0.001) {
+		// Domination pondérée par (1 - depth01) et bornée par la force de
+		// réfraction : le lit domine sans effacer totalement l'eau.
+		float refr_body = refr_act * (1.0 - smoothstep(0.05, 0.38, depth01))
+			* clamp(refraction_strength * 1.7, 0.0, 0.85);
+		water = mix(water, refr_bed, refr_body);
+	}
 	// Variation macro douce : casse l'aplat uniforme de la surface.
 	float mottle = fbm2(wuv * 9.0 + vec2(t * 0.017, -t * 0.013));
 	water *= 0.94 + 0.12 * mottle;
@@ -465,6 +525,33 @@ void fragment() {
 	if (edge_softness > 0.001) {
 		float edge = smoothstep(0.0, 0.30, UV.x) * smoothstep(0.0, 0.30, 1.0 - UV.x);
 		ALPHA *= mix(1.0, edge, edge_softness);
+	}
+
+	// --- RÉFRACTION ÉCRAN : composite final ---------------------------------
+	// Le fond transmis (la transmittance `1 - alpha`) est REMPLACÉ par le lit
+	// réfracté : cuite dans l'albédo à hauteur de la transmittance gagnée,
+	// l'image de fond non déformée ne double donc jamais la réfraction (aucun
+	// ghosting). Aucune réfraction au contact (mousse de rive), sur les bords
+	// de nappe (`edge_fade`, `vertex_fade`) ni sur les bords latéraux du ruban
+	// — la réfraction ne touche jamais les bords. Mousse, réflexions et glint
+	// (déjà composés dans `water`) gardent leur poids : seul le fond transmis
+	// est remplacé.
+	if (refraction_enabled > 0.5 && refr_act > 0.001) {
+		float refr_gate = (1.0 - smoothstep(0.10, 0.70, contact)) * vertex_fade;
+		if (edge_softness > 0.001) {
+			refr_gate *= mix(1.0,
+				smoothstep(0.0, 0.30, UV.x) * smoothstep(0.0, 0.30, 1.0 - UV.x),
+				edge_softness);
+		}
+		float refr_w = refr_act * refr_gate;
+		if (refr_w > 0.001) {
+			float a0 = ALPHA;
+			float a1 = min(0.97, a0 + (1.0 - a0) * refr_w);
+			// Part « lit réfracté » cuite dans l'albédo = transmittance gagnée.
+			float baked = a1 - a0;
+			ALBEDO = (a0 * ALBEDO + baked * refr_bed) / max(a1, 0.001);
+			ALPHA = a1;
+		}
 	}
 	ROUGHNESS = 0.12;
 	METALLIC = 0.15;
