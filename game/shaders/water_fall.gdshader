@@ -1,77 +1,135 @@
 shader_type spatial;
 render_mode blend_mix, cull_disabled;
 
-// Nappe d'eau qui tombe (cascade / chute) de la carte 2.5D : plan vertical
-// translucide strié, animé vers le bas, avec écume en haut et en bas.
+// Rideau de CHUTE d'eau (cascade) de la carte 2.5D.
 //
-// - UV : UV du maillage vertical — UV.y = 0 en bas (réception de la chute),
-//   UV.y = 1 en haut (bord où le courant quitte le plateau) ; UV.x = 0..1 en
-//   travers de la nappe.
-// - Chute : stries verticales procédurales (fréquence haute en X, lissées en
-//   Y) qui glissent vers le bas — la phase contient TIME * fall_speed — avec
-//   un léger scintillement pour l'aspect « eau vive ».
-// - Écume : accumulation en bas (impact de la chute) et liseré en haut (saut
-//   du courant), animée elle aussi vers le bas.
-// - Translucidité : ALPHA autour de 0.8, un peu plus opaque dans l'écume.
-// - `night_tint` assombrit l'eau la nuit (0 = jour, 1 = nuit).
+// La nappe est un quad accroché à la paroi visible, du bord du plateau (crête)
+// jusqu'au pied (bassin). UV : UV.y = 0 au pied, UV.y = 1 à la crête ;
+// UV.x = 0..1 en travers du rideau.
+//
+// Ce qui fait « eau qui tombe » plutôt qu'un panneau plat :
+//  • des LAMES VERTICALES (bruit blanc très étiré en Y) qui filent vers le bas
+//    à `fall_speed`, de plusieurs échelles (larges lames + filaments fins) ;
+//  • des LAMES BLANCHES nettes sur les crêtes du bruit (écume entraînée) ;
+//  • l'écume de CRÊTE (l'eau bascule par-dessus le bord) et de PIED (impact) ;
+//  • une BRUME au pied (nappe douce, animée, qui déborde du rideau) ;
+//  • une TRANSPARENCE de fond : la roche se lit derrière le rideau, plus
+//    opaque dans l'écume que dans le cœur de la lame ;
+//  • des BORDS FONDUS sur les quatre côtés (aucune arête de panneau) ;
+//  • une légère émission sur l'écume : elle reste blanche même à l'ombre.
 //
 // Le shader reste éclairé (spatial) : la lumière de la scène module l'albédo.
-// Tout le motif est généré procéduralement (comme water_surface.gdshader) :
-// `fall_noise` est déclaré pour compatibilité avec le moteur mais inutilisé.
+// `fall_noise` est conservé pour compatibilité avec le moteur mais inutilisé
+// (tout le motif est procédural, comme `water_surface.gdshader`).
 
-uniform sampler2D fall_noise : source_color;   // inutilisé (bruit 100 % procédural)
-uniform float fall_speed = 1.6;        // vitesse de chute du motif
+uniform sampler2D fall_noise : source_color;   // inutilisé (bruit procédural)
+uniform float fall_speed = 1.8;                // vitesse de chute du motif
 uniform vec4 water_tint : source_color = vec4(0.55, 0.75, 0.85, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.9, 0.95, 1.0, 1.0);
-uniform float night_tint : hint_range(0.0, 1.0) = 0.0;   // 0 jour, 1 nuit (assombrit)
+uniform float night_tint : hint_range(0.0, 1.0) = 0.0;   // 0 jour, 1 nuit
+
+// Bruit de valeur 2D lissé (déterministe, sans texture).
+float hash21(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+
+float value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash21(i);
+	float b = hash21(i + vec2(1.0, 0.0));
+	float c = hash21(i + vec2(0.0, 1.0));
+	float d = hash21(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Fractal de 3 octaves, normalisé ~0..1.
+float fbm(vec2 p) {
+	float v = 0.0;
+	float amp = 0.5;
+	for (int i = 0; i < 3; i++) {
+		v += amp * value_noise(p);
+		p *= 2.03;
+		amp *= 0.5;
+	}
+	return v / 0.875;
+}
 
 void fragment() {
-	// Chute du motif : la phase verticale croît avec le temps, donc le motif
-	// glisse vers le bas (UV.y décroissant). Fréquence verticale faible pour
-	// des stries continues sur toute la hauteur de la nappe.
-	float fy = UV.y * 2.0 + TIME * fall_speed;
-	// Étincelles : couche rapide (descente ~2x) juste devant la nappe.
-	float fy_fast = UV.y * 1.5 + TIME * fall_speed * 1.5;
+	// t = 0 au pied, 1 à la crête. `flow` fait DESCENDRE le motif (un motif
+	// échantillonné en t + flow remonte en t quand le temps croît).
+	float t = UV.y;
+	float flow = TIME * fall_speed;
 
-	// Stries verticales : trois sinus de fréquences X différentes, déformés
-	// par la chute (turbulence légère).
-	float s1 = sin(UV.x * 21.0 + sin(fy * 1.7) * 1.2);
-	float s2 = sin(UV.x * 37.0 - fy * 1.3 + 1.7);
-	float s3 = sin(UV.x * 9.0 + fy * 2.1 + 4.2);
-	float streaks = s1 * 0.5 + s2 * 0.3 + s3 * 0.2;   // -1..1
-	float streak01 = streaks * 0.5 + 0.5;             // 0..1
+	// --- Lames d'eau verticales : bruit étiré en Y, à trois échelles --------
+	// Les lames larges donnent le corps du rideau ; les filaments fins la
+	// texture « filante » de l'eau qui accélère en tombant.
+	float n1 = fbm(vec2(UV.x * 13.0, t * 1.5 + flow * 1.05));
+	float n2 = fbm(vec2(UV.x * 31.0 + 2.7, t * 2.2 + flow * 1.85));
+	float n3 = value_noise(vec2(UV.x * 67.0 + 5.3, t * 3.2 + flow * 2.7));
+	float streak = clamp(n1 * 0.48 + n2 * 0.34 + n3 * 0.30, 0.0, 1.0);
+	// Contraste : les creux restent bien bleus, les crêtes franchement blanches.
+	streak = smoothstep(0.18, 0.86, streak);
 
-	// Scintillement : étincelles fines qui filent elles aussi vers le bas.
-	float sparkle = pow(
-		max(sin(UV.x * 63.0 + fy_fast * 3.1) * sin(UV.x * 29.0 - fy_fast * 1.9 + 2.2), 0.0),
-		6.0
-	);
+	// LAMES BLANCHES : les crêtes du bruit s'éclairent en écume entraînée ;
+	// des filaments plus fins accélèrent la lecture « eau qui file ».
+	float blades = smoothstep(0.56, 0.90, streak);
+	float filaments = smoothstep(0.74, 0.97,
+		value_noise(vec2(UV.x * 113.0 + 9.1, t * 1.8 + flow * 3.2)));
 
-	// Couleur : eau teintée entrecoupée de LAMES BLANCHES (les stries portent
-	// l'écume) — une chute se lit en blanc/bleu, jamais en aplat sombre.
-	float white = clamp(streak01 * 0.75 + sparkle * 0.5, 0.0, 1.0);
-	vec3 water = mix(water_tint.rgb, foam_color.rgb, white);
-	water = mix(water, foam_color.rgb, foam);
+	// --- Écume de crête : le courant bascule par-dessus le bord -------------
+	float lip = smoothstep(0.78, 1.0, t);
+	float lip_foam = lip * smoothstep(0.18, 0.72,
+		value_noise(vec2(UV.x * 21.0, t * 7.0 - flow * 2.4)) + lip * 0.40);
 
-	// Écume : accumulation en bas (réception de la chute) et liseré en haut
-	// (saut du courant) ; elle bout avec le motif qui tombe.
-	float foam_bottom = 1.0 - smoothstep(0.0, 0.20, UV.y);
-	float foam_top = smoothstep(0.86, 1.0, UV.y);
-	float foam_zone = max(foam_bottom * 0.9, foam_top * 0.55);
-	float foam = clamp(foam_zone * (0.55 + 0.45 * streak01), 0.0, 1.0);
-	water = mix(water, foam_color.rgb, foam);
+	// --- Écume de pied : impact, ébullition, brume qui déborde --------------
+	float foot_band = 1.0 - smoothstep(0.02, 0.34, t);
+	float boiling = value_noise(vec2(UV.x * 11.0, t * 9.0 - flow * 2.6));
+	float mist = value_noise(vec2(UV.x * 5.5 + 3.0, t * 3.5 - flow * 0.9));
+	float foot_foam = foot_band * (0.50 + 0.50 * boiling);
+	float haze = (1.0 - smoothstep(0.0, 0.45, t)) * (0.30 + 0.70 * mist);
+	float foam = clamp(max(max(foot_foam, lip_foam * 0.85), blades * 0.30), 0.0, 1.0);
+	// Bande de CRÊTE : l'eau s'aère en basculant par-dessus le seuil — rideau
+	// dense et blanc qui masque la surface du bief amont. Plus bas, le rideau
+	// redevient limpide et laisse lire la paroi.
+	float crest = smoothstep(0.62, 0.84, t);
+	foam = clamp(max(foam, crest * (0.60 + 0.40 * streak)), 0.0, 1.0);
 
+	// --- Couleur : cœur bleu-vert, lames et écume blanches ------------------
+	vec3 deep = water_tint.rgb * (0.66 + 0.34 * streak);
+	vec3 col = mix(deep, foam_color.rgb, clamp(blades * 0.55 + filaments * 0.30 + foam * 0.85, 0.0, 1.0));
+	// Brume au pied : voile blanc diffus qui s'ajoute par-dessus la nappe.
+	col = mix(col, foam_color.rgb, haze * foot_band * 0.27);
+	// L'eau s'aère en basculant : la crête s'éclaircit et s'opacifie.
+	col = mix(col, foam_color.rgb, lip * 0.28 + crest * 0.30);
 	// Nuit : assombrissement progressif de la nappe entière.
 	vec3 night = mix(vec3(1.0), vec3(0.42, 0.50, 0.62), night_tint);
-	ALBEDO = water * night;
+	ALBEDO = col * night;
+	// L'écume reste lumineuse (sinon la chute s'écrase en aplat sombre).
+	EMISSION = foam_color.rgb * (foam * 0.28 + haze * foot_band * 0.10)
+		* (1.0 - 0.55 * night_tint);
 
-	// Normale frémissante : les reflets dansent avec les stries.
-	NORMAL = normalize(NORMAL + vec3(streaks * 0.10, sparkle * 0.12, 0.0));
+	// Normale frémissante : les lames et l'ébullition font danser les reflets.
+	NORMAL = normalize(NORMAL + vec3((streak - 0.5) * 0.34, (boiling - 0.5) * 0.22, 0.0));
 
-	// Translucidité : l'eau qui tombe laisse voir la paroi derrière elle, avec
-	// des BORDS FONDUS (le maillage ne doit pas se voir comme un panneau).
-	float edge_fade = smoothstep(0.0, 0.16, UV.x) * smoothstep(0.0, 0.16, 1.0 - UV.x);
-	ALPHA = clamp(0.60 + streaks * 0.06 + foam * 0.18, 0.0, 0.90) * edge_fade;
-	ROUGHNESS = 0.12;
-	METALLIC = 0.10;
+	// --- Transparence : on voit la paroi derrière le rideau -----------------
+	float edge_x = smoothstep(0.0, 0.20, UV.x) * smoothstep(0.0, 0.20, 1.0 - UV.x);
+	// Bords haut/bas fondus : la crête rejoint la rivière (effilochée par le
+	// courant), le pied rejoint le bassin — aucune arête franche de panneau.
+	float top_wisp = smoothstep(0.86, 1.0, t)
+		* value_noise(vec2(UV.x * 19.0, t * 9.0 - flow * 2.5));
+	float edge_top = clamp(1.0 - top_wisp * 0.75 - smoothstep(0.975, 1.0, t) * 0.55, 0.0, 1.0);
+	float edge_bottom = smoothstep(0.0, 0.055, t);
+	float body_alpha = mix(0.26, 0.74, clamp(foam + blades * 0.26 + filaments * 0.12, 0.0, 1.0));
+	body_alpha = clamp(body_alpha + crest * 0.14, 0.0, 0.97);
+	ALPHA = clamp(body_alpha * edge_x * edge_top * edge_bottom, 0.0, 0.97);
+	// La brume du pied reste plus transparente, mais déborde jusqu'en bas.
+	ALPHA = max(ALPHA, haze * 0.24 * edge_x * smoothstep(0.0, 0.10, t));
+
+	ROUGHNESS = 0.10;
+	METALLIC = 0.0;
+	SPECULAR = 0.55;
 }

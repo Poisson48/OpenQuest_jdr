@@ -455,6 +455,10 @@ func _build_material() -> void:
 
 ## Dénivelé (cases) à partir duquel un segment de rivière devient une cascade.
 const FALL_MIN_DROP := 0.75
+## Pente du sol visible (cases de dénivelé par case horizontale) à partir de
+## laquelle le ressaut est une CHUTE : en deçà, c'est une simple pente douce
+## que le ruban d'eau courante suffit à draper.
+const FALL_MIN_SLOPE := 1.2
 const WATER_FALL_SHADER_PATH := "res://shaders/water_fall.gdshader"
 
 ## Nombre de bassins rendus (0 si l'eau utilise le plan historique).
@@ -759,6 +763,50 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	# Surface 0 = eau courante (ruban + bourrelets), surface 1 = cascades.
 	var s0 := _empty_surface_arrays()
 	var s1 := _empty_surface_arrays()
+	# --- Chutes : repérage sur le SOL VISIBLE (heightfield du terrain) -------
+	# `dense.y` suit la surface de POSE lissée (convention historique, utilisée
+	# par le ruban d'eau courante) ; le sol réellement rendu est le heightfield
+	# à sommets moyennés (`height_at`), décalé d'une demi-case sur les ressauts.
+	# Une nappe calée sur `dense.y` s'enfouit donc dans la falaise : on repère
+	# les descentes raides du maillage et on accroche le rideau dessus.
+	var ground_y := PackedFloat32Array()
+	ground_y.resize(dense.size())
+	var field := _ensure_terrain_field()
+	for gi in range(dense.size()):
+		var gp: Vector3 = dense[gi]
+		ground_y[gi] = field.height_at(gp.x, gp.z) + water_depth
+	# Chaque entrée = [indice du point de crête, indice du point de pied] ; le
+	# rideau couvre d'un bord du plateau à l'autre, d'un seul tenant.
+	var falls: Array = []
+	var fi := 0
+	while fi < dense.size() - 1:
+		var fa: Vector3 = dense[fi]
+		var fb: Vector3 = dense[fi + 1]
+		var f_flat := Vector2(fb.x - fa.x, fb.z - fa.z).length()
+		var f_drop := ground_y[fi] - ground_y[fi + 1]
+		if f_drop <= 0.0 or f_drop / maxf(f_flat, 0.001) < FALL_MIN_SLOPE:
+			fi += 1
+			continue
+		var start_i := fi
+		var end_i := fi
+		var total_drop := 0.0
+		while end_i < dense.size() - 1:
+			var e0: Vector3 = dense[end_i]
+			var e1: Vector3 = dense[end_i + 1]
+			var e_flat := Vector2(e1.x - e0.x, e1.z - e0.z).length()
+			var e_drop := ground_y[end_i] - ground_y[end_i + 1]
+			if e_drop <= 0.0 \
+					or e_drop / maxf(e_flat, 0.001) < FALL_MIN_SLOPE * 0.55:
+				break
+			total_drop += e_drop
+			end_i += 1
+		if total_drop >= FALL_MIN_DROP:
+			# Un point de plateau en amont (crête) et un point de plaine en
+			# aval (pied) : le rideau joint les deux nappes sans trou.
+			falls.append([maxi(0, start_i - 1), mini(dense.size() - 1, end_i + 1)])
+			fi = end_i + 1
+		else:
+			fi = maxi(fi + 1, end_i)
 	var inv_w := 1.0 / maxf(float(_map_w) * cell, 0.0001)
 	var inv_h := 1.0 / maxf(float(_map_h) * cell, 0.0001)
 	var v_run := 0.0
@@ -790,47 +838,65 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 			v_run += seg_len
 		else:
 			if in_fall:
-				# Au milieu d'une chute déjà couverte par sa nappe unique.
+				# Au milieu d'une chute déjà couverte par son rideau.
 				v_run += seg_len
 				continue
-			# DÉBUT d'une chute : repérer la fin du groupe de segments qui
-			# descendent, puis poser UNE SEULE nappe du haut du saut au bas.
-			var j := i
-			while j < dense.size() - 1:
-				var dj: Vector3 = (dense[j + 1] as Vector3) - (dense[j] as Vector3)
-				if absf(dj.y) < FALL_MIN_DROP:
-					break
-				j += 1
-			var hi: Vector3 = dense[i]
-			var lo: Vector3 = dense[j + 1]
-			if lo.y > hi.y:
-				var tmp := hi
-				hi = lo
-				lo = tmp
-			var top_side := _path_side(dense, i, widths[i])
-			var bot_side := _path_side(dense, j + 1, widths[j + 1])
-			var dir := flat.normalized()
-			# Nappe unique : paroi du haut jusqu'au pied, légèrement arc-boutée
-			# vers l'aval — une cascade, pas une pile de panneaux.
-			var foot: Vector3 = lo + Vector3(dir.x, 0.0, dir.y) * 0.18
-			_append_quad(s1,
-				[hi, hi, foot, foot],
-				[-top_side, top_side, -bot_side, bot_side],
-				[Vector2(0.0, 1.0), Vector2(1.0, 1.0),
-					Vector2(0.0, 0.0), Vector2(1.0, 0.0)],
-				Vector3(dir.x, 0.0, dir.y), cell, inv_w, inv_h)
-			# Bourrelet d'arrivée au pied de la chute.
-			var apron := Vector2(lo.x, lo.z) + dir * (width * 0.35)
-			_append_quad(s0,
-				[lo, lo, Vector3(apron.x, lo.y, apron.y), Vector3(apron.x, lo.y, apron.y)],
-				[-bot_side, bot_side, -bot_side, bot_side],
-				[Vector2(0.0, v_run), Vector2(1.0, v_run),
-					Vector2(0.0, v_run + width * 0.35 * cell),
-					Vector2(1.0, v_run + width * 0.35 * cell)],
-				Vector3.UP, cell, inv_w, inv_h)
+			# DÉBUT d'une chute : le ruban d'eau courante s'interrompt ; le
+			# rideau et son bourrelet sont posés plus bas, sur le maillage.
 			v_run += seg_len
-			fall_faces += 1
 			in_fall = true
+	# --- Rideaux de chute : UNE seule nappe par ressaut, accrochée à la paroi
+	# visible, du bord du plateau jusqu'au pied. Le pied s'écarte légèrement
+	# vers l'aval (la lame d'eau ressort) et s'évase : la silhouette n'est pas
+	# un panneau rectangle, et les bords se fondent dans l'écume.
+	for fall in falls:
+		var i0 := int(fall[0])
+		var i1 := int(fall[1])
+		if i1 <= i0:
+			continue
+		var top: Vector3 = dense[i0]
+		var bot: Vector3 = dense[i1]
+		var flat_vec := Vector2(bot.x - top.x, bot.z - top.z)
+		if flat_vec.length() <= 0.001:
+			continue
+		var fall_dir := flat_vec.normalized()
+		var top_side := _path_side(dense, i0, widths[i0] * 1.06)
+		var bot_side := _path_side(dense, i1, widths[i1] * 1.12)
+		# Le pied se décolle un peu de la paroi (aval) : la lame tombe au lieu
+		# d'être plaquée comme une peinture.
+		var lean := minf(flat_vec.length() * 0.22, 0.55)
+		# CRÊTE : on se cale sur le niveau de la rivière amont (surface lissée)
+		# pour un raccord sans marche ; PIED : sur le niveau de la plaine aval.
+		# Le rideau baigne ainsi dans les deux nappes, sans lèvre qui dépasse.
+		var top_y := minf(top.y + 0.03, ground_y[i0] + 0.06)
+		var bot_y := ground_y[i1] + 0.02
+		var top_c := Vector3(top.x, top_y, top.z)
+		var bot_c := Vector3(bot.x + fall_dir.x * lean, bot_y,
+			bot.z + fall_dir.y * lean)
+		_append_quad(s1,
+			[top_c, top_c, bot_c, bot_c],
+			[-top_side, top_side, -bot_side, bot_side],
+			[Vector2(0.0, 1.0), Vector2(1.0, 1.0),
+				Vector2(0.0, 0.0), Vector2(1.0, 0.0)],
+			Vector3(fall_dir.x, 0.0, fall_dir.y), cell, inv_w, inv_h)
+		# BOURRELET de pied : anneau d'eau à la surface du bief aval, juste
+		# devant le rideau, qui raccorde la nappe au fil de l'eau (et porte
+		# l'écume d'impact du shader de surface). Il est posé au niveau du
+		# bassin, pas au milieu de la pente.
+		var apron_y := ground_y[i1] + 0.04
+		var apron_len := width * 0.35
+		var apron_end := Vector2(bot_c.x, bot_c.z) + fall_dir * apron_len
+		_append_quad(s0,
+			[Vector3(bot_c.x, apron_y, bot_c.z), Vector3(bot_c.x, apron_y, bot_c.z),
+				Vector3(apron_end.x, apron_y, apron_end.y),
+				Vector3(apron_end.x, apron_y, apron_end.y)],
+			[-bot_side, bot_side, -bot_side, bot_side],
+			[Vector2(0.0, v_run), Vector2(1.0, v_run),
+				Vector2(0.0, v_run + apron_len * cell),
+				Vector2(1.0, v_run + apron_len * cell)],
+			Vector3.UP, cell, inv_w, inv_h)
+		v_run += apron_len * cell
+		fall_faces += 1
 	var arrays0 := _finish_surface_arrays(s0)
 	var arrays1 := _finish_surface_arrays(s1)
 	# NB : `_finish_surface_arrays` renvoie un tableau VIDE (pas null) sans
