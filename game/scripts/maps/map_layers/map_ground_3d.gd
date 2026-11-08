@@ -72,6 +72,9 @@ const GROUND_MODE_ILLUSTRATED := "illustrated"
 const TERRAIN_TILE_CELLS := 2.0
 ## Un tableau de hauteurs n'est « relief » que si une case dépasse ce seuil.
 const TERRAIN_RELIEF_EPSILON := 0.001
+## Force de l'auto-matériau par pente/altitude (méthode CS2) : 1 = actif,
+## 0 = rendu historique (réversibilité). Les splats peints restent prioritaires.
+const TERRAIN_AUTO_MATERIAL_STRENGTH := 1.0
 ## Palette du terrain 3D (couleurs sRGB).
 const TERRAIN_GRASS := Color(0.36, 0.52, 0.27)
 const TERRAIN_EARTH := Color(0.50, 0.39, 0.26)
@@ -646,6 +649,7 @@ func set_shore_texture(tex: Texture2D) -> void:
 ## Sinon (pas de matières / textures absentes) : matériau de repli actuel —
 ## texture de détail d'herbe tuilable (si livrée) + vertex colors de palette.
 func _apply_terrain_material(night_mode: bool) -> void:
+	var cell_size := float(_cfg.get("cell_size", 1.0))
 	if _splat_active:
 		var shader_mat := ShaderMaterial.new()
 		shader_mat.shader = TERRAIN_SPLAT_SHADER
@@ -661,6 +665,20 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		)
 		shader_mat.set_shader_parameter("vertex_color_strength", 1.0)
 		shader_mat.set_shader_parameter("blend_sharpness", 1.0)
+		# Repère de la projection triplanaire : une répétition de texture vaut
+		# TERRAIN_TILE_CELLS cases, exprimée en unités monde pour que le
+		# terrain et les clusters de creusement partagent le même alignement.
+		shader_mat.set_shader_parameter(
+			"tile_world_size", cell_size * TERRAIN_TILE_CELLS)
+		# AUTO-MATÉRIAU (méthode CS2) : bornes d'altitude en unités monde pour
+		# que le shader place la roche sur les pentes, la terre sur les
+		# contreforts et la neige sur les sommets des zones non peintes.
+		shader_mat.set_shader_parameter(
+			"terrain_min_height", _terrain_min * cell_size)
+		shader_mat.set_shader_parameter(
+			"terrain_max_height", _terrain_max * cell_size)
+		shader_mat.set_shader_parameter(
+			"auto_material_strength", TERRAIN_AUTO_MATERIAL_STRENGTH)
 		if _shore_texture != null:
 			shader_mat.set_shader_parameter("shore_tex", _shore_texture)
 			shader_mat.set_shader_parameter("shore_enabled", 1.0)

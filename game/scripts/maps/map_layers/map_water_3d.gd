@@ -1119,37 +1119,85 @@ func _make_river_depth(dense: Array, width: float) -> Dictionary:
 ## Matériau de surface d'un bassin : copie du shader d'eau avec le sens
 ## d'écoulement (les vagues dérivent le long de `flow_dir`). `edge_softness`
 ## atténue l'alpha sur les bords latéraux du ruban (rivières).
+##
+## Réglages « qualité CS2 » : mousse de contact, micro-vagues, lisibilité du
+## lit et scintillement se règlent ici — l'échelle de détail n'est pas la même
+## sur un lac que sur un ruban de rivière. Les uniforms non posés gardent les
+## valeurs par défaut du shader.
 func _make_body_material(depth_texture: ImageTexture,
 		flow_dir: Vector2, flow_speed: float,
 		edge_softness: float = 0.0) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = WATER_SHADER
 	mat.set_shader_parameter("depth_map", depth_texture)
-	# Rivière (ruban animé) : teinte un peu plus vive et écume presque nulle
-	# (eau calme) ; les lacs gardent la teinte historique.
+	# Lac : teinte historique, surface plutôt calme avec une dérive lente (le
+	# vent anime l'eau, sans courant marqué), mousse de rive discrète mais
+	# lisible, caustiques visibles sur le lit des hauts-fonds.
 	var shallow := SHALLOW_COLOR
 	var deep := DEEP_COLOR
-	var foam := 1.0
-	var foam_w := 0.12
+	var foam := 0.6
+	var foam_w := 0.10
+	var wave_strength := 0.08
+	var wave_speed := 0.8
+	var flow_strength := 0.65
+	var foam_scale := 1.8
+	var glint := 1.0
+	var caustic := 0.45
+	var bed := Color(0.44, 0.48, 0.31)
+	# Ciel réfléchi (dégradé) et extinction par profondeur : l'eau d'un lac est
+	# plus « dense » en profondeur qu'un ruisseau peu profond.
+	var sky := Color(0.52, 0.66, 0.76)
+	var horizon := Color(0.82, 0.88, 0.90)
+	var extinction := 2.2
+	var depth_bias := 0.0
+	# Rivière (ruban animé) : teinte un peu plus vive, mousse de contact plus
+	# fine et plus marquée le long des berges, dérive pleine dans le sens du
+	# courant, caustiques plus discrètes (lit plus profond et plus ombré).
 	if edge_softness > 0.0:
 		shallow = Color(0.24, 0.55, 0.58)
 		deep = Color(0.05, 0.18, 0.30)
-		foam = 0.15
-		foam_w = 0.035
+		foam = 0.9
+		foam_w = 0.35
+		wave_strength = 0.18
+		wave_speed = 1.1
+		flow_strength = 1.0
+		foam_scale = 2.4
+		glint = 1.15
+		caustic = 0.28
+		bed = Color(0.40, 0.44, 0.30)
+		sky = Color(0.58, 0.70, 0.78)
+		horizon = Color(0.80, 0.86, 0.88)
+		# Eau courante mince : le fond reste lisible plus longtemps (la
+		# profondeur normalisée du ruban est proche de 1 partout).
+		extinction = 1.6
+		depth_bias = -0.28
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)
 	mat.set_shader_parameter("foam_color", FOAM_COLOR)
+	mat.set_shader_parameter("bed_color", bed)
+	mat.set_shader_parameter("sky_color", sky)
+	mat.set_shader_parameter("horizon_color", horizon)
+	mat.set_shader_parameter("depth_extinction", extinction)
+	mat.set_shader_parameter("depth_bias", depth_bias)
 	mat.set_shader_parameter("night_tint", NIGHT_TINT if _night_mode else Color.WHITE)
 	mat.set_shader_parameter("base_alpha", BASE_ALPHA)
 	mat.set_shader_parameter("alpha_depth", ALPHA_DEPTH)
-	mat.set_shader_parameter("wave_strength", 0.08)
-	mat.set_shader_parameter("wave_speed", 0.9)
+	mat.set_shader_parameter("wave_strength", wave_strength)
+	mat.set_shader_parameter("wave_speed", wave_speed)
 	mat.set_shader_parameter("foam_strength", foam)
 	mat.set_shader_parameter("foam_width", foam_w)
+	mat.set_shader_parameter("foam_scale", foam_scale)
+	mat.set_shader_parameter("glint_strength", glint)
+	mat.set_shader_parameter("caustic_strength", caustic)
 	mat.set_shader_parameter("flow_dir", flow_dir)
 	mat.set_shader_parameter("flow_speed", flow_speed)
-	mat.set_shader_parameter("flow_strength", 1.0)
+	mat.set_shader_parameter("flow_strength", flow_strength)
 	mat.set_shader_parameter("edge_softness", edge_softness)
+	# Taille d'un texel de profondeur (UV) : le shader sonde le masque d'eau
+	# voisin pour placer la mousse de contact au VRAI bord terre/eau.
+	var tex_size := depth_texture.get_size()
+	mat.set_shader_parameter("depth_texel", Vector2(
+		1.0 / maxf(1.0, tex_size.x), 1.0 / maxf(1.0, tex_size.y)))
 	return mat
 
 ## Maillage d'un plan de bassin (polygone de cases à hauteur `y_world`),
