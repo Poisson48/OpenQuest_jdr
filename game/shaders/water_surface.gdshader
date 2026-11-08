@@ -35,6 +35,13 @@ render_mode blend_mix, cull_disabled;
 // - RÉFLEXION DE CIEL (Fresnel) : `horizon_color` au ras de l'eau (angles
 //   rasants), `sky_color` vers la verticale ; le reflet ondule avec la pente
 //   des micro-vagues. Intensité pilotée par `sky_reflect`.
+// - RÉFLEXION ÉCRAN (screen-space, méthode « Cities: Skylines II ») : la
+//   surface reflète le DÉCOR rendu (terrain, falaises, berges) en lisant la
+//   copie de l'écran opaque (`screen_tex`) avec un décalage UV perturbé par
+//   la normale des micro-vagues — le reflet est « wavey », pas un miroir
+//   figé. Poids : le Fresnel existant (rasant = fort, vertical = faible),
+//   mixé avec le dégradé de ciel. `reflection_enabled = 0` rend EXACTEMENT
+//   l'ancien rendu (A/B réversible), `reflection_strength` dose le mélange.
 // - FLOW MAP À DEUX PHASES : deux advections décalées d'une demi-période,
 //   fondues par une fonction triangle — le courant défile sans couture.
 // - `night_tint` assombrit l'eau la nuit (même logique que le sol).
@@ -42,6 +49,10 @@ render_mode blend_mix, cull_disabled;
 // Le shader reste éclairé (spatial) : la lumière de la scène module l'albédo.
 
 uniform sampler2D depth_map : filter_linear, repeat_disable;
+// Copie de l'écran OPAQUE (terrain, falaises, berges derrière la nappe) :
+// l'eau est transparente (blend_mix + ALPHA), elle peut donc se mirer dans
+// le décor déjà rendu — c'est la base des réflexions screen-space.
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
 uniform vec4 shallow_color : source_color = vec4(0.20, 0.47, 0.48, 1.0);
 uniform vec4 deep_color : source_color = vec4(0.05, 0.20, 0.28, 1.0);
 uniform vec4 foam_color : source_color = vec4(0.78, 0.88, 0.88, 1.0);
@@ -92,6 +103,13 @@ uniform float shore_texels : hint_range(0.1, 4.0) = 0.6;
 // Intensité du reflet de ciel (Fresnel) : teinte laiteuse au ras de l'eau sur
 // les vues inclinées, reflet plus dense vers la verticale.
 uniform float sky_reflect : hint_range(0.0, 1.0) = 0.32;
+// --- RÉFLEXION ÉCRAN (screen-space) ---------------------------------------
+// 0 = coupe le reflet d'écran et rend EXACTEMENT l'ancien rendu (A/B) ;
+// 1 = le décor se mire dans la surface avec le poids Fresnel.
+uniform float reflection_enabled : hint_range(0.0, 1.0) = 1.0;
+// Force du mélange du reflet d'écran (défaut doux : la surface reste de
+// l'eau, le décor n'y apparaît qu'en reflet).
+uniform float reflection_strength : hint_range(0.0, 1.0) = 0.35;
 
 // ===========================================================================
 // Bruits procéduraux (aucune texture, aucun asset)
@@ -283,6 +301,42 @@ void fragment() {
 	sky_grad = mix(sky_grad, horizon_color.rgb,
 		clamp(tilt.y * 1.4 + 0.5, 0.0, 1.0) * 0.30);
 	water = mix(water, sky_grad, fres * sky_reflect);
+
+	// --- RÉFLEXION ÉCRAN (screen-space, méthode « Cities: Skylines II ») ---
+	// La surface reflète le décor RENDU derrière elle (terrain, falaises,
+	// berges) : `screen_tex` est échantillonné avec un décalage UV perturbé
+	// par la normale des micro-vagues (reflet « wavey » qui ondule avec le
+	// clapot). Bloc conditionné par `reflection_enabled` : à 0, le rendu est
+	// strictement l'état historique (A/B réversible).
+	if (reflection_enabled > 0.5) {
+		// Perturbation de surface : les micro-vagues déplacent le point
+		// échantillonné. Amplitude BORNÉE (jamais plus de 0.07 UV écran) pour
+		// éviter le « ghosting » qui traverse la berge.
+		vec2 refl_shift = clamp(wave_normal.xz * 0.5, vec2(-0.07), vec2(0.07));
+		// Le reflet vient de l'au-delà du point d'eau : il MONTe vers le haut
+		// de l'écran (berge opposée, falaises), d'autant plus que la vue est
+		// rasante (Fresnel haut).
+		vec2 refl_uv = SCREEN_UV + refl_shift
+			+ vec2(0.0, -(0.05 + 0.26 * fres));
+		// Hors écran → repli sur le dégradé de ciel (jamais de bord noir).
+		vec2 refl_safe = clamp(refl_uv, vec2(0.0), vec2(1.0));
+		float inside = smoothstep(0.0, 0.03, refl_uv.x)
+			* smoothstep(0.0, 0.03, 1.0 - refl_uv.x)
+			* smoothstep(0.0, 0.03, refl_uv.y)
+			* smoothstep(0.0, 0.03, 1.0 - refl_uv.y);
+		vec3 screen_col = textureLod(screen_tex, refl_safe, 1.0).rgb;
+		// Couleur réfléchie : le décor écran, mixé avec la couleur de CIEL
+		// Fresnel actuelle (repli hors écran, teinte d'ambiance au centre).
+		vec3 refl_col = mix(sky_grad, screen_col, inside * 0.85);
+		// Poids : le Fresnel existant (rasant = fort reflet, vertical =
+		// faible), avec un plancher doux pour la vue quasi zénithale de la
+		// carte. Atténué dans les TRÈS FAIBLES profondeurs (la mousse de
+		// rive et la berge restent opaques, aucun reflet qui les traverse)
+		// et sur la coupe du masque (pas de fantôme au bord de la nappe).
+		float refl_w = reflection_strength * (0.35 + 0.65 * fres)
+			* smoothstep(0.02, 0.18, depth01) * edge_fade;
+		water = mix(water, refl_col, refl_w);
+	}
 
 	// Le scintillement se pose sur la surface réfléchie.
 	water += vec3(glint) * 0.22;

@@ -1347,6 +1347,11 @@ func _make_body_material(depth_texture: ImageTexture,
 	# profondeur dans le shader) — plus d'anneau blanc épais et uniforme.
 	var shore_texels := 0.6
 	var sky_reflect := 0.24
+	# Réflexion ÉCRAN (screen-space) : le décor (berges, falaises) se mire
+	# dans la surface avec le poids Fresnel. Lac : reflet doux (0.35) qui
+	# colore la rive proche sans laver l'eau.
+	var reflect_on := 1.0
+	var reflect_str := 0.35
 	# Rivière (ruban animé) : teinte un peu plus vive, mousse de contact plus
 	# fine et plus marquée le long des berges, dérive pleine dans le sens du
 	# courant, caustiques plus discrètes (lit plus profond et plus ombré).
@@ -1374,6 +1379,10 @@ func _make_body_material(depth_texture: ImageTexture,
 		# libres du ruban, surtout près des chutes).
 		shore_texels = 1.2
 		sky_reflect = 0.22
+		# Ruban étroit entre des berges proches : reflet écran présent mais
+		# discret (0.32), pour que les rives se lisent dans le chenal sans
+		# laver la clarté du flux.
+		reflect_str = 0.32
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)
 	mat.set_shader_parameter("foam_color", FOAM_COLOR)
@@ -1399,6 +1408,11 @@ func _make_body_material(depth_texture: ImageTexture,
 	# Liseré de mousse de contact (rayon de sonde en texels) et reflet de ciel.
 	mat.set_shader_parameter("shore_texels", shore_texels)
 	mat.set_shader_parameter("sky_reflect", sky_reflect)
+	# Réflexion écran (screen-space) : activée par défaut, `reflect_on = 0`
+	# rend exactement l'ancien rendu (A/B réversible) ; `reflect_str` dose le
+	# mélange décor/ciel réfléchi.
+	mat.set_shader_parameter("reflection_enabled", reflect_on)
+	mat.set_shader_parameter("reflection_strength", reflect_str)
 	# Taille d'un texel de profondeur (UV) : le shader sonde le masque d'eau
 	# voisin pour placer la mousse de contact au VRAI bord terre/eau.
 	var tex_size := depth_texture.get_size()
