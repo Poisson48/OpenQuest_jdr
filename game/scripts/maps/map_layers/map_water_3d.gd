@@ -459,6 +459,15 @@ const FALL_MIN_DROP := 0.75
 ## laquelle le ressaut est une CHUTE : en deçà, c'est une simple pente douce
 ## que le ruban d'eau courante suffit à draper.
 const FALL_MIN_SLOPE := 1.2
+## Rayon (cases) de la fenêtre de lissage des directions latérales du ruban :
+## la rotation d'un coude se répartit sur ±`SIDE_SMOOTH_RADIUS` cases, donc la
+## silhouette du virage décrit un ARC au lieu de deux bords rectilignes qui se
+## coupent en un coin marqué.
+const SIDE_SMOOTH_RADIUS := 0.7
+## Pas de sous-échantillonnage minimal (cases) dans les virages serrés : le
+## ruban gagne des sommets aux fortes courbures (le tracé ne bouge pas, le
+## masque de profondeur est inchangé).
+const CURVE_STEP_MIN := 0.08
 const WATER_FALL_SHADER_PATH := "res://shaders/water_fall.gdshader"
 
 ## Nombre de bassins rendus (0 si l'eau utilise le plan historique).
@@ -760,6 +769,15 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		var from_end: float = total_len - runs[i]
 		var taper := clampf(minf(from_start, from_end) / 1.2, 0.0, 1.0)
 		widths[i] = maxf(0.10, geo_width * (0.20 + 0.80 * taper))
+	# 5bis) Sous-échantillonnage aux FORTES COURBURES : les segments voisins
+	#       d'un coude sont découpés plus fin (`CURVE_STEP_MIN` au plus serré),
+	#       `y` et largeurs interpolés linéairement. Le tracé lui-même ne bouge
+	#       pas : le masque de profondeur (rastérisé sur le même tracé) reste
+	#       strictement identique, et la densité de sommets obtenue permet au
+	#       lissage latéral (`_path_side`) de dessiner un vrai arc au coude.
+	var refined := _subdivide_curvature(dense, widths)
+	dense = refined["dense"]
+	widths = refined["widths"]
 	# Surface 0 = eau courante (ruban + bourrelets), surface 1 = cascades.
 	var s0 := _empty_surface_arrays()
 	var s1 := _empty_surface_arrays()
@@ -834,7 +852,8 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 				[-side_a, side_a, -side_b, side_b],
 				[Vector2(0.0, v_run), Vector2(1.0, v_run),
 					Vector2(0.0, v_run + seg_len), Vector2(1.0, v_run + seg_len)],
-				Vector3.UP, cell, inv_w, inv_h)
+				Vector3.UP, cell, inv_w, inv_h,
+				_visibility_fades([a, a, b, b], [-side_a, side_a, -side_b, side_b]))
 			v_run += seg_len
 		else:
 			if in_fall:
@@ -860,8 +879,11 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		if flat_vec.length() <= 0.001:
 			continue
 		var fall_dir := flat_vec.normalized()
-		var top_side := _path_side(dense, i0, widths[i0] * 1.06)
-		var bot_side := _path_side(dense, i1, widths[i1] * 1.12)
+		# Rideau TRAPÉZOÏDAL : un peu plus étroit à la crête (le seuil borde le
+		# chenal), il s'évase légèrement vers le pied — la silhouette n'est plus
+		# un panneau rectangulaire à coins vifs.
+		var top_side := _path_side(dense, i0, widths[i0] * 0.96)
+		var bot_side := _path_side(dense, i1, widths[i1] * 1.05)
 		# Le pied se décolle un peu de la paroi (aval) : la lame tombe au lieu
 		# d'être plaquée comme une peinture.
 		var lean := minf(flat_vec.length() * 0.22, 0.55)
@@ -879,22 +901,28 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 			[Vector2(0.0, 1.0), Vector2(1.0, 1.0),
 				Vector2(0.0, 0.0), Vector2(1.0, 0.0)],
 			Vector3(fall_dir.x, 0.0, fall_dir.y), cell, inv_w, inv_h)
-		# BOURRELET de pied : anneau d'eau à la surface du bief aval, juste
-		# devant le rideau, qui raccorde la nappe au fil de l'eau (et porte
-		# l'écume d'impact du shader de surface). Il est posé au niveau du
-		# bassin, pas au milieu de la pente.
+		# BOURRELET de pied : anneau d'eau EFFILÉ à la surface du bief aval,
+		# juste devant le rideau — large au contact de la chute, effilé vers
+		# l'aval et fondu de partout (opacité par couleur de sommet). Il reste
+		# DANS le masque de profondeur (demi-largeur < 1.2 texel-case) : c'est
+		# son propre bord adouci qui ferme la nappe, jamais la coupe droite du
+		# masque (qui allumait une bande d'écume rectiligne de chaque côté).
+		# Il porte l'écume d'impact du shader de surface et se pose au niveau
+		# du bassin, pas au milieu de la pente.
 		var apron_y := ground_y[i1] + 0.04
-		var apron_len := width * 0.35
+		var apron_len := width * 0.60
 		var apron_end := Vector2(bot_c.x, bot_c.z) + fall_dir * apron_len
+		var nose_side := bot_side * 0.20
 		_append_quad(s0,
 			[Vector3(bot_c.x, apron_y, bot_c.z), Vector3(bot_c.x, apron_y, bot_c.z),
 				Vector3(apron_end.x, apron_y, apron_end.y),
 				Vector3(apron_end.x, apron_y, apron_end.y)],
-			[-bot_side, bot_side, -bot_side, bot_side],
+			[-bot_side * 0.92, bot_side * 0.92, -nose_side, nose_side],
 			[Vector2(0.0, v_run), Vector2(1.0, v_run),
 				Vector2(0.0, v_run + apron_len * cell),
 				Vector2(1.0, v_run + apron_len * cell)],
-			Vector3.UP, cell, inv_w, inv_h)
+			Vector3.UP, cell, inv_w, inv_h,
+			[0.45, 0.45, 0.10, 0.10])
 		v_run += apron_len * cell
 		fall_faces += 1
 	var arrays0 := _finish_surface_arrays(s0)
@@ -909,7 +937,11 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	var level := level_sum / float(maxi(1, dense.size() - 1))
 	var depth_data := _make_river_depth(dense, geo_width)
 	var speed := float((body as Dictionary).get("flow_speed", 0.35))
-	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.15)
+	# Bords de ruban FONDUS : l'alpha s'amenuise sur le dernier cinquième de la
+	# largeur, de chaque côté — la nappe s'achève en lame d'eau qui lappe la
+	# berge au lieu d'un bord de maillage franc (sans exposer la dentelle de
+	# mousse de rive sur toute sa largeur).
+	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.5)
 	var mesh := ArrayMesh.new()
 	if not arrays0.is_empty():
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays0)
@@ -932,61 +964,158 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 func _terrain_top_at(x: float, z: float) -> float:
 	return _ensure_terrain_field().top_surface_at(x, z)
 
-## Demi-largeur latérale d'un ruban au point `i` : perpendiculaire à la
-## bissectrice des directions voisines — les quads se rejoignent exactement
-## dans les virages.
-func _path_side(dense: Array, i: int, width: float) -> Vector2:
-	var d := Vector2.ZERO
-	if i > 0:
-		var prev: Vector3 = dense[i - 1]
-		var here: Vector3 = dense[i]
-		var dv := Vector2(here.x - prev.x, here.z - prev.z)
-		if dv.length() > 0.001:
-			d += dv.normalized()
-	if i < dense.size() - 1:
-		var here: Vector3 = dense[i]
-		var next: Vector3 = dense[i + 1]
-		var dv := Vector2(next.x - here.x, next.z - here.z)
-		if dv.length() > 0.001:
-			d += dv.normalized()
-	# Virage en épingle : les deux directions s'annulent → prendre la
-	# perpendiculaire du segment ENTRANT (sinon le ruban se replie).
-	if d.length() <= 0.001:
+## Sol VISIBLE RENDU (en cases) sous (x, z) — référence des MASQUES d'eau.
+##
+## Sur une colonne intacte, `top_surface_at` renvoie la bilinéaire de pose
+## historique, alors que le maillage de sol rendu est `height_at` (sommets
+## moyennés) : sur un ressaut, le maillage monte d'une demi-case AU-DESSUS de
+## la bilinéaire et découpe la nappe en un bord rectangulaire dur. Le masque de
+## profondeur doit donc mesurer la profondeur face au VRAI sol visible — c'est
+## le shader (fondue d'alpha + liseré de rive) qui dessine alors la ligne
+## d'eau, au lieu du bord géométrique du maillage. Sur une colonne creusée ou
+## sculptée, `top_surface_at` est déjà le sol visible (scan du champ) : on le
+## garde tel quel, l'eau remplit toujours les creux.
+func _visible_ground_at(x: float, z: float) -> float:
+	var field := _ensure_terrain_field()
+	var top := field.top_surface_at(x, z)
+	if is_equal_approx(top, field.cell_bilinear(x, z)):
+		return maxf(top, field.height_at(x, z))
+	return top
+
+## Sous-échantillonne le ruban aux FORTES COURBURES : chaque segment voisin
+## d'un coude est découpé jusqu'à `CURVE_STEP_MIN` cases, `y` et largeurs
+## interpolés linéairement entre les points existants. Le tracé lui-même ne
+## bouge pas (les points ajoutés sont exactement sur les segments) : le masque
+## de profondeur reste identique, seuls les sommets du MAILLAGE se densifient —
+## condition pour que le lissage latéral dessine un arc régulier au coude.
+func _subdivide_curvature(dense: Array, widths: PackedFloat32Array) -> Dictionary:
+	if dense.size() < 2:
+		return {"dense": dense, "widths": widths}
+	# Angle de virage (radians, repère XZ) au voisinage de chaque point.
+	var turns := PackedFloat32Array()
+	turns.resize(dense.size())
+	for i in range(dense.size()):
+		var d0 := Vector2.ZERO
+		var d1 := Vector2.ZERO
 		if i > 0:
-			var prev2: Vector3 = dense[i - 1]
-			var here2: Vector3 = dense[i]
-			var dv2 := Vector2(here2.x - prev2.x, here2.z - prev2.z)
-			if dv2.length() > 0.001:
-				d = dv2.normalized()
-		if d.length() <= 0.001:
-			d = Vector2.RIGHT
-	# Réduction de largeur dans les virages serrés : au-delà d'un certain
-	# angle, le ruban se replierait sur lui-même (triangles parasites).
-	var shrink := 1.0
-	if i > 0 and i < dense.size() - 1:
-		var pa: Vector3 = dense[i - 1]
-		var pb: Vector3 = dense[i]
-		var pc: Vector3 = dense[i + 1]
-		var d0 := Vector2(pb.x - pa.x, pb.z - pa.z)
-		var d1 := Vector2(pc.x - pb.x, pc.z - pb.z)
+			var pa0: Vector3 = dense[i - 1]
+			var pb0: Vector3 = dense[i]
+			d0 = Vector2(pb0.x - pa0.x, pb0.z - pa0.z)
+		if i < dense.size() - 1:
+			var pb1: Vector3 = dense[i]
+			var pc1: Vector3 = dense[i + 1]
+			d1 = Vector2(pc1.x - pb1.x, pc1.z - pb1.z)
 		if d0.length() > 0.001 and d1.length() > 0.001:
-			var turn := clampf((d0.normalized().dot(d1.normalized()) + 1.0) * 0.5, 0.0, 1.0)
-			shrink = 0.45 + 0.55 * turn
-	return Vector2(-d.y, d.x).normalized() * (width * 0.5 * shrink)
+			turns[i] = acos(clampf(d0.normalized().dot(d1.normalized()), -1.0, 1.0))
+	var out: Array = []
+	var out_w := PackedFloat32Array()
+	out.append(dense[0])
+	out_w.append(widths[0])
+	for i in range(dense.size() - 1):
+		var a: Vector3 = dense[i]
+		var b: Vector3 = dense[i + 1]
+		var seg := Vector2(b.x - a.x, b.z - a.z).length()
+		var theta := maxf(turns[i], turns[i + 1])
+		var step := clampf(0.25 / (1.0 + 3.0 * theta), CURVE_STEP_MIN, 0.25)
+		var n := maxi(1, ceili(seg / step))
+		for k in range(1, n):
+			var t := float(k) / float(n)
+			out.append(a.lerp(b, t))
+			out_w.append(lerpf(widths[i], widths[i + 1], t))
+		out.append(b)
+		out_w.append(widths[i + 1])
+	return {"dense": out, "widths": out_w}
+
+## Demi-largeur latérale d'un ruban au point `i`.
+##
+## La direction latérale est perpendiculaire à la tangente LOCALE LISSÉE sur
+## une fenêtre glissante (`SIDE_SMOOTH_RADIUS` cases dans chaque sens) : les
+## quads voisins partagent exactement le même vecteur latéral (aucune déchirure
+## aux joints) et la rotation d'un virage se répartit sur plusieurs sommets —
+## la silhouette du coude décrit un ARC au lieu de deux bords rectilignes qui
+## se coupent en un coin marqué. Le MITER est limité deux fois : `shrink`
+## resserre le ruban selon l'angle du virage (mesuré sur la fenêtre), et le
+## rayon de courbure borne la demi-largeur — le ruban ne se replie jamais sur
+## lui-même dans un virage serré.
+func _path_side(dense: Array, i: int, width: float) -> Vector2:
+	var back := Vector2.ZERO
+	var fwd := Vector2.ZERO
+	var dist := 0.0
+	var j := i
+	while j > 0 and dist < SIDE_SMOOTH_RADIUS:
+		var pa: Vector3 = dense[j - 1]
+		var pb: Vector3 = dense[j]
+		var dv := Vector2(pb.x - pa.x, pb.z - pa.z)
+		var seg := dv.length()
+		if seg > 0.001:
+			back += dv.normalized() * minf(seg, SIDE_SMOOTH_RADIUS - dist)
+			dist += seg
+		j -= 1
+	dist = 0.0
+	j = i
+	while j < dense.size() - 1 and dist < SIDE_SMOOTH_RADIUS:
+		var pa: Vector3 = dense[j]
+		var pb: Vector3 = dense[j + 1]
+		var dv := Vector2(pb.x - pa.x, pb.z - pa.z)
+		var seg := dv.length()
+		if seg > 0.001:
+			fwd += dv.normalized() * minf(seg, SIDE_SMOOTH_RADIUS - dist)
+			dist += seg
+		j += 1
+	var d := back + fwd
+	# Virage en épingle : les deux sens s'annulent → prendre la direction
+	# entrante (sinon le ruban se replie).
+	if d.length() <= 0.001:
+		if back.length() > 0.001:
+			d = back
+		elif fwd.length() > 0.001:
+			d = fwd
+		else:
+			d = Vector2.RIGHT
+	# Angle du virage sur la fenêtre (radians) : base du miter limit.
+	var turn := 0.0
+	if back.length() > 0.001 and fwd.length() > 0.001:
+		turn = acos(clampf(back.normalized().dot(fwd.normalized()), -1.0, 1.0))
+	var shrink := 1.0
+	if turn > 0.0:
+		shrink = 0.45 + 0.55 * clampf((cos(turn) + 1.0) * 0.5, 0.0, 1.0)
+	var half := width * 0.5 * shrink
+	# Miter limit : la demi-largeur ne dépasse jamais le rayon de courbure du
+	# virage (fenêtre / angle) — jamais de repli ni de pointe au coude.
+	if turn > 0.001:
+		half = minf(half, (2.0 * SIDE_SMOOTH_RADIUS) / turn * 0.85)
+	return Vector2(-d.y, d.x).normalized() * half
+
+## Opacité par sommet d'un quad de ruban : la nappe s'amenuise là où elle
+## affleure le sol visible rendu, et disparaît juste avant que le maillage de
+## terrain ne la recouvre (talus, ressauts — la nappe de pose y plonge sous le
+## sol rendu). La ligne d'eau devient un DÉGRADÉ d'alpha, jamais le bord
+## rectangulaire du maillage de terrain.
+func _visibility_fades(centers: Array, sides: Array) -> Array:
+	var fades: Array = []
+	for k in range(4):
+		var c: Vector3 = centers[k]
+		var sd: Vector2 = sides[k]
+		var depth := c.y - _visible_ground_at(c.x + sd.x, c.z + sd.y)
+		fades.append(smoothstep(-0.03, 0.18, depth))
+	return fades
 
 ## Tableaux vides d'une surface (accumulateur des quads).
 func _empty_surface_arrays() -> Dictionary:
 	return {
 		"verts": PackedVector3Array(), "normals": PackedVector3Array(),
 		"uvs": PackedVector2Array(), "uv2s": PackedVector2Array(),
-		"indices": PackedInt32Array(),
+		"colors": PackedColorArray(), "indices": PackedInt32Array(),
 	}
 
 ## Ajoute un quad (4 coins : centre + demi-largeur latérale) à une surface.
+## `fades` porte l'OPACITÉ par sommet (canal R de la couleur de sommet, lue
+## par le shader d'eau) : 1.0 partout sauf aux extrémités à fondre.
 ## NOTE Godot : un PackedArray sorti d'un Dictionary est **copié** par `as` ou
 ## par un `var` typé — on mutte donc toujours via `s["..."]` directement.
 func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
-		normal: Vector3, cell: float, inv_w: float, inv_h: float) -> void:
+		normal: Vector3, cell: float, inv_w: float, inv_h: float,
+		fades: Array = [1.0, 1.0, 1.0, 1.0]) -> void:
 	var base: int = s["verts"].size()
 	for k in range(4):
 		var c: Vector3 = centers[k]
@@ -996,6 +1125,8 @@ func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
 		s["normals"].append(normal)
 		s["uvs"].append(uvs[k])
 		s["uv2s"].append(Vector2(v.x * inv_w, v.z * inv_h))
+		var fade := clampf(float(fades[k]), 0.0, 1.0)
+		s["colors"].append(Color(fade, fade, fade, 1.0))
 	s["indices"].append_array(PackedInt32Array([
 		base, base + 2, base + 1, base + 1, base + 2, base + 3]))
 
@@ -1008,6 +1139,7 @@ func _finish_surface_arrays(s: Dictionary) -> Array:
 	arrays[Mesh.ARRAY_NORMAL] = s["normals"]
 	arrays[Mesh.ARRAY_TEX_UV] = s["uvs"]
 	arrays[Mesh.ARRAY_TEX_UV2] = s["uv2s"]
+	arrays[Mesh.ARRAY_COLOR] = s["colors"]
 	arrays[Mesh.ARRAY_INDEX] = s["indices"]
 	return arrays
 
@@ -1095,6 +1227,7 @@ func _make_river_depth(dense: Array, width: float) -> Dictionary:
 				continue
 			var wx := (float(tx) + 0.5) * inv_res
 			var wz := (float(tz) + 0.5) * inv_res
+			# Profondeur face au sol de pose (masque historique inchangé).
 			max_depth = maxf(max_depth, levels[idx] - field.top_surface_at(wx, wz))
 	var inv_depth := 1.0 / maxf(max_depth, 0.02)
 	for tz in range(th):
@@ -1105,7 +1238,10 @@ func _make_river_depth(dense: Array, width: float) -> Dictionary:
 			if levels[idx] != -INF:
 				# Masque par PROFONDEUR : l'eau n'apparaît que là où le sol
 				# est SOUS le niveau — c'est le terrain qui dessine les rives
-				# (le maillage déborde, la nappe est découpée au bord).
+				# (le maillage déborde, la nappe est découpée au bord). Le
+				# masque garde la convention historique (`top_surface_at`) :
+				# c'est le SHADER (opacité par sommet + fondus de bord) qui
+				# adoucit la ligne d'eau, jamais le masque lui-même.
 				var wx := (float(tx) + 0.5) * inv_res
 				var wz := (float(tz) + 0.5) * inv_res
 				var depth := levels[idx] - field.top_surface_at(wx, wz)

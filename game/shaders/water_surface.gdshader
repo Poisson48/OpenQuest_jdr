@@ -361,11 +361,20 @@ void fragment() {
 	float extinction = 1.0 - exp(-depth_extinction * depth_tint);
 	float depth_alpha = base_alpha + alpha_depth * extinction;
 	depth_alpha *= mix(0.55, 1.0, smoothstep(0.01, 0.45, depth_tint));
+	// --- Bords de nappe ------------------------------------------------------
+	// Opacité par SOMMET (couleur de sommet, canal R, rivières) : elle fond la
+	// LAME d'eau là où elle affleure le sol rendu (nappe qui s'amenuise avant
+	// de passer sous le maillage de terrain) mais laisse l'ÉCUME intacte — le
+	// liseré de rive reste lisible même là où la nappe devient transparente.
+	float vertex_fade = 1.0;
+	if (edge_softness > 0.001) {
+		vertex_fade = clamp(COLOR.r, 0.0, 1.0);
+	}
 	// Bords de nappe : l'eau s'amenuise sur le bord du masque (feuille) et
 	// s'affine encore au contact exact (lame d'eau qui lappe la berge) ; la
 	// mousse reste OPAQUE (elle masque le fond au lieu de se laver).
 	float lapping = mix(1.0, 0.72, smoothstep(0.60, 1.0, contact));
-	ALPHA = clamp(mix(depth_alpha * edge_fade * lapping, 0.94, foam), 0.0, 0.97);
+	ALPHA = clamp(mix(depth_alpha * edge_fade * lapping * vertex_fade, 0.94, foam), 0.0, 0.97);
 	// Bords de ruban fondus (rivières) : atténuation latérale de l'alpha.
 	if (edge_softness > 0.001) {
 		float edge = smoothstep(0.0, 0.20, UV.x) * smoothstep(0.0, 0.20, 1.0 - UV.x);

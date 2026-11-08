@@ -116,15 +116,25 @@ void fragment() {
 	NORMAL = normalize(NORMAL + vec3((streak - 0.5) * 0.34, (boiling - 0.5) * 0.22, 0.0));
 
 	// --- Transparence : on voit la paroi derrière le rideau -----------------
-	float edge_x = smoothstep(0.0, 0.20, UV.x) * smoothstep(0.0, 0.20, 1.0 - UV.x);
+	// Bords latéraux FONDUS et IRREGULIERS : la largeur du fondu ondule avec
+	// les lames (bruits lents le long de la chute) — le rideau ne se termine
+	// plus par deux droites verticales ni par un rectangle de translucidité.
+	float side_n = value_noise(vec2(t * 4.5, UV.x * 6.0 + 2.7));
+	float side_n2 = value_noise(vec2(t * 2.1 + 4.4, UV.x * 3.0));
+	float sx = min(UV.x, 1.0 - UV.x);
+	float edge_x = smoothstep(0.0, 0.13 + 0.17 * side_n + 0.08 * side_n2, sx);
 	// Bords haut/bas fondus : la crête rejoint la rivière (effilochée par le
 	// courant), le pied rejoint le bassin — aucune arête franche de panneau.
-	float top_wisp = smoothstep(0.86, 1.0, t)
+	float top_wisp = smoothstep(0.80, 1.0, t)
 		* value_noise(vec2(UV.x * 19.0, t * 9.0 - flow * 2.5));
-	float edge_top = clamp(1.0 - top_wisp * 0.75 - smoothstep(0.975, 1.0, t) * 0.55, 0.0, 1.0);
-	float edge_bottom = smoothstep(0.0, 0.055, t);
+	float edge_top = clamp(1.0 - top_wisp * 0.85 - smoothstep(0.965, 1.0, t) * 0.65, 0.0, 1.0);
+	float foot_n = value_noise(vec2(UV.x * 6.5 + 1.3, t * 2.0 + flow * 0.4));
+	float edge_bottom = smoothstep(0.0, 0.035 + 0.055 * foot_n, t);
 	float body_alpha = mix(0.26, 0.74, clamp(foam + blades * 0.26 + filaments * 0.12, 0.0, 1.0));
 	body_alpha = clamp(body_alpha + crest * 0.14, 0.0, 0.97);
+	// Le voile translucide du cœur s'amenuise lui aussi vers les bords : plus
+	// aucun rectangle de lavage autour des lames.
+	body_alpha *= mix(0.30, 1.0, edge_x);
 	ALPHA = clamp(body_alpha * edge_x * edge_top * edge_bottom, 0.0, 0.97);
 	// La brume du pied reste plus transparente, mais déborde jusqu'en bas.
 	ALPHA = max(ALPHA, haze * 0.24 * edge_x * smoothstep(0.0, 0.10, t));

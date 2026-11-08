@@ -135,12 +135,15 @@ vec2 stretch_fix(vec2 uv, vec2 axis, float s) {
 // Projection triplanaire d'une matière : ZY (paroi face X), XZ (sol) et XY
 // (paroi face Z), pondérées par la normale monde. Les trois projections sont
 // passées par `stretch_fix` en amont : même échelle partout, aucun fondu en
-// traînées. La projection XZ réutilise l'anti-tiling historique ; les parois
+// traînées. La projection XZ réutilise l'anti-tiling historique — MAIS
+// uniquement à plat (`anti` < 1 sur les pentes) : sur une pente, le warp de
+// correction d'étirement déforme l'image DÉDOUBLÉE de l'anti-tiling en
+// traînées le long de la pente (le « dédoublement de motif »). Les parois
 // se contentent d'un échantillon (net, et le triplanar casse déjà la
 // répétition).
-vec3 sample_triplanar(sampler2D tex, vec2 uv_sx, vec2 uv_top, vec2 uv_sz, vec3 w) {
+vec3 sample_triplanar(sampler2D tex, vec2 uv_sx, vec2 uv_top, vec2 uv_sz, vec3 w, float anti) {
 	vec3 side_x = texture(tex, uv_sx).rgb;
-	vec3 top = sample_anti_tile(tex, uv_top);
+	vec3 top = mix(texture(tex, uv_top).rgb, sample_anti_tile(tex, uv_top), anti);
 	vec3 side_z = texture(tex, uv_sz).rgb;
 	return side_x * w.x + top * w.y + side_z * w.z;
 }
@@ -202,6 +205,10 @@ vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	float open = smoothstep(0.0, 0.16, h);
 	float n_lo = noise3(p * 1.3) - 0.5;
 	float n_mid = noise3(p * 3.3 + vec3(11.7, 41.3, 7.9)) - 0.5;
+	// Composante BASSE fréquence (longueur d'onde ~4 cases) : réservée à la
+	// ligne de neige — une composante plus fine y produisait des micro-taches
+	// sombres (trous de neige) le long de la ligne.
+	float n_far = noise3(p * 0.5 + vec3(3.1, 7.7, 13.9)) - 0.5;
 	float h_jit = (n_lo * 0.26 + n_mid * 0.13) * open;
 	float hb = clamp(h + h_jit, 0.0, 1.0);
 	float flat_n = abs(n.y);
@@ -213,16 +220,21 @@ vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	float patch = smoothstep(0.30, 0.70, noise3(p * 2.2 + vec3(51.0, 13.0, 29.0)));
 	float dirt_auto = smoothstep(0.14, 0.48, hb) * (1.0 - rock_auto)
 		* smoothstep(0.38, 0.72, flat_n) * (0.25 + 0.75 * patch);
-	// Neige : sommets, ligne douce et organique (bruit basse fréquence
-	// uniquement : pas de mouchetures numériques), elle ne tient pas sur les
-	// parois raides.
-	float snow_line = 0.64 + (n_lo * 0.22 + n_mid * 0.10) * open;
-	float snow_auto = smoothstep(snow_line - 0.12, snow_line + 0.14, h)
-		* smoothstep(0.30, 0.58, flat_n + n_lo * 0.16);
-	// La neige RECOUVRE la roche/terre au lieu de s'y additionner (les poids
-	// doivent rester normalisés : un mélange à 1.9 surexpose la neige).
-	rock_auto *= 1.0 - 0.80 * snow_auto;
-	dirt_auto *= 1.0 - 0.80 * snow_auto;
+	// Neige : sommets, ligne douce et organique — BRUIT BASSE FRÉQUENCE
+	// UNIQUEMENT (la frontière ondule à l'échelle du paysage, ~4 cases) :
+	// une composante fine y laissait des micro-taches sombres (trous de
+	// neige). Transition resserrée (zone mixte étroite) et neige qui tient
+	// aussi sur les pentes marquées : la roche ne perce plus en taches.
+	float snow_line = 0.64 + n_far * 0.24 * open;
+	float snow_auto = smoothstep(snow_line - 0.14, snow_line + 0.08, h)
+		* smoothstep(0.12, 0.45, flat_n + n_far * 0.20);
+	// La neige RECOUVRE la roche/terre dès qu'elle se forme (couverture
+	// renforcée, au cube) : sinon la roche/terre sombre transparaît en
+	// micro-taches le long de la ligne de neige. Les poids restent
+	// normalisés ensuite.
+	float snow_cover = (1.0 - snow_auto) * (1.0 - snow_auto) * (1.0 - snow_auto);
+	rock_auto *= snow_cover;
+	dirt_auto *= snow_cover;
 	// Anti-mouchetures : on écrase les micro-poids résiduels (mélanges à 2 %
 	// = « bruit numérique » autour des frontières) puis on renormalise.
 	vec4 w = vec4(
@@ -240,26 +252,51 @@ void fragment() {
 	float tile = max(tile_world_size, 0.0001);
 	vec3 p = world_pos / tile;
 	float amt = clamp(triplanar_amount, 0.0, 1.0);
+	// Correction d'étirement « au besoin » : elle n'apporte rien sur les
+	// pentes douces/intermédiaires (facteur proche de 1) alors que la normale
+	// y varie vite et fait onduler l'UV — la texture se déforme en traînées
+	// le long de la pente (le « dédoublement »). On ne corrige que les
+	// surfaces VRAIMENT raides (facteur > ~1.4) : les parois gardent leur
+	// correction intégrale validée (nettes, sans traînées). Ailleurs la
+	// projection reste non déformée — l'étirement résiduel est borné
+	// (~1,4× au maximum de la zone de fondu) et inapparent sur les matières
+	// de sol, en échange de l'absence totale de fantôme.
+	float need_t = smoothstep(1.35, 1.75, 1.0 / max(abs(n.y), 0.40));
+	float need_sz = smoothstep(1.35, 1.75, 1.0 / max(abs(n.z), 0.40));
+	float need_sx = smoothstep(1.35, 1.75, 1.0 / max(abs(n.x), 0.40));
 	// Azimut de la pente dans chaque plan de projection, puis facteur de
 	// recadrage 1/|N·axe| (plafonné à 2.5 pour rester stable). À plat tous
 	// les facteurs valent 1 : strictement le rendu historique.
 	float len_t = length(n.xz);
 	vec2 dir_t = len_t > 0.001 ? n.xz / len_t : vec2(1.0, 0.0);
-	float s_top = mix(1.0, 1.0 / max(abs(n.y), 0.40), amt);
+	float s_top = mix(1.0, 1.0 / max(abs(n.y), 0.40), amt * need_t);
 	float len_sz = length(n.xy);
 	vec2 dir_sz = len_sz > 0.001 ? n.xy / len_sz : vec2(1.0, 0.0);
-	float s_sz = mix(1.0, 1.0 / max(abs(n.z), 0.40), amt);
+	float s_sz = mix(1.0, 1.0 / max(abs(n.z), 0.40), amt * need_sz);
 	float len_sx = length(n.zy);
 	vec2 dir_sx = len_sx > 0.001 ? n.zy / len_sx : vec2(1.0, 0.0);
-	float s_sx = mix(1.0, 1.0 / max(abs(n.x), 0.40), amt);
+	float s_sx = mix(1.0, 1.0 / max(abs(n.x), 0.40), amt * need_sx);
 	vec2 uv_top = stretch_fix(p.xz, dir_t, s_top);
 	vec2 uv_sz = stretch_fix(p.xy, dir_sz, s_sz);
 	vec2 uv_sx = stretch_fix(p.zy, dir_sx, s_sx);
 	// Poids de la projection « du dessus » : 1 à plat (rendu historique
 	// exact), 0 sur les parois. Les projections latérales se partagent le
 	// reste selon |N.x| / |N.z| (paroi orientée X ou Z).
-	float up = smoothstep(triplanar_lo, triplanar_hi, abs(n.y));
+	// Fondu CONTRASTÉ et BIAISÉ VERS LE DESSUS : sur une pente
+	// intermédiaire, un fondu 50/50 montre les deux projections du motif en
+	// même temps (le « dédoublement », en traînées le long de la pente). La
+	// projection XZ est la mieux recalée à l'échelle 1:1 (sa direction de
+	// correction est exacte) : elle domine dès que la surface n'est plus une
+	// paroi raide, qui seule garde les projections latérales. La limite du
+	// fondu ondule avec du bruit monde (aucune bande régulière). À plat `up`
+	// reste exactement 1 : rendu historique strictement conservé.
+	float seam_jit = (noise3(p * 0.9 + vec3(7.3, 19.1, 3.7)) - 0.5) * 0.07;
+	float up = smoothstep(triplanar_lo + seam_jit, triplanar_hi + seam_jit, abs(n.y));
+	up = clamp((up - 0.22) * 6.0 + 0.5, 0.0, 1.0);
 	vec2 side_w = vec2(abs(n.x), abs(n.z));
+	// Forte dominance d'une projection latérale sur l'autre : réduit aussi
+	// le dédoublement sur les parois orientées à 45°.
+	side_w = pow(side_w, vec2(2.5));
 	side_w /= max(side_w.x + side_w.y, 0.0001);
 	vec3 tpw = vec3(side_w.x * (1.0 - up), up, side_w.y * (1.0 - up));
 	// Fondu A/B : à 0 on retrouve exactement la projection UV historique (et
@@ -305,11 +342,16 @@ void fragment() {
 		weights = mix(weights, auto_w, auto_gate);
 		extra = mix(extra, vec2(auto_snow, 0.0), auto_gate);
 	}
-	vec3 grass = sample_triplanar(grass_tex, uv_sx, uv_top, uv_sz, tpw);
-	vec3 dirt = sample_triplanar(dirt_tex, uv_sx, uv_top, uv_sz, tpw);
-	vec3 stone = sample_triplanar(stone_tex, uv_sx, uv_top, uv_sz, tpw);
-	vec3 snow = sample_triplanar(snow_tex, uv_sx, uv_top, uv_sz, tpw);
-	vec3 sand = sample_triplanar(sand_tex, uv_sx, uv_top, uv_sz, tpw);
+	// Anti-tuillage : pleinement actif à plat (s_top = 1, rendu historique
+	// strict), coupé franchement dès que la correction d'étirement étire la
+	// projection du dessus — sinon son image DÉDOUBLÉE devient des traînées
+	// le long de la pente (le « dédoublement de motif »).
+	float anti_amt = 1.0 - clamp((s_top - 1.0) * 2.5, 0.0, 1.0);
+	vec3 grass = sample_triplanar(grass_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	vec3 dirt = sample_triplanar(dirt_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	vec3 stone = sample_triplanar(stone_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	vec3 snow = sample_triplanar(snow_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	vec3 sand = sample_triplanar(sand_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	float snow_w = clamp(extra.r, 0.0, 1.0);
 	vec3 albedo =
 		grass * weights.r
@@ -320,10 +362,11 @@ void fragment() {
 	albedo *= mix(vec3(1.0), COLOR.rgb, vertex_color_strength);
 	// --- Micro-détail procédural ------------------------------------------
 	// Bruit projeté comme les matières (chaque projection a sa propre
-	// fréquence : sur une paroi le grain ne s'étire pas non plus). Allégé sur
-	// la neige (elle doit rester propre et lisse, sans mouchetures).
+	// fréquence : sur une paroi le grain ne s'étire pas non plus). Quasi
+	// supprimé sur la neige (elle doit rester propre et lisse, sans
+	// mouchetures).
 	float micro = detail_height(p, tpw);
-	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength * (1.0 - 0.55 * snow_w));
+	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength * (1.0 - 0.85 * snow_w));
 	// --- Détail de normale procédural -------------------------------------
 	// Gradient du même bruit (différences finies) projeté en espace monde :
 	// la roche et l'herbe gagnent un micro-relief cohérent avec le triplanar,
@@ -334,9 +377,11 @@ void fragment() {
 		float dx = detail_height(p + vec3(e, 0.0, 0.0), tpw) - d0;
 		float dy = detail_height(p + vec3(0.0, e, 0.0), tpw) - d0;
 		float dz = detail_height(p + vec3(0.0, 0.0, e), tpw) - d0;
-		// Plus marqué sur la roche que sur la neige ou l'herbe.
-		float rockiness = clamp(weights.b + snow_w * 0.35, 0.0, 1.0);
-		float bump = normal_detail_strength * (0.55 + 0.75 * rockiness);
+		// Plus marqué sur la roche que sur la neige ou l'herbe ; le relief
+		// procédural s'efface sur la neige (micro-taches de lumière/sombre).
+		float rockiness = clamp(weights.b * (1.0 - 0.8 * snow_w) + snow_w * 0.10, 0.0, 1.0);
+		float bump = normal_detail_strength * (0.55 + 0.75 * rockiness)
+			* (1.0 - 0.7 * snow_w);
 		vec3 wn = normalize(n - vec3(dx, dy, dz) * (3.0 * bump));
 		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
 	}
@@ -345,26 +390,59 @@ void fragment() {
 	// répétitions lointaines sans dessiner de rayures périodiques.
 	float macro = (value_noise(p.xz * 0.9) * 2.0 - 1.0) * 0.7
 		+ (value_noise(p.xz * 2.3 + vec2(31.7, 9.4)) * 2.0 - 1.0) * 0.3;
-	albedo *= 1.0 + macro_strength * macro;
+	albedo *= 1.0 + macro_strength * macro * (1.0 - 0.6 * snow_w);
 	// --- Neige propre -----------------------------------------------------
-	// Léger éclaircissement : la neige mélangée reste blanche et lisible au
-	// lieu de tirer vers le gris sale.
-	albedo = mix(albedo, albedo * 1.05 + vec3(0.012), snow_w * 0.5);
+	// Éclaircissement renforcé dès que la neige apparaît : les grains sombres
+	// de la pierre/terre qui transparaissent dans le mélange partiel sont
+	// blanchis — la ligne de neige reste propre, sans micro-taches.
+	albedo = mix(albedo, albedo * 1.10 + vec3(0.035),
+		clamp(snow_w * 1.35, 0.0, 1.0) * 0.7);
 	// --- Occlusion approximée (cavité + pente) ----------------------------
 	// Courbure locale : dérivée écran de la normale monde. Les creux (normale
 	// qui tourne vite) s'assombrissent, les surfaces plates restent claires.
-	// La cavité est atténuée sur la neige (pas de taches sombres au sommet).
+	// La cavité est fortement atténuée sur la neige (pas de taches sombres
+	// au sommet ni sur la ligne de neige).
 	float curvature = length(dFdx(n)) + length(dFdy(n));
 	float cavity = smoothstep(0.10, 0.75, curvature) * cavity_strength
-		* (1.0 - 0.5 * snow_w);
+		* (1.0 - 0.8 * snow_w);
 	float sky = 1.0 - slope_ao_strength * (1.0 - smoothstep(0.15, 0.85, abs(n.y)));
 	float occlusion = clamp(1.0 - cavity - sky, 0.35, 1.0);
 	albedo *= occlusion;
-	// BERGE MOUILLÉE : assombrit et brunit la terre au bord de l'eau.
+	// --- BERGE MOUILLÉE : terre assombrie/brunie AU BORD de l'eau --------
+	// `shore_tex` (construite par la couche d'eau) encode une distance à la
+	// rive : 1 dans l'eau, puis décroissance par paliers (≈ ×0.72 par case).
+	// On la REDÉCODE en distance (en cases) pour obtenir un dégradé
+	// PROGRESSIF — et non le liseré brut à deux cases des paliers — avec :
+	//   • un bord ONDULÉ par du bruit monde (jamais un liseré régulier) ;
+	//   • une bande PLUS LARGE sur les faibles pentes (l'eau s'infiltre plus
+	//     loin dans une berge douce que dans une berge raide) ;
+	//   • un assombrissement/brunissement maximal tout au bord de l'eau,
+	//     qui s'estompe vers l'extérieur.
 	if (shore_enabled > 0.001) {
-		float shore = texture(shore_tex, UV2).r;
-		shore = smoothstep(0.10, 0.75, shore) * shore_enabled;
-		albedo = mix(albedo, mix(albedo * 0.55, shore_tint.rgb, 0.45), shore);
+		vec2 shore_uv = UV2;
+		vec2 stp = 1.0 / max(vec2(textureSize(shore_tex, 0)), vec2(1.0));
+		// Passe de dilatation virtuelle (×0.72, même pas que la couche
+		// d'eau) : étale la donnée d'une case de plus, pour que la bande
+		// garde un dégradé continu jusqu'à son extérieur.
+		float sv = texture(shore_tex, shore_uv).r;
+		float snx = max(texture(shore_tex, shore_uv + vec2(stp.x, 0.0)).r,
+			texture(shore_tex, shore_uv - vec2(stp.x, 0.0)).r);
+		float snz = max(texture(shore_tex, shore_uv + vec2(0.0, stp.y)).r,
+			texture(shore_tex, shore_uv - vec2(0.0, stp.y)).r);
+		sv = max(sv, max(snx, snz) * 0.72);
+		// Distance à la rive, en cases (décodage logarithmique du palier).
+		float dist = log(max(sv, 0.02)) / log(0.72);
+		// Bord ondulé : deux échelles de bruit monde déplacent la limite de
+		// la bande mouillée (±0,8 case) — jamais un liseré régulier. Le
+		// déplacement s'annule dans l'eau (il ne concerne que la terre).
+		float wob = (value_noise(p.xz * 0.55 + vec2(41.0, 7.0)) - 0.5) * 1.2
+			+ (value_noise(p.xz * 1.9 + vec2(87.0, 13.0)) - 0.5) * 0.5;
+		float dd = max(dist, 0.0) + wob * smoothstep(0.0, 1.0, dist);
+		// Largeur de la bande selon la pente : ~0.5 case sur une berge
+		// raide, ~3 cases sur une faible pente.
+		float bank = mix(0.5, 3.0, smoothstep(0.80, 0.99, abs(n.y)));
+		float wet = (1.0 - smoothstep(0.0, bank, dd)) * shore_enabled;
+		albedo = mix(albedo, mix(albedo * 0.55, shore_tint.rgb, 0.45), wet);
 	}
 	ALBEDO = albedo * albedo_tint.rgb;
 	ROUGHNESS = 1.0;

@@ -11,7 +11,13 @@ extends SceneTree
 ## CARTE B (montagne) :
 ##   • `auto_material_strength` (task-4) : 0 = rendu précédent, 1 = auto-matériau
 ##     par pente et altitude — roche sur les flancs raides, terre sur les
-##     contreforts, neige au sommet, frontières bruitées irrégulières.
+##     contreforts, neige au sommet, frontières bruitées irrégulières ;
+##   • BERGE MOUILLÉE : un lac de plaine (cuvette à berges ASYMÉTRIQUES —
+##     raide côté −x, douce côté +x) alimente la chaîne
+##     `MapWater3D.get_shore_texture() → ground.set_shore_texture()` ; un A/B
+##     `shore_enabled` 1/0 (eau masquée pour rester déterministe) vérifie que
+##     la terre est assombrie/brunie AU BORD de l'eau, sur une bande plus
+##     large côté faible pente.
 ##
 ## Chaque brique est capturée deux fois avec la MÊME caméra (A/B) puis vérifiée
 ## par diff d'image : les zones concernées doivent changer nettement, les zones
@@ -48,6 +54,20 @@ const DIFF_MIN_CLIFF := 0.010
 const DIFF_MIN_MOUNTAIN := 0.005
 ## Tolérance sur les zones qui doivent rester identiques (plaine, paroi peinte).
 const SAME_MAX := 0.004
+## CARTE B — lac de plaine pour la BERGE MOUILLÉE : cuvette à fond plat
+## circulaire puis berges ASYMÉTRIQUES (raide côté −x, douce côté +x), pour
+## vérifier « plus large côté faible pente ».
+const POND_X := 5.5
+const POND_Z := 5.5
+const POND_LEVEL := 0.45
+const MOUNTAIN_PLAIN_H := 0.55
+const POND_BED_R := 1.0
+const POND_RISE_STEEP := 0.9
+const POND_RISE_GENTLE := 3.4
+## Seuils de la berge mouillée (diff A/B par pixel et en moyenne).
+const SHORE_DIFF_MIN := 0.006
+const SHORE_PIXEL_THR := 0.008
+const SHORE_SLOPE_MARGIN_PX := 60.0
 
 var _failed: bool = false
 
@@ -197,6 +217,54 @@ func _run() -> void:
 		print("  [diff] mountain auto on/off = %.4f" % d)
 		_assert("mountain_auto_differs", d > DIFF_MIN_MOUNTAIN, "diff=%.4f" % d)
 
+	# =====================================================================
+	# BERGE MOUILLÉE : lac de plaine (carte B) — la terre doit s'assombrir
+	# et brunir AU BORD de l'eau, en dégradé progressif, avec un bord
+	# ondulé, et sur une bande plus large côté faible pente.
+	# =====================================================================
+	var water = engine._water_layer
+	_assert("shore_water_layer", water != null)
+	_assert("shore_texture_built", water != null and water.get_shore_texture() != null)
+	_assert("shore_enabled_uniform",
+		is_equal_approx(float(mat_b.get_shader_parameter("shore_enabled")), 1.0))
+	# Cadrage : le lac au centre (même méthode géométrique que la montagne).
+	var pond_target := Vector2(POND_X * cell, POND_Z * cell)
+	var shore_cam_y := 8.0
+	engine._camera.size = 2.6
+	engine._camera.position = Vector3(
+		pond_target.x, shore_cam_y,
+		pond_target.y + (shore_cam_y / maxf(0.001, -sin(rot_x))) * cos(rot_x))
+	for _i in range(8):
+		await process_frame
+	# A/B DÉTERMINISTE : on masque l'eau (shader animé) pour que le diff ne
+	# mesure QUE la berge mouillée du terrain.
+	if water != null:
+		water.visible = false
+	for _i in range(3):
+		await process_frame
+	_set_shore(mat_b, 1.0)
+	var shore_on: Image = await _shot(engine, "terrain_quality_shore_on")
+	_set_shore(mat_b, 0.0)
+	var shore_off: Image = await _shot(engine, "terrain_quality_shore_off")
+	_set_shore(mat_b, 1.0)
+	if water != null:
+		water.visible = true
+	for _i in range(3):
+		await process_frame
+	var shore: Image = await _shot(engine, "terrain_quality_shore")
+	if shore_on != null and shore_off != null:
+		_assert("shore_on_not_blank", not _is_blank(shore_on))
+		var sd := _mean_diff(shore_on, shore_off)
+		print("  [diff] berge mouillée on/off = %.4f" % sd)
+		_assert("shore_effect_visible", sd > SHORE_DIFF_MIN, "diff=%.4f" % sd)
+		var bands := _shore_band_widths(shore_on, shore_off, engine._camera, cell)
+		print("  [shore] bande mouillée : douce=%.0f px, raide=%.0f px" % [bands.x, bands.y])
+		_assert("shore_band_hugs_shoreline", bands.x > 0.0 and bands.y > 0.0,
+			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
+		_assert("shore_wider_on_gentle_slope",
+			bands.x > bands.y + SHORE_SLOPE_MARGIN_PX,
+			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
+
 	if _failed:
 		print("terrain_quality_shot_test:FAIL")
 		quit(1)
@@ -211,6 +279,56 @@ func _set_triplanar(mat: ShaderMaterial, amount: float) -> void:
 ## Fondu A/B de l'auto-matériau (0 = rendu précédent, sans auto).
 func _set_auto(mat: ShaderMaterial, amount: float) -> void:
 	mat.set_shader_parameter("auto_material_strength", amount)
+
+## Activation A/B de la berge mouillée (0 = aucun effet sur le terrain).
+func _set_shore(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("shore_enabled", amount)
+
+## Largeurs (px) des bandes mouillées à gauche (berge RAIDE) et à droite
+## (berge DOUCE) du lac, le long de la ligne passant par le centre du lac :
+## longueur de la course de pixels touchés par la berge dans le diff A/B,
+## d'où l'on retire la position analytique de la ligne de rive.
+func _shore_band_widths(on: Image, off: Image, cam: Camera3D, cell: float) -> Vector2:
+	if on == null or off == null or cam == null:
+		return Vector2.ZERO
+	var water_y := POND_LEVEL * cell
+	var wl_right := POND_BED_R + (POND_LEVEL / MOUNTAIN_PLAIN_H) * POND_RISE_GENTLE
+	var wl_left := POND_BED_R + (POND_LEVEL / MOUNTAIN_PLAIN_H) * POND_RISE_STEEP
+	# `unproject_position` renvoie des coordonnées LOGIQUES de viewport ; la
+	# capture est en pixels PHYSIQUES (HiDPI) — on recale par le rapport des
+	# tailles, 1 dans les deux sens selon la plateforme.
+	var vis := cam.get_viewport().get_visible_rect().size
+	var k := Vector2(
+		float(on.get_width()) / maxf(vis.x, 1.0),
+		float(on.get_height()) / maxf(vis.y, 1.0))
+	var center := cam.unproject_position(Vector3(POND_X * cell, water_y, POND_Z * cell)) * k
+	var pr := cam.unproject_position(Vector3((POND_X + wl_right) * cell, water_y, POND_Z * cell)) * k
+	var pl := cam.unproject_position(Vector3((POND_X - wl_left) * cell, water_y, POND_Z * cell)) * k
+	var row := clampi(int(center.y), 0, on.get_height() - 1)
+	var x0 := clampi(int(center.x), 0, on.get_width() - 1)
+	var right := float(_wet_run(on, off, row, x0, 1))
+	var left := float(_wet_run(on, off, row, x0, -1))
+	return Vector2(
+		maxf(right - absf(pr.x - center.x), 0.0),
+		maxf(left - absf(pl.x - center.x), 0.0))
+
+## Longueur (px) de pixels « mouillés » (diff A/B > seuil) depuis `x0`, dans
+## le sens `dir` ; s'arrête après 8 pixels secs consécutifs.
+func _wet_run(on: Image, off: Image, row: int, x0: int, dir: int) -> int:
+	var w := on.get_width()
+	var x := x0
+	var dry := 0
+	while x >= 0 and x < w and dry < 8:
+		if _pixel_diff(on.get_pixel(x, row), off.get_pixel(x, row)) > SHORE_PIXEL_THR:
+			dry = 0
+		else:
+			dry += 1
+		x += dir
+	return absi(x - x0) - 8
+
+## Différence RGB moyenne (0..1) entre deux pixels.
+func _pixel_diff(a: Color, b: Color) -> float:
+	return (absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b)) / 3.0
 
 # ===========================================================================
 # Carte A — falaise
@@ -275,7 +393,11 @@ func _soft_noise(x: float, z: float) -> float:
 func _make_mountain_map(md) -> Dictionary:
 	var map: Dictionary = md.create_complex_map("Qualité terrain montagne", "general", "local", W, H)
 	map["vegetationDensity"] = 0.0
-	map["waterBodies"] = []
+	# Lac de plaine : la chaîne de berge (MapWater3D → terrain) est active.
+	map["waterBodies"] = [
+		{"id": "lac_plaine", "kind": "lake", "level": POND_LEVEL,
+			"area": [[3.0, 2.0], [10.0, 2.0], [10.0, 9.0], [3.0, 9.0]]},
+	]
 	map["terrainHeights"] = _mountain_heights()
 	map["terrainMaterials"] = _mountain_materials()
 	return map
@@ -293,9 +415,29 @@ func _mountain_heights() -> Array:
 			# reste parfaitement plate, donc inchangée par l'auto-matériau).
 			var rough := _noise2(float(x) * 0.6, float(z) * 0.6) * 1.1 \
 				+ _noise2(float(x) * 1.3 + 7.0, float(z) * 1.3) * 0.45
-			var h := PLAIN_H + cone + rough * smoothstep(0.0, 2.0, cone)
+			var h := MOUNTAIN_PLAIN_H + cone + rough * smoothstep(0.0, 2.0, cone)
+			# Cuvette du lac de plaine (berge mouillée) : la plaine doit rester
+			# AU-DESSUS du niveau d'eau partout ailleurs, sinon la texture de
+			# berge couvrirait toute la carte.
+			var pond := _pond_height(float(x), float(z))
+			if pond < MOUNTAIN_PLAIN_H:
+				h = minf(h, pond)
 			heights[z * W + x] = maxf(0.0, h)
 	return heights
+
+## Cuvette du lac de plaine : fond plat circulaire (`POND_BED_R` cases) puis
+## remontée des berges — RAIDE côté −x (`POND_RISE_STEEP` cases) et DOUCE
+## côté +x (`POND_RISE_GENTLE` cases) — pour vérifier que la bande de berge
+## mouillée est bien plus large côté faible pente.
+func _pond_height(x: float, z: float) -> float:
+	var px := x - POND_X
+	var pz := z - POND_Z
+	var pd := sqrt(px * px + pz * pz)
+	if pd <= POND_BED_R:
+		return 0.0
+	var dir := px / maxf(pd, 0.001)
+	var rise := lerpf(POND_RISE_STEEP, POND_RISE_GENTLE, dir * 0.5 + 0.5)
+	return clampf((pd - POND_BED_R) / rise, 0.0, 1.0) * MOUNTAIN_PLAIN_H
 
 ## Bruit de valeur déterministe (-0.5..0.5) pour des flancs naturels.
 func _noise2(x: float, z: float) -> float:
