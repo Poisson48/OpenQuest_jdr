@@ -291,6 +291,18 @@ void fragment() {
 	// La ligne de rive ondule (bruit basse fréquence) : la mousse avance et
 	// recule au gré du clapot.
 	float shore_noise = fbm2(wuv * 13.0 + vec2(t * 0.12, -t * 0.09));
+	// Mousse de rive sur MAILLAGE LIBRE : sans tranchée de terrain pour
+	// refermer la nappe, la coupe du masque est un bord franchement visible —
+	// la mousse de rive y allumait des bandes pâles ÉCHELONNÉES (les paliers
+	// des texels du masque). Le canal VERT de la couleur de sommet, posé par
+	// MapWater3D d'après la fermeture du terrain au-delà du bord du maillage
+	// (0 = bord libre, 1 = berge qui masque la coupe), éteint fortement la
+	// mousse de contact sur ces bords. Les lacs (sans couleur de sommet) et
+	// les rivières en tranchée gardent la mousse de rive.
+	float shore_gate = 1.0;
+	if (edge_softness > 0.001) {
+		shore_gate = clamp(COLOR.g, 0.0, 1.0);
+	}
 	// Proximité du MASQUE d'eau : un anneau de HUIT sondes (décalé par le
 	// clapot) mesure la fraction de l'anneau côté terre. Une vraie berge en
 	// couvre la moitié ; un TROU de masque (berge qui affleure, texel de bord
@@ -320,11 +332,18 @@ void fragment() {
 	// terre), 0 dès que l'anneau est entièrement dans l'eau. Le seuil
 	// EXTÉRIEUR varie avec le clapot (la dentelle ondule au lieu de suivre au
 	// pas les texels du masque) mais le sommet reste à 1 au contact exact.
-	float contact = smoothstep(0.16 + 0.16 * shore_noise, 0.42, land);
-	// Liseré de PROFONDEUR : la mousse s'étale aussi dans les hauts-fonds,
-	// même loin du bord du masque (bancs de sable, hauts-fonds de lac).
-	float depth_contact = 1.0 - smoothstep(0.0, max(foam_width, 0.003), depth01);
-	contact = max(contact, depth_contact * 0.8);
+	float contact = smoothstep(0.16 + 0.16 * shore_noise, 0.42, land) * shore_gate;
+	// Liseré de PROFONDEUR à largeur LOCALE : la mousse ne couvre que la
+	// tranche d'eau vraiment peu profonde — sa largeur en cases suit donc la
+	// pente locale du fond (jamais un anneau de largeur constante), et son
+	// seuil ondule avec le clapot (`shore_noise`) pour un liseré irrégulier.
+	float shore_w = max(foam_width * (0.35 + 0.90 * shore_noise), 0.004);
+	float depth_contact = (1.0 - smoothstep(0.0, shore_w, depth01)) * shore_gate;
+	// Le liseré de contact est lui aussi BORNÉ par la profondeur locale : il
+	// s'amenuise dès que l'eau reprend de la profondeur — la ligne de rive
+	// reste fine et lisible, jamais un donut épais.
+	contact = max(contact * (1.0 - smoothstep(shore_w * 0.5, shore_w * 2.4, depth01)),
+		depth_contact * 0.55);
 	// Filigranes étirés le long du courant (fréquence transversale > 2× la
 	// longitudinale) : la mousse file avec le flux, jamais en damier.
 	vec2 lace_uv = vec2(
@@ -336,11 +355,17 @@ void fragment() {
 	// étroit quel que soit le rayon de sonde) + dentelle lacunaire un peu plus
 	// large : la ligne de rive est blanche et vivante, jamais peinte au
 	// pochoir. La modulation par la dentelle garde la couverture LACUNAIRE.
-	float rim = smoothstep(0.72, 0.98, contact);
-	float band = contact * contact;
-	float lace_mod = smoothstep(0.35, 0.82, lace);
-	float foam = foam_strength * (rim * (0.45 + 0.55 * lace_mod)
-		+ band * lace_mod * 0.35);
+	float rim = smoothstep(0.78, 0.985, contact);
+	float band = contact * contact * contact;
+	float lace_mod = smoothstep(0.32, 0.85, lace);
+	// Couverture LACUNAIRE et ANIMÉE : des trous de mousse dérivent avec le
+	// flux (bruit lent dédié) — le liseré est irrégulier, jamais un anneau
+	// blanc continu et uniforme.
+	float gaps = smoothstep(0.30, 0.68, lace * 0.72
+		+ value_noise(vec2(along * 9.0, across * 22.0)
+			+ vec2(t * 0.05, -t * 0.07)) * 0.48);
+	float foam = foam_strength * (rim * (0.35 + 0.65 * lace_mod)
+		+ band * lace_mod * 0.22) * (0.40 + 0.60 * gaps);
 	// Écume de clapot : quelques filaments épars au large, vraiment rares —
 	// et jamais ces plaques blanches « éclaboussures » d'un voile trop dense.
 	float crest = smoothstep(0.905, 0.985, h0)
@@ -371,13 +396,20 @@ void fragment() {
 		vertex_fade = clamp(COLOR.r, 0.0, 1.0);
 	}
 	// Bords de nappe : l'eau s'amenuise sur le bord du masque (feuille) et
-	// s'affine encore au contact exact (lame d'eau qui lappe la berge) ; la
-	// mousse reste OPAQUE (elle masque le fond au lieu de se laver).
+	// s'affine encore au contact exact (lame d'eau qui lappe la berge).
 	float lapping = mix(1.0, 0.72, smoothstep(0.60, 1.0, contact));
-	ALPHA = clamp(mix(depth_alpha * edge_fade * lapping * vertex_fade, 0.94, foam), 0.0, 0.97);
-	// Bords de ruban fondus (rivières) : atténuation latérale de l'alpha.
+	// La mousse reste plutôt opaque (elle masque le fond au lieu de se laver)
+	// mais ne force plus l'opacité PLEINE là où la nappe s'amenuise : sans
+	// quoi la coupe du masque devenait un liseré franc (bandes pâles
+	// échelonnées sur maillage libre, silhouette dure vue de dessus).
+	float foam_op = 0.35 + 0.65 * max(edge_fade, vertex_fade);
+	ALPHA = clamp(mix(depth_alpha * edge_fade * lapping * vertex_fade, 0.94,
+		foam * foam_op), 0.0, 0.97);
+	// Bords de ruban fondus (rivières) : atténuation latérale de l'alpha sur
+	// le dernier tiers de la largeur — la silhouette vue de dessus s'achève
+	// en lame d'eau douce sans toucher au cœur du chenal (continuité intacte).
 	if (edge_softness > 0.001) {
-		float edge = smoothstep(0.0, 0.20, UV.x) * smoothstep(0.0, 0.20, 1.0 - UV.x);
+		float edge = smoothstep(0.0, 0.30, UV.x) * smoothstep(0.0, 0.30, 1.0 - UV.x);
 		ALPHA *= mix(1.0, edge, edge_softness);
 	}
 	ROUGHNESS = 0.12;

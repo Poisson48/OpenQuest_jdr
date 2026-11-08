@@ -23,9 +23,14 @@ class_name MapGround3D
 ## R = neige, G = sable), avec un second jeu d'UV (UV2, 0..1 sur la carte) et un
 ## filtrage linéaire qui adoucit les frontières. Les trois premières matières
 ## gardent exactement leur rendu historique (splat 2 nul). Les vertex colors ne
-## portent alors que l'ombrage de pente (gris neutre) et le tout reste
-## **éclairé** (spatial). Sans matières (ou sans textures), on retrouve le
-## matériau actuel : texture de détail d'herbe + vertex colors de palette.
+## portent alors que l'ombrage de pente (gris neutre) — PLUS, dans le canal
+## alpha, l'**AO de cuvettes cuite** (méthode CS2) : une occlusion par sommet
+## calculée depuis le heightfield (rayon 1-2 cases, creux/valons assombris,
+## crêtes légèrement éclaircies, bruit anti-bandes, lissée) que le shader lit
+## à travers son uniform `cavity_bake` (0 = rendu historique, A/B réversible).
+## Le tout reste **éclairé** (spatial). Sans matières (ou sans textures), on
+## retrouve le matériau actuel : texture de détail d'herbe + vertex colors de
+## palette.
 ##
 ## **`illustrated`** — legacy / carte à fond peint : exactement l'ancien
 ## comportement, un quad XZ texturé (ratio du PNG) et, en mode nuit (brouillard),
@@ -75,6 +80,18 @@ const TERRAIN_RELIEF_EPSILON := 0.001
 ## Force de l'auto-matériau par pente/altitude (méthode CS2) : 1 = actif,
 ## 0 = rendu historique (réversibilité). Les splats peints restent prioritaires.
 const TERRAIN_AUTO_MATERIAL_STRENGTH := 1.0
+## AO DE CUVETTES Cuite (méthode CS2) : 1 = occlusion par sommet active dans
+## les vertex colors (canal alpha), 0 = rendu historique (réversibilité via le
+## uniform `cavity_bake` du shader). Ne concerne que le chemin splat.
+const TERRAIN_CAVITY_BAKE := 1.0
+## Rayons d'exploration de la cavité, en cases (deux anneaux : 1 puis 2 cases).
+const CAVITY_RING_RADII := [1, 2]
+## Dénivelé de voisinage (en cases) qui sature l'effet de cavité.
+const CAVITY_SCALE_CELLS := 0.45
+## Assombrissement maximal des creux/valons (1 = noir).
+const CAVITY_DARKEN := 0.32
+## Éclaircissement maximal des crêtes (canal alpha > 1, plafonné côté shader).
+const CAVITY_LIGHTEN := 0.06
 ## Palette du terrain 3D (couleurs sRGB).
 const TERRAIN_GRASS := Color(0.36, 0.52, 0.27)
 const TERRAIN_EARTH := Color(0.50, 0.39, 0.26)
@@ -673,13 +690,13 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		# terrain et les clusters de creusement partagent le même alignement.
 		shader_mat.set_shader_parameter(
 			"tile_world_size", cell_size * TERRAIN_TILE_CELLS)
-		# Triplanar net (méthode CS2) : fondu resserré et décalé vers les
-		# parois pour que les normales lissées d'une falaise restent en
-		# projection latérale ; la correction d'étirement interne du shader
-		# recalle chaque projection à l'échelle 1:1 (à plat, rendu historique
-		# strictement conservé).
-		shader_mat.set_shader_parameter("triplanar_lo", 0.60)
-		shader_mat.set_shader_parameter("triplanar_hi", 0.88)
+		# Triplanar net (méthode CS2) : fenêtre de fondu décalée vers les
+		# PAROIS pour que les pentes intermédiaires (flancs ≈ 30-55°) restent
+		# en projection XZ — non déformée, à la bonne échelle — au lieu de
+		# mélanger deux projections éloignées (le « dédoublement de motif » en
+		# traînées). À plat, rendu historique strictement conservé.
+		shader_mat.set_shader_parameter("triplanar_lo", 0.55)
+		shader_mat.set_shader_parameter("triplanar_hi", 0.75)
 		# Frontières de splats peints légèrement bruitées (bords organiques).
 		shader_mat.set_shader_parameter("splat_edge_noise", 0.6)
 		# AUTO-MATÉRIAU (méthode CS2) : bornes d'altitude en unités monde pour
@@ -691,6 +708,11 @@ func _apply_terrain_material(night_mode: bool) -> void:
 			"terrain_max_height", _terrain_max * cell_size)
 		shader_mat.set_shader_parameter(
 			"auto_material_strength", TERRAIN_AUTO_MATERIAL_STRENGTH)
+		# AO DE CUVETTES Cuite (méthode CS2) : les vertex colors portent
+		# l'occlusion par sommet dans leur canal alpha (cuite depuis le
+		# heightfield, rayon 1-2 cases) ; `cavity_bake` = 0 restitue le rendu
+		# historique exact (A/B réversible).
+		shader_mat.set_shader_parameter("cavity_bake", TERRAIN_CAVITY_BAKE)
 		if _shore_texture != null:
 			shader_mat.set_shader_parameter("shore_tex", _shore_texture)
 			shader_mat.set_shader_parameter("shore_enabled", 1.0)
@@ -1006,6 +1028,12 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 		for i in range(cols):
 			heights[j * cols + i] = _vertex_height_at(float(i) / float(detail), float(j) / float(detail))
 
+	# AO DE CUVETTES Cuite (méthode CS2) : une valeur par case, calculée
+	# depuis le heightfield (rayon 1-2 cases), lissée, puis lue par sommet
+	# dans le CANAL ALPHA des vertex colors — chemin splat seul. Le RGB reste
+	# strictement l'ombrage historique (A/B `cavity_bake` réversible).
+	var cavity := _compute_cavity_ao() if _splat_active else PackedFloat32Array()
+
 	for j in range(rows):
 		for i in range(cols):
 			var idx := j * cols + i
@@ -1027,7 +1055,9 @@ func _make_terrain_mesh(cell_size: float) -> ArrayMesh:
 			var normal := Vector3(-dhdx, 1.0, -dhdz).normalized()
 			normals[idx] = normal
 			if _splat_active:
-				colors[idx] = _terrain_vertex_shade(normal, int(floor(gx)), int(floor(gy)))
+				colors[idx] = _terrain_vertex_shade(
+					normal, int(floor(gx)), int(floor(gy)),
+					_vertex_cavity_ao(cavity, int(floor(gx)), int(floor(gy))))
 			else:
 				colors[idx] = _terrain_vertex_color(hv, normal, int(floor(gx)), int(floor(gy)))
 
@@ -1108,12 +1138,90 @@ func _terrain_vertex_color(hv: float, normal: Vector3, i: int, j: int) -> Color:
 
 ## Ombrage neutre d'un sommet quand les matières (splat) portent la couleur :
 ## 1.0 au plat, ~0.78 sur les pentes fortes, plus une variation douce.
-func _terrain_vertex_shade(normal: Vector3, i: int, j: int) -> Color:
+## `ao` porte l'AO de cuvettes cuite (1.0 = dégagé, < 1 creux/valons, > 1
+## crêtes) dans le CANAL ALPHA du vertex color : le shader la lit à travers le
+## uniform `cavity_bake` (A/B réversible) et le RGB reste strictement
+## l'ombrage historique.
+func _terrain_vertex_shade(normal: Vector3, i: int, j: int, ao: float = 1.0) -> Color:
 	var slope_deg := rad_to_deg(acos(clampf(normal.y, -1.0, 1.0)))
 	var darken := smoothstep(8.0, 36.0, slope_deg) * 0.22
 	var variation := _terrain_variation(i, j) * TERRAIN_VARIATION
 	var shade := clampf(1.0 - darken + variation, 0.6, 1.0)
-	return Color(shade, shade, shade, 1.0)
+	return Color(shade, shade, shade, clampf(ao, 0.0, 1.0 + CAVITY_LIGHTEN))
+
+## AO DE CUVETTES Cuite (méthode CS2) — une valeur par case, calculée depuis
+## le heightfield. Chaque case est comparée à la moyenne de deux anneaux de
+## voisins (rayon 1 puis 2 cases) : les creux/valons (case plus basse que son
+## voisinage) sont assombris, les crêtes légèrement éclaircies. Un bruit
+## MULTIPLICATIF déterministe (±35 %) casse les bandes dues aux anneaux
+## discrets sans RIEN changer aux zones plates (cavité nulle → AO exactement
+## 1.0, règle d'or : plaine/peint inchangés). Un flou 3×3 lisse ensuite les
+## marches entre cases — le GPU interpole les couleurs de sommet entre elles.
+func _compute_cavity_ao() -> PackedFloat32Array:
+	var ao := PackedFloat32Array()
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return ao
+	if _terrain_heights.size() != _terrain_w * _terrain_h:
+		return ao
+	ao.resize(_terrain_w * _terrain_h)
+	for cy in range(_terrain_h):
+		for cx in range(_terrain_w):
+			var idx := cy * _terrain_w + cx
+			var h := float(_terrain_heights[idx])
+			var total := 0.0
+			var samples := 0
+			for ring in CAVITY_RING_RADII:
+				for dy in range(-ring, ring + 1):
+					for dx in range(-ring, ring + 1):
+						if maxi(absi(dx), absi(dy)) != ring:
+							continue
+						# Hors carte : le bord est prolongé (pas de faux creux
+						# ni de fausse crête le long de la limite).
+						var sx := clampi(cx + dx, 0, _terrain_w - 1)
+						var sy := clampi(cy + dy, 0, _terrain_h - 1)
+						total += float(_terrain_heights[sy * _terrain_w + sx])
+						samples += 1
+			var cavity := total / float(maxi(1, samples)) - h
+			cavity *= 1.0 + _terrain_variation(cx, cy) * 0.35
+			var t := clampf(cavity / CAVITY_SCALE_CELLS, -1.0, 1.0)
+			ao[idx] = clampf(
+				1.0 - CAVITY_DARKEN * maxf(t, 0.0) + CAVITY_LIGHTEN * maxf(-t, 0.0),
+				0.55, 1.0 + CAVITY_LIGHTEN)
+	# Flou 3×3 : les marches entre cases disparaissent, la cuisson reste
+	# douce (rayon d'effet ~1-2 cases).
+	var blurred := PackedFloat32Array()
+	blurred.resize(ao.size())
+	for cy in range(_terrain_h):
+		for cx in range(_terrain_w):
+			var total := 0.0
+			for oy in range(-1, 2):
+				for ox in range(-1, 2):
+					var sx := clampi(cx + ox, 0, _terrain_w - 1)
+					var sy := clampi(cy + oy, 0, _terrain_h - 1)
+					total += ao[sy * _terrain_w + sx]
+			blurred[cy * _terrain_w + cx] = total / 9.0
+	return blurred
+
+## AO cuite d'un SOMMET : moyenne des cases adjacentes (même fenêtre que la
+## hauteur du sommet), le GPU interpolant ensuite entre sommets.
+func _vertex_cavity_ao(ao: PackedFloat32Array, i: int, j: int) -> float:
+	if ao.size() != _terrain_w * _terrain_h:
+		return 1.0
+	var total := 0.0
+	var samples := 0
+	for oy in range(-1, 1):
+		var cy := j + oy
+		if cy < 0 or cy >= _terrain_h:
+			continue
+		for ox in range(-1, 1):
+			var cx := i + ox
+			if cx < 0 or cx >= _terrain_w:
+				continue
+			total += ao[cy * _terrain_w + cx]
+			samples += 1
+	if samples == 0:
+		return 1.0
+	return total / float(samples)
 
 ## Bruit déterministe (-1..1) pour casser les aplats sans texture.
 func _terrain_variation(i: int, j: int) -> float:

@@ -831,6 +831,37 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	var fall_faces := 0
 	var level_sum := 0.0
 	var in_fall := false
+	# --- Mousse de RIVE par sommet (canal VERT lu par le shader d'eau) ------
+	# 1.0 là où le terrain referme la nappe au-delà du bord du maillage
+	# (tranchée, berge qui masque la coupe du masque) ; atténué fortement sur
+	# un bord LIBRE (maillage posé à nu : biefs sans tranchée, abords de
+	# chute, bourrelet de pied). Sans cette distinction, la mousse de rive
+	# suivait la coupe échelonnée du masque sur le maillage libre : bandes
+	# pâles en échelles le long des bords latéraux du ruban.
+	var shore_gate := func(centers: Array, sides: Array) -> Array:
+		var gates: Array = []
+		for k in range(4):
+			var c: Vector3 = centers[k]
+			var sd: Vector2 = sides[k]
+			var closes := -1000.0
+			for probe in [1.3, 1.7, 2.2]:
+				closes = maxf(closes,
+					_visible_ground_at(c.x + sd.x * probe, c.z + sd.y * probe) - c.y)
+			gates.append(0.15 + 0.85 * smoothstep(-0.02, 0.12, closes))
+		return gates
+	# Distance de chaque point du tracé à l'extrémité la plus proche (cases) :
+	# base du fondu d'alpha en bout de ruban (nez effilé adouci, la continuité
+	# du milieu du chenal est intacte).
+	var tip_dist := PackedFloat32Array()
+	tip_dist.resize(dense.size())
+	var run_len := 0.0
+	for i in range(1, dense.size()):
+		var pa: Vector3 = dense[i - 1]
+		var pb: Vector3 = dense[i]
+		run_len += Vector2(pb.x - pa.x, pb.z - pa.z).length()
+		tip_dist[i] = run_len
+	for i in range(dense.size()):
+		tip_dist[i] = minf(tip_dist[i], run_len - tip_dist[i])
 	for i in range(dense.size() - 1):
 		var a: Vector3 = dense[i]
 		var b: Vector3 = dense[i + 1]
@@ -847,13 +878,23 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		if absf(delta.y) < FALL_MIN_DROP:
 			in_fall = false
 			# Segment d'eau courante (éventuellement en pente douce).
-			_append_quad(s0,
-				[a, a, b, b],
-				[-side_a, side_a, -side_b, side_b],
+			var quad_centers := [a, a, b, b]
+			var quad_sides := [-side_a, side_a, -side_b, side_b]
+			var fades := _visibility_fades(quad_centers, quad_sides)
+			# Bout de ruban : l'alpha s'amenuise sur le dernier mètre de chaque
+			# extrémité (le nez effilé, trop franc vu de dessus) ; le milieu du
+			# chenal n'est pas touché — continuité de la rivière intacte.
+			var tip_a := smoothstep(0.0, 1.2, tip_dist[i])
+			var tip_b := smoothstep(0.0, 1.2, tip_dist[i + 1])
+			fades[0] = float(fades[0]) * tip_a
+			fades[1] = float(fades[1]) * tip_a
+			fades[2] = float(fades[2]) * tip_b
+			fades[3] = float(fades[3]) * tip_b
+			_append_quad(s0, quad_centers, quad_sides,
 				[Vector2(0.0, v_run), Vector2(1.0, v_run),
 					Vector2(0.0, v_run + seg_len), Vector2(1.0, v_run + seg_len)],
-				Vector3.UP, cell, inv_w, inv_h,
-				_visibility_fades([a, a, b, b], [-side_a, side_a, -side_b, side_b]))
+				Vector3.UP, cell, inv_w, inv_h, fades,
+				shore_gate.call(quad_centers, quad_sides))
 			v_run += seg_len
 		else:
 			if in_fall:
@@ -913,16 +954,21 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		var apron_len := width * 0.60
 		var apron_end := Vector2(bot_c.x, bot_c.z) + fall_dir * apron_len
 		var nose_side := bot_side * 0.20
-		_append_quad(s0,
-			[Vector3(bot_c.x, apron_y, bot_c.z), Vector3(bot_c.x, apron_y, bot_c.z),
-				Vector3(apron_end.x, apron_y, apron_end.y),
-				Vector3(apron_end.x, apron_y, apron_end.y)],
-			[-bot_side * 0.92, bot_side * 0.92, -nose_side, nose_side],
+		# Bourrelet posé à NU (pas de tranchée) : la mousse de rive y est
+		# fortement atténuée (canal vert) pour ne pas allumer de bandes pâles
+		# échelonnées le long de ses bords ; l'écume d'impact (crêtes) reste.
+		var apron_centers := [Vector3(bot_c.x, apron_y, bot_c.z),
+			Vector3(bot_c.x, apron_y, bot_c.z),
+			Vector3(apron_end.x, apron_y, apron_end.y),
+			Vector3(apron_end.x, apron_y, apron_end.y)]
+		var apron_sides := [-bot_side * 0.92, bot_side * 0.92, -nose_side, nose_side]
+		_append_quad(s0, apron_centers, apron_sides,
 			[Vector2(0.0, v_run), Vector2(1.0, v_run),
 				Vector2(0.0, v_run + apron_len * cell),
 				Vector2(1.0, v_run + apron_len * cell)],
 			Vector3.UP, cell, inv_w, inv_h,
-			[0.45, 0.45, 0.10, 0.10])
+			[0.45, 0.45, 0.10, 0.10],
+			shore_gate.call(apron_centers, apron_sides))
 		v_run += apron_len * cell
 		fall_faces += 1
 	var arrays0 := _finish_surface_arrays(s0)
@@ -937,11 +983,11 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	var level := level_sum / float(maxi(1, dense.size() - 1))
 	var depth_data := _make_river_depth(dense, geo_width)
 	var speed := float((body as Dictionary).get("flow_speed", 0.35))
-	# Bords de ruban FONDUS : l'alpha s'amenuise sur le dernier cinquième de la
+	# Bords de ruban FONDUS : l'alpha s'amenuise sur le dernier tiers de la
 	# largeur, de chaque côté — la nappe s'achève en lame d'eau qui lappe la
-	# berge au lieu d'un bord de maillage franc (sans exposer la dentelle de
-	# mousse de rive sur toute sa largeur).
-	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.5)
+	# berge au lieu d'un bord de maillage franc (silhouette vue de dessus
+	# adoucie, cœur du chenal intact).
+	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.72)
 	var mesh := ArrayMesh.new()
 	if not arrays0.is_empty():
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays0)
@@ -1111,11 +1157,15 @@ func _empty_surface_arrays() -> Dictionary:
 ## Ajoute un quad (4 coins : centre + demi-largeur latérale) à une surface.
 ## `fades` porte l'OPACITÉ par sommet (canal R de la couleur de sommet, lue
 ## par le shader d'eau) : 1.0 partout sauf aux extrémités à fondre.
+## `foam_fades` porte la MOUSSE DE RIVE par sommet (canal VERT) : 1.0 là où
+## le terrain referme la nappe (berge, tranchée), atténué sur les bords
+## libres (bandes pâles échelonnées sinon) — vide = 1.0 partout.
 ## NOTE Godot : un PackedArray sorti d'un Dictionary est **copié** par `as` ou
 ## par un `var` typé — on mutte donc toujours via `s["..."]` directement.
 func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
 		normal: Vector3, cell: float, inv_w: float, inv_h: float,
-		fades: Array = [1.0, 1.0, 1.0, 1.0]) -> void:
+		fades: Array = [1.0, 1.0, 1.0, 1.0],
+		foam_fades: Array = []) -> void:
 	var base: int = s["verts"].size()
 	for k in range(4):
 		var c: Vector3 = centers[k]
@@ -1126,7 +1176,10 @@ func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
 		s["uvs"].append(uvs[k])
 		s["uv2s"].append(Vector2(v.x * inv_w, v.z * inv_h))
 		var fade := clampf(float(fades[k]), 0.0, 1.0)
-		s["colors"].append(Color(fade, fade, fade, 1.0))
+		var foam_gate := 1.0
+		if k < foam_fades.size():
+			foam_gate = clampf(float(foam_fades[k]), 0.0, 1.0)
+		s["colors"].append(Color(fade, foam_gate, fade, 1.0))
 	s["indices"].append_array(PackedInt32Array([
 		base, base + 2, base + 1, base + 1, base + 2, base + 3]))
 
@@ -1271,8 +1324,8 @@ func _make_body_material(depth_texture: ImageTexture,
 	# lisible, caustiques visibles sur le lit des hauts-fonds.
 	var shallow := SHALLOW_COLOR
 	var deep := DEEP_COLOR
-	var foam := 0.65
-	var foam_w := 0.08
+	var foam := 0.62
+	var foam_w := 0.05
 	var wave_strength := 0.08
 	var wave_speed := 0.8
 	var flow_strength := 0.65
@@ -1288,9 +1341,11 @@ func _make_body_material(depth_texture: ImageTexture,
 	var horizon := Color(0.76, 0.83, 0.87)
 	var extinction := 2.2
 	var depth_bias := 0.0
-	# Sonde de contact (texels) : le masque du lac a 1 texel/case — 1 texel de
-	# rayon ≈ 0.7 unité monde, soit un liseré de mousse fin (~0.2 unité).
-	var shore_texels := 1.0
+	# Sonde de contact (texels) : le masque du lac a 1 texel/case. Rayon réduit
+	# (~0,6 texel) : le liseré de mousse reste lisible à la rive mais FIN, et
+	# sa largeur en cases suit la pente locale du fond (portée bornée par la
+	# profondeur dans le shader) — plus d'anneau blanc épais et uniforme.
+	var shore_texels := 0.6
 	var sky_reflect := 0.24
 	# Rivière (ruban animé) : teinte un peu plus vive, mousse de contact plus
 	# fine et plus marquée le long des berges, dérive pleine dans le sens du
@@ -1298,8 +1353,8 @@ func _make_body_material(depth_texture: ImageTexture,
 	if edge_softness > 0.0:
 		shallow = Color(0.24, 0.55, 0.58)
 		deep = Color(0.05, 0.18, 0.30)
-		foam = 0.85
-		foam_w = 0.10
+		foam = 0.75
+		foam_w = 0.07
 		wave_strength = 0.18
 		wave_speed = 1.1
 		flow_strength = 1.0
@@ -1313,10 +1368,11 @@ func _make_body_material(depth_texture: ImageTexture,
 		# profondeur normalisée du ruban est proche de 1 partout).
 		extinction = 1.6
 		depth_bias = -0.28
-		# Masque de rivière à 4 texels/case : le ruban ne fait que 3 texels de
-		# demi-largeur — 1,5 texel de rayon garde l'anneau dans le masque et
-		# donne un liseré fin (~0,2 unité monde) de chaque côté du chenal.
-		shore_texels = 1.5
+		# Masque de rivière à 4 texels/case : rayon de 1,2 texel — liseré fin
+		# (~0,2 unité monde) de chaque côté du chenal, portée bornée par la
+		# profondeur locale (bandes pâles échelonnées sinon sur les bords
+		# libres du ruban, surtout près des chutes).
+		shore_texels = 1.2
 		sky_reflect = 0.22
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)

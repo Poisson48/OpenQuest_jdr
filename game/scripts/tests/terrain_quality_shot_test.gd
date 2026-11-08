@@ -23,6 +23,15 @@ extends SceneTree
 ## par diff d'image : les zones concernées doivent changer nettement, les zones
 ## peintes ou plates doivent rester identiques.
 ##
+## FINITIONS TERRAIN (task-1/2/3) :
+##   • AO DE CUVETTES Cuites : A/B `cavity_bake` (0 = historique, 1 = AO par
+##     sommet cuite depuis le heightfield) — le relief change nettement, la
+##     plaine plate reste identique (règle d'or) ;
+##   • LIGNE DE NEIGE : gros plan sur la frontière neige/roche, ratio de
+##     mouchetures sombres mesuré (doit rester sous `SNOW_SPECKLE_MAX`) ;
+##   • PENTES INTERMÉDIARES : capture de référence du dédoublement de motif
+##     triplanar (`terrain_quality_slope`).
+##
 ## Les PNG sont copiés à la RACINE du dépôt : `docs/screenshots/`.
 
 ## Chargé par `load()` : le moteur référence l'autoload MapData, indisponible
@@ -68,6 +77,13 @@ const POND_RISE_GENTLE := 3.4
 const SHORE_DIFF_MIN := 0.006
 const SHORE_PIXEL_THR := 0.008
 const SHORE_SLOPE_MARGIN_PX := 60.0
+## FINITIONS TERRAIN — AO de cuvettes cuites (task-1) : diff A/B minimale sur
+## le relief (les cuvettes s'assombrissent, les crêtes s'éclaircissent).
+const CAVITY_DIFF_MIN := 0.002
+## FINITIONS TERRAIN — ligne de neige (task-2) : ratio maximal de pixels
+## « mouchetures sombres » (très plus sombres que leur voisinage local) toléré
+## sur le gros plan de la frontière neige/roche.
+const SNOW_SPECKLE_MAX := 0.012
 
 var _failed: bool = false
 
@@ -164,6 +180,24 @@ func _run() -> void:
 		var plain_d := _mean_diff(_band(cliff, 0.86, 1.0), _band(cliff_auto0, 0.86, 1.0))
 		print("  [diff] plaine auto on/off = %.5f" % plain_d)
 		_assert("plain_unchanged_by_auto", plain_d < SAME_MAX, "diff=%.5f" % plain_d)
+
+	# --- AO DE CUVETTES Cuites (task-1) : A/B `cavity_bake` (0 = historique).
+	# Les creux/valons (pied de la falaise, plis du plateau) s'assombrissent,
+	# les crêtes s'éclaircissent — la PLAINE PLATE reste EXACTEMENT identique
+	# (règle d'or : l'AO cuite y vaut 1.0).
+	_set_cavity_bake(mat, 1.0)
+	var cliff_cav_on: Image = await _shot(engine, "terrain_quality_cliff_cavity_on")
+	_set_cavity_bake(mat, 0.0)
+	var cliff_cav_off: Image = await _shot(engine, "terrain_quality_cliff_cavity_off")
+	_set_cavity_bake(mat, 1.0)
+	if cliff_cav_on != null and cliff_cav_off != null:
+		_assert("cavity_on_not_blank", not _is_blank(cliff_cav_on))
+		var cav_d := _mean_diff(_band(cliff_cav_on, 0.25, 0.75), _band(cliff_cav_off, 0.25, 0.75))
+		print("  [diff] cavity bake on/off (relief) = %.4f" % cav_d)
+		_assert("cavity_bake_visible", cav_d > CAVITY_DIFF_MIN, "diff=%.4f" % cav_d)
+		var cav_flat := _mean_diff(_band(cliff_cav_on, 0.82, 1.0), _band(cliff_cav_off, 0.82, 1.0))
+		print("  [diff] cavity bake on/off (plaine) = %.5f" % cav_flat)
+		_assert("cavity_plain_neutral", cav_flat < SAME_MAX, "diff=%.5f" % cav_flat)
 
 	# =====================================================================
 	# CARTE B : montagne — auto-matériau par pente et altitude
@@ -265,6 +299,47 @@ func _run() -> void:
 			bands.x > bands.y + SHORE_SLOPE_MARGIN_PX,
 			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
 
+	# =====================================================================
+	# FINITIONS TERRAIN (carte B) — AO de cuvettes sur relief bruité,
+	# ligne de neige propre, pentes intermédiaires sans dédoublement.
+	# =====================================================================
+	# --- AO DE CUVETTES : A/B `cavity_bake` sur le flanc de la montagne
+	# (le bruit de relief y creuse de vraies cuvettes, visibles en gros plan).
+	var cav_cam := Vector2((HILL_X + 2.6) * cell, (HILL_Z + 1.4) * cell)
+	_set_cavity_bake(mat_b, 1.0)
+	var cav_on: Image = await _frame_and_shoot(
+		engine, cav_cam, 7.0, "terrain_quality_cavity_on")
+	_set_cavity_bake(mat_b, 0.0)
+	var cav_off: Image = await _frame_and_shoot(
+		engine, cav_cam, 7.0, "terrain_quality_cavity_off")
+	_set_cavity_bake(mat_b, 1.0)
+	if cav_on != null and cav_off != null:
+		_assert("cavity_mountain_on_not_blank", not _is_blank(cav_on))
+		var mcd := _mean_diff(cav_on, cav_off)
+		print("  [diff] cavity bake on/off (montagne) = %.4f" % mcd)
+		_assert("cavity_mountain_differs", mcd > CAVITY_DIFF_MIN, "diff=%.4f" % mcd)
+
+	# --- LIGNE DE NEIGE (task-2) : gros plan sur le manteau neigeux et sa
+	# frontière neige/roche — aucune moucheture sombre ne doit rester (la
+	# frontière reste basse fréquence : bruit long, pas de speckles).
+	var snow_cam := Vector2(HILL_X * cell, (HILL_Z + 1.2) * cell)
+	var snowline: Image = await _frame_and_shoot(
+		engine, snow_cam, 6.0, "terrain_quality_snowline")
+	if snowline != null:
+		_assert("snowline_not_blank", not _is_blank(snowline))
+		var speck := _dark_speckle_ratio(snowline, 0.15, 0.15, 0.85, 0.85)
+		print("  [neige] mouchetures sombres = %.4f" % speck)
+		_assert("snowline_no_dark_speckles", speck < SNOW_SPECKLE_MAX,
+			"ratio=%.4f" % speck)
+
+	# --- PENTES INTERMÉDIAIRES (task-3) : capture de référence du
+	# dédoublement de motif — le motif doit rester d'un seul tenant sur le
+	# flanc (pas de double image en traînées).
+	var slope: Image = await _frame_and_shoot(
+		engine, Vector2((HILL_X + 2.2) * cell, (HILL_Z + 1.8) * cell),
+		5.5, "terrain_quality_slope")
+	_assert("slope_capture_ok", slope != null and not _is_blank(slope))
+
 	if _failed:
 		print("terrain_quality_shot_test:FAIL")
 		quit(1)
@@ -283,6 +358,56 @@ func _set_auto(mat: ShaderMaterial, amount: float) -> void:
 ## Activation A/B de la berge mouillée (0 = aucun effet sur le terrain).
 func _set_shore(mat: ShaderMaterial, amount: float) -> void:
 	mat.set_shader_parameter("shore_enabled", amount)
+
+## Fondu A/B de l'AO de cuvettes cuite (0 = rendu historique, 1 = AO cuite).
+func _set_cavity_bake(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("cavity_bake", amount)
+
+## Cadre un gros plan de façon DÉTERMINISTE puis capture. Caméra POSÉE À LA
+## MAIN (même méthode géométrique que la montagne et la berge) : la carte B
+## est en projection perspective — `Camera3D.size` n'a aucun effet, c'est la
+## hauteur `cam_y` qui règle l'échelle du plan (rayon de visée re-calé sur le
+## point visé, au sol). On repose la position à chaque frame de l'attente.
+func _frame_and_shoot(
+	engine: Control, target: Vector2, cam_y: float, shot_name: String
+) -> Image:
+	var rot_x := deg_to_rad(float(engine._camera.rotation_degrees.x))
+	var ray_t := cam_y / maxf(0.001, -sin(rot_x))
+	for _i in range(6):
+		engine._camera.position = Vector3(
+			target.x, cam_y, target.y + ray_t * cos(rot_x))
+		await process_frame
+	print("  [cam] %s pos=%s" % [shot_name, str(engine._camera.position)])
+	return await _shot(engine, shot_name)
+
+## Ratio de « mouchetures sombres » dans une zone (fractions 0..1) : fraction
+## d'échantillons dont la luminance est très inférieure à la moyenne locale
+## (fenêtre ~13 px). Des points sombres ISOLÉS font exploser ce ratio ; une
+## frontière de matière douce et basse fréquence reste proche de 0.
+func _dark_speckle_ratio(
+	img: Image, x0f: float, y0f: float, x1f: float, y1f: float
+) -> float:
+	var crop := _crop(img, x0f, y0f, x1f, y1f)
+	var w := crop.get_width()
+	var h := crop.get_height()
+	var dark := 0
+	var count := 0
+	for y in range(6, h - 6, 6):
+		for x in range(6, w - 6, 6):
+			var lum := _pixel_luma(crop.get_pixel(x, y))
+			var local := 0.0
+			for oy in range(-6, 7, 3):
+				for ox in range(-6, 7, 3):
+					local += _pixel_luma(crop.get_pixel(x + ox, y + oy))
+			local /= 25.0
+			count += 1
+			if lum < local - 0.09:
+				dark += 1
+	return float(dark) / float(maxi(1, count))
+
+## Luminance perceptuelle d'un pixel (0..1).
+func _pixel_luma(c: Color) -> float:
+	return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
 
 ## Largeurs (px) des bandes mouillées à gauche (berge RAIDE) et à droite
 ## (berge DOUCE) du lac, le long de la ligne passant par le centre du lac :

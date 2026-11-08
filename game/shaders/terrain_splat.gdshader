@@ -39,6 +39,13 @@ render_mode cull_disabled, diffuse_burley;
 // **OCCLUSION** : approximation de cavité par la courbure locale (dérivées de
 // la normale monde) + léger assombrissement des pentes — pas de SSAO.
 //
+// **AO DE CUVETTES Cuite (méthode CS2)** : en plus de la courbure écran, une
+// occlusion PAR SOMMET est cuite depuis le heightfield dans le CANAL ALPHA des
+// vertex colors (`COLOR.a`, 1 = dégagé) à la génération du maillage : les
+// creux/valons sont assombris, les crêtes légèrement éclaircies, sur un rayon
+// de 1 à 2 cases, avec un bruit qui casse les bandes. `cavity_bake` fait le
+// A/B réversible (0 = rendu historique strict, 1 = AO cuite active).
+//
 // Le shader reste **éclairé** (spatial) : la lumière de la scène module
 // l'albédo comme les autres objets 2.5D. `albedo_tint` porte la nuit.
 
@@ -70,10 +77,12 @@ uniform float triplanar_amount : hint_range(0.0, 1.0) = 1.0;
 // Bornes du poids de la projection « du dessus » selon |N.y|. En dessous de
 // `triplanar_lo` la projection latérale domine (parois), au-dessus de
 // `triplanar_hi` la projection XZ reprend la main (plaines et pentes douces).
-// Zone resserrée et décalée vers le haut : une paroi aux normales lissées
-// (|N.y| jusqu'à ~0.6) reste intégralement en projection latérale, nette.
-uniform float triplanar_lo : hint_range(0.0, 1.0) = 0.60;
-uniform float triplanar_hi : hint_range(0.0, 1.0) = 0.88;
+// Fenêtre décalée vers le BAS : les pentes intermédiaires (flancs, contreforts
+// ≈ 30-55°, |N.y| 0.55-0.85) restent en projection XZ (non déformée, à la
+// bonne échelle) ; seules les parois franches gardent les projections
+// latérales. La zone de fondu reste étroite et aux poids doux.
+uniform float triplanar_lo : hint_range(0.0, 1.0) = 0.55;
+uniform float triplanar_hi : hint_range(0.0, 1.0) = 0.75;
 // Amplitude du micro-détail procédural (0 = grain désactivé).
 uniform float detail_strength : hint_range(0.0, 1.0) = 0.30;
 // Fréquence du micro-détail (en répétitions de texture, donc haute fréquence).
@@ -83,6 +92,11 @@ uniform float macro_strength : hint_range(0.0, 0.4) = 0.07;
 // Occlusion approximée : assombrissement des creux (courbure) et des pentes.
 uniform float cavity_strength : hint_range(0.0, 1.0) = 0.16;
 uniform float slope_ao_strength : hint_range(0.0, 1.0) = 0.08;
+// AO DE CUVETTES Cuite (méthode CS2) : 0 = rendu historique (courbure écran
+// seule), 1 = occlusion par sommet cuite depuis le heightfield (lue dans
+// COLOR.a, 1 = dégagé) — creux/valons assombris, crêtes légèrement plus
+// claires. A/B réversible.
+uniform float cavity_bake : hint_range(0.0, 1.0) = 1.0;
 // Bruit des frontières de splat peintes (0 = arêtes nettes géométriques) :
 // déforme légèrement la lecture des textures de poids pour que les bords des
 // zones peintes (chemins, coins) deviennent organiques. L'intérieur des
@@ -141,11 +155,26 @@ vec2 stretch_fix(vec2 uv, vec2 axis, float s) {
 // traînées le long de la pente (le « dédoublement de motif »). Les parois
 // se contentent d'un échantillon (net, et le triplanar casse déjà la
 // répétition).
+//
+// **FONDU « HAUTEUR » ANTI-DÉDOUBLEMENT** : dans la bande de transition
+// (pentes intermédiaires, deux poids de projection comparables), un mélange
+// linéaire 50/50 superpose les DEUX motifs du motif (fantômes). On pondère
+// chaque projection par sa propre luminance (un « relief » de texture) avec
+// un petit plancher : chaque texel provient surtout d'UNE seule projection,
+// la dominante, et le fondu reste doux (« flou de poids »). À plat comme sur
+// une paroi pure, un seul poids est non nul : strictement le rendu historique,
+// aucun coût ni étirement supplémentaire.
 vec3 sample_triplanar(sampler2D tex, vec2 uv_sx, vec2 uv_top, vec2 uv_sz, vec3 w, float anti) {
 	vec3 side_x = texture(tex, uv_sx).rgb;
 	vec3 top = mix(texture(tex, uv_top).rgb, sample_anti_tile(tex, uv_top), anti);
 	vec3 side_z = texture(tex, uv_sz).rgb;
-	return side_x * w.x + top * w.y + side_z * w.z;
+	vec3 lum = vec3(
+		dot(side_x, vec3(0.3333)),
+		dot(top, vec3(0.3333)),
+		dot(side_z, vec3(0.3333)));
+	vec3 hw = w * (vec3(0.22) + lum);
+	hw /= max(hw.x + hw.y + hw.z, 0.0001);
+	return side_x * hw.x + top * hw.y + side_z * hw.z;
 }
 
 // Bruit de valeur 2D bon marché (déterministe, sans texture) : sert au
@@ -223,16 +252,18 @@ vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	// Neige : sommets, ligne douce et organique — BRUIT BASSE FRÉQUENCE
 	// UNIQUEMENT (la frontière ondule à l'échelle du paysage, ~4 cases) :
 	// une composante fine y laissait des micro-taches sombres (trous de
-	// neige). Transition resserrée (zone mixte étroite) et neige qui tient
-	// aussi sur les pentes marquées : la roche ne perce plus en taches.
+	// neige). La transition d'altitude est RESERRÉE (peu de pixels en mélange
+	// partiel = frontière nette) et la porte de pente est LARGE et DOUCE (la
+	// neige tient sur les pentes marquées, elle ne tombe que sur les parois
+	// franches) : aucun seuil brutal le long de la ligne, donc aucune
+	// moucheture.
 	float snow_line = 0.64 + n_far * 0.24 * open;
-	float snow_auto = smoothstep(snow_line - 0.14, snow_line + 0.08, h)
-		* smoothstep(0.12, 0.45, flat_n + n_far * 0.20);
-	// La neige RECOUVRE la roche/terre dès qu'elle se forme (couverture
-	// renforcée, au cube) : sinon la roche/terre sombre transparaît en
-	// micro-taches le long de la ligne de neige. Les poids restent
-	// normalisés ensuite.
-	float snow_cover = (1.0 - snow_auto) * (1.0 - snow_auto) * (1.0 - snow_auto);
+	float snow_alt = smoothstep(snow_line - 0.07, snow_line + 0.05, h);
+	float snow_auto = snow_alt * smoothstep(0.10, 0.42, flat_n);
+	// Dès que la neige se forme, la roche et la terre S'EFFACENT : c'est leur
+	// transparence en mélange partiel (matière sombre sous la neige naissante)
+	// qui mouchetait la frontière. Fonction plus raide que l'ancien cube.
+	float snow_cover = 1.0 - smoothstep(0.02, 0.30, snow_auto);
 	rock_auto *= snow_cover;
 	dirt_auto *= snow_cover;
 	// Anti-mouchetures : on écrase les micro-poids résiduels (mélanges à 2 %
@@ -252,18 +283,19 @@ void fragment() {
 	float tile = max(tile_world_size, 0.0001);
 	vec3 p = world_pos / tile;
 	float amt = clamp(triplanar_amount, 0.0, 1.0);
-	// Correction d'étirement « au besoin » : elle n'apporte rien sur les
-	// pentes douces/intermédiaires (facteur proche de 1) alors que la normale
-	// y varie vite et fait onduler l'UV — la texture se déforme en traînées
-	// le long de la pente (le « dédoublement »). On ne corrige que les
-	// surfaces VRAIMENT raides (facteur > ~1.4) : les parois gardent leur
+	// Correction d'étirement « au besoin » — SEULEMENT sur les parois franches.
+	// Le warp de `stretch_fix` déplace l'UV proportionnellement à sa distance à
+	// l'origine : appliqué là où la normale varie vite (pentes rugueuses), il
+	// déchire la texture en traînées « en peigne » le long de la pente. On ne
+	// déclenche donc la correction qu'au-delà d'un facteur ~2,2 (pentes > 64°,
+	// |N·axe| < 0,45) — les parois, dont les normales sont lisses, gardent leur
 	// correction intégrale validée (nettes, sans traînées). Ailleurs la
-	// projection reste non déformée — l'étirement résiduel est borné
-	// (~1,4× au maximum de la zone de fondu) et inapparent sur les matières
-	// de sol, en échange de l'absence totale de fantôme.
-	float need_t = smoothstep(1.35, 1.75, 1.0 / max(abs(n.y), 0.40));
-	float need_sz = smoothstep(1.35, 1.75, 1.0 / max(abs(n.z), 0.40));
-	float need_sx = smoothstep(1.35, 1.75, 1.0 / max(abs(n.x), 0.40));
+	// projection reste NON DÉFORMÉE : l'étirement résiduel est celui, naturel,
+	// de la projection (≈1,4× sur un flanc moyen, borné à 2,2× dans les creux
+	// les plus raides) et régulier — inapparent sur les matières de sol.
+	float need_t = smoothstep(2.2, 2.8, 1.0 / max(abs(n.y), 0.40));
+	float need_sz = smoothstep(2.2, 2.8, 1.0 / max(abs(n.z), 0.40));
+	float need_sx = smoothstep(2.2, 2.8, 1.0 / max(abs(n.x), 0.40));
 	// Azimut de la pente dans chaque plan de projection, puis facteur de
 	// recadrage 1/|N·axe| (plafonné à 2.5 pour rester stable). À plat tous
 	// les facteurs valent 1 : strictement le rendu historique.
@@ -282,17 +314,23 @@ void fragment() {
 	// Poids de la projection « du dessus » : 1 à plat (rendu historique
 	// exact), 0 sur les parois. Les projections latérales se partagent le
 	// reste selon |N.x| / |N.z| (paroi orientée X ou Z).
-	// Fondu CONTRASTÉ et BIAISÉ VERS LE DESSUS : sur une pente
-	// intermédiaire, un fondu 50/50 montre les deux projections du motif en
-	// même temps (le « dédoublement », en traînées le long de la pente). La
-	// projection XZ est la mieux recalée à l'échelle 1:1 (sa direction de
-	// correction est exacte) : elle domine dès que la surface n'est plus une
-	// paroi raide, qui seule garde les projections latérales. La limite du
-	// fondu ondule avec du bruit monde (aucune bande régulière). À plat `up`
-	// reste exactement 1 : rendu historique strictement conservé.
+	// Fondu BIAISÉ VERS LE DESSUS aux POIDS DOUX : la projection XZ est la
+	// mieux recalée à l'échelle 1:1 (sa direction de correction est exacte) :
+	// elle domine dès que la surface n'est plus une paroi raide. Dans la
+	// bande étroite de fondu, les deux projections sont PROCHES (même échelle
+	// après stretch_fix) et le fondu « hauteur » de `sample_triplanar` évite
+	// la superposition des motifs (le « dédoublement »). La limite du fondu
+	// ondule avec du bruit monde (aucune bande régulière). À plat `up` reste
+	// exactement 1 : rendu historique strictement conservé.
 	float seam_jit = (noise3(p * 0.9 + vec3(7.3, 19.1, 3.7)) - 0.5) * 0.07;
 	float up = smoothstep(triplanar_lo + seam_jit, triplanar_hi + seam_jit, abs(n.y));
-	up = clamp((up - 0.22) * 6.0 + 0.5, 0.0, 1.0);
+	// FONDU AUX POIDS DOUX (« flou de poids ») : l'ancien contraste ×6
+	// basculait les poids de 0 à 1 d'une case à l'autre sur les pentes
+	// rugueuses — chaque case mélangeait alors ses projections (et son bruit
+	// de micro-détail) différemment de sa voisine (aspect « fourrure »). Un
+	// contraste doux garde des poids stables et un fondu continu entre les
+	// deux projections PROCHES (échelles recalées à 1:1 par stretch_fix).
+	up = clamp((up - 0.35) * 3.0 + 0.5, 0.0, 1.0);
 	vec2 side_w = vec2(abs(n.x), abs(n.z));
 	// Forte dominance d'une projection latérale sur l'autre : réduit aussi
 	// le dédoublement sur les parois orientées à 45°.
@@ -343,16 +381,24 @@ void fragment() {
 		extra = mix(extra, vec2(auto_snow, 0.0), auto_gate);
 	}
 	// Anti-tuillage : pleinement actif à plat (s_top = 1, rendu historique
-	// strict), coupé franchement dès que la correction d'étirement étire la
-	// projection du dessus — sinon son image DÉDOUBLÉE devient des traînées
-	// le long de la pente (le « dédoublement de motif »).
-	float anti_amt = 1.0 - clamp((s_top - 1.0) * 2.5, 0.0, 1.0);
+	// strict). Dès que la correction d'étirement commence à déformer l'UV,
+	// l'image DÉDOUBLÉE de l'anti-tuillage est coupée (transition douce mais
+	// très précoce) : ses deux copies ne se déforment pas de la même façon et
+	// formaient les traînées « en peigne » le long de la pente (le
+	// « dédoublement de motif »). À plat `s_top = 1` → anti = 1 exact.
+	float anti_amt = 1.0 - smoothstep(1.001, 1.10, s_top);
 	vec3 grass = sample_triplanar(grass_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 dirt = sample_triplanar(dirt_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 stone = sample_triplanar(stone_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 snow = sample_triplanar(snow_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 sand = sample_triplanar(sand_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	float snow_w = clamp(extra.r, 0.0, 1.0);
+	// NEIGE PROPRE : dès que la neige apparaît (peinte OU automatique), tous
+	// les effets sombres haute fréquence (grain de micro-détail, macro,
+	// relief procédural de normale, cavité écran) sont écrasés — c'est leur
+	// combinaison qui mouchetait la frontière neige/roche de petits points
+	// sombres. La frontière reste basse fréquence (bruit long de l'auto).
+	float snow_clean = smoothstep(0.05, 0.45, snow_w);
 	vec3 albedo =
 		grass * weights.r
 		+ dirt * weights.g
@@ -366,7 +412,7 @@ void fragment() {
 	// supprimé sur la neige (elle doit rester propre et lisse, sans
 	// mouchetures).
 	float micro = detail_height(p, tpw);
-	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength * (1.0 - 0.85 * snow_w));
+	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength * (1.0 - 0.95 * snow_clean));
 	// --- Détail de normale procédural -------------------------------------
 	// Gradient du même bruit (différences finies) projeté en espace monde :
 	// la roche et l'herbe gagnent un micro-relief cohérent avec le triplanar,
@@ -381,7 +427,7 @@ void fragment() {
 		// procédural s'efface sur la neige (micro-taches de lumière/sombre).
 		float rockiness = clamp(weights.b * (1.0 - 0.8 * snow_w) + snow_w * 0.10, 0.0, 1.0);
 		float bump = normal_detail_strength * (0.55 + 0.75 * rockiness)
-			* (1.0 - 0.7 * snow_w);
+			* (1.0 - 0.9 * snow_clean);
 		vec3 wn = normalize(n - vec3(dx, dy, dz) * (3.0 * bump));
 		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
 	}
@@ -390,13 +436,13 @@ void fragment() {
 	// répétitions lointaines sans dessiner de rayures périodiques.
 	float macro = (value_noise(p.xz * 0.9) * 2.0 - 1.0) * 0.7
 		+ (value_noise(p.xz * 2.3 + vec2(31.7, 9.4)) * 2.0 - 1.0) * 0.3;
-	albedo *= 1.0 + macro_strength * macro * (1.0 - 0.6 * snow_w);
+	albedo *= 1.0 + macro_strength * macro * (1.0 - 0.9 * snow_clean);
 	// --- Neige propre -----------------------------------------------------
 	// Éclaircissement renforcé dès que la neige apparaît : les grains sombres
 	// de la pierre/terre qui transparaissent dans le mélange partiel sont
 	// blanchis — la ligne de neige reste propre, sans micro-taches.
-	albedo = mix(albedo, albedo * 1.10 + vec3(0.035),
-		clamp(snow_w * 1.35, 0.0, 1.0) * 0.7);
+	albedo = mix(albedo, albedo * 1.12 + vec3(0.045),
+		clamp(snow_w * 1.5, 0.0, 1.0) * 0.8);
 	// --- Occlusion approximée (cavité + pente) ----------------------------
 	// Courbure locale : dérivée écran de la normale monde. Les creux (normale
 	// qui tourne vite) s'assombrissent, les surfaces plates restent claires.
@@ -404,9 +450,14 @@ void fragment() {
 	// au sommet ni sur la ligne de neige).
 	float curvature = length(dFdx(n)) + length(dFdy(n));
 	float cavity = smoothstep(0.10, 0.75, curvature) * cavity_strength
-		* (1.0 - 0.8 * snow_w);
+		* (1.0 - 0.9 * snow_clean);
 	float sky = 1.0 - slope_ao_strength * (1.0 - smoothstep(0.15, 0.85, abs(n.y)));
-	float occlusion = clamp(1.0 - cavity - sky, 0.35, 1.0);
+	// AO DE CUVETTES Cuite (méthode CS2) : `COLOR.a` porte l'occlusion par
+	// sommet cuite depuis le heightfield (1 = dégagé, < 1 creux/valons
+	// assombris, > 1 crêtes légèrement éclaircies). `cavity_bake = 0` rend
+	// exactement le rendu historique (A/B réversible).
+	float baked_ao = mix(1.0, clamp(COLOR.a, 0.0, 1.10), clamp(cavity_bake, 0.0, 1.0));
+	float occlusion = clamp(1.0 - cavity - sky, 0.35, 1.0) * baked_ao;
 	albedo *= occlusion;
 	// --- BERGE MOUILLÉE : terre assombrie/brunie AU BORD de l'eau --------
 	// `shore_tex` (construite par la couche d'eau) encode une distance à la
