@@ -61,6 +61,12 @@ var _depth_image: Image = null
 ## Texture de BERGE (1 = eau, dégradé = terre mouillée) pour le shader du
 ## terrain : construite en même temps que les bassins.
 var _shore_texture: ImageTexture = null
+## CARTE D'EAU combinée (résolution carte = une case par texel) pour le shader
+## du terrain : R = profondeur normalisée (0..1, max sur les bassins),
+## G = masque d'eau (1 = sous l'eau), B = 0, A = 1. Construite dans le MÊME
+## passage que la texture de berge (même boucle sur les images des bassins) :
+## elle porte aux caustiques animées et à l'absorption par profondeur du lit.
+var _water_map_texture: ImageTexture = null
 var _water_level: float = NO_WATER_LEVEL
 var _cell_size: float = 1.0
 var _map_w: int = 0
@@ -171,6 +177,8 @@ func clear() -> void:
 	_max_depth = 0.0
 	_depth_texture = null
 	_depth_image = null
+	_shore_texture = null
+	_water_map_texture = null
 	_terrain_carves = []
 	_terrain_field = null
 	_has_config = false
@@ -337,6 +345,11 @@ func _rebuild() -> void:
 		return
 
 	_build_depth_texture(max_depth)
+	# Carte d'eau : construite depuis les images des BASSINS uniquement (même
+	# passage que la texture de berge). Le plan historique n'en fournit pas :
+	# on invalide toute carte héritée d'une config précédente (règle d'or :
+	# sans masque d'eau, le terrain est strictement inchangé).
+	_water_map_texture = null
 	_build_material()
 	_mesh_instance.mesh = _build_plane_mesh()
 	_mesh_instance.position = Vector3(0.0, get_surface_y(), 0.0)
@@ -351,6 +364,8 @@ func _deactivate() -> void:
 	_max_depth = 0.0
 	_depth_texture = null
 	_depth_image = null
+	_shore_texture = null
+	_water_map_texture = null
 	_clear_decor()
 	_clear_body_nodes()
 	if _mesh_instance != null:
@@ -500,6 +515,7 @@ func _rebuild_bodies() -> void:
 	var max_depth := 0.0
 	var first: Dictionary = {}
 	var depth_images: Array = []
+	var footprints: Array = []
 	for body in _water_bodies:
 		if not (body is Dictionary):
 			continue
@@ -513,11 +529,12 @@ func _rebuild_bodies() -> void:
 		var dimg = built.get("image", null)
 		if dimg is Image:
 			depth_images.append(dimg)
+			footprints.append(built.get("footprint", null))
 		submerged += int(built.get("submerged", 0))
 		max_depth = maxf(max_depth, float(built.get("max_depth", 0.0)))
 		if first.is_empty():
 			first = built
-	_build_shore_texture(depth_images)
+	_build_shore_texture(depth_images, footprints)
 	_submerged_count = submerged
 	_max_depth = max_depth
 	if first.is_empty():
@@ -535,27 +552,59 @@ func _rebuild_bodies() -> void:
 	visible = true
 	_rebuild_decor()
 
-## Texture de BERGE pour le shader du terrain : 1 = eau, dégradé = terre
-## mouillée. Union des bassins, dilatée de ~2 cases (bande de berge).
-func _build_shore_texture(images: Array) -> void:
+## Texture de BERGE + CARTE D'EAU pour le shader du terrain, construites dans
+## le MÊME passage (même boucle sur les images de profondeur des bassins) :
+##   • berge : 1 = eau, dégradé = terre mouillée (union des bassins, dilatée
+##     de ~2 cases) ;
+##   • carte d'eau (résolution carte) : R = profondeur normalisée (0..1, max
+##     sur les bassins), G = masque d'eau (1 = sous l'eau), B = 0, A = 1.
+##     Le masque est INTERSECTÉ avec l'empreinte visible de chaque bassin
+##     (`footprints` = maillage de la nappe : polygone du lac, ruban de la
+##     rivière) : seules les cases réellement recouvertes par la surface
+##     d'eau sont « sous l'eau » — la berge haute d'un lit de rivière en
+##     pente (profondeur théorique mais hors nappe) reste hors masque.
+func _build_shore_texture(images: Array, footprints: Array = []) -> void:
 	_shore_texture = null
+	_water_map_texture = null
 	if images.is_empty():
 		return
 	var occ := PackedFloat32Array()
 	occ.resize(_map_w * _map_h)
 	occ.fill(0.0)
-	for dimg in images:
-		var img: Image = dimg
+	# Carte d'eau : profondeur normalisée combinée au MAX sur les bassins et
+	# masque d'eau (1 = au moins un bassin recouvre la case).
+	var wdepth := PackedFloat32Array()
+	wdepth.resize(_map_w * _map_h)
+	wdepth.fill(0.0)
+	var wmask := PackedFloat32Array()
+	wmask.resize(_map_w * _map_h)
+	wmask.fill(0.0)
+	for bi in range(images.size()):
+		var img: Image = images[bi]
+		var fimg: Image = null
+		if bi < footprints.size() and footprints[bi] is Image:
+			fimg = footprints[bi]
 		var w := img.get_width()
 		var h := img.get_height()
 		var sx := float(_map_w) / float(maxi(1, w))
 		var sz := float(_map_h) / float(maxi(1, h))
 		for tz in range(h):
 			for tx in range(w):
-				if img.get_pixel(tx, tz).g >= 0.5:
+				var px := img.get_pixel(tx, tz)
+				if px.g >= 0.5:
 					var cx := clampi(int(float(tx) * sx), 0, _map_w - 1)
 					var cz := clampi(int(float(tz) * sz), 0, _map_h - 1)
+					# BERGE : masque brut des bassins, inchangé (la bande
+					# mouillée mord volontairement au-delà de la nappe).
 					occ[cz * _map_w + cx] = 1.0
+					# CARTE D'EAU : sous l'eau = masque ET nappe visible.
+					if fimg != null and fimg.get_pixel(tx, tz).g < 0.5:
+						continue
+					# R = profondeur normalisée du bassin (déjà 0..1 dans son
+					# image), combinée au MAX là où plusieurs bassins se
+					# recouvrent ; G = masque d'eau.
+					wdepth[cz * _map_w + cx] = maxf(wdepth[cz * _map_w + cx], px.r)
+					wmask[cz * _map_w + cx] = 1.0
 	# Dilate : la bande mouillée mord sur la berge (2 passes, atténuation).
 	for _pass in range(2):
 		var nxt := occ.duplicate()
@@ -572,15 +621,25 @@ func _build_shore_texture(images: Array) -> void:
 				nxt[cz * _map_w + cx] = best
 		occ = nxt
 	var img2 := Image.create(_map_w, _map_h, false, Image.FORMAT_RGBA8)
+	var wimg := Image.create(_map_w, _map_h, false, Image.FORMAT_RGBA8)
 	for cz in range(_map_h):
 		for cx in range(_map_w):
 			var v: float = occ[cz * _map_w + cx]
 			img2.set_pixel(cx, cz, Color(v, 0.0, 0.0, 1.0))
+			wimg.set_pixel(cx, cz, Color(
+				wdepth[cz * _map_w + cx], wmask[cz * _map_w + cx], 0.0, 1.0))
 	_shore_texture = ImageTexture.create_from_image(img2)
+	_water_map_texture = ImageTexture.create_from_image(wimg)
 
 ## Texture de berge (null si aucun bassin d'eau).
 func get_shore_texture() -> ImageTexture:
 	return _shore_texture
+
+## Carte d'eau combinée pour le shader du terrain (R = profondeur normalisée,
+## G = masque d'eau), null si aucun bassin d'eau. C'est elle qui porte les
+## caustiques animées et l'absorption par profondeur du lit sous l'eau.
+func get_water_map_texture() -> ImageTexture:
+	return _water_map_texture
 
 ## Construit un bassin **lac/mare** : polygone de cases, rempli jusqu'à `level`.
 func _build_lake_body(body: Dictionary) -> Dictionary:
@@ -625,6 +684,7 @@ func _build_lake_body(body: Dictionary) -> Dictionary:
 	return {
 		"mesh": mesh, "material": mat,
 		"texture": depth_data["texture"], "image": depth_data["image"],
+		"footprint": _make_poly_footprint(poly, level),
 		"submerged": submerged, "max_depth": max_depth, "level": level,
 	}
 
@@ -1002,6 +1062,7 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	return {
 		"mesh": mesh, "material": mat,
 		"texture": depth_data["texture"], "image": depth_data["image"],
+		"footprint": _make_river_footprint(dense, widths),
 		"submerged": 1, "max_depth": maxf(level - _lowest_point(dense), WATER_EPSILON),
 		"level": level, "falls": fall_faces,
 	}
@@ -1215,6 +1276,69 @@ func _lowest_point(pts: Array) -> float:
 	for p in pts:
 		low = minf(low, (p as Vector3).y)
 	return low if low < INF else 0.0
+
+## Empreinte VISIBLE du maillage d'un lac (résolution carte) : 1 = la case est
+## couverte par le plan polygonal du bassin ET son sol visible est sous le
+## niveau (nappe réellement rendue). Sert à restreindre la carte d'eau aux
+## cases recouvertes par la surface visible — une case dont le sol affleure ou
+## dépasse la ligne de flottaison (fondus de nappe, ressauts) n'est pas « sous
+## l'eau » à l'écran (règle d'or : pas d'effet hors de la nappe visible).
+func _make_poly_footprint(poly: PackedVector2Array, level: float) -> Image:
+	var img := Image.create(_map_w, _map_h, false, Image.FORMAT_RGBA8)
+	var bbox := Rect2(poly[0], Vector2.ZERO)
+	for p in poly:
+		bbox = bbox.expand(p)
+	var x0 := maxi(0, int(floorf(bbox.position.x)))
+	var x1 := mini(_map_w, int(ceili(bbox.end.x)))
+	var y0 := maxi(0, int(floorf(bbox.position.y)))
+	var y1 := mini(_map_h, int(ceili(bbox.end.y)))
+	for cy in range(y0, y1):
+		for cx in range(x0, x1):
+			if not _point_in_poly(Vector2(float(cx), float(cy)), poly):
+				continue
+			if level - _visible_ground_at(float(cx), float(cy)) <= 0.05:
+				continue
+			img.set_pixel(cx, cy, Color(0.0, 1.0, 0.0, 1.0))
+	return img
+
+## Empreinte VISIBLE du ruban de rivière (4 texels/case, même résolution que
+## `_make_river_depth`) : 1 = le texel du lit est couvert par le maillage de
+## la nappe (demi-largeur locale `widths[i]/2` du ruban) ET son sol visible
+## est sous le niveau local (les fondus de nappe effacent la surface au-delà).
+## Au-delà de cette empreinte, la profondeur « théorique » du lissage peut
+## dépasser le sol local sans qu'aucune eau ne soit visible : ces cases restent
+## hors masque.
+func _make_river_footprint(dense: Array, widths: PackedFloat32Array) -> Image:
+	var res := 4
+	var tw := _map_w * res
+	var th := _map_h * res
+	var img := Image.create(tw, th, false, Image.FORMAT_RGBA8)
+	var inv_res := 1.0 / float(res)
+	for i in range(dense.size() - 1):
+		var a: Vector3 = dense[i]
+		var b: Vector3 = dense[i + 1]
+		var hw_a := widths[i] * 0.5
+		var hw_b := widths[i + 1] * 0.5
+		var half := maxf(hw_a, hw_b)
+		var x0 := maxi(0, floori((minf(a.x, b.x) - half) * float(res)))
+		var x1 := mini(tw - 1, ceili((maxf(a.x, b.x) + half) * float(res)))
+		var z0 := maxi(0, floori((minf(a.z, b.z) - half) * float(res)))
+		var z1 := mini(th - 1, ceili((maxf(a.z, b.z) + half) * float(res)))
+		var ab := Vector2(b.x - a.x, b.z - a.z)
+		var len2 := maxf(ab.length_squared(), 0.0001)
+		for tz in range(z0, z1 + 1):
+			for tx in range(x0, x1 + 1):
+				var p := Vector2((float(tx) + 0.5) * inv_res,
+					(float(tz) + 0.5) * inv_res)
+				var t := clampf((p - Vector2(a.x, a.z)).dot(ab) / len2, 0.0, 1.0)
+				var closest := Vector2(a.x, a.z) + ab * t
+				if p.distance_to(closest) > lerpf(hw_a, hw_b, t):
+					continue
+				var level_y := lerpf(a.y, b.y, t)
+				if level_y - _visible_ground_at(p.x, p.y) <= 0.05:
+					continue
+				img.set_pixel(tx, tz, Color(0.0, 1.0, 0.0, 1.0))
+	return img
 
 ## Texture de profondeur **par bassin** (R = profondeur normalisée depuis le
 ## niveau du bassin, G = masque : 1 uniquement là où le sol visible est sous ce

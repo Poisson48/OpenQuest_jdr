@@ -154,6 +154,10 @@ var _splat_active: bool = false
 ## Texture de BERGE fournie par la couche d'eau (bande mouillée autour de
 ## l'eau) : teinte la terre au bord de l'eau dans le shader de matières.
 var _shore_texture: Texture2D = null
+## CARTE D'EAU fournie par la couche d'eau (R = profondeur normalisée,
+## G = masque d'eau) : porte les caustiques animées et l'absorption par
+## profondeur du lit sous l'eau dans le shader de matières.
+var _water_map_texture: Texture2D = null
 ## Textures de matières (chargées à la demande) :
 ## "grass" / "dirt" / "stone" / "snow" / "sand".
 var _terrain_textures: Dictionary = {}
@@ -658,6 +662,22 @@ func set_shore_texture(tex: Texture2D) -> void:
 		(mat as ShaderMaterial).set_shader_parameter(
 			"shore_enabled", 1.0 if tex != null else 0.0)
 
+## Matériau du terrain 3D.
+##
+## CARTE D'EAU (profondeur + masque d'eau des bassins) fournie par la couche
+## d'eau : le lit sous l'eau est assombri/teinté par la profondeur (absorption)
+## et éclairé par des caustiques animées. `water_map_enabled = 0` (ou une
+## carte nulle) rend EXACTEMENT le rendu historique (A/B réversible).
+func set_water_map_texture(tex: Texture2D) -> void:
+	_water_map_texture = tex
+	if _mesh_instance == null:
+		return
+	var mat := _mesh_instance.material_override
+	if mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter("water_map", tex)
+		(mat as ShaderMaterial).set_shader_parameter(
+			"water_map_enabled", 1.0 if tex != null else 0.0)
+
 ## Si les matières sont actives : `ShaderMaterial` `terrain_splat.gdshader` qui
 ## mélange les cinq textures tuilées (UV) via les deux splats (UV2) et multiplie
 ## par les vertex colors d'ombrage ; il reste éclairé (spatial). `albedo_tint`
@@ -716,6 +736,9 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		if _shore_texture != null:
 			shader_mat.set_shader_parameter("shore_tex", _shore_texture)
 			shader_mat.set_shader_parameter("shore_enabled", 1.0)
+		if _water_map_texture != null:
+			shader_mat.set_shader_parameter("water_map", _water_map_texture)
+			shader_mat.set_shader_parameter("water_map_enabled", 1.0)
 		_mesh_instance.material_override = shader_mat
 		return
 	var mat := StandardMaterial3D.new()

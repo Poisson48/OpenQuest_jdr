@@ -67,6 +67,22 @@ uniform sampler2D shore_tex : filter_linear, repeat_disable;
 uniform vec4 shore_tint : source_color = vec4(0.30, 0.26, 0.18, 1.0);
 uniform float shore_enabled : hint_range(0.0, 1.0) = 0.0;
 
+// CARTE D'EAU (caustiques + absorption du lit, méthode CS2) : construite par
+// `MapWater3D.get_water_map_texture()` (résolution carte, une case = un
+// texel) et combinée sur tous les bassins :
+//   • R = profondeur normalisée (0..1, max sur les bassins) ;
+//   • G = masque d'eau (1 = la case est sous l'eau).
+// Là où le masque est actif, le lit du bassin est (a) ABSORBÉ — assombri et
+// teinté bleu-vert profond selon la profondeur : peu profond = lit lisible,
+// profond = sombre/bleuté — et (b) éclairé par des CAUSTIQUES animées
+// (motif cellulaire procédural, surtout en faible profondeur R < 0.5).
+// RÈGLE D'OR : masque = 0 partout, ou `water_map_enabled` = 0 → aucun effet,
+// le rendu est EXACTEMENT le rendu historique (A/B réversible).
+uniform sampler2D water_map : filter_linear, repeat_disable;
+uniform float water_map_enabled : hint_range(0.0, 1.0) = 0.0;
+uniform float caustics_strength : hint_range(0.0, 2.0) = 0.70;
+uniform float absorption_strength : hint_range(0.0, 2.0) = 1.0;
+
 // Taille en unités monde d'une répétition de texture (cell_size × 2 cases).
 // Sert à reconstruire les coordonnées de projection depuis la position monde,
 // pour que terrain ET clusters de creusement partagent le même repère.
@@ -213,6 +229,48 @@ float detail_height(vec3 p, vec3 w) {
 	return value_noise(p.xz * detail_freq) * w.y
 		+ value_noise(p.zy * detail_freq * 1.07 + vec2(13.7, 5.1)) * w.x
 		+ value_noise(p.xy * detail_freq * 0.93 + vec2(4.2, 27.9)) * w.z;
+}
+
+// Motif de CAUSTIQUES procédural (0..1) : réseau de cellules voronoï ANIMÉ
+// (les foyers dérivent lentement, façon TIME). Les ARÊTES entre cellules sont
+// lumineuses (F2 - F1 petit = frontière de deux foyers) : le lit reçoit un
+// WEB de filaments clairs qui ondule, comme les caustiques projetées par une
+// surface d'eau. Deux octaves (échelle 1 et 1.9) sans texture supplémentaire :
+// coût constant, déterministe, animé par TIME.
+vec2 voronoi_f12(vec2 q, float t) {
+	vec2 i = floor(q);
+	vec2 f = fract(q);
+	float f1 = 8.0;
+	float f2 = 8.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 g = vec2(float(x), float(y));
+			vec2 o = vec2(hash12(i + g), hash12(i + g + vec2(19.19, 7.37)));
+			// Dérive lente des foyers : la caustique se déforme sans
+			// glisser (pas de scrolling apparent).
+			o = 0.5 + 0.45 * vec2(sin(t * 0.70 + 6.2831 * o.x),
+				cos(t * 0.62 + 6.2831 * o.y));
+			vec2 r = g + o - f;
+			float d = dot(r, r);
+			if (d < f1) {
+				f2 = f1;
+				f1 = d;
+			} else if (d < f2) {
+				f2 = d;
+			}
+		}
+	}
+	return vec2(sqrt(f1), sqrt(f2));
+}
+
+float caustic_pattern(vec2 xz, float t) {
+	vec2 q = xz * 2.2;
+	vec2 a = voronoi_f12(q, t);
+	vec2 b = voronoi_f12(q * 1.9 + vec2(11.3, 4.7), t * 1.12 + 3.1);
+	// Arêtes lumineuses FINES (web), centres de cellules sombres.
+	float web_a = 1.0 - smoothstep(0.0, 0.10, a.y - a.x);
+	float web_b = 1.0 - smoothstep(0.0, 0.09, b.y - b.x);
+	return clamp(web_a * 0.52 + web_b * 0.32, 0.0, 1.0);
 }
 
 // Poids automatiques des matières d'après la pente et l'altitude (méthode CS2).
@@ -494,6 +552,39 @@ void fragment() {
 		float bank = mix(0.5, 3.0, smoothstep(0.80, 0.99, abs(n.y)));
 		float wet = (1.0 - smoothstep(0.0, bank, dd)) * shore_enabled;
 		albedo = mix(albedo, mix(albedo * 0.55, shore_tint.rgb, 0.45), wet);
+	}
+	// --- SOUS L'EAU : absorption par profondeur + caustiques animées -----
+	// `water_map` (résolution carte, UV2) : R = profondeur normalisée,
+	// G = masque d'eau. Uniquement là où le masque est actif — sans eau
+	// (masque 0 partout) le rendu est EXACTEMENT le rendu historique.
+	if (water_map_enabled > 0.001) {
+		// Seuil élevé : le filtrage linéaire interpole le masque sur la
+		// demi-case de transition — à 0.75 l'effet ne remonte pas sur la
+		// berge visible au-dessus de la ligne de flottaison (une paroi de
+		// rive ou un ressaut reste intact).
+		vec4 wmap = texture(water_map, UV2);
+		if (wmap.g > 0.75) {
+			float wdepth = clamp(wmap.r, 0.0, 1.0);
+			// (a) ABSORPTION : l'eau absorbe le rouge puis le vert selon la
+			// profondeur (loi approchée 1 - exp(-k·d)) — le lit s'assombrit
+			// et vire au bleu-vert profond : peu profond = lit lisible,
+			// profond = sombre/bleuté.
+			float absorb = 1.0 - exp(-2.4 * max(absorption_strength, 0.0) * wdepth);
+			albedo *= mix(vec3(1.0), vec3(0.30, 0.56, 0.60), absorb)
+				* (1.0 - 0.32 * absorb);
+			// (b) CAUSTIQUES : web de cellules animé (TIME) ajouté à
+			// l'albédo, surtout visible en faible profondeur (R < 0.5) ; une
+			// lueur atténuée subsiste au-delà. Amorce douce juste à la ligne
+			// de flottaison (pas d'éclat sur la berge). Le web n'est projeté
+			// que sur les surfaces PRESQUE PLATES (le lit) : sur une paroi ou
+			// un talus raide, la projection XZ l'étirerait en traînées.
+			float caus = caustic_pattern(world_pos.xz, TIME)
+				* smoothstep(0.70, 0.92, abs(n.y));
+			float caus_gate = smoothstep(0.05, 0.22, wdepth)
+				* mix(0.24, 1.0, 1.0 - smoothstep(0.25, 0.65, wdepth));
+			albedo += vec3(0.70, 0.88, 0.82) * caus * max(caustics_strength, 0.0)
+				* caus_gate;
+		}
 	}
 	ALBEDO = albedo * albedo_tint.rgb;
 	ROUGHNESS = 1.0;

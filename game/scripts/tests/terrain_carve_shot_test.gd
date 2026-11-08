@@ -24,6 +24,12 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	if DisplayServer.get_name() == "headless":
+		# Capture impossible sans rendu réel : on sort proprement (jamais de
+		# fenêtre qui volerait le focus pendant que quelqu'un joue sur le PC).
+		print("  [SKIP] capture d'écran impossible en headless.")
+		quit(0)
+		return
 	await process_frame
 	var md = get_root().get_node("MapData")
 	var Engine3DScript: GDScript = load("res://scripts/maps/complex_map_engine_3d.gd")

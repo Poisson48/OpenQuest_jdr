@@ -1064,6 +1064,12 @@ func _load_water() -> void:
 	if _ground != null and _ground.has_method("set_shore_texture") \
 			and _water_layer.has_method("get_shore_texture"):
 		_ground.call("set_shore_texture", _water_layer.get_shore_texture())
+	# CARTE D'EAU (même passage que la berge) : profondeur normalisée + masque
+	# d'eau combinés des bassins — le terrain assombrit/teinte son lit sous
+	# l'eau et y projette des caustiques animées (shader de matières).
+	if _ground != null and _ground.has_method("set_water_map_texture") \
+			and _water_layer.has_method("get_water_map_texture"):
+		_ground.call("set_water_map_texture", _water_layer.get_water_map_texture())
 
 ## Change le niveau d'eau **sans toucher au document** (outils/tests ; l'éditeur
 ## passera par `refresh_terrain(map_data)`). Niveau en cases ; < 0 retire l'eau.

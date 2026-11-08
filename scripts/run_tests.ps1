@@ -12,7 +12,9 @@
     pas `--quit`, applique un timeout par test et vérifie la sortie (`:PASS`).
 
     Les tests de capture d'écran (`*_shot_test.gd`, rendu fenêtré requis) sont
-    ignorés par défaut ; utiliser -IncludeShots pour les lancer.
+    ignorés par défaut ; utiliser -IncludeShots pour les lancer — ils tournent
+    alors dans une FENÊTRE CACHÉE (aucun vol de focus : on peut jouer sur la
+    même machine). En headless, ces tests sortent proprement en [SKIP].
 
 .EXAMPLE
     ./scripts/run_tests.ps1
@@ -62,11 +64,20 @@ $results = @()
 $failed = 0
 
 foreach ($test in $tests) {
+    $isShot = $test.BaseName -match '_shot_test$'
     Write-Host "→ $($test.BaseName)" -ForegroundColor Cyan
     Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
-    $args = @('--headless', '--path', $gameDir, '--script', "res://scripts/tests/$($test.Name)")
-    $proc = Start-Process -FilePath $godotBin -ArgumentList $args -PassThru -NoNewWindow `
-        -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    if ($isShot) {
+        # Capture d'écran : rendu GPU réel nécessaire, mais AUCUNE fenêtre
+        # visible (pas de vol de focus) — jamais lancée sans -IncludeShots.
+        $args = @('--path', $gameDir, '--script', "res://scripts/tests/$($test.Name)")
+        $proc = Start-Process -FilePath $godotBin -ArgumentList $args -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    } else {
+        $args = @('--headless', '--path', $gameDir, '--script', "res://scripts/tests/$($test.Name)")
+        $proc = Start-Process -FilePath $godotBin -ArgumentList $args -PassThru -NoNewWindow `
+            -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+    }
     $finished = $proc.WaitForExit($TimeoutSeconds * 1000)
     $code = -1
     if ($finished) {

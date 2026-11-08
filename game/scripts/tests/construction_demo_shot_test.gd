@@ -6,6 +6,12 @@ func _init() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	if DisplayServer.get_name() == "headless":
+		# Capture impossible sans rendu réel : on sort proprement (jamais de
+		# fenêtre qui volerait le focus pendant que quelqu'un joue sur le PC).
+		print("  [SKIP] capture d'écran impossible en headless.")
+		quit(0)
+		return
 	await process_frame
 	DisplayServer.window_set_size(Vector2i(1600, 1000))
 	get_root().size = Vector2i(1600, 1000)
