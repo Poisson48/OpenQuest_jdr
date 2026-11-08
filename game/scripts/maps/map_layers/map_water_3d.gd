@@ -1135,42 +1135,53 @@ func _make_body_material(depth_texture: ImageTexture,
 	# lisible, caustiques visibles sur le lit des hauts-fonds.
 	var shallow := SHALLOW_COLOR
 	var deep := DEEP_COLOR
-	var foam := 0.6
-	var foam_w := 0.10
+	var foam := 0.65
+	var foam_w := 0.08
 	var wave_strength := 0.08
 	var wave_speed := 0.8
 	var flow_strength := 0.65
 	var foam_scale := 1.8
-	var glint := 1.0
+	var glint := 0.9
 	var caustic := 0.45
 	var bed := Color(0.44, 0.48, 0.31)
 	# Ciel réfléchi (dégradé) et extinction par profondeur : l'eau d'un lac est
-	# plus « dense » en profondeur qu'un ruisseau peu profond.
+	# plus « dense » en profondeur qu'un ruisseau peu profond. L'horizon reste
+	# teinté ciel (pas blanc) : le reflet de rase est lisible sans laver la
+	# surface.
 	var sky := Color(0.52, 0.66, 0.76)
-	var horizon := Color(0.82, 0.88, 0.90)
+	var horizon := Color(0.76, 0.83, 0.87)
 	var extinction := 2.2
 	var depth_bias := 0.0
+	# Sonde de contact (texels) : le masque du lac a 1 texel/case — 1 texel de
+	# rayon ≈ 0.7 unité monde, soit un liseré de mousse fin (~0.2 unité).
+	var shore_texels := 1.0
+	var sky_reflect := 0.24
 	# Rivière (ruban animé) : teinte un peu plus vive, mousse de contact plus
 	# fine et plus marquée le long des berges, dérive pleine dans le sens du
 	# courant, caustiques plus discrètes (lit plus profond et plus ombré).
 	if edge_softness > 0.0:
 		shallow = Color(0.24, 0.55, 0.58)
 		deep = Color(0.05, 0.18, 0.30)
-		foam = 0.9
-		foam_w = 0.35
+		foam = 0.85
+		foam_w = 0.10
 		wave_strength = 0.18
 		wave_speed = 1.1
 		flow_strength = 1.0
 		foam_scale = 2.4
-		glint = 1.15
+		glint = 1.0
 		caustic = 0.28
 		bed = Color(0.40, 0.44, 0.30)
 		sky = Color(0.58, 0.70, 0.78)
-		horizon = Color(0.80, 0.86, 0.88)
+		horizon = Color(0.76, 0.83, 0.87)
 		# Eau courante mince : le fond reste lisible plus longtemps (la
 		# profondeur normalisée du ruban est proche de 1 partout).
 		extinction = 1.6
 		depth_bias = -0.28
+		# Masque de rivière à 4 texels/case : le ruban ne fait que 3 texels de
+		# demi-largeur — 1,5 texel de rayon garde l'anneau dans le masque et
+		# donne un liseré fin (~0,2 unité monde) de chaque côté du chenal.
+		shore_texels = 1.5
+		sky_reflect = 0.22
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)
 	mat.set_shader_parameter("foam_color", FOAM_COLOR)
@@ -1193,6 +1204,9 @@ func _make_body_material(depth_texture: ImageTexture,
 	mat.set_shader_parameter("flow_speed", flow_speed)
 	mat.set_shader_parameter("flow_strength", flow_strength)
 	mat.set_shader_parameter("edge_softness", edge_softness)
+	# Liseré de mousse de contact (rayon de sonde en texels) et reflet de ciel.
+	mat.set_shader_parameter("shore_texels", shore_texels)
+	mat.set_shader_parameter("sky_reflect", sky_reflect)
 	# Taille d'un texel de profondeur (UV) : le shader sonde le masque d'eau
 	# voisin pour placer la mousse de contact au VRAI bord terre/eau.
 	var tex_size := depth_texture.get_size()

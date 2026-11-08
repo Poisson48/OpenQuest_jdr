@@ -664,12 +664,24 @@ func _apply_terrain_material(night_mode: bool) -> void:
 			"albedo_tint", TERRAIN_NIGHT_TINT if night_mode else Color.WHITE
 		)
 		shader_mat.set_shader_parameter("vertex_color_strength", 1.0)
-		shader_mat.set_shader_parameter("blend_sharpness", 1.0)
+		# Mélange des splats légèrement resserré : les frontières peintes
+		# restent douces mais ne forment plus de zone mitoyenne étendue
+		# (moins de « dents » sombres là où deux matières se croisent).
+		shader_mat.set_shader_parameter("blend_sharpness", 1.15)
 		# Repère de la projection triplanaire : une répétition de texture vaut
 		# TERRAIN_TILE_CELLS cases, exprimée en unités monde pour que le
 		# terrain et les clusters de creusement partagent le même alignement.
 		shader_mat.set_shader_parameter(
 			"tile_world_size", cell_size * TERRAIN_TILE_CELLS)
+		# Triplanar net (méthode CS2) : fondu resserré et décalé vers les
+		# parois pour que les normales lissées d'une falaise restent en
+		# projection latérale ; la correction d'étirement interne du shader
+		# recalle chaque projection à l'échelle 1:1 (à plat, rendu historique
+		# strictement conservé).
+		shader_mat.set_shader_parameter("triplanar_lo", 0.60)
+		shader_mat.set_shader_parameter("triplanar_hi", 0.88)
+		# Frontières de splats peints légèrement bruitées (bords organiques).
+		shader_mat.set_shader_parameter("splat_edge_noise", 0.6)
 		# AUTO-MATÉRIAU (méthode CS2) : bornes d'altitude en unités monde pour
 		# que le shader place la roche sur les pentes, la terre sur les
 		# contreforts et la neige sur les sommets des zones non peintes.

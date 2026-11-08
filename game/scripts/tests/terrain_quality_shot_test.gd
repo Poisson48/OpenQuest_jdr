@@ -41,8 +41,11 @@ const HILL_SLOPE := 0.95
 const DIFF_MIN_OVERVIEW := 0.003
 const DIFF_MIN_CLIFF := 0.010
 ## Montagne : mesurée sur la zone utile de l'image (hors fond noir), la
-## montagne elle-même ne couvrant qu'une partie de la carte.
-const DIFF_MIN_MOUNTAIN := 0.006
+## montagne elle-même ne couvrant qu'une partie de la carte. Seuil tenu bas
+## volontairement : le nettoyage anti-bandes de l'auto-matériau (frontières
+## bruitées, pas de micro-taches) réduit le diff moyen, alors que l'effet
+## qualitatif (roche/neige/terre vs herbe seule) reste massif.
+const DIFF_MIN_MOUNTAIN := 0.005
 ## Tolérance sur les zones qui doivent rester identiques (plaine, paroi peinte).
 const SAME_MAX := 0.004
 
@@ -236,8 +239,9 @@ func _cliff_heights() -> Array:
 			heights[z * W + x] = maxf(0.0, h)
 	return heights
 
-## Matières : paroi peinte en PIERRE (prioritaire), terre au pied, herbe
-## neutre ailleurs, coin de sable peint.
+## Matières : paroi peinte en PIERRE (prioritaire), terre au pied en TACHES
+## irrégulières (jamais une bande peinte continue — le « strate peinte » du
+## rapport), herbe neutre ailleurs, coin de sable peint à bords organiques.
 func _cliff_materials() -> Array:
 	var materials: Array = []
 	materials.resize(W * H)
@@ -247,11 +251,22 @@ func _cliff_materials() -> Array:
 			if z >= int(CLIFF_Z0) and z <= int(CLIFF_Z1):
 				m = 2
 			elif z == int(CLIFF_Z1) + 1:
-				m = 1
+				# Terre au pied de la falaise : taches le long de la ligne,
+				# frontières ondulées (bruit doux, pas d'angles droits).
+				if _soft_noise(float(x) * 0.9, float(z) * 0.7) > -0.55:
+					m = 1
 			elif x > W - 5 and z > H - 5:
-				m = 4
+				# Coin de sable : bord diagonal ondulé au lieu d'un rectangle.
+				var edge := (float(x) + float(z)) - (float(W) + float(H) - 8.5)
+				if edge + _soft_noise(float(x) * 0.8, float(z) * 0.8) * 2.2 > 0.0:
+					m = 4
 			materials[z * W + x] = m
 	return materials
+
+## Bruit doux déterministe (-1..1) : sert à donner des bords organiques aux
+## zones peintes du jeu de test (pas de rectangles ni de bandes pleines).
+func _soft_noise(x: float, z: float) -> float:
+	return 0.6 * sin(x * 0.9 + z * 0.4) + 0.4 * sin(x * 2.3 - z * 1.1 + 1.7)
 
 # ===========================================================================
 # Carte B — montagne (toute en herbe neutre : l'auto-matériau fait le reste)
@@ -288,18 +303,21 @@ func _noise2(x: float, z: float) -> float:
 	return (v - floorf(v)) - 0.5
 
 ## Matières : herbe neutre partout (matière par défaut → l'auto-matériau
-## s'applique), sauf un chemin de terre PEINT au premier plan et un coin de
-## sable peint (doivent rester inchangés).
+## s'applique), sauf un chemin de terre PEINT sinueux au premier plan et un
+## coin de sable peint à bords organiques (doivent rester inchangés).
 func _mountain_materials() -> Array:
 	var materials: Array = []
 	materials.resize(W * H)
 	for z in range(H):
 		for x in range(W):
 			var m := 0
-			if z == H - 2:
+			# Chemin de terre sinueux (une à deux cases, frontières ondulées).
+			if absf(float(z) - float(H - 2) + _soft_noise(float(x) * 0.7, 0.0) * 1.2) < 0.75:
 				m = 1
 			elif x > W - 5 and z > H - 5:
-				m = 4
+				var edge := (float(x) + float(z)) - (float(W) + float(H) - 8.5)
+				if edge + _soft_noise(float(x) * 0.8, float(z) * 0.8) > 0.0:
+					m = 4
 			materials[z * W + x] = m
 	return materials
 

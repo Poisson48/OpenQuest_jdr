@@ -16,16 +16,21 @@ render_mode cull_disabled, diffuse_burley;
 // Les trois premières matières gardent exactement leur poids/rendu d'avant :
 // `splat2_tex` vaut (0, 0) partout tant qu'on ne peint pas de neige/sable.
 //
-// **PROJECTION TRIPLANAIRE** — le gain qualité principal : une projection UV
-// classique écrase les textures sur les pentes raides (une falaise quasi
-// verticale ne fait que quelques texels de haut → motifs étirés en traînées).
-// Ici chaque matière est échantillonnée selon TROIS projections (XY / XZ / ZY)
-// pondérées par la normale du monde : à plat la projection XZ garde exactement
-// l'UV historique (poids 1), sur une paroi seules les projections verticales
-// comptent et le motif garde ses proportions. Le repère de projection est
-// reconstruit depuis la position MONDE (uniforme `tile_world_size` = pas du
-// tuilage en unités monde) : les clusters de creusement, qui ont leurs propres
-// UV, restent alignés sur le terrain.
+// **PROJECTION TRIPLANAIRE** — chaque matière est échantillonnée selon TROIS
+// projections (ZY / XZ / XY) pondérées par la normale du monde : à plat la
+// projection XZ garde exactement l'UV historique (poids 1), sur une paroi les
+// projections verticales prennent le relais et le motif garde ses proportions.
+// Le repère de projection est reconstruit depuis la position MONDE (uniforme
+// `tile_world_size` = pas du tuilage en unités monde) : les clusters de
+// creusement, qui ont leurs propres UV, restent alignés sur le terrain.
+//
+// **CORRECTION D'ÉTIREMENT** (méthode CS2) — une projection étire toujours sa
+// texture le long de la pente (facteur 1/|N·axe| : la projection XZ sur une
+// paroi à 75° étire le motif ~3,8× en traînées). Chaque projection est donc
+// recalée à l'échelle 1:1 selon l'azimut local de la pente (`stretch_fix`).
+// À plat le facteur vaut 1 : le rendu historique est strictement conservé.
+// Comme les trois projections deviennent alors à la même échelle, leur fondu
+// ne produit plus de fantômes étirés — d'où des parois nettes SANS traînées.
 //
 // **MICRO-DÉTAIL** : bruit procédural haute fréquence (aucune texture
 // supplémentaire) projeté de la même façon que les matières, qui casse la
@@ -63,10 +68,12 @@ uniform float tile_world_size = 1.4;
 // référence A/B aux captures de validation ; toujours 1.0 en jeu.
 uniform float triplanar_amount : hint_range(0.0, 1.0) = 1.0;
 // Bornes du poids de la projection « du dessus » selon |N.y|. En dessous de
-// `triplanar_lo` la projection latérale domine, au-dessus de `triplanar_hi` la
-// projection XZ reprend la main : entre les deux, fondu doux.
-uniform float triplanar_lo : hint_range(0.0, 1.0) = 0.35;
-uniform float triplanar_hi : hint_range(0.0, 1.0) = 0.80;
+// `triplanar_lo` la projection latérale domine (parois), au-dessus de
+// `triplanar_hi` la projection XZ reprend la main (plaines et pentes douces).
+// Zone resserrée et décalée vers le haut : une paroi aux normales lissées
+// (|N.y| jusqu'à ~0.6) reste intégralement en projection latérale, nette.
+uniform float triplanar_lo : hint_range(0.0, 1.0) = 0.60;
+uniform float triplanar_hi : hint_range(0.0, 1.0) = 0.88;
 // Amplitude du micro-détail procédural (0 = grain désactivé).
 uniform float detail_strength : hint_range(0.0, 1.0) = 0.30;
 // Fréquence du micro-détail (en répétitions de texture, donc haute fréquence).
@@ -76,14 +83,20 @@ uniform float macro_strength : hint_range(0.0, 0.4) = 0.07;
 // Occlusion approximée : assombrissement des creux (courbure) et des pentes.
 uniform float cavity_strength : hint_range(0.0, 1.0) = 0.16;
 uniform float slope_ao_strength : hint_range(0.0, 1.0) = 0.08;
+// Bruit des frontières de splat peintes (0 = arêtes nettes géométriques) :
+// déforme légèrement la lecture des textures de poids pour que les bords des
+// zones peintes (chemins, coins) deviennent organiques. L'intérieur des
+// patches (poids plein) reste strictement inchangé.
+uniform float splat_edge_noise : hint_range(0.0, 1.0) = 0.6;
 
 // AUTO-MATÉRIAU PAR PENTE ET ALTITUDE (méthode Cities: Skylines II) : sans
 // peinture manuelle, la roche envahit les pentes raides, la terre les
-// contreforts, la neige les sommets — avec des frontières bruitées irrégulières.
-// Les SPLATS PEINTS gardent la priorité (une matière peinte non herbe n'est
-// jamais remplacée) ; l'auto-matériau ne complète que les zones neutres
-// (herbe = matière par défaut). `auto_material_strength` = 0 → rendu précédent
-// exactement (A/B et réversibilité).
+// contreforts, la neige les sommets — avec des frontières bruitées
+// irrégulières, sans bandes ni strates. Les SPLATS PEINTS gardent la priorité
+// (une matière peinte non herbe n'est jamais remplacée) ; l'auto-matériau ne
+// complète que les zones neutres (herbe = matière par défaut).
+// `auto_material_strength` = 0 → rendu précédent exactement (A/B et
+// réversibilité).
 uniform float auto_material_strength : hint_range(0.0, 1.0) = 1.0;
 // Altitude basse (unités monde) : origine de la normalisation de l'altitude.
 uniform float terrain_min_height = 0.0;
@@ -111,15 +124,24 @@ vec3 sample_anti_tile(sampler2D tex, vec2 uv) {
 		+ texture(tex, b).rgb * 0.22;
 }
 
-// Projection triplanaire d'une matière : XY (paroi face Z), XZ (sol) et ZY
-// (paroi face X), pondérées par la normale monde. La projection XZ réutilise
-// l'anti-tiling historique ; les parois se contentent d'un échantillon (elles
-// ne représentent qu'une fraction de l'écran et le triplanar casse déjà la
+// Recale une projection à l'échelle 1:1 sur la surface : on étire l'UV le long
+// de l'azimut local de la pente (`axis`, normalisé dans le plan de projection)
+// par le facteur `s` = 1/|N·axe projeté|. `s = 1` (surface plane) = no-op
+// strict, donc le rendu historique des zones plates est intact.
+vec2 stretch_fix(vec2 uv, vec2 axis, float s) {
+	return uv + axis * (dot(uv, axis) * (s - 1.0));
+}
+
+// Projection triplanaire d'une matière : ZY (paroi face X), XZ (sol) et XY
+// (paroi face Z), pondérées par la normale monde. Les trois projections sont
+// passées par `stretch_fix` en amont : même échelle partout, aucun fondu en
+// traînées. La projection XZ réutilise l'anti-tiling historique ; les parois
+// se contentent d'un échantillon (net, et le triplanar casse déjà la
 // répétition).
-vec3 sample_triplanar(sampler2D tex, vec3 p, vec3 w) {
-	vec3 side_x = texture(tex, p.zy).rgb;
-	vec3 top = sample_anti_tile(tex, p.xz);
-	vec3 side_z = texture(tex, p.xy).rgb;
+vec3 sample_triplanar(sampler2D tex, vec2 uv_sx, vec2 uv_top, vec2 uv_sz, vec3 w) {
+	vec3 side_x = texture(tex, uv_sx).rgb;
+	vec3 top = sample_anti_tile(tex, uv_top);
+	vec3 side_z = texture(tex, uv_sz).rgb;
 	return side_x * w.x + top * w.y + side_z * w.z;
 }
 
@@ -142,6 +164,16 @@ float value_noise(vec2 p) {
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// Bruit « 3D » (0..1) : deux bruits 2D décalés le long de Y, décorrelés.
+// Varie selon x, y ET z — indispensable pour les frontières d'auto-matériau :
+// un bruit 2D seul reste constant le long d'une paroi et produit des strates
+// horizontales régulières (le « strate peinte » à proscrire).
+float noise3(vec3 q) {
+	float a = value_noise(vec2(q.x + q.y * 1.27, q.z + q.y * 0.59));
+	float b = value_noise(vec2(q.z - q.y * 0.83, q.x + q.y * 0.41) + vec2(19.1, 7.3));
+	return a * 0.55 + b * 0.45;
+}
+
 // Hauteur du micro-détail : bruit procédural projeté exactement comme les
 // matières (triplanar). Réutilisée pour le grain d'albédo ET pour la
 // perturbation de normale (le relief donne du corps à la roche et à l'herbe).
@@ -152,8 +184,9 @@ float detail_height(vec3 p, vec3 w) {
 }
 
 // Poids automatiques des matières d'après la pente et l'altitude (méthode CS2).
-// Renvoie (herbe, terre, pierre) et la neige par `snow_out`. Les frontières sont
-// déformées par du bruit monde pour éviter toute bande horizontale régulière.
+// Renvoie (herbe, terre, pierre) et la neige par `snow_out`, normalisés à 1.
+// Les frontières sont déformées par du bruit 3D monde (varie aussi avec
+// l'altitude) : irrégulières et organiques, sans bande horizontale régulière.
 vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	snow_out = 0.0;
 	// Altitude normalisée 0..1 sur l'amplitude du relief de la carte (0 sur une
@@ -163,30 +196,89 @@ vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	if (span > 0.01) {
 		h = clamp((world_pos.y - terrain_min_height) / span, 0.0, 1.0);
 	}
-	// Bruit d'irrégularité : deux échelles pour des frontières naturelles.
-	float n_rock = value_noise(p.xz * 1.9) * 0.65
-		+ value_noise(p.xz * 5.3 + vec2(11.7, 41.3)) * 0.35;
-	float n_edge = value_noise(p.xz * 3.1 + vec2(7.2, 19.5)) - 0.5;
-	float hb = clamp(h + (n_rock - 0.5) * 0.24 + n_edge * 0.08, 0.0, 1.0);
+	// Irrégularité des frontières : deux échelles de bruit 3D. L'amplitude
+	// s'ouvre avec l'altitude (`open`) : les plaines basses restent
+	// strictement en herbe — règle d'or, terrain plat/peint inchangé.
+	float open = smoothstep(0.0, 0.16, h);
+	float n_lo = noise3(p * 1.3) - 0.5;
+	float n_mid = noise3(p * 3.3 + vec3(11.7, 41.3, 7.9)) - 0.5;
+	float h_jit = (n_lo * 0.26 + n_mid * 0.13) * open;
+	float hb = clamp(h + h_jit, 0.0, 1.0);
 	float flat_n = abs(n.y);
 	// Roche : pentes raides (le motif de base demandé) ou altitude moyenne.
 	float rock_auto = smoothstep(0.55, 0.30, flat_n);
-	rock_auto = max(rock_auto, smoothstep(0.30, 0.62, hb) * 0.90);
-	// Terre : contreforts doux (altitude intermédiaire, pas encore la roche).
-	float dirt_auto = smoothstep(0.14, 0.40, hb) * (1.0 - rock_auto)
-		* smoothstep(0.40, 0.78, flat_n);
-	// Neige : sommets, mais elle ne tient pas sur les parois raides.
-	float snow_auto = smoothstep(0.60, 0.88, hb)
-		* smoothstep(0.28, 0.60, flat_n + (n_rock - 0.5) * 0.20);
-	snow_out = clamp(snow_auto, 0.0, 1.0);
-	// Herbe : ce qui reste (plaines et replats).
-	float grass_auto = max(0.0, 1.0 - rock_auto - dirt_auto - snow_auto);
-	return vec3(grass_auto, dirt_auto, rock_auto);
+	rock_auto = max(rock_auto, smoothstep(0.34, 0.66, hb) * 0.92);
+	// Terre : contreforts et pied de pente (altitude intermédiaire), en
+	// TACHES irrégulières — jamais en bande continue le long de l'iso-hauteur.
+	float patch = smoothstep(0.30, 0.70, noise3(p * 2.2 + vec3(51.0, 13.0, 29.0)));
+	float dirt_auto = smoothstep(0.14, 0.48, hb) * (1.0 - rock_auto)
+		* smoothstep(0.38, 0.72, flat_n) * (0.25 + 0.75 * patch);
+	// Neige : sommets, ligne douce et organique (bruit basse fréquence
+	// uniquement : pas de mouchetures numériques), elle ne tient pas sur les
+	// parois raides.
+	float snow_line = 0.64 + (n_lo * 0.22 + n_mid * 0.10) * open;
+	float snow_auto = smoothstep(snow_line - 0.12, snow_line + 0.14, h)
+		* smoothstep(0.30, 0.58, flat_n + n_lo * 0.16);
+	// La neige RECOUVRE la roche/terre au lieu de s'y additionner (les poids
+	// doivent rester normalisés : un mélange à 1.9 surexpose la neige).
+	rock_auto *= 1.0 - 0.80 * snow_auto;
+	dirt_auto *= 1.0 - 0.80 * snow_auto;
+	// Anti-mouchetures : on écrase les micro-poids résiduels (mélanges à 2 %
+	// = « bruit numérique » autour des frontières) puis on renormalise.
+	vec4 w = vec4(
+		max(0.0, 1.0 - rock_auto - dirt_auto - snow_auto),
+		dirt_auto, rock_auto, snow_auto);
+	w = smoothstep(vec4(0.05), vec4(0.26), w);
+	w /= max(w.x + w.y + w.z + w.w, 0.0001);
+	snow_out = w.w;
+	return w.xyz;
 }
 
 void fragment() {
-	vec3 weights = texture(splat_tex, UV2).rgb;
-	vec2 extra = texture(splat2_tex, UV2).rg;
+	// --- Repère triplanaire + correction d'étirement ---------------------
+	vec3 n = normalize(world_normal);
+	float tile = max(tile_world_size, 0.0001);
+	vec3 p = world_pos / tile;
+	float amt = clamp(triplanar_amount, 0.0, 1.0);
+	// Azimut de la pente dans chaque plan de projection, puis facteur de
+	// recadrage 1/|N·axe| (plafonné à 2.5 pour rester stable). À plat tous
+	// les facteurs valent 1 : strictement le rendu historique.
+	float len_t = length(n.xz);
+	vec2 dir_t = len_t > 0.001 ? n.xz / len_t : vec2(1.0, 0.0);
+	float s_top = mix(1.0, 1.0 / max(abs(n.y), 0.40), amt);
+	float len_sz = length(n.xy);
+	vec2 dir_sz = len_sz > 0.001 ? n.xy / len_sz : vec2(1.0, 0.0);
+	float s_sz = mix(1.0, 1.0 / max(abs(n.z), 0.40), amt);
+	float len_sx = length(n.zy);
+	vec2 dir_sx = len_sx > 0.001 ? n.zy / len_sx : vec2(1.0, 0.0);
+	float s_sx = mix(1.0, 1.0 / max(abs(n.x), 0.40), amt);
+	vec2 uv_top = stretch_fix(p.xz, dir_t, s_top);
+	vec2 uv_sz = stretch_fix(p.xy, dir_sz, s_sz);
+	vec2 uv_sx = stretch_fix(p.zy, dir_sx, s_sx);
+	// Poids de la projection « du dessus » : 1 à plat (rendu historique
+	// exact), 0 sur les parois. Les projections latérales se partagent le
+	// reste selon |N.x| / |N.z| (paroi orientée X ou Z).
+	float up = smoothstep(triplanar_lo, triplanar_hi, abs(n.y));
+	vec2 side_w = vec2(abs(n.x), abs(n.z));
+	side_w /= max(side_w.x + side_w.y, 0.0001);
+	vec3 tpw = vec3(side_w.x * (1.0 - up), up, side_w.y * (1.0 - up));
+	// Fondu A/B : à 0 on retrouve exactement la projection UV historique (et
+	// donc un terrain plat strictement inchangé).
+	tpw = mix(vec3(0.0, 1.0, 0.0), tpw, amt);
+	// --- Splat peints : frontières organiques ----------------------------
+	// Léger déplacement de la lecture des textures de poids : les arêtes
+	// géométriques des zones peintes (chemins, coins) deviennent ondulées et
+	// naturelles ; l'intérieur d'un patch (poids plein) est inchangé.
+	vec2 splat_uv = UV2;
+	if (splat_edge_noise > 0.001) {
+		vec2 texels = max(vec2(textureSize(splat_tex, 0)), vec2(1.0));
+		vec2 warp = vec2(
+			value_noise(p.xz * 2.3 + vec2(23.0, 51.0)),
+			value_noise(p.xz * 2.3 + vec2(87.0, 13.0))) - 0.5;
+		splat_uv += warp * (splat_edge_noise * 0.7 / texels);
+	}
+	vec3 weights = texture(splat_tex, splat_uv).rgb;
+	vec2 extra = texture(splat2_tex, splat_uv).rg;
 	float total = max(weights.r + weights.g + weights.b + extra.r + extra.g, 0.0001);
 	weights /= total;
 	extra /= total;
@@ -200,20 +292,6 @@ void fragment() {
 		weights /= sharp_total;
 		extra /= sharp_total;
 	}
-	// --- Repère triplanaire ------------------------------------------------
-	vec3 n = normalize(world_normal);
-	float tile = max(tile_world_size, 0.0001);
-	vec3 p = world_pos / tile;
-	// Poids de la projection « du dessus » : 1 à plat (rendu historique exact),
-	// 0 sur les parois. Les projections latérales se partagent le reste selon
-	// |N.x| / |N.z| (paroi orientée X ou Z).
-	float up = smoothstep(triplanar_lo, triplanar_hi, abs(n.y));
-	vec2 side_w = vec2(abs(n.x), abs(n.z));
-	side_w /= max(side_w.x + side_w.y, 0.0001);
-	vec3 tpw = vec3(side_w.x * (1.0 - up), up, side_w.y * (1.0 - up));
-	// Fondu A/B : à 0 on retrouve exactement la projection UV historique (et
-	// donc un terrain plat strictement inchangé).
-	tpw = mix(vec3(0.0, 1.0, 0.0), tpw, triplanar_amount);
 	// --- Auto-matériau par pente et altitude (méthode CS2) -----------------
 	// Les splats peints ont la priorité : une cellule peinte d'une matière
 	// autre que l'herbe (matière par défaut) n'est jamais remplacée. L'auto ne
@@ -227,11 +305,12 @@ void fragment() {
 		weights = mix(weights, auto_w, auto_gate);
 		extra = mix(extra, vec2(auto_snow, 0.0), auto_gate);
 	}
-	vec3 grass = sample_triplanar(grass_tex, p, tpw);
-	vec3 dirt = sample_triplanar(dirt_tex, p, tpw);
-	vec3 stone = sample_triplanar(stone_tex, p, tpw);
-	vec3 snow = sample_triplanar(snow_tex, p, tpw);
-	vec3 sand = sample_triplanar(sand_tex, p, tpw);
+	vec3 grass = sample_triplanar(grass_tex, uv_sx, uv_top, uv_sz, tpw);
+	vec3 dirt = sample_triplanar(dirt_tex, uv_sx, uv_top, uv_sz, tpw);
+	vec3 stone = sample_triplanar(stone_tex, uv_sx, uv_top, uv_sz, tpw);
+	vec3 snow = sample_triplanar(snow_tex, uv_sx, uv_top, uv_sz, tpw);
+	vec3 sand = sample_triplanar(sand_tex, uv_sx, uv_top, uv_sz, tpw);
+	float snow_w = clamp(extra.r, 0.0, 1.0);
 	vec3 albedo =
 		grass * weights.r
 		+ dirt * weights.g
@@ -241,9 +320,10 @@ void fragment() {
 	albedo *= mix(vec3(1.0), COLOR.rgb, vertex_color_strength);
 	// --- Micro-détail procédural ------------------------------------------
 	// Bruit projeté comme les matières (chaque projection a sa propre
-	// fréquence : sur une paroi le grain ne s'étire pas non plus).
+	// fréquence : sur une paroi le grain ne s'étire pas non plus). Allégé sur
+	// la neige (elle doit rester propre et lisse, sans mouchetures).
 	float micro = detail_height(p, tpw);
-	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength);
+	albedo *= mix(1.0, 0.80 + 0.40 * micro, detail_strength * (1.0 - 0.55 * snow_w));
 	// --- Détail de normale procédural -------------------------------------
 	// Gradient du même bruit (différences finies) projeté en espace monde :
 	// la roche et l'herbe gagnent un micro-relief cohérent avec le triplanar,
@@ -254,8 +334,8 @@ void fragment() {
 		float dx = detail_height(p + vec3(e, 0.0, 0.0), tpw) - d0;
 		float dy = detail_height(p + vec3(0.0, e, 0.0), tpw) - d0;
 		float dz = detail_height(p + vec3(0.0, 0.0, e), tpw) - d0;
-		// Plus marqué sur la roche/neige que sur l'herbe.
-		float rockiness = clamp(weights.b + extra.r, 0.0, 1.0);
+		// Plus marqué sur la roche que sur la neige ou l'herbe.
+		float rockiness = clamp(weights.b + snow_w * 0.35, 0.0, 1.0);
 		float bump = normal_detail_strength * (0.55 + 0.75 * rockiness);
 		vec3 wn = normalize(n - vec3(dx, dy, dz) * (3.0 * bump));
 		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
@@ -266,11 +346,17 @@ void fragment() {
 	float macro = (value_noise(p.xz * 0.9) * 2.0 - 1.0) * 0.7
 		+ (value_noise(p.xz * 2.3 + vec2(31.7, 9.4)) * 2.0 - 1.0) * 0.3;
 	albedo *= 1.0 + macro_strength * macro;
+	// --- Neige propre -----------------------------------------------------
+	// Léger éclaircissement : la neige mélangée reste blanche et lisible au
+	// lieu de tirer vers le gris sale.
+	albedo = mix(albedo, albedo * 1.05 + vec3(0.012), snow_w * 0.5);
 	// --- Occlusion approximée (cavité + pente) ----------------------------
 	// Courbure locale : dérivée écran de la normale monde. Les creux (normale
 	// qui tourne vite) s'assombrissent, les surfaces plates restent claires.
+	// La cavité est atténuée sur la neige (pas de taches sombres au sommet).
 	float curvature = length(dFdx(n)) + length(dFdy(n));
-	float cavity = smoothstep(0.10, 0.75, curvature) * cavity_strength;
+	float cavity = smoothstep(0.10, 0.75, curvature) * cavity_strength
+		* (1.0 - 0.5 * snow_w);
 	float sky = 1.0 - slope_ao_strength * (1.0 - smoothstep(0.15, 0.85, abs(n.y)));
 	float occlusion = clamp(1.0 - cavity - sky, 0.35, 1.0);
 	albedo *= occlusion;

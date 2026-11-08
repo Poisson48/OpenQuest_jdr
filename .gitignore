@@ -33,3 +33,7 @@ game/webrtc/
 # Artefacts locaux de l'assistant de code
 .aider*
 aider.bat
+
+# Artefacts runtime du chantier qualite (verrou Godot, logs de capture)
+.godot.lock
+.terrain_shot_*.txt

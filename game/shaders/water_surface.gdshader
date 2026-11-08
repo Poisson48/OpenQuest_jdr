@@ -18,14 +18,25 @@ render_mode blend_mix, cull_disabled;
 //   gradient du champ donne la pente locale (normale ondulée). Le tout dérive
 //   vers l'aval à `flow_speed` ; `flow_strength = 0` ramène l'animation
 //   historique (repère UV d'origine, sans dérive).
-// - MOUSSE DE CONTACT : liseré de rive fin, irrégulier et animé — la ligne de
-//   rive ondule (bruit basse fréquence) et les filigranes, étirés par le
-//   courant, dérivent avec lui. La couverture est lacunaire, pas un trait plein.
+// - MOUSSE DE CONTACT : liseré de rive FIN et continu au contact exact
+//   terre/eau (sonde du masque d'eau), prolongé par une dentelle lacunaire
+//   étirée par le courant. La ligne de rive ondule (bruit basse fréquence) et
+//   les filigranes dérivent avec le flux — aucun motif périodique, aucun trait
+//   peint. Les hauts-fonds portent aussi la mousse (bancs de sable).
+// - BORDS D'EAU NATURELS : le masque d'eau ne tranche plus au discard — l'alpha
+//   s'amenuise sur le dernier texel (feuille), la marge est assombrie et teintée
+//   « terre mouillée » côté eau. La coupe terre/eau devient un dégradé.
 // - LISIBILITÉ DU LIT : teinte « fond vu à travers la lame d'eau », alpha plus
 //   bas dans les hauts-fonds (on lit le fond), caustiques discrètes, et fosses
 //   plus denses et plus sombres.
-// - Scintillement solaire STRUCTURÉ : micro-facettes + paillettes isolées
-//   (masque de bruit haute fréquence), donc pas de reflet en bandes.
+// - Scintillement solaire STRUCTURÉ : quelques paillettes rares et fines sur
+//   les crêtes des micro-vagues (masque de bruit très haute fréquence, seuil
+//   haut), étirées par le courant — jamais un voile de plaques blanches.
+// - RÉFLEXION DE CIEL (Fresnel) : `horizon_color` au ras de l'eau (angles
+//   rasants), `sky_color` vers la verticale ; le reflet ondule avec la pente
+//   des micro-vagues. Intensité pilotée par `sky_reflect`.
+// - FLOW MAP À DEUX PHASES : deux advections décalées d'une demi-période,
+//   fondues par une fonction triangle — le courant défile sans couture.
 // - `night_tint` assombrit l'eau la nuit (même logique que le sol).
 //
 // Le shader reste éclairé (spatial) : la lumière de la scène module l'albédo.
@@ -74,6 +85,13 @@ uniform float depth_bias : hint_range(-0.6, 0.6) = 0.0;
 // trouver le contact terre/eau (la profondeur normalisée, elle, peut sauter de
 // 1 à 0 sur une case — inutilisable seule pour placer la mousse de rive).
 uniform vec2 depth_texel = vec2(0.01, 0.01);
+// Rayon de la sonde de contact en TEXELS de `depth_map` : la résolution du
+// masque diffère entre lac (1 texel/case) et rivière (4 texels/case) — ce
+// rayon égalise la largeur du liseré de mousse en unités monde.
+uniform float shore_texels : hint_range(0.1, 4.0) = 0.6;
+// Intensité du reflet de ciel (Fresnel) : teinte laiteuse au ras de l'eau sur
+// les vues inclinées, reflet plus dense vers la verticale.
+uniform float sky_reflect : hint_range(0.0, 1.0) = 0.32;
 
 // ===========================================================================
 // Bruits procéduraux (aucune texture, aucun asset)
@@ -122,10 +140,13 @@ void fragment() {
 
 	// Masque d'eau (canal G de la même texture) : les cases dont le sol visible
 	// n'est pas sous le niveau (creusements fermés, grottes sèches) ne rendent
-	// aucune eau — le plan ne traverse pas le terrain creusé.
-	if (depth_sample.g < 0.5) {
+	// aucune eau — le plan ne traverse pas le terrain creusé. Le découpage est
+	// ADOUCI : au lieu d'un trait net au discard, l'alpha s'amenuise sur le
+	// dernier texel du masque (`edge_fade`) pour un bord de nappe fondu.
+	if (depth_sample.g < 0.18) {
 		discard;
 	}
+	float edge_fade = smoothstep(0.18, 0.62, depth_sample.g);
 	// Profondeur « perçue » : `depth_bias` permet de rendre une eau peu
 	// profonde (rivière) plus claire sans toucher à la géométrie — les usages
 	// géométriques (mousse de rive, calme des hauts-fonds) gardent `depth01`.
@@ -150,6 +171,10 @@ void fragment() {
 	// deux repères (le mélange reste une rotation + homothétie douce).
 	vec2 wuv = mix(uv, flow_frame, flow_strength);
 	float t = TIME * wave_speed;
+	// Coordonnées dans le repère du courant : `along` suit le flux (les
+	// motifs s'y étirent et y dérivent), `across` lui est perpendiculaire.
+	float along = dot(wuv, flow);
+	float across = dot(wuv, across_dir);
 
 	// --- FLOW MAP À DEUX PHASES ---------------------------------------------
 	// Détail fin de surface advecté dans le sens du courant par DEUX voies
@@ -187,24 +212,25 @@ void fragment() {
 	NORMAL = normalize(NORMAL + vec3(-tilt.x, 0.0, -tilt.y));
 	vec3 wave_normal = normalize(vec3(-tilt.x, 1.0, -tilt.y));
 
-	// --- Scintillement solaire STRUCTURÉ ------------------------------------
-	// Deux bruits fins de tailles différentes se combinent en « paillettes »
-	// isolées : le reflet est moucheté, jamais en bande continue.
+	// --- Scintillement solaire STRUCTURÉ (rare et filigrané) -----------------
+	// Deux bruits fins très haute fréquence, seuillés HAUT : quelques éclats
+	// isolés sur les crêtes des micro-vagues, jamais un voile de plaques. Les
+	// paillettes sont étirées le long du courant (fréquence transversale >
+	// longitudinale) et dérivent avec lui.
 	// Le demi-vecteur se prend entre le soleil et la verticale du plan d'eau
 	// (vue quasi zénithale de la carte 2.5D).
 	vec3 sun = normalize(vec3(0.35, 0.85, 0.4));
 	vec3 half_v = normalize(sun + vec3(0.0, 1.0, 0.0));
 	float ndh = clamp(dot(wave_normal, half_v), 0.0, 1.0);
-	float sparkle = value_noise(wuv * 240.0 + vec2(t * 0.43, -t * 0.31));
-	float sparkle2 = value_noise(wuv * 385.0 + vec2(-t * 0.57, t * 0.49));
-	float glitter = smoothstep(0.70, 0.92,
-		sparkle * 0.45 + sparkle2 * 0.35 + detail * 0.20);
-	// Scintillement : le masque de paillettes (bruit fin) commande le reflet ;
-	// la normale ne fait que moduler son intensité. Sinon les grandes vagues
-	// allument de larges taches blanches (rendu « nuages ») au lieu de
-	// paillettes serrées. Le reflet reste SPARSE : quelques éclats, pas un voile.
-	float glint = glitter * (0.15 + 0.85 * pow(ndh, 32.0)) * 0.7;
-	glint *= glint_strength * mix(0.35, 1.0, shoal);
+	vec2 glint_uv = vec2(along * 190.0, across * 260.0) + vec2(-t * 0.30, t * 0.11);
+	float sparkle = value_noise(glint_uv);
+	float sparkle2 = value_noise(glint_uv * 1.83 + vec2(t * 0.19, -t * 0.24));
+	float glitter = smoothstep(0.74, 0.93, sparkle * 0.55 + sparkle2 * 0.45);
+	// Le scintillement n'allume que les crêtes : c'est ce qui le rend
+	// « structuré » au lieu d'un mouchetis uniforme.
+	glitter *= smoothstep(0.42, 0.72, h0);
+	float glint = glitter * (0.30 + 0.70 * pow(ndh, 12.0)) * 0.55;
+	glint *= glint_strength * mix(0.55, 1.0, shoal);
 
 	// --- Couleur : lisibilité de la PROFONDEUR ------------------------------
 	// Hauts-fonds clairs → fosses sombres.
@@ -231,67 +257,102 @@ void fragment() {
 
 	// Filaments de COURANT : rides d'advection très étirées le long du flux,
 	// obtenues par bruit (pas de sinusoïde → pas de stries régulières).
-	float along = dot(wuv, flow);
-	float across = dot(wuv, across_dir);
 	float streak_freq = 16.0 + 28.0 * flow_speed;
 	vec2 streak_uv = vec2(along * streak_freq, across * 95.0);
 	float filament = fbm2(streak_uv + vec2(-t * 0.20, 0.0));
 	float streak = smoothstep(0.52, 0.82, filament);
 	water *= 0.94 + 0.12 * streak * (0.35 + 0.65 * (1.0 - depth_tint));
 
-	// Terre mouillée : liseré plus sombre juste avant la berge.
-	float wet_edge = 1.0 - smoothstep(0.0, 0.085, depth01);
-	water *= mix(1.0, 0.62, wet_edge);
+	// --- Terre mouillée (côté eau) ------------------------------------------
+	// Avant la berge, la lame d'eau s'amenuise : marge plus sombre et teintée
+	// par le lit (sable/algues) — la coupe terre/eau devient un dégradé au
+	// lieu d'un trait franc.
+	float wet = 1.0 - smoothstep(0.0, 0.30, depth01);
+	water *= mix(1.0, 0.60, wet * 0.9);
+	water = mix(water, bed_color.rgb * 0.72, wet * 0.20);
+
+	// --- RÉFLEXION DE CIEL (Fresnel) ---------------------------------------
+	// L'eau prend la teinte du ciel d'autant plus qu'on la regarde de biais :
+	// `horizon_color` au ras de l'eau, `sky_color` vers la verticale. La pente
+	// des micro-vagues fait onduler le reflet (zénith ↔ horizon) : le reflet
+	// varie en distance au lieu d'être un aplat. (CS2 a de vrais reflets ; ici
+	// le ciel est un simple dégradé, sans réflexion coûteuse.)
+	float ndv = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+	float fres = pow(1.0 - ndv, 2.2);
+	vec3 sky_grad = mix(sky_color.rgb, horizon_color.rgb, pow(1.0 - ndv, 1.35));
+	sky_grad = mix(sky_grad, horizon_color.rgb,
+		clamp(tilt.y * 1.4 + 0.5, 0.0, 1.0) * 0.30);
+	water = mix(water, sky_grad, fres * sky_reflect);
+
+	// Le scintillement se pose sur la surface réfléchie.
+	water += vec3(glint) * 0.22;
 
 	// --- Mousse de CONTACT --------------------------------------------------
 	// La ligne de rive ondule (bruit basse fréquence) : la mousse avance et
 	// recule au gré du clapot.
-	float shore_noise = fbm2(wuv * 24.0 + vec2(t * 0.10, -t * 0.08));
-	// Proximité du MASQUE d'eau : on sonde les texels voisins, décalés par le
-	// clapot. C'est le VRAI contact terre/eau — la profondeur normalisée, elle,
-	// saute de 1 à 0 sur une case le long d'un bord de bassin.
-	vec2 jit = (vec2(shore_noise, 1.0 - shore_noise) - 0.5) * depth_texel * 0.6;
-	float g_l = texture(depth_map, uv + jit - vec2(depth_texel.x * 0.6, 0.0)).g;
-	float g_r = texture(depth_map, uv + jit + vec2(depth_texel.x * 0.6, 0.0)).g;
-	float g_u = texture(depth_map, uv + jit - vec2(0.0, depth_texel.y * 0.6)).g;
-	float g_d = texture(depth_map, uv + jit + vec2(0.0, depth_texel.y * 0.6)).g;
-	float g_min = min(min(g_l, g_r), min(g_u, g_d));
-	float shore_mask = 1.0 - smoothstep(0.72, 0.95, g_min);
+	float shore_noise = fbm2(wuv * 13.0 + vec2(t * 0.12, -t * 0.09));
+	// Proximité du MASQUE d'eau : un anneau de HUIT sondes (décalé par le
+	// clapot) mesure la fraction de l'anneau côté terre. Une vraie berge en
+	// couvre la moitié ; un TROU de masque (berge qui affleure, texel de bord
+	// manquant) n'en touche qu'un huitième — le contact reste donc collé à la
+	// ligne de rive et ne s'allume jamais au bord des trous. Le rayon
+	// (`shore_texels`, en texels) compense la résolution du masque pour
+	// égaler la largeur du liseré en unités monde (lac 1 texel/case,
+	// rivière 4 texels/case).
+	vec2 jit = (vec2(shore_noise, 1.0 - shore_noise) - 0.5)
+		* depth_texel * shore_texels;
+	float ring = max(shore_texels, 0.15);
+	vec2 rx = vec2(depth_texel.x * ring, 0.0);
+	vec2 ry = vec2(0.0, depth_texel.y * ring);
+	vec2 rd = (rx + ry) * 0.7071;
+	vec2 rdx = vec2(rx.x, -ry.y) * 0.7071;
+	float land = 0.0;
+	land += step(texture(depth_map, uv + jit + rx).g, 0.5);
+	land += step(texture(depth_map, uv + jit - rx).g, 0.5);
+	land += step(texture(depth_map, uv + jit + ry).g, 0.5);
+	land += step(texture(depth_map, uv + jit - ry).g, 0.5);
+	land += step(texture(depth_map, uv + jit + rd).g, 0.5);
+	land += step(texture(depth_map, uv + jit - rd).g, 0.5);
+	land += step(texture(depth_map, uv + jit + rdx).g, 0.5);
+	land += step(texture(depth_map, uv + jit - rdx).g, 0.5);
+	land *= 0.125;
+	// Profil de contact : 1 sur la ligne de rive (moitié de l'anneau côté
+	// terre), 0 dès que l'anneau est entièrement dans l'eau. Le seuil
+	// EXTÉRIEUR varie avec le clapot (la dentelle ondule au lieu de suivre au
+	// pas les texels du masque) mais le sommet reste à 1 au contact exact.
+	float contact = smoothstep(0.16 + 0.16 * shore_noise, 0.42, land);
 	// Liseré de PROFONDEUR : la mousse s'étale aussi dans les hauts-fonds,
 	// même loin du bord du masque (bancs de sable, hauts-fonds de lac).
 	float depth_contact = 1.0 - smoothstep(0.0, max(foam_width, 0.003), depth01);
-	float contact = max(shore_mask, depth_contact);
+	contact = max(contact, depth_contact * 0.8);
+	// Filigranes étirés le long du courant (fréquence transversale > 2× la
+	// longitudinale) : la mousse file avec le flux, jamais en damier.
 	vec2 lace_uv = vec2(
-		along * (92.0 * foam_scale) - t * 0.30,
-		across * (46.0 * foam_scale)
-	);
-	float lace = fbm2(lace_uv) * 0.68
-		+ value_noise(lace_uv * 2.35 + vec2(5.1, 8.7)) * 0.32;
-	// Couverture LACUNAIRE : les filigranes couvrent environ un cinquième de
-	// la bande ; un très fin liseré continu marque le contact exact avec terre.
-	float foam = contact * smoothstep(0.60, 0.85, lace)
-		* (0.60 + 0.40 * value_noise(lace_uv * 3.7 + vec2(2.3, 7.9)));
-	foam = max(foam, contact * contact * contact * 0.08);
-	// Écume de clapot : quelques taches blanches éparses au large.
-	float crest = smoothstep(0.86, 0.98, h0) * (1.0 - depth_tint);
-	foam = clamp(foam * foam_strength + crest * 0.03, 0.0, 0.85);
+		along * (30.0 * foam_scale) - t * 0.22,
+		across * (82.0 * foam_scale) + shore_noise * 1.6);
+	float lace = fbm2(lace_uv) * 0.62
+		+ value_noise(lace_uv * 2.31 + vec2(5.1, 8.7)) * 0.38;
+	// Liseré FIN et nerveux au contact exact (seuil haut : le liseré reste
+	// étroit quel que soit le rayon de sonde) + dentelle lacunaire un peu plus
+	// large : la ligne de rive est blanche et vivante, jamais peinte au
+	// pochoir. La modulation par la dentelle garde la couverture LACUNAIRE.
+	float rim = smoothstep(0.72, 0.98, contact);
+	float band = contact * contact;
+	float lace_mod = smoothstep(0.35, 0.82, lace);
+	float foam = foam_strength * (rim * (0.45 + 0.55 * lace_mod)
+		+ band * lace_mod * 0.35);
+	// Écume de clapot : quelques filaments épars au large, vraiment rares —
+	// et jamais ces plaques blanches « éclaboussures » d'un voile trop dense.
+	float crest = smoothstep(0.905, 0.985, h0)
+		* smoothstep(0.58, 0.82, lace) * (1.0 - depth_tint);
+	foam = clamp(foam + crest * 0.10, 0.0, 0.92);
+	// La mousse passe PAR-DESSUS le reflet de ciel : elle reste blanche.
 	water = mix(water, foam_color.rgb, foam);
 
-	// --- RÉFLEXION DE CIEL (Fresnel) ---------------------------------------
-	// L'eau prend la teinte du ciel d'autant plus qu'on la regarde de biais :
-	// `horizon_color` au ras de l'eau, `sky_color` vers la verticale. (CS2 a de
-	// vrais reflets ; ici le ciel est un simple dégradé, sans réflexion coûteuse.)
-	float ndv = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
-	float fresnel = pow(1.0 - ndv, 3.0);
-	vec3 sky_grad = mix(sky_color.rgb, horizon_color.rgb, pow(1.0 - ndv, 2.0));
-	water = mix(water, sky_grad, fresnel * 0.16);
-
-	// Le scintillement s'ajoute à la couleur de surface.
-	water += vec3(glint) * 0.45;
-
 	ALBEDO = water * night_tint.rgb;
-	// Un peu d'émission pour que le reflet reste lisible même sans lumières.
-	EMISSION = vec3(glint) * 0.12 * night_tint.rgb
+	// Un peu d'émission pour que la mousse et les éclats restent lisibles sans
+	// lumière directe.
+	EMISSION = vec3(glint) * 0.06 * night_tint.rgb
 		+ vec3(0.035, 0.045, 0.040) * foam * night_tint.rgb;
 
 	// --- PROFONDEUR : extinction exponentielle -------------------------------
@@ -300,8 +361,11 @@ void fragment() {
 	float extinction = 1.0 - exp(-depth_extinction * depth_tint);
 	float depth_alpha = base_alpha + alpha_depth * extinction;
 	depth_alpha *= mix(0.55, 1.0, smoothstep(0.01, 0.45, depth_tint));
-	// La mousse est OPAQUE : elle masque le fond au lieu de se laver.
-	ALPHA = clamp(mix(depth_alpha, 0.94, foam), 0.0, 0.97);
+	// Bords de nappe : l'eau s'amenuise sur le bord du masque (feuille) et
+	// s'affine encore au contact exact (lame d'eau qui lappe la berge) ; la
+	// mousse reste OPAQUE (elle masque le fond au lieu de se laver).
+	float lapping = mix(1.0, 0.72, smoothstep(0.60, 1.0, contact));
+	ALPHA = clamp(mix(depth_alpha * edge_fade * lapping, 0.94, foam), 0.0, 0.97);
 	// Bords de ruban fondus (rivières) : atténuation latérale de l'alpha.
 	if (edge_softness > 0.001) {
 		float edge = smoothstep(0.0, 0.20, UV.x) * smoothstep(0.0, 0.20, 1.0 - UV.x);
