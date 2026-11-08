@@ -63,6 +63,49 @@ const TABLE_FOV := 50.0
 const TABLE_ELEV_MIN := 18.0
 const TABLE_ELEV_MAX := 78.0
 
+# ===========================================================================
+# Brume atmosphérique (distance + hauteur) — méthode Cities: Skylines II
+# ===========================================================================
+#
+# Les objets lointains se fondent doucement dans une brume colorée : la
+# profondeur de la carte se lit (perspective aérienne) sans écraser la
+# lisibilité en vue de dessus. Deux composantes, sur l'Environment du monde
+# de carte UNIQUEMENT (jamais un autoload — le hub/session ne sont pas
+# touchés) :
+#   • profondeur (`FOG_MODE_DEPTH`) : aucun voile avant `ATMOS_FOG_NEAR_MIN`
+#     unités caméra, puis montée douce jusqu'à la distance de fin ;
+#   • hauteur (`fog_height`/`fog_height_density`) : la brume s'amasse dans
+#     les creux et s'éclaircit avec l'altitude (sommets plus nets).
+#
+# A/B réVERSIBLE : `atmospheric_fog_enabled = false` (ou absence de l'opt-in
+# `atmosFog` du preset) rend exactement le rendu d'origine (brume
+# exponentielle historique des presets, aucune hauteur).
+
+## Distance minimale (unités monde) AVANT laquelle la brume n'existe jamais.
+const ATMOS_FOG_NEAR_MIN := 8.0
+## Bande de profondeur RELATIVE à la distance caméra→point visé :
+## begin ≈ distance du centre de la carte (le centre reste net), end au-delà
+## du bord lointain (les objets lointains se fondent, jamais le centre).
+const ATMOS_FOG_BEGIN_RATIO := 0.95
+const ATMOS_FOG_END_RATIO := 1.5
+## Largeur minimale (unités monde) de la bande de montée de la brume.
+const ATMOS_FOG_MIN_SPAN := 9.0
+## Courbe de montée de la brume en profondeur (1.0 = linéaire).
+const ATMOS_FOG_DEPTH_CURVE := 1.0
+
+## A/B principal de la brume atmosphérique (false = rendu d'origine strict).
+var atmospheric_fog_enabled: bool = true
+## Intensité max de la brume (0..1) — `fog_density` en mode profondeur.
+var atmospheric_fog_intensity: float = 0.30
+## Teinte de la brume — palette « grimoire » (bleu-violet délavé, jamais
+## blanc : la carte ne doit pas se déliter).
+var atmospheric_fog_color := Color(0.44, 0.46, 0.60, 1.0)
+## Hauteur monde de référence de la brume de hauteur et décroissance avec
+## l'altitude. Référence SOUS le sol : le voile proche reste minime (~2 %,
+## brume de creux) tandis que les vallées voilent plus que les sommets.
+var atmospheric_fog_height: float = -1.0
+var atmospheric_fog_height_density: float = 0.22
+
 var zoom: float = 1.0
 var map_data: Dictionary = {}
 var is_gm: bool = false
@@ -1566,15 +1609,153 @@ func _apply_lighting() -> void:
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
 		env.tonemap_exposure = exposure
-		env.fog_enabled = terrain3d and fog_density > 0.0001
+		# Brume : atmosphérique (distance + hauteur) si le preset l'opte,
+		# sinon brume exponentielle historique (rendu d'origine strict).
+		_apply_environment_fog(env, terrain3d, preset, fog_density)
+		_apply_sky(env, terrain3d, preset)
+
+# ===========================================================================
+# Brume atmosphérique (distance + hauteur) — voir le bloc de constantes
+# ===========================================================================
+
+## Réglages optionnels de la carte (`map_data["atmosphericFog"]`) — défaut
+## neutre : absents, ce sont les variables du moteur qui font foi.
+func _atmospheric_fog_config() -> Dictionary:
+	var cfg = map_data.get("atmosphericFog") if map_data is Dictionary else null
+	return cfg if cfg is Dictionary else {}
+
+## Vrai si la brume atmosphérique (profondeur + hauteur) s'applique à ce rendu.
+## Terrain 3D uniquement, jamais la vue table (salle intérieure) ; l'opt-in
+## vient du preset (`atmosFog`) ou d'un réglage explicite de la carte, et
+## l'A/B global reste prioritaire.
+func _atmospheric_fog_active(preset: Dictionary, terrain3d: bool) -> bool:
+	if not atmospheric_fog_enabled or not terrain3d or table_view:
+		return false
+	var cfg := _atmospheric_fog_config()
+	if cfg.has("enabled"):
+		return bool(cfg["enabled"])
+	return bool(preset.get("atmosFog", false))
+
+## Applique la brume de l'Environment : atmosphérique (profondeur + hauteur)
+## ou, à défaut, la brume exponentielle historique des presets — identique
+## au rendu d'origine, y compris après un A/B on → off.
+func _apply_environment_fog(env: Environment, terrain3d: bool, preset: Dictionary, preset_density: float) -> void:
+	if env == null:
+		return
+	if _atmospheric_fog_active(preset, terrain3d):
+		var cfg := _atmospheric_fog_config()
+		var intensity := clampf(
+			float(cfg.get("density", atmospheric_fog_intensity)), 0.0, 1.0)
+		var fog_color: Color = atmospheric_fog_color
+		if str(cfg.get("color", "")) != "":
+			fog_color = Color.html(str(cfg["color"]))
+		# ATTENTION : passer en mode profondeur REMET fog_density à 1.0 dans
+		# le moteur — le mode est donc toujours écrit AVANT la densité.
+		env.fog_mode = Environment.FOG_MODE_DEPTH
+		env.fog_enabled = true
+		env.fog_density = intensity
+		env.fog_light_color = fog_color
+		env.fog_light_energy = float(preset.get("fogLightEnergy", 1.0))
+		# Profondeur atmosphérique : couleur du ciel au loin + diffusion
+		# chaude autour du soleil (valeurs du preset, comme avant).
+		env.fog_aerial_perspective = float(preset.get("aerial", 0.0))
+		env.fog_sun_scatter = float(preset.get("sunScatter", 0.0))
+		env.fog_height = float(cfg.get("height", atmospheric_fog_height))
+		env.fog_height_density = float(
+			cfg.get("heightDensity", atmospheric_fog_height_density))
+		_sync_atmospheric_fog_depth(env)
+	else:
+		# Rendu d'origine strictement identique : brume exponentielle du
+		# preset, aucune hauteur, aucun effet de profondeur.
+		env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+		env.fog_height = 0.0
+		env.fog_height_density = 0.0
+		env.fog_enabled = terrain3d and preset_density > 0.0001
 		env.fog_light_color = Color.html(str(preset.get("fogColor", "#2b3445")))
-		env.fog_density = fog_density
-		# Profondeur atmosphérique : brume qui prend la couleur du ciel au loin
-		# et diffusion chaude autour du soleil (god rays doux).
+		env.fog_density = preset_density
 		env.fog_aerial_perspective = float(preset.get("aerial", 0.0)) if terrain3d else 0.0
 		env.fog_sun_scatter = float(preset.get("sunScatter", 0.0)) if terrain3d else 0.0
 		env.fog_light_energy = float(preset.get("fogLightEnergy", 1.0))
-		_apply_sky(env, terrain3d, preset)
+
+## Distance caméra → point visé au sol : repère de la bande de profondeur
+## (en VTT orthographique il reste ~constant pendant le pan/zoom).
+func _camera_focus_distance() -> float:
+	if _camera == null:
+		return ATMOS_FOG_NEAR_MIN
+	var focus := _ground_focus()
+	var target := Vector3(
+		focus.x, terrain_height_at(focus.x, focus.y) * _cell_size, focus.y)
+	return maxf(_camera.position.distance_to(target), 0.001)
+
+## Dernier état caméra ayant servi au recalage de la bande de brume (pour ne
+## recalculer qu'aux vrais mouvements, y compris déplacements manuels).
+var _fog_band_cam_pos := Vector3.INF
+var _fog_band_cam_rot := Vector3.INF
+var _fog_band_cam_size := -1.0
+
+## Recale la bande de profondeur de la brume sur la distance caméra→sol :
+## rien avant `ATMOS_FOG_NEAR_MIN` unités, plein effet au-delà de la fin de
+## bande (les objets lointains se fondent, le centre de la carte reste net).
+func _sync_atmospheric_fog_depth(env: Environment = null) -> void:
+	if env == null:
+		if _world_env == null or _world_env.environment == null:
+			return
+		env = _world_env.environment
+	if _camera != null:
+		_fog_band_cam_pos = _camera.position
+		_fog_band_cam_rot = _camera.rotation_degrees
+		_fog_band_cam_size = _camera.size
+	if env.fog_mode != Environment.FOG_MODE_DEPTH:
+		return
+	var ref := _camera_focus_distance()
+	var begin := maxf(ATMOS_FOG_NEAR_MIN, ref * ATMOS_FOG_BEGIN_RATIO)
+	var end := maxf(begin + ATMOS_FOG_MIN_SPAN, ref * ATMOS_FOG_END_RATIO)
+	env.fog_depth_curve = ATMOS_FOG_DEPTH_CURVE
+	# Écriture de la fin AVANT le début : les setters du moteur se
+	# rebloquent mutuellement (begin ≤ end exigé).
+	env.fog_depth_end = end
+	env.fog_depth_begin = begin
+
+## Recalage automatique quand la caméra bouge (zoom, cadrage, ou déplacement
+## manuel d'un test / d'un script) — la bande de brume reste toujours juste.
+func _sync_fog_band_if_camera_moved() -> void:
+	if _camera == null or _world_env == null or _world_env.environment == null:
+		return
+	if _world_env.environment.fog_mode != Environment.FOG_MODE_DEPTH:
+		return
+	if _camera.position.is_equal_approx(_fog_band_cam_pos) \
+			and _camera.rotation_degrees.is_equal_approx(_fog_band_cam_rot) \
+			and is_equal_approx(_camera.size, _fog_band_cam_size):
+		return
+	_sync_atmospheric_fog_depth()
+
+## Recalage public de la brume (après un déplacement de caméra manuel, une
+## bascule A/B, etc.) — sans effet si la brume atmosphérique est inactive.
+func sync_atmospheric_fog() -> void:
+	_sync_atmospheric_fog_depth()
+
+## Bascule A/B de la brume atmosphérique : false = rendu d'origine strict.
+func set_atmospheric_fog_enabled(on: bool) -> void:
+	atmospheric_fog_enabled = on
+	_apply_lighting()
+
+func is_atmospheric_fog_enabled() -> bool:
+	return atmospheric_fog_enabled
+
+## Réglages effectifs de la brume (tests/captures).
+func get_atmospheric_fog_settings() -> Dictionary:
+	var cfg := _atmospheric_fog_config()
+	var env: Environment = _world_env.environment if _world_env != null else null
+	return {
+		"enabled": atmospheric_fog_enabled,
+		"active": env != null and env.fog_mode == Environment.FOG_MODE_DEPTH,
+		"density": float(cfg.get("density", atmospheric_fog_intensity)),
+		"color": atmospheric_fog_color,
+		"height": float(cfg.get("height", atmospheric_fog_height)),
+		"heightDensity": float(cfg.get("heightDensity", atmospheric_fog_height_density)),
+		"depthBegin": env.fog_depth_begin if env != null else 0.0,
+		"depthEnd": env.fog_depth_end if env != null else 0.0,
+	}
 
 func _apply_atmosphere() -> void:
 	if _atmosphere == null or _vignette == null:
@@ -1865,6 +2046,8 @@ func _update_ortho_size() -> void:
 		_camera.position.y = maxf(0.5, _base_camera_height / maxf(zoom, 0.001))
 	else:
 		_camera.size = _base_ortho_size / zoom
+	# La bande de profondeur de la brume suit la distance caméra→sol.
+	_sync_atmospheric_fog_depth()
 	view_changed.emit()
 
 ## Hauteur de caméra imposée par le style, avant tout recadrage.
@@ -2445,6 +2628,8 @@ func _is_token_node(node: Node) -> bool:
 
 func _process(delta: float) -> void:
 	_update_camera_debug()
+	# Bande de brume suivant la caméra (zoom, cadrage, déplacements manuels).
+	_sync_fog_band_if_camera_moved()
 	_update_occlusion_fade()
 	_sync_token_overlay_positions()
 	if _token_drag:
