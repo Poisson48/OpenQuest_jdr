@@ -64,6 +64,8 @@ var _terrain_field: TerrainCarveField = null
 var _terrain_w: int = 0
 var _terrain_h: int = 0
 var _terrain_relief: bool = false
+## Requête monde vers les tabliers actifs de la carte. -INF hors tablier.
+var bridge_height: Callable
 
 func setup(
 	data: Dictionary,
@@ -156,7 +158,10 @@ func _terrain_height_at(gx: float, gy: float) -> float:
 
 ## Hauteur monde du pied du token (0 sur terrain plat).
 func _terrain_base_y(gx: float, gy: float) -> float:
-	return _terrain_height_at(gx, gy) * cell_size
+	var ground := _terrain_height_at(gx, gy) * cell_size
+	if bridge_height.is_valid():
+		return maxf(ground, float(bridge_height.call((gx + 0.5) * cell_size, (gy + 0.5) * cell_size)))
+	return ground
 
 ## Repose le token sur la hauteur du terrain courant (après un déplacement).
 func apply_terrain_y() -> void:
@@ -376,6 +381,11 @@ func move_to_grid(gx: float, gy: float, animated: bool = true) -> void:
 	_move_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_move_tween.tween_method(func(t: float) -> void:
 		var pos := from.lerp(target, t)
+		if bridge_height.is_valid():
+			var deck := float(bridge_height.call(pos.x, pos.z))
+			if deck > -INF:
+				var lift := cell_size * (0.06 if diorama_mode else 0.12) if selected_state else 0.0
+				pos.y = maxf(pos.y, deck + lift)
 		# Petit arc de marche : le personnage se soulève puis retombe.
 		pos.y += sin(t * PI) * cell_size * 0.16
 		position = pos
@@ -690,8 +700,11 @@ func _commit_position() -> void:
 	var gx := (position.x - cell_size * 0.5) / cell_size
 	var gy := (position.z - cell_size * 0.5) / cell_size
 	if snap_to_grid:
-		gx = roundf(gx)
-		gy = roundf(gy)
+		var snapped := Vector2(roundf(gx), roundf(gy))
+		if not bridge_height.is_valid() or float(bridge_height.call(position.x, position.z)) == -INF \
+				or float(bridge_height.call((snapped.x + 0.5) * cell_size, (snapped.y + 0.5) * cell_size)) > -INF:
+			gx = snapped.x
+			gy = snapped.y
 	token_data["x"] = gx
 	token_data["y"] = gy
 	_sync_position()

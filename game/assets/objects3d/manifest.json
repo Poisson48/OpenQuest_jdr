@@ -1,6 +1,6 @@
 {
-  "generated_by": "tools/blender/build_prototypes.py",
-  "blender_version": "4.5.10 LTS",
+  "generated_by": "tools/blender/build_reference_volumes.py + tools/blender/build_prototypes.py",
+  "blender_version": "5.0.0",
   "unit": "1 unite = 1 case de carte",
   "forward_axis_gltf": "+Z",
   "assets": [
@@ -18,17 +18,26 @@
         "auvent"
       ],
       "dimensions_cells": [
+        2.089,
+        1.398,
+        0.598
+      ],
+      "height_above_floor": 2.586,
+      "anchor": "wall",
+      "triangles": 1596,
+      "triangles_base": 798,
+      "vertices": 798,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 2.0020000000000002,
+      "reference_image": "tools/blender/references/auvent_etal.png",
+      "reference_sha256": "e3dd07b5b5dde00f1becb03bb3f8c59bbaa8875eb4d3ce3eafc37ffdb441cb2c",
+      "reference_bounds": [
         2.09,
         1.399,
         0.598
       ],
-      "height_above_floor": 2.6,
-      "anchor": "wall",
-      "triangles": 1064,
-      "triangles_base": 532,
-      "vertices": 616,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "balcon_bois",
@@ -44,17 +53,26 @@
         "balcon"
       ],
       "dimensions_cells": [
+        1.077,
+        0.565,
+        0.9
+      ],
+      "height_above_floor": 1.597,
+      "anchor": "wall",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 636,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 0.709,
+      "reference_image": "tools/blender/references/balcon_bois.png",
+      "reference_sha256": "7814e9b759cf486071258474036e5cb51273ea66334901c5eb41059f2ffee07a",
+      "reference_bounds": [
         1.08,
         0.57,
         0.906
       ],
-      "height_above_floor": 1.615,
-      "anchor": "wall",
-      "triangles": 632,
-      "triangles_base": 316,
-      "vertices": 372,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "chapelle",
@@ -70,17 +88,26 @@
         "clocher"
       ],
       "dimensions_cells": [
+        2.577,
+        2.619,
+        3.388
+      ],
+      "height_above_floor": 3.374,
+      "anchor": "base",
+      "triangles": 3704,
+      "triangles_base": 1852,
+      "vertices": 1862,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/chapelle.png",
+      "reference_sha256": "4544353bda981c7b4bf732f839a091567bbf64ca6512a2683b60a6e88a29f2a8",
+      "reference_bounds": [
         2.578,
         2.62,
         3.402
       ],
-      "height_above_floor": 3.402,
-      "anchor": "base",
-      "triangles": 1648,
-      "triangles_base": 824,
-      "vertices": 896,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "cheminee_fumante",
@@ -97,16 +124,25 @@
       ],
       "dimensions_cells": [
         0.82,
+        0.639,
+        2.54
+      ],
+      "height_above_floor": 2.528,
+      "anchor": "roof",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 676,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/cheminee_fumante.png",
+      "reference_sha256": "dbfd3890b4a4b047f1b321a366d754c9966f5fdb21524a25f51cae3f3596da82",
+      "reference_bounds": [
+        0.82,
         0.64,
         2.543
       ],
-      "height_above_floor": 2.529,
-      "anchor": "roof",
-      "triangles": 536,
-      "triangles_base": 268,
-      "vertices": 316,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "colombage_panneau",
@@ -122,17 +158,26 @@
         "colombage"
       ],
       "dimensions_cells": [
+        2.053,
+        0.208,
+        1.806
+      ],
+      "height_above_floor": 1.794,
+      "anchor": "wall",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 0.0,
+      "reference_image": "tools/blender/references/colombage_panneau.png",
+      "reference_sha256": "59c3d38e2834d0c533391006ac9a511b0583bbe776b2a7aafac48bd8a6306391",
+      "reference_bounds": [
         2.056,
         0.2,
         1.81
       ],
-      "height_above_floor": 1.8,
-      "anchor": "wall",
-      "triangles": 840,
-      "triangles_base": 420,
-      "vertices": 460,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "ecurie",
@@ -150,15 +195,24 @@
       "dimensions_cells": [
         2.876,
         2.505,
+        2.353
+      ],
+      "height_above_floor": 2.339,
+      "anchor": "base",
+      "triangles": 3312,
+      "triangles_base": 1656,
+      "vertices": 1620,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/ecurie.png",
+      "reference_sha256": "64189442caad10fa49e9399ce3e7629d2e1d1289afb7cbc13df8d490e6764b0f",
+      "reference_bounds": [
+        2.876,
+        2.505,
         2.354
       ],
-      "height_above_floor": 2.354,
-      "anchor": "base",
-      "triangles": 2208,
-      "triangles_base": 1104,
-      "vertices": 1180,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "escalier_exterieur",
@@ -174,17 +228,26 @@
         "escalier"
       ],
       "dimensions_cells": [
+        1.049,
+        2.053,
+        1.962
+      ],
+      "height_above_floor": 1.951,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 552,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/escalier_exterieur.png",
+      "reference_sha256": "07389ea5638d9e51b6b3e7c3edd19e5a67c9cba6bd3b8b6c19307bd59d3f96df",
+      "reference_bounds": [
         1.06,
         2.06,
         1.968
       ],
-      "height_above_floor": 1.968,
-      "anchor": "base",
-      "triangles": 680,
-      "triangles_base": 340,
-      "vertices": 392,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "fenetre_volets",
@@ -200,17 +263,26 @@
         "fenetre"
       ],
       "dimensions_cells": [
+        1.577,
+        0.247,
+        1.043
+      ],
+      "height_above_floor": 1.684,
+      "anchor": "wall",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 0.655,
+      "reference_image": "tools/blender/references/fenetre_volets.png",
+      "reference_sha256": "2436911e27fa34552d4ecd4893c4c71338d97f02d5e3e3ede5bffcd18e945ac3",
+      "reference_bounds": [
         1.58,
         0.244,
         1.045
       ],
-      "height_above_floor": 1.7,
-      "anchor": "wall",
-      "triangles": 552,
-      "triangles_base": 276,
-      "vertices": 336,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "forge",
@@ -227,16 +299,25 @@
       ],
       "dimensions_cells": [
         2.449,
+        2.169,
+        2.572
+      ],
+      "height_above_floor": 2.558,
+      "anchor": "base",
+      "triangles": 4298,
+      "triangles_base": 2149,
+      "vertices": 2134,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/forge.png",
+      "reference_sha256": "2d516dd4f7eabbe91c0e73d159b91478ebfd8a8e007650e695283f3669706466",
+      "reference_bounds": [
+        2.449,
         2.17,
         2.572
       ],
-      "height_above_floor": 2.572,
-      "anchor": "base",
-      "triangles": 2068,
-      "triangles_base": 1034,
-      "vertices": 1114,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "grange",
@@ -253,16 +334,25 @@
       ],
       "dimensions_cells": [
         2.933,
+        3.181,
+        2.479
+      ],
+      "height_above_floor": 2.465,
+      "anchor": "base",
+      "triangles": 3732,
+      "triangles_base": 1866,
+      "vertices": 1866,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/grange.png",
+      "reference_sha256": "2a848a3cfb0aec4041c2ef7e27340d99f1def16f14d1d0f6843bc3cabadb16df",
+      "reference_bounds": [
+        2.933,
         3.182,
         2.479
       ],
-      "height_above_floor": 2.479,
-      "anchor": "base",
-      "triangles": 2488,
-      "triangles_base": 1244,
-      "vertices": 1332,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "herse",
@@ -278,17 +368,26 @@
         "passage"
       ],
       "dimensions_cells": [
+        2.208,
+        0.437,
+        2.436
+      ],
+      "height_above_floor": 2.426,
+      "anchor": "base",
+      "triangles": 1728,
+      "triangles_base": 864,
+      "vertices": 760,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/herse.png",
+      "reference_sha256": "8c5cfdae00c3b83bbfb3b80818bccfba43b996fed6bfdb9cf3f766370b5b86ef",
+      "reference_bounds": [
         2.216,
         0.44,
         2.44
       ],
-      "height_above_floor": 2.44,
-      "anchor": "base",
-      "triangles": 1152,
-      "triangles_base": 576,
-      "vertices": 660,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "maison",
@@ -304,17 +403,26 @@
         "toit"
       ],
       "dimensions_cells": [
+        1.946,
+        1.807,
+        1.877
+      ],
+      "height_above_floor": 1.863,
+      "anchor": "base",
+      "triangles": 4300,
+      "triangles_base": 2150,
+      "vertices": 2138,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/maison.png",
+      "reference_sha256": "41fd552619047e70fe39e1459bdde1bcd568acbca32f2297c98477e2194d5110",
+      "reference_bounds": [
         1.947,
         1.808,
         1.877
       ],
-      "height_above_floor": 1.877,
-      "anchor": "base",
-      "triangles": 1928,
-      "triangles_base": 964,
-      "vertices": 1048,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "maison_etage",
@@ -330,17 +438,26 @@
         "etage"
       ],
       "dimensions_cells": [
+        2.239,
+        2.046,
+        3.165
+      ],
+      "height_above_floor": 3.151,
+      "anchor": "base",
+      "triangles": 3192,
+      "triangles_base": 1596,
+      "vertices": 1568,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/maison_etage.png",
+      "reference_sha256": "ee0e1aa23c3b6280b74914dfcf5af0db32d73e9847b19cb8ecd5923fbb84f562",
+      "reference_bounds": [
         2.241,
         2.046,
         3.167
       ],
-      "height_above_floor": 3.167,
-      "anchor": "base",
-      "triangles": 2128,
-      "triangles_base": 1064,
-      "vertices": 1168,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "maison_grande",
@@ -356,17 +473,26 @@
         "toit"
       ],
       "dimensions_cells": [
+        2.254,
+        2.096,
+        2.172
+      ],
+      "height_above_floor": 2.158,
+      "anchor": "base",
+      "triangles": 3456,
+      "triangles_base": 1728,
+      "vertices": 1732,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/maison_grande.png",
+      "reference_sha256": "e261d3775ef50e79da1ea1e0f70eea8398eb27874ab959d2c0d33667f470964d",
+      "reference_bounds": [
         2.255,
         2.097,
         2.174
       ],
-      "height_above_floor": 2.174,
-      "anchor": "base",
-      "triangles": 2304,
-      "triangles_base": 1152,
-      "vertices": 1220,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "maison_petite",
@@ -383,16 +509,25 @@
       ],
       "dimensions_cells": [
         1.6,
+        1.484,
+        1.543
+      ],
+      "height_above_floor": 1.529,
+      "anchor": "base",
+      "triangles": 2784,
+      "triangles_base": 1392,
+      "vertices": 1396,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/maison_petite.png",
+      "reference_sha256": "8f3d6d7754e8f9fb86c17f0c3aa67e7b0d959fd8265a1c126b84b1600ba299c4",
+      "reference_bounds": [
+        1.6,
         1.486,
         1.543
       ],
-      "height_above_floor": 1.543,
-      "anchor": "base",
-      "triangles": 1856,
-      "triangles_base": 928,
-      "vertices": 1012,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "manoir",
@@ -409,16 +544,25 @@
       ],
       "dimensions_cells": [
         3.937,
+        3.132,
+        3.658
+      ],
+      "height_above_floor": 3.644,
+      "anchor": "base",
+      "triangles": 4296,
+      "triangles_base": 2148,
+      "vertices": 2166,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/manoir.png",
+      "reference_sha256": "8a33d9e7c9f21594d1aa47ea1b43d51fc2bf37df99ac2bdd62e17c037e9bf789",
+      "reference_bounds": [
+        3.937,
         3.133,
         3.658
       ],
-      "height_above_floor": 3.658,
-      "anchor": "base",
-      "triangles": 3036,
-      "triangles_base": 1518,
-      "vertices": 1632,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "marche_couvert",
@@ -434,17 +578,26 @@
         "village"
       ],
       "dimensions_cells": [
+        3.149,
+        2.734,
+        2.953
+      ],
+      "height_above_floor": 2.939,
+      "anchor": "base",
+      "triangles": 2712,
+      "triangles_base": 1356,
+      "vertices": 1232,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/marche_couvert.png",
+      "reference_sha256": "1caf74a2ba44cb4113407e97e9175c087d550e873af65a7077b434af82c782be",
+      "reference_bounds": [
         3.15,
         2.736,
         2.958
       ],
-      "height_above_floor": 2.958,
-      "anchor": "base",
-      "triangles": 1808,
-      "triangles_base": 904,
-      "vertices": 1016,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "mur",
@@ -464,13 +617,22 @@
         0.697,
         1.298
       ],
-      "height_above_floor": 1.298,
+      "height_above_floor": 1.284,
       "anchor": "base",
-      "triangles": 784,
-      "triangles_base": 392,
-      "vertices": 464,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/mur.png",
+      "reference_sha256": "35567c007f70463e0a8f36f7a6df84d5c2b217f16ed06636b77eb3ee6f4e7c39",
+      "reference_bounds": [
+        2.363,
+        0.697,
+        1.298
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "mur_coin",
@@ -486,17 +648,26 @@
         "angle"
       ],
       "dimensions_cells": [
+        2.1,
+        1.687,
+        1.294
+      ],
+      "height_above_floor": 1.28,
+      "anchor": "base",
+      "triangles": 2004,
+      "triangles_base": 1002,
+      "vertices": 1002,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/mur_coin.png",
+      "reference_sha256": "699d215ee9e0c83ca7cac18785609ec62bf9370a5c12bc0d5dc03ba63b6e625a",
+      "reference_bounds": [
         2.101,
         1.689,
         1.294
       ],
-      "height_above_floor": 1.294,
-      "anchor": "base",
-      "triangles": 1336,
-      "triangles_base": 668,
-      "vertices": 808,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "porte_auvent",
@@ -512,17 +683,26 @@
         "porte"
       ],
       "dimensions_cells": [
+        1.369,
+        0.734,
+        2.362
+      ],
+      "height_above_floor": 2.348,
+      "anchor": "wall",
+      "triangles": 1396,
+      "triangles_base": 698,
+      "vertices": 702,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 0.0,
+      "reference_image": "tools/blender/references/porte_auvent.png",
+      "reference_sha256": "d2281b61557174d511e5fde6baba23fcaa37e90fb1e94bc6d66d00f731f0865d",
+      "reference_bounds": [
         1.37,
         0.736,
         2.364
       ],
-      "height_above_floor": 2.354,
-      "anchor": "wall",
-      "triangles": 760,
-      "triangles_base": 380,
-      "vertices": 428,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_2pentes",
@@ -538,17 +718,26 @@
         "batiment"
       ],
       "dimensions_cells": [
+        2.154,
+        2.119,
+        0.949
+      ],
+      "height_above_floor": 0.936,
+      "anchor": "roof",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_2pentes.png",
+      "reference_sha256": "60de804389d5bf1308150de8336943b2e5dc0511c800e1d80f96580204d56d94",
+      "reference_bounds": [
         2.156,
         2.12,
         0.95
       ],
-      "height_above_floor": 0.94,
-      "anchor": "roof",
-      "triangles": 760,
-      "triangles_base": 380,
-      "vertices": 412,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_appentis",
@@ -564,17 +753,26 @@
         "batiment"
       ],
       "dimensions_cells": [
+        2.115,
+        1.114,
+        0.66
+      ],
+      "height_above_floor": 0.647,
+      "anchor": "roof",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 700,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_appentis.png",
+      "reference_sha256": "558853ed0dd23ada01ee9a7aa6e72d1ff8044dc07bf07c47556098deea287b99",
+      "reference_bounds": [
         2.116,
         1.115,
         0.661
       ],
-      "height_above_floor": 0.65,
-      "anchor": "roof",
-      "triangles": 624,
-      "triangles_base": 312,
-      "vertices": 340,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_chaume",
@@ -590,17 +788,26 @@
         "chaume"
       ],
       "dimensions_cells": [
+        2.135,
+        2.147,
+        1.073
+      ],
+      "height_above_floor": 1.06,
+      "anchor": "roof",
+      "triangles": 1596,
+      "triangles_base": 798,
+      "vertices": 802,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_chaume.png",
+      "reference_sha256": "9c2186a0e56bb68236e1d186fbe5616d356dc5fc57fd84c3cf77dbd3fab9e225",
+      "reference_bounds": [
         2.136,
         2.148,
         1.074
       ],
-      "height_above_floor": 1.064,
-      "anchor": "roof",
-      "triangles": 1064,
-      "triangles_base": 532,
-      "vertices": 572,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_clocheton",
@@ -616,17 +823,26 @@
         "clocher"
       ],
       "dimensions_cells": [
+        0.644,
+        0.644,
+        1.821
+      ],
+      "height_above_floor": 1.808,
+      "anchor": "roof",
+      "triangles": 1396,
+      "triangles_base": 698,
+      "vertices": 666,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_clocheton.png",
+      "reference_sha256": "7704a4f1f915f99fac96a46f3dea1b6b6bd5521878ca665c4a9b9a5799765ff1",
+      "reference_bounds": [
         0.646,
         0.646,
         1.822
       ],
-      "height_above_floor": 1.808,
-      "anchor": "roof",
-      "triangles": 312,
-      "triangles_base": 156,
-      "vertices": 188,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_croupe",
@@ -642,17 +858,26 @@
         "batiment"
       ],
       "dimensions_cells": [
+        2.209,
+        2.108,
+        0.944
+      ],
+      "height_above_floor": 0.931,
+      "anchor": "roof",
+      "triangles": 1396,
+      "triangles_base": 698,
+      "vertices": 702,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_croupe.png",
+      "reference_sha256": "f60f73b4dce57cc8030f7be4bb61d27d81def917114a52d9e2554d7fb87b8c3f",
+      "reference_bounds": [
         2.21,
         2.11,
         0.945
       ],
-      "height_above_floor": 0.935,
-      "anchor": "roof",
-      "triangles": 496,
-      "triangles_base": 248,
-      "vertices": 286,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "toit_lucarne",
@@ -668,17 +893,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.527,
+        1.126,
+        0.871
+      ],
+      "height_above_floor": 0.858,
+      "anchor": "base",
+      "triangles": 2096,
+      "triangles_base": 1048,
+      "vertices": 1022,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/toit_lucarne.png",
+      "reference_sha256": "8f611c7dba8851095b53e870729ab4a7e7f9e3e778c6d9ac939483d191a8dde9",
+      "reference_bounds": [
         1.528,
         1.126,
         0.872
       ],
-      "height_above_floor": 0.872,
-      "anchor": "base",
-      "triangles": 372,
-      "triangles_base": 186,
-      "vertices": 214,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tour",
@@ -694,17 +928,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.471,
+        1.329,
+        2.366
+      ],
+      "height_above_floor": 2.352,
+      "anchor": "base",
+      "triangles": 2446,
+      "triangles_base": 1223,
+      "vertices": 1224,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tour.png",
+      "reference_sha256": "fec1b3952026b18ed450a9fe39c538b10585bca2d18f82779e339be7ab022b35",
+      "reference_bounds": [
         1.473,
         1.33,
         2.368
       ],
-      "height_above_floor": 2.368,
-      "anchor": "base",
-      "triangles": 1088,
-      "triangles_base": 544,
-      "vertices": 624,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tour_grande",
@@ -720,17 +963,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.704,
+        1.538,
+        2.742
+      ],
+      "height_above_floor": 2.728,
+      "anchor": "base",
+      "triangles": 2572,
+      "triangles_base": 1286,
+      "vertices": 1282,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tour_grande.png",
+      "reference_sha256": "d088262232f76c0d14c0988c340319a11f81a5cf412eafb8b3f7a0fd15a7375f",
+      "reference_bounds": [
         1.705,
         1.54,
         2.744
       ],
-      "height_above_floor": 2.744,
-      "anchor": "base",
-      "triangles": 1144,
-      "triangles_base": 572,
-      "vertices": 652,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tour_guet_bois",
@@ -746,17 +998,26 @@
         "bois"
       ],
       "dimensions_cells": [
+        1.903,
+        1.916,
+        3.543
+      ],
+      "height_above_floor": 3.53,
+      "anchor": "base",
+      "triangles": 4292,
+      "triangles_base": 2146,
+      "vertices": 1942,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tour_guet_bois.png",
+      "reference_sha256": "f88ff2eda01fc7d98afcffbb02c476b041fa5dd992200e85ed9a3ae5991165bd",
+      "reference_bounds": [
         1.912,
         1.928,
         3.544
       ],
-      "height_above_floor": 3.544,
-      "anchor": "base",
-      "triangles": 2392,
-      "triangles_base": 1196,
-      "vertices": 1336,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "banc",
@@ -772,17 +1033,26 @@
         "repos"
       ],
       "dimensions_cells": [
+        1.319,
+        0.676,
+        0.977
+      ],
+      "height_above_floor": 0.964,
+      "anchor": "base",
+      "triangles": 2100,
+      "triangles_base": 1050,
+      "vertices": 1038,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/banc.png",
+      "reference_sha256": "c9ddbb0f958b6176549c7e988fa43a5aebdadde2b0c11512a78b0d5c5a187226",
+      "reference_bounds": [
         1.321,
         0.676,
         0.978
       ],
-      "height_above_floor": 0.978,
-      "anchor": "base",
-      "triangles": 488,
-      "triangles_base": 244,
-      "vertices": 280,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "banniere",
@@ -799,16 +1069,25 @@
       ],
       "dimensions_cells": [
         1.345,
+        0.885,
+        2.967
+      ],
+      "height_above_floor": 2.955,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/banniere.png",
+      "reference_sha256": "eddb650a097a358fe4dcede62bbe9b6c566f9c74a6b838c1ad550ed7ace58101",
+      "reference_bounds": [
+        1.345,
         0.887,
         2.969
       ],
-      "height_above_floor": 2.969,
-      "anchor": "base",
-      "triangles": 712,
-      "triangles_base": 356,
-      "vertices": 412,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "barque",
@@ -824,17 +1103,26 @@
         "etang"
       ],
       "dimensions_cells": [
+        1.882,
+        0.981,
+        0.501
+      ],
+      "height_above_floor": 0.487,
+      "anchor": "base",
+      "triangles": 1428,
+      "triangles_base": 714,
+      "vertices": 718,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/barque.png",
+      "reference_sha256": "7db312cebab0009477e033f7d85a62925f1867d8980830449698716e3b47d1da",
+      "reference_bounds": [
         1.884,
         0.982,
         0.501
       ],
-      "height_above_floor": 0.501,
-      "anchor": "base",
-      "triangles": 952,
-      "triangles_base": 476,
-      "vertices": 540,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "barriere",
@@ -850,17 +1138,55 @@
         "campagne"
       ],
       "dimensions_cells": [
+        2.103,
+        0.437,
+        0.936
+      ],
+      "height_above_floor": 0.924,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 680,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/barriere.png",
+      "reference_sha256": "3d1da4039668c99c495ccbc473b2f5875a7470d2c9a3c3192a83ef7388b15677",
+      "reference_bounds": [
         2.104,
         0.437,
         0.938
       ],
-      "height_above_floor": 0.938,
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+    },
+    {
+      "name": "bois_flotte",
+      "base": "bois_flotte",
+      "variant": "base",
+      "category": "props",
+      "glb": "props/bois_flotte.glb",
+      "thumb": "props/bois_flotte_thumb.png",
+      "description": "Branche fourchue blanchie par l'eau, cernes visibles aux cassures.",
+      "tags": [
+        "rive",
+        "eau",
+        "bois"
+      ],
+      "dimensions_cells": [
+        2.121,
+        0.973,
+        0.614
+      ],
+      "height_above_floor": 0.614,
       "anchor": "base",
-      "triangles": 496,
-      "triangles_base": 248,
-      "vertices": 288,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 1464,
+      "triangles_base": 732,
+      "vertices": 744,
+      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
+      "outline": true,
+      "reference_image": "tools/blender/references/bois_flotte.png",
+      "reference_sha256": "1a18ce9762079a9cf824bf50c93f04392486e2020335239b1649d3932471b80d",
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "botte_foin",
@@ -876,17 +1202,26 @@
         "decor"
       ],
       "dimensions_cells": [
+        1.099,
+        0.845,
+        0.664
+      ],
+      "height_above_floor": 0.651,
+      "anchor": "base",
+      "triangles": 2098,
+      "triangles_base": 1049,
+      "vertices": 1058,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/botte_foin.png",
+      "reference_sha256": "db60054274d1bbd76add7c8f41d46fdf8f43737195f236e3cd909066c9d0be3a",
+      "reference_bounds": [
         1.1,
         0.85,
         0.667
       ],
-      "height_above_floor": 0.667,
-      "anchor": "base",
-      "triangles": 548,
-      "triangles_base": 274,
-      "vertices": 320,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "caisse",
@@ -906,13 +1241,22 @@
         1.052,
         0.762
       ],
-      "height_above_floor": 0.762,
+      "height_above_floor": 0.748,
       "anchor": "base",
-      "triangles": 688,
-      "triangles_base": 344,
-      "vertices": 404,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/caisse.png",
+      "reference_sha256": "9eeb6a7a92051cf51986410bc492caee773be268f5a5c1c483193eb7c110764b",
+      "reference_bounds": [
+        1.066,
+        1.052,
+        0.762
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "caisse_grande",
@@ -928,17 +1272,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.336,
+        1.319,
+        0.954
+      ],
+      "height_above_floor": 0.94,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/caisse_grande.png",
+      "reference_sha256": "c21f7f82395d77fa69ce8e38adfa14d0386fdb5df9a11fcdb774fb12df1a6427",
+      "reference_bounds": [
         1.337,
         1.32,
         0.954
       ],
-      "height_above_floor": 0.954,
-      "anchor": "base",
-      "triangles": 720,
-      "triangles_base": 360,
-      "vertices": 420,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "chaine_murale",
@@ -954,17 +1307,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        0.285,
+        0.193,
+        1.641
+      ],
+      "height_above_floor": 1.722,
+      "anchor": "wall",
+      "triangles": 3504,
+      "triangles_base": 1752,
+      "vertices": 1768,
+      "vertex_colors": "AO léger",
+      "outline": true,
+      "reference_floor": 0.09499999999999997,
+      "reference_image": "tools/blender/references/chaine_murale.png",
+      "reference_sha256": "754648a1c89c35b584b1a42172bc6597a2e6d2a8569112930dcb755ef1cce710",
+      "reference_bounds": [
         0.29,
         0.189,
         1.643
       ],
-      "height_above_floor": 1.738,
-      "anchor": "wall",
-      "triangles": 1144,
-      "triangles_base": 572,
-      "vertices": 576,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "charrette",
@@ -981,16 +1343,25 @@
       ],
       "dimensions_cells": [
         1.608,
+        1.742,
+        0.939
+      ],
+      "height_above_floor": 0.926,
+      "anchor": "base",
+      "triangles": 1808,
+      "triangles_base": 904,
+      "vertices": 832,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/charrette.png",
+      "reference_sha256": "a2fb0c488f569a5f13545d44d0d59ff56535d021fe0c31eea556429a3c2382d6",
+      "reference_bounds": [
+        1.608,
         1.744,
         0.94
       ],
-      "height_above_floor": 0.94,
-      "anchor": "base",
-      "triangles": 1208,
-      "triangles_base": 604,
-      "vertices": 668,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "cloture_basse",
@@ -1006,17 +1377,26 @@
         "campagne"
       ],
       "dimensions_cells": [
+        2.207,
+        0.414,
+        0.677
+      ],
+      "height_above_floor": 0.664,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 700,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/cloture_basse.png",
+      "reference_sha256": "70f55065355248d79028e07f39ce1dc95b8efc699a55fe9971da8266ed394a15",
+      "reference_bounds": [
         2.21,
         0.414,
         0.678
       ],
-      "height_above_floor": 0.678,
-      "anchor": "base",
-      "triangles": 624,
-      "triangles_base": 312,
-      "vertices": 368,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "comptoir",
@@ -1032,17 +1412,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        2.339,
+        1.279,
+        1.873
+      ],
+      "height_above_floor": 1.859,
+      "anchor": "base",
+      "triangles": 3804,
+      "triangles_base": 1902,
+      "vertices": 1906,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/comptoir.png",
+      "reference_sha256": "d14470de24668a6dbc3acf5aadf3266bbbda3fc1c604778266bbbe1ea789ec83",
+      "reference_bounds": [
         2.34,
         1.279,
         1.873
       ],
-      "height_above_floor": 1.873,
-      "anchor": "base",
-      "triangles": 2536,
-      "triangles_base": 1268,
-      "vertices": 1398,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "enseigne",
@@ -1058,17 +1447,26 @@
         "exterieur"
       ],
       "dimensions_cells": [
+        1.039,
+        0.994,
+        1.082
+      ],
+      "height_above_floor": 2.523,
+      "anchor": "wall",
+      "triangles": 1620,
+      "triangles_base": 810,
+      "vertices": 794,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 1.4549999999999998,
+      "reference_image": "tools/blender/references/enseigne.png",
+      "reference_sha256": "a769475feb77a36a2e08fd8bd6b94d8536b0d221b174ed9a0afe656c485343e9",
+      "reference_bounds": [
         1.04,
         0.996,
         1.083
       ],
-      "height_above_floor": 2.538,
-      "anchor": "wall",
-      "triangles": 1080,
-      "triangles_base": 540,
-      "vertices": 580,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "etal_marche",
@@ -1084,17 +1482,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.959,
+        1.526,
+        2.002
+      ],
+      "height_above_floor": 1.988,
+      "anchor": "base",
+      "triangles": 2688,
+      "triangles_base": 1344,
+      "vertices": 1268,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/etal_marche.png",
+      "reference_sha256": "76dfac0ae65b0d8d2133b7f409aa30e7bc047c357267e62c96c0d3f523e53de5",
+      "reference_bounds": [
         1.962,
         1.527,
         2.004
       ],
-      "height_above_floor": 2.004,
-      "anchor": "base",
-      "triangles": 1792,
-      "triangles_base": 896,
-      "vertices": 1020,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "fontaine",
@@ -1110,17 +1517,26 @@
         "village"
       ],
       "dimensions_cells": [
+        2.103,
+        2.284,
+        1.414
+      ],
+      "height_above_floor": 1.4,
+      "anchor": "base",
+      "triangles": 2386,
+      "triangles_base": 1193,
+      "vertices": 1212,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/fontaine.png",
+      "reference_sha256": "26776021d415d6752737b0f7a9394166125707df2270edcd166f61fe2c20a69d",
+      "reference_bounds": [
         2.104,
         2.285,
         1.414
       ],
-      "height_above_floor": 1.414,
-      "anchor": "base",
-      "triangles": 1064,
-      "triangles_base": 532,
-      "vertices": 584,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "lanterne",
@@ -1136,17 +1552,26 @@
         "village"
       ],
       "dimensions_cells": [
+        0.832,
+        0.834,
+        2.297
+      ],
+      "height_above_floor": 2.289,
+      "anchor": "base",
+      "triangles": 1548,
+      "triangles_base": 774,
+      "vertices": 898,
+      "vertex_colors": "AO léger",
+      "outline": true,
+      "reference_image": "tools/blender/references/lanterne.png",
+      "reference_sha256": "9dc918545b20dc1ccd102533897102b60513f68fe26ae3ff6712c9322695c32a",
+      "reference_bounds": [
         0.84,
         0.835,
         2.303
       ],
-      "height_above_floor": 2.303,
-      "anchor": "base",
-      "triangles": 396,
-      "triangles_base": 198,
-      "vertices": 250,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "lit",
@@ -1162,17 +1587,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        1.479,
+        2.039,
+        0.784
+      ],
+      "height_above_floor": 0.77,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/lit.png",
+      "reference_sha256": "e168d1b258804fc8865cc8b5c96582e0a8a45435cce775de5df061e15c0e48d4",
+      "reference_bounds": [
         1.48,
         2.04,
         0.784
       ],
-      "height_above_floor": 0.784,
-      "anchor": "base",
-      "triangles": 888,
-      "triangles_base": 444,
-      "vertices": 490,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "palissade",
@@ -1188,17 +1622,26 @@
         "camp"
       ],
       "dimensions_cells": [
+        2.193,
+        0.509,
+        1.244
+      ],
+      "height_above_floor": 1.23,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/palissade.png",
+      "reference_sha256": "92861c566eeae2416e5319f5c394f3f54cfa92c365fb0bba428588943f2aa5ec",
+      "reference_bounds": [
         2.196,
         0.51,
         1.244
       ],
-      "height_above_floor": 1.244,
-      "anchor": "base",
-      "triangles": 620,
-      "triangles_base": 310,
-      "vertices": 378,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "panneau",
@@ -1214,17 +1657,26 @@
         "village"
       ],
       "dimensions_cells": [
+        0.864,
+        0.781,
+        2.013
+      ],
+      "height_above_floor": 2.0,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/panneau.png",
+      "reference_sha256": "563cc3759e3c601107747c1ebcc36e4cca07a8529402c7dc918f38521991f1ca",
+      "reference_bounds": [
         0.865,
         0.782,
         2.014
       ],
-      "height_above_floor": 2.014,
-      "anchor": "base",
-      "triangles": 344,
-      "triangles_base": 172,
-      "vertices": 196,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pile_os",
@@ -1240,17 +1692,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        1.319,
+        1.063,
+        0.406
+      ],
+      "height_above_floor": 0.392,
+      "anchor": "base",
+      "triangles": 1476,
+      "triangles_base": 738,
+      "vertices": 742,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pile_os.png",
+      "reference_sha256": "e5c530b48d511cd5f0b36edb1a5cc82892ec65c9080167594aba46868fed31ea",
+      "reference_bounds": [
         1.32,
         1.064,
         0.406
       ],
-      "height_above_floor": 0.406,
-      "anchor": "base",
-      "triangles": 984,
-      "triangles_base": 492,
-      "vertices": 588,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_archere",
@@ -1266,17 +1727,26 @@
         "class:archere"
       ],
       "dimensions_cells": [
+        0.7,
+        0.7,
+        1.242
+      ],
+      "height_above_floor": 1.228,
+      "anchor": "base",
+      "triangles": 3614,
+      "triangles_base": 1807,
+      "vertices": 1820,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_archere.png",
+      "reference_sha256": "307615576905e2120b2348a22a1ab13ea97d357e147a612158bb136138e1c528",
+      "reference_bounds": [
         0.701,
         0.701,
         1.243
       ],
-      "height_above_floor": 1.243,
-      "anchor": "base",
-      "triangles": 1072,
-      "triangles_base": 536,
-      "vertices": 664,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_aventurier",
@@ -1292,17 +1762,26 @@
         "class:aventurier"
       ],
       "dimensions_cells": [
+        0.859,
+        0.7,
+        1.138
+      ],
+      "height_above_floor": 1.124,
+      "anchor": "base",
+      "triangles": 2284,
+      "triangles_base": 1142,
+      "vertices": 1146,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_aventurier.png",
+      "reference_sha256": "72dfdbaf7d7020bf882541b9196c8b06aa71146b57d94521a55d31a9d96c92ee",
+      "reference_bounds": [
         0.86,
         0.701,
         1.138
       ],
-      "height_above_floor": 1.138,
-      "anchor": "base",
-      "triangles": 1016,
-      "triangles_base": 508,
-      "vertices": 616,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_garde",
@@ -1319,16 +1798,25 @@
       ],
       "dimensions_cells": [
         0.851,
+        0.698,
+        2.013
+      ],
+      "height_above_floor": 1.999,
+      "anchor": "base",
+      "triangles": 3148,
+      "triangles_base": 1574,
+      "vertices": 1594,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_garde.png",
+      "reference_sha256": "e9a1952004d8927888929b3a1ca0802111c88dfa27b63d02f62a0c7925cde90b",
+      "reference_bounds": [
+        0.851,
         0.701,
         2.013
       ],
-      "height_above_floor": 2.013,
-      "anchor": "base",
-      "triangles": 900,
-      "triangles_base": 450,
-      "vertices": 554,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_gobelin",
@@ -1344,17 +1832,26 @@
         "creature:gobelin"
       ],
       "dimensions_cells": [
+        0.62,
+        0.62,
+        0.855
+      ],
+      "height_above_floor": 0.841,
+      "anchor": "base",
+      "triangles": 3146,
+      "triangles_base": 1573,
+      "vertices": 1570,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_gobelin.png",
+      "reference_sha256": "e86e0ccfca6dd05ba2b6cceb1756a562bd6e4b6504e87871f20e7b1338408276",
+      "reference_bounds": [
         0.621,
         0.621,
         0.855
       ],
-      "height_above_floor": 0.855,
-      "anchor": "base",
-      "triangles": 716,
-      "triangles_base": 358,
-      "vertices": 446,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_mage",
@@ -1370,17 +1867,26 @@
         "class:mage"
       ],
       "dimensions_cells": [
+        0.829,
+        0.703,
+        1.803
+      ],
+      "height_above_floor": 1.789,
+      "anchor": "base",
+      "triangles": 2884,
+      "triangles_base": 1442,
+      "vertices": 1426,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_mage.png",
+      "reference_sha256": "5c378e44f64b6c3b225dacb2757ee9ba2a68c6638fea728c8757a00eea30d6d2",
+      "reference_bounds": [
         0.83,
         0.703,
         1.803
       ],
-      "height_above_floor": 1.803,
-      "anchor": "base",
-      "triangles": 1284,
-      "triangles_base": 642,
-      "vertices": 722,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_marchand",
@@ -1397,16 +1903,25 @@
       ],
       "dimensions_cells": [
         0.835,
+        0.7,
+        1.602
+      ],
+      "height_above_floor": 1.588,
+      "anchor": "base",
+      "triangles": 2520,
+      "triangles_base": 1260,
+      "vertices": 1260,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_marchand.png",
+      "reference_sha256": "98093a8a54ed479fffcd2f52462711d2f451f1c63d20c35b4e4224b835096906",
+      "reference_bounds": [
+        0.835,
         0.701,
         1.603
       ],
-      "height_above_floor": 1.603,
-      "anchor": "base",
-      "triangles": 1120,
-      "triangles_base": 560,
-      "vertices": 668,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_pretresse",
@@ -1423,16 +1938,25 @@
       ],
       "dimensions_cells": [
         0.701,
+        0.7,
+        1.393
+      ],
+      "height_above_floor": 1.379,
+      "anchor": "base",
+      "triangles": 2772,
+      "triangles_base": 1386,
+      "vertices": 1390,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_pretresse.png",
+      "reference_sha256": "50a872c30e474f9ae6418d63f3c3712f85e77981997bff9e0e2d98754bac071e",
+      "reference_bounds": [
+        0.701,
         0.701,
         1.393
       ],
-      "height_above_floor": 1.393,
-      "anchor": "base",
-      "triangles": 1232,
-      "triangles_base": 616,
-      "vertices": 708,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_squelette",
@@ -1448,17 +1972,26 @@
         "creature:squelette"
       ],
       "dimensions_cells": [
+        0.676,
+        0.657,
+        1.185
+      ],
+      "height_above_floor": 1.171,
+      "anchor": "base",
+      "triangles": 3072,
+      "triangles_base": 1536,
+      "vertices": 1892,
+      "vertex_colors": "AO léger",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_squelette.png",
+      "reference_sha256": "2d0822a31683946f36d5f7b637c7049416adf44f7f928faca178428ff5a02787",
+      "reference_bounds": [
         0.681,
         0.661,
         1.185
       ],
-      "height_above_floor": 1.185,
-      "anchor": "base",
-      "triangles": 1096,
-      "triangles_base": 548,
-      "vertices": 672,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "pnj_villageois",
@@ -1475,16 +2008,25 @@
       ],
       "dimensions_cells": [
         0.807,
+        0.7,
+        1.048
+      ],
+      "height_above_floor": 1.034,
+      "anchor": "base",
+      "triangles": 2284,
+      "triangles_base": 1142,
+      "vertices": 1118,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_villageois.png",
+      "reference_sha256": "474dca1cb4a2d83200c3e7f4ecf52a9f24dc1b46128160f9616dcf99751ab2ae",
+      "reference_bounds": [
+        0.807,
         0.701,
         1.048
       ],
-      "height_above_floor": 1.048,
-      "anchor": "base",
-      "triangles": 1016,
-      "triangles_base": 508,
-      "vertices": 600,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pnj_voleuse",
@@ -1500,17 +2042,26 @@
         "class:voleuse"
       ],
       "dimensions_cells": [
+        0.697,
+        0.7,
+        0.995
+      ],
+      "height_above_floor": 0.981,
+      "anchor": "base",
+      "triangles": 3146,
+      "triangles_base": 1573,
+      "vertices": 1582,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pnj_voleuse.png",
+      "reference_sha256": "382561d6f2a54c570f57faf506760408911cad8efa5f95108728901398f85261",
+      "reference_bounds": [
         0.701,
         0.701,
         0.995
       ],
-      "height_above_floor": 0.995,
-      "anchor": "base",
-      "triangles": 792,
-      "triangles_base": 396,
-      "vertices": 496,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "pont",
@@ -1526,17 +2077,20 @@
         "elevation"
       ],
       "dimensions_cells": [
-        2.64,
-        1.3,
-        1.094
+        2.559,
+        1.236,
+        0.841
       ],
-      "height_above_floor": 1.094,
+      "height_above_floor": 0.841,
       "anchor": "base",
-      "triangles": 1880,
-      "triangles_base": 940,
-      "vertices": 1060,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 2328,
+      "triangles_base": 1164,
+      "vertices": 1368,
+      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
+      "outline": true,
+      "reference_image": "tools/blender/references/pont.png",
+      "reference_sha256": "230dffb29c31d5913fb455f7a7003faafd710616501ea6d66128ba5ed0f537fe",
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "ponton",
@@ -1552,17 +2106,26 @@
         "quai"
       ],
       "dimensions_cells": [
+        2.255,
+        0.916,
+        1.28
+      ],
+      "height_above_floor": 1.267,
+      "anchor": "base",
+      "triangles": 2208,
+      "triangles_base": 1104,
+      "vertices": 1094,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/ponton.png",
+      "reference_sha256": "32181c2899ee7f4098b23549b97c231459d276930a366a419fbd8bd91e17cc5d",
+      "reference_bounds": [
         2.256,
         0.916,
         1.281
       ],
-      "height_above_floor": 1.281,
-      "anchor": "base",
-      "triangles": 984,
-      "triangles_base": 492,
-      "vertices": 568,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "puits",
@@ -1578,17 +2141,26 @@
         "point d'interet"
       ],
       "dimensions_cells": [
+        1.191,
+        1.019,
+        1.443
+      ],
+      "height_above_floor": 1.429,
+      "anchor": "base",
+      "triangles": 2100,
+      "triangles_base": 1050,
+      "vertices": 1026,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/puits.png",
+      "reference_sha256": "b7635ba96e2ebf773d206af570134c1583772862b9938b3699848c38f574c2fb",
+      "reference_bounds": [
         1.196,
         1.021,
         1.444
       ],
-      "height_above_floor": 1.444,
-      "anchor": "base",
-      "triangles": 816,
-      "triangles_base": 408,
-      "vertices": 464,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "puits_couvert",
@@ -1604,17 +2176,26 @@
         "village"
       ],
       "dimensions_cells": [
+        1.691,
+        1.705,
+        2.289
+      ],
+      "height_above_floor": 2.275,
+      "anchor": "base",
+      "triangles": 2100,
+      "triangles_base": 1050,
+      "vertices": 1014,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/puits_couvert.png",
+      "reference_sha256": "600bafa64a64bb3d5a2f3bfcf8959ad604454ad1f2e121da019f9082706f113d",
+      "reference_bounds": [
         1.692,
         1.705,
         2.289
       ],
-      "height_above_floor": 2.289,
-      "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 764,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "sarcophage",
@@ -1634,13 +2215,22 @@
         0.96,
         1.018
       ],
-      "height_above_floor": 1.018,
+      "height_above_floor": 1.004,
       "anchor": "base",
-      "triangles": 760,
-      "triangles_base": 380,
-      "vertices": 418,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/sarcophage.png",
+      "reference_sha256": "8fced11c6bed6a6ec43e7e0a6cd3baf79a97ffcd0ffc4349cbc8c610bfacbfb1",
+      "reference_bounds": [
+        1.44,
+        0.96,
+        1.018
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "table_tabourets",
@@ -1656,17 +2246,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        1.739,
+        1.759,
+        1.284
+      ],
+      "height_above_floor": 1.27,
+      "anchor": "base",
+      "triangles": 2100,
+      "triangles_base": 1050,
+      "vertices": 1038,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/table_tabourets.png",
+      "reference_sha256": "d1e78983b3c56102e02bd053da6cc6c7ef10c1776ebda5aab3c757131b74f336",
+      "reference_bounds": [
         1.74,
         1.761,
         1.288
       ],
-      "height_above_floor": 1.288,
-      "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 772,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tapis",
@@ -1682,17 +2281,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        2.02,
+        1.26,
+        0.085
+      ],
+      "height_above_floor": 0.08,
+      "anchor": "base",
+      "triangles": 3040,
+      "triangles_base": 1520,
+      "vertices": 1524,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tapis.png",
+      "reference_sha256": "4845656e391bf85f7531e27d7b6a3b6ae44e577246c7197e34b658a719a4496c",
+      "reference_bounds": [
         2.021,
         1.26,
         0.082
       ],
-      "height_above_floor": 0.082,
-      "anchor": "base",
-      "triangles": 1352,
-      "triangles_base": 676,
-      "vertices": 794,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tas_de_bois",
@@ -1712,13 +2320,22 @@
         0.996,
         1.041
       ],
-      "height_above_floor": 1.041,
+      "height_above_floor": 1.027,
       "anchor": "base",
-      "triangles": 1360,
-      "triangles_base": 680,
-      "vertices": 764,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 2040,
+      "triangles_base": 1020,
+      "vertices": 1024,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tas_de_bois.png",
+      "reference_sha256": "26a5050ba49fd4f3e3d0bcc98d32ac8e99b259819bf7e1536dc203a4ba1ef2ba",
+      "reference_bounds": [
+        1.379,
+        0.996,
+        1.041
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tonneau",
@@ -1738,13 +2355,22 @@
         0.914,
         0.843
       ],
-      "height_above_floor": 0.843,
+      "height_above_floor": 0.829,
       "anchor": "base",
-      "triangles": 648,
-      "triangles_base": 324,
-      "vertices": 352,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tonneau.png",
+      "reference_sha256": "43a94e8f87dddc4d80ca5a5877268ede1ab544d4f66cf92aabe7f9049998b95c",
+      "reference_bounds": [
+        0.917,
+        0.914,
+        0.843
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "tonneau_couche",
@@ -1760,17 +2386,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        1.178,
+        0.978,
+        0.747
+      ],
+      "height_above_floor": 0.733,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 700,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/tonneau_couche.png",
+      "reference_sha256": "e7d5c705250527c5b0eb41477d050a33f7efe03f56f81c2bcf4ce9254f740dec",
+      "reference_bounds": [
         1.18,
         0.979,
         0.747
       ],
-      "height_above_floor": 0.747,
-      "anchor": "base",
-      "triangles": 784,
-      "triangles_base": 392,
-      "vertices": 426,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "torche_murale",
@@ -1786,17 +2421,26 @@
         "interieur"
       ],
       "dimensions_cells": [
+        0.226,
+        0.514,
+        0.886
+      ],
+      "height_above_floor": 2.367,
+      "anchor": "wall",
+      "triangles": 2100,
+      "triangles_base": 1050,
+      "vertices": 1050,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_floor": 1.4940000000000002,
+      "reference_image": "tools/blender/references/torche_murale.png",
+      "reference_sha256": "a211c0bb0e015fe314db220434e37986eac2f179fa47bdbc9b2d4ee8c73f7e2c",
+      "reference_bounds": [
         0.22,
         0.515,
         0.888
       ],
-      "height_above_floor": 2.382,
-      "anchor": "wall",
-      "triangles": 308,
-      "triangles_base": 154,
-      "vertices": 190,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "falaise",
@@ -1812,17 +2456,55 @@
         "bord"
       ],
       "dimensions_cells": [
+        2.319,
+        2.309,
+        2.004
+      ],
+      "height_above_floor": 1.99,
+      "anchor": "base",
+      "triangles": 2328,
+      "triangles_base": 1164,
+      "vertices": 1168,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/falaise.png",
+      "reference_sha256": "9c0fd62b04a476503e627f84b188e587ac7e8245ba0954212625c6b94099d30a",
+      "reference_bounds": [
         2.32,
         2.31,
         2.004
       ],
-      "height_above_floor": 2.004,
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+    },
+    {
+      "name": "galets_de_rive",
+      "base": "galets_de_rive",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/galets_de_rive.glb",
+      "thumb": "terrain/galets_de_rive_thumb.png",
+      "description": "Trois galets d'ardoise moussus avec ligne d'eau.",
+      "tags": [
+        "rive",
+        "eau",
+        "roche"
+      ],
+      "dimensions_cells": [
+        1.791,
+        1.357,
+        0.919
+      ],
+      "height_above_floor": 0.919,
       "anchor": "base",
-      "triangles": 1552,
-      "triangles_base": 776,
-      "vertices": 824,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 480,
+      "triangles_base": 240,
+      "vertices": 252,
+      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
+      "outline": true,
+      "reference_image": "tools/blender/references/galets_de_rive.png",
+      "reference_sha256": "1c2e58be2cc18b2f9921156eaa1d817d385361af1f5f3b3fc09f580395c110c8",
+      "geometry_source": "modelage d'après la référence"
     },
     {
       "name": "gros_rocher",
@@ -1838,17 +2520,129 @@
         "obstacle"
       ],
       "dimensions_cells": [
+        2.12,
+        1.884,
+        1.364
+      ],
+      "height_above_floor": 1.35,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/gros_rocher.png",
+      "reference_sha256": "51dae1adecff6d0aedbf5a2b3b1f8e6465d417c961a925eaee172a68c637f8ef",
+      "reference_bounds": [
         2.121,
         1.884,
         1.364
       ],
-      "height_above_floor": 1.364,
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+    },
+    {
+      "name": "path_generated_demo",
+      "base": "path_generated_demo",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/path_generated_demo.glb",
+      "thumb": "terrain/path_generated_demo_thumb.png",
+      "description": "Chemin de démonstration sinueux avec accotements herbeux.",
+      "tags": [
+        "chemin",
+        "pierre"
+      ],
+      "dimensions_cells": [
+        10.746,
+        5.689,
+        0.325
+      ],
+      "height_above_floor": 0.311,
       "anchor": "base",
-      "triangles": 620,
-      "triangles_base": 310,
-      "vertices": 334,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "triangles": 4300,
+      "triangles_base": 2150,
+      "vertices": 2154,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/path_generated_demo.png",
+      "reference_sha256": "2d42e531ebac474c7b3a29a8c909157f2427127fd4db40c54b535ca8703b727f",
+      "reference_bounds": [
+        10.75,
+        5.691,
+        0.325
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+    },
+    {
+      "name": "path_stone_procedural",
+      "base": "path_stone_procedural",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/path_stone_procedural.glb",
+      "thumb": "terrain/path_stone_procedural_thumb.png",
+      "description": "Traversée de pavés, sans accotement.",
+      "tags": [
+        "chemin",
+        "pierre"
+      ],
+      "dimensions_cells": [
+        10.503,
+        3.096,
+        0.264
+      ],
+      "height_above_floor": 0.25,
+      "anchor": "base",
+      "triangles": 3240,
+      "triangles_base": 1620,
+      "vertices": 1624,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/path_stone_procedural.png",
+      "reference_sha256": "0b38c7d98ab373cc829abab667008fe906c3a4b97fb0ab93287a0e4ac60dcc3d",
+      "reference_bounds": [
+        10.505,
+        3.097,
+        0.262
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+    },
+    {
+      "name": "path_through_grass",
+      "base": "path_through_grass",
+      "variant": "base",
+      "category": "terrain",
+      "glb": "terrain/path_through_grass.glb",
+      "thumb": "terrain/path_through_grass_thumb.png",
+      "description": "Chemin de pierres irrégulières bordé d'herbe.",
+      "tags": [
+        "chemin",
+        "pierre",
+        "herbe"
+      ],
+      "dimensions_cells": [
+        10.745,
+        4.511,
+        0.325
+      ],
+      "height_above_floor": 0.311,
+      "anchor": "base",
+      "triangles": 4300,
+      "triangles_base": 2150,
+      "vertices": 2154,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/path_through_grass.png",
+      "reference_sha256": "b2eee4221179bcd785d373c53ce8430824e0d3d2d98b22d1123b03a1ee1167ab",
+      "reference_bounds": [
+        10.75,
+        4.512,
+        0.325
+      ],
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "rocher",
@@ -1864,17 +2658,26 @@
         "decor"
       ],
       "dimensions_cells": [
+        1.446,
+        1.18,
+        0.866
+      ],
+      "height_above_floor": 0.852,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/rocher.png",
+      "reference_sha256": "8cc267a48c5231e586a534ae256f1b9123f773bfa86d462c83878a8dee7655db",
+      "reference_bounds": [
         1.448,
         1.18,
         0.866
       ],
-      "height_above_floor": 0.866,
-      "anchor": "base",
-      "triangles": 352,
-      "triangles_base": 176,
-      "vertices": 200,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "arbre",
@@ -1890,17 +2693,26 @@
         "decor"
       ],
       "dimensions_cells": [
+        1.029,
+        1.049,
+        2.103
+      ],
+      "height_above_floor": 2.089,
+      "anchor": "base",
+      "triangles": 2098,
+      "triangles_base": 1049,
+      "vertices": 1010,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/arbre.png",
+      "reference_sha256": "68992bd66a6dfabfb116f73001a12ce8bd87383f7c121411b680c0ba4e7ddce7",
+      "reference_bounds": [
         1.03,
         1.051,
         2.103
       ],
-      "height_above_floor": 2.103,
-      "anchor": "base",
-      "triangles": 396,
-      "triangles_base": 198,
-      "vertices": 222,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "arbre_automne",
@@ -1917,16 +2729,25 @@
       ],
       "dimensions_cells": [
         1.03,
+        1.049,
+        2.101
+      ],
+      "height_above_floor": 2.089,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 688,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/arbre_automne.png",
+      "reference_sha256": "88459e717b6acadecd460036b41d4f83a7e4cbebf7c9612fb89bfea1fa86ed00",
+      "reference_bounds": [
+        1.03,
         1.051,
         2.103
       ],
-      "height_above_floor": 2.103,
-      "anchor": "base",
-      "triangles": 396,
-      "triangles_base": 198,
-      "vertices": 222,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "arbre_majestueux",
@@ -1943,16 +2764,25 @@
       ],
       "dimensions_cells": [
         2.519,
+        2.291,
+        4.429
+      ],
+      "height_above_floor": 4.415,
+      "anchor": "base",
+      "triangles": 3546,
+      "triangles_base": 1773,
+      "vertices": 1644,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/arbre_majestueux.png",
+      "reference_sha256": "14ac81a6852877bd32b112266f241ebc03b05e368afe936bdcd506fbc69db3c0",
+      "reference_bounds": [
+        2.519,
         2.292,
         4.429
       ],
-      "height_above_floor": 4.429,
-      "anchor": "base",
-      "triangles": 1580,
-      "triangles_base": 790,
-      "vertices": 846,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "bosquet",
@@ -1968,17 +2798,26 @@
         "decor"
       ],
       "dimensions_cells": [
+        2.406,
+        2.368,
+        2.48
+      ],
+      "height_above_floor": 2.466,
+      "anchor": "base",
+      "triangles": 2248,
+      "triangles_base": 1124,
+      "vertices": 1000,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/bosquet.png",
+      "reference_sha256": "794295ec43c415747aa76cead4159d64dbac497f63fa117e2f92a0d144e47ae8",
+      "reference_bounds": [
         2.407,
         2.37,
         2.48
       ],
-      "height_above_floor": 2.48,
-      "anchor": "base",
-      "triangles": 1004,
-      "triangles_base": 502,
-      "vertices": 542,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "buisson",
@@ -1994,17 +2833,26 @@
         "exterieur"
       ],
       "dimensions_cells": [
+        1.224,
+        1.072,
+        0.781
+      ],
+      "height_above_floor": 0.767,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/buisson.png",
+      "reference_sha256": "02baaf8742be29ca51d59a2a5eb8f3f2fac08c0ab06d8aa78b4e74b9584907e1",
+      "reference_bounds": [
         1.228,
         1.074,
         0.783
       ],
-      "height_above_floor": 0.783,
-      "anchor": "base",
-      "triangles": 492,
-      "triangles_base": 246,
-      "vertices": 290,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "haie",
@@ -2022,15 +2870,24 @@
       "dimensions_cells": [
         2.465,
         0.904,
+        0.95
+      ],
+      "height_above_floor": 0.936,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 704,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/haie.png",
+      "reference_sha256": "6cc52f80469f9ea3c503c82e7cb44b3b3b0a83a86d8afb00f2dbb612687450d0",
+      "reference_bounds": [
+        2.465,
+        0.904,
         0.951
       ],
-      "height_above_floor": 0.951,
-      "anchor": "base",
-      "triangles": 520,
-      "triangles_base": 260,
-      "vertices": 304,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "nenuphars",
@@ -2047,16 +2904,25 @@
       ],
       "dimensions_cells": [
         1.332,
+        1.007,
+        0.193
+      ],
+      "height_above_floor": 0.18,
+      "anchor": "base",
+      "triangles": 1400,
+      "triangles_base": 700,
+      "vertices": 692,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/nenuphars.png",
+      "reference_sha256": "54c2e62f25f1a3021672ab12def574af49423c3c5175fd625abae84497460fea",
+      "reference_bounds": [
+        1.332,
         1.012,
         0.186
       ],
-      "height_above_floor": 0.186,
-      "anchor": "base",
-      "triangles": 728,
-      "triangles_base": 364,
-      "vertices": 428,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     },
     {
       "name": "roseaux",
@@ -2072,17 +2938,26 @@
         "berge"
       ],
       "dimensions_cells": [
+        1.419,
+        1.173,
+        1.737
+      ],
+      "height_above_floor": 1.723,
+      "anchor": "base",
+      "triangles": 2418,
+      "triangles_base": 1209,
+      "vertices": 1248,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/roseaux.png",
+      "reference_sha256": "5d2c7ea225064352916cb33cb8de8bf42b2387a33238c9450a078216a3ac3b68",
+      "reference_bounds": [
         1.436,
         1.174,
         1.744
       ],
-      "height_above_floor": 1.744,
-      "anchor": "base",
-      "triangles": 1088,
-      "triangles_base": 544,
-      "vertices": 644,
-      "vertex_colors": "AO + mottling (COLOR_0)",
-      "outline": true
+      "reference_floor": 0.0,
+      "geometry_source": "intersection des silhouettes avant/droite/dessus"
     }
   ]
 }

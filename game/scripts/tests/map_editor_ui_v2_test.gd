@@ -28,14 +28,29 @@ func _run() -> void:
 	_assert("tool_options_not_in_left_panel",
 		tool_opts != null and not _is_descendant(tool_opts, ed._left_panel))
 
-	# 3) Thème Cartographer : accent jade.
+	# 3) Thème de la toile immersive : accent doré.
 	_assert("theme_assigned", ed.theme != null)
 	_assert("theme_font_pressed_color",
 		ed.theme != null
-		and ed.theme.get_color("font_pressed_color", "Button") == Color("#55D6BE"))
+		and ed.theme.get_color("font_pressed_color", "Button") == Color("#F2C46C"))
 
 	# 4) Label FPS créé.
 	_assert("fps_label_created", ed._fps_lbl != null)
+
+	_assert("canvas_full_height", ed._viewport_frame.size.y == ed.size.y)
+	_assert("options_closed_on_launch", not ed._options_bar.visible)
+	ed._immersive_buttons["terrain_height"].pressed.emit()
+	await process_frame
+	await process_frame
+	_assert("relief_opens_brush_options", ed._tool == "terrain_height" and ed._options_bar.visible)
+	_assert("brush_options_above_dock", ed._options_bar.get_global_rect().end.y < ed._immersive_dock.global_position.y)
+	ed._immersive_buttons["mesh"].pressed.emit()
+	_assert("objects_opens_library", ed._library_dock.visible and ed._prop_category == "objects3d")
+	_assert("library_hides_brush_options", not ed._options_bar.visible)
+	ed._toggle_ui(false)
+	_assert("tab_hides_overlays", not ed._immersive_dock.visible and not ed._library_dock.visible)
+	ed._toggle_ui(false)
+	_assert("tab_restores_overlays", ed._immersive_dock.visible and ed._library_dock.visible)
 
 	ed.queue_free()
 	await process_frame

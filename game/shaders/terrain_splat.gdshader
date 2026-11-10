@@ -37,13 +37,42 @@ uniform sampler2D shore_tex : filter_linear, repeat_disable;
 uniform vec4 shore_tint : source_color = vec4(0.30, 0.26, 0.18, 1.0);
 uniform float shore_enabled : hint_range(0.0, 1.0) = 0.0;
 
-// Échantillonnage « anti-tiling » : trois lectures tournées/décalées de la même
-// texture. Le motif ne se répète plus de façon lisible, pour un coût de 3
-// échantillons par matière (très inférieur à un vrai triplanar multi-textures).
+// Deux lectures décalées pour les matières autres que l'herbe.
 vec3 sample_anti_tile(sampler2D tex, vec2 uv) {
 	vec2 b = vec2(uv.x * 0.82 - uv.y * 0.57, uv.x * 0.57 + uv.y * 0.82) * 1.17 + vec2(0.37, 0.11);
 	return texture(tex, uv).rgb * 0.78
 		+ texture(tex, b).rgb * 0.22;
+}
+
+vec2 grass_hash(vec2 cell) {
+	vec2 seed = vec2(dot(cell, vec2(127.1, 311.7)), dot(cell, vec2(269.5, 183.3)));
+	return fract(sin(seed) * 43758.5453);
+}
+
+vec3 sample_grass(vec2 uv) {
+	// Trois offsets pseudo-aléatoires sur une grille triangulaire. Deux
+	// triangles voisins partagent les mêmes échantillons à leur frontière.
+	vec2 grid = vec2(uv.x - uv.y * 0.5773503, uv.y * 1.1547005) * 0.83;
+	vec2 cell = floor(grid);
+	vec2 f = fract(grid);
+	float diagonal = f.x + f.y - 1.0;
+	vec2 corner = diagonal > 0.0 ? vec2(1.0) : vec2(0.0);
+	vec3 weights = vec3(abs(diagonal), min(f.x, 1.0 - f.y), min(f.y, 1.0 - f.x));
+	weights *= weights;
+	weights /= dot(weights, vec3(1.0));
+	vec2 dx = dFdx(uv);
+	vec2 dy = dFdy(uv);
+	vec3 a = textureGrad(grass_tex, uv + grass_hash(cell + corner), dx, dy).rgb;
+	vec3 b = textureGrad(grass_tex, uv + grass_hash(cell + vec2(1.0, 0.0)), dx, dy).rgb;
+	vec3 c = textureGrad(grass_tex, uv + grass_hash(cell + vec2(0.0, 1.0)), dx, dy).rgb;
+	// Teinte à l'échelle de plusieurs cases, indépendante de la tuile.
+	vec2 broad = uv * 0.26;
+	vec2 p = floor(broad);
+	vec2 t = smoothstep(vec2(0.0), vec2(1.0), fract(broad));
+	float patch = mix(mix(grass_hash(p).x, grass_hash(p + vec2(1.0, 0.0)).x, t.x),
+		mix(grass_hash(p + vec2(0.0, 1.0)).x, grass_hash(p + vec2(1.0)).x, t.x), t.y);
+	return (a * weights.x + b * weights.y + c * weights.z)
+		* mix(vec3(0.86, 0.95, 0.90), vec3(1.13, 1.04, 0.94), patch);
 }
 
 void fragment() {
@@ -62,7 +91,7 @@ void fragment() {
 		weights /= sharp_total;
 		extra /= sharp_total;
 	}
-	vec3 grass = sample_anti_tile(grass_tex, UV);
+	vec3 grass = sample_grass(UV);
 	vec3 dirt = sample_anti_tile(dirt_tex, UV);
 	vec3 stone = sample_anti_tile(stone_tex, UV);
 	vec3 snow = sample_anti_tile(snow_tex, UV);
@@ -76,7 +105,7 @@ void fragment() {
 	albedo *= mix(vec3(1.0), COLOR.rgb, vertex_color_strength);
 	// Légère variation macro pour casser les répétitions lointaines.
 	float macro = sin(UV.x * 7.7 + UV.y * 11.3) * sin(UV.y * 6.1 - UV.x * 9.7);
-	albedo *= 0.92 + 0.08 * macro;
+	albedo *= mix(0.92 + 0.08 * macro, 1.0, weights.r);
 	// BERGE MOUILLÉE : assombrit et brunit la terre au bord de l'eau.
 	if (shore_enabled > 0.001) {
 		float shore = texture(shore_tex, UV2).r;

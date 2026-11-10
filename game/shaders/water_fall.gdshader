@@ -51,7 +51,6 @@ void fragment() {
 	// l'écume) — une chute se lit en blanc/bleu, jamais en aplat sombre.
 	float white = clamp(streak01 * 0.75 + sparkle * 0.5, 0.0, 1.0);
 	vec3 water = mix(water_tint.rgb, foam_color.rgb, white);
-	water = mix(water, foam_color.rgb, foam);
 
 	// Écume : accumulation en bas (réception de la chute) et liseré en haut
 	// (saut du courant) ; elle bout avec le motif qui tombe.

@@ -16,17 +16,16 @@ Hub → une carte → **✏️ Modifier**. Les cartes en mode **Complexe** ouvre
 l'éditeur de battlemap 3D décrit ici ; les cartes en mode **Simple** gardent
 l'éditeur de tuiles historique.
 
-L'interface est en trois colonnes :
+La vue 3D occupe toute la zone d’édition. En bas, le dock flottant donne
+accès à **Sélection**, **Relief**, **Sol**, **Construction** et **Objets**.
+Les réglages de l’outil actif s’affichent au-dessus du dock. **Objets** ouvre
+la bibliothèque 3D, et **Construction** affiche les outils de construction.
 
-```
-┌──────────────┬──────────────────────────────────┬─────────────────┐
-│ Outils       │ Barre d'action (undo/zoom/menu)  │ Inspecteur      │
-│ Options      │                                  │ Calques         │
-│ Aimantation  │        Vue 3D + overlay 2D       │ Carte           │
-│ Mini-carte   │                                  │ Biblio          │
-│              │ Barre de statut                  │ Historique      │
-└──────────────┴──────────────────────────────────┴─────────────────┘
-```
+En haut, le fil d’Ariane permet de remonter d’une carte de lieu à sa carte
+parente. **Enregistrer** sauvegarde la carte et **Tester** lance une session.
+Le bouton **Commandes** affiche les outils et commandes avancés. **N** ouvre
+l’inspecteur et les calques, **B** la bibliothèque, **S** les réglages de
+l’outil. **Tab** masque ou réaffiche l’interface.
 
 ---
 

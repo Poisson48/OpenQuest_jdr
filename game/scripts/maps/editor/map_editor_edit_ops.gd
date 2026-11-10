@@ -532,7 +532,7 @@ func _cancel_action() -> void:
 		# Le trait est déjà en cours de pose : on le valide (undo global possible).
 		_ed._construction._finish_scatter_stroke()
 		return
-	if _ed._press_mode in ["move", "resize", "rotate"] and not _ed._drag_ids.is_empty():
+	if _ed._press_mode in ["move", "resize", "rotate", "bridge_start", "bridge_end"] and not _ed._drag_ids.is_empty():
 		_ed.doc.revert_live_edit(_ed._drag_ids)
 		_ed._sync_engine()
 	_ed._press_mode = "none"
@@ -605,6 +605,8 @@ func _apply_bridge_endpoint_drag(grid: Vector2) -> void:
 		end = pt
 	var from := Vector2(float(start.get("x", 0.0)), float(start.get("y", 0.0)))
 	var to := Vector2(float(end.get("x", 0.0)), float(end.get("y", 0.0)))
+	if not _ed._in_bounds(grid) or from.distance_to(to) < 0.6:
+		return
 	var delta := to - from
 	var center := (from + to) * 0.5
 	var width := float(elem.get("width", 1.6))
@@ -616,8 +618,8 @@ func _apply_bridge_endpoint_drag(grid: Vector2) -> void:
 		"sizeX": length, "sizeZ": width,
 		"display": {"rotation": rad_to_deg(atan2(delta.y, delta.x)), "scale": 1.0},
 	})
-	if _ed._engine != null and _ed._engine.has_method("refresh_meshes_only"):
-		_ed._engine.call("refresh_meshes_only")
+	if _ed._engine != null and _ed._engine.has_method("update_bridge"):
+		_ed._engine.update_bridge(_ed.doc.get_element(id))
 	_ed._refresh_overlay()
 
 func _apply_handle_rotate(grid: Vector2) -> void:

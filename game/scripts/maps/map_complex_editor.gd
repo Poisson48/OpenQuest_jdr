@@ -47,6 +47,10 @@ const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/pro
 const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
 const SAVE_INTERVAL := "interval"
+const BUILD_TOOLS := [ToolsScript.MESH_WALL, ToolsScript.ROOM_3D, ToolsScript.ROOF_3D,
+	ToolsScript.DOOR_3D, ToolsScript.WINDOW_3D, ToolsScript.STAIRS_3D, ToolsScript.FENCE_3D,
+	ToolsScript.INTERIOR_3D, ToolsScript.HOUSE_3D, ToolsScript.FLOOR_3D, ToolsScript.PATH_3D,
+	ToolsScript.PROC_ROOF, ToolsScript.PROC_POLY_ROOF]
 
 # --- État --------------------------------------------------------------------
 # Types via preload (pas class_name global) : clone sans .godot compile (AUDIT UI P0-1).
@@ -115,8 +119,10 @@ func _sym_points(p: Vector3, _prev: Vector3, ctrl: bool = false) -> Array:
 ## "lake" (rectangle rempli jusqu'à son niveau).
 var _water_mode: String = "paint"
 var _water_river_width: float = 1.2
+var _bridge_width: float = 1.6
 var _water_flow_speed: float = 0.35
-var _water_lake_level: float = 0.35
+var _water_lake_level: float = -0.10
+var _water_lake_bed: float = 0.85
 ## Profondeur du lit creusé sous la rivière (cases) — la nappe coule DANS un
 ## canal au lieu d'être peinte sur la pente. 0 = pas de creusement.
 var _water_river_bed: float = 0.5
@@ -158,43 +164,44 @@ func _finish_water_river() -> void:
 	_write_river_trace(path)
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
-	var falls := 0
-	for i in range(path.size() - 1):
-		if absf(float(path[i][1]) - float(path[i + 1][1])) > 0.45:
-			falls += 1
-	_set_status("Rivière créée (%d points, %d cascade(s), lit creusé) — le courant suit le tracé." % [path.size(), falls])
+	_set_status("Rivière créée (%d points). Le courant suit le tracé." % path.size())
 	_refresh_panels()
 	_refresh_overlay()
 
 ## Creuse un canal sous le tracé (« lit de rivière ») : la nappe d'eau se
 ## retrouve encaissée dans le relief au lieu d'être posée dessus.
 func _carve_river_bed(path: Array) -> void:
-	var base_radius := maxf(0.35, _water_river_width * 0.5 + 0.1)
-	# 1) creuse, puis 2) LISSE le fond : les tampons successifs créent des
-	# ondulations que la nappe suivait (elle plongeait sous le sol par
-	# intermittence → rivière en pointillés). La LARGEUR ondule doucement le
-	# long du tracé (mouilles plus larges, rétrécissements) : une rivière n'a
-	# pas une largeur constante.
-	for mode in ["lower", "smooth"]:
-		var strength: float = _water_river_bed if mode == "lower" else 1.0
-		var last := Vector2(INF, INF)
-		var run := 0.0
-		var had_last := false
-		for i in range(path.size() - 1):
-			var a := Vector2(float(path[i][0]), float(path[i][2]))
-			var b := Vector2(float(path[i + 1][0]), float(path[i + 1][2]))
-			var steps := maxi(1, ceili(a.distance_to(b) / 0.4))
-			for s in range(steps + 1):
-				var t := float(s) / float(steps)
-				var p := a.lerp(b, t)
-				if had_last and p.distance_to(last) < 0.3:
+	var size: Vector2i = doc.terrain_size()
+	var heights: Array = doc.terrain_heights()
+	var targets: Dictionary = {}
+	var radius := _water_river_width * 0.5 + 0.8
+	var run := 0.0
+	for i in range(path.size() - 1):
+		var a := Vector2(float(path[i][0]), float(path[i][2]))
+		var b := Vector2(float(path[i + 1][0]), float(path[i + 1][2]))
+		var segment := b - a
+		var length := segment.length()
+		if length < 0.001:
+			continue
+		var margin := radius * 1.14
+		for y in range(maxi(0, floori(minf(a.y, b.y) - margin)),
+				mini(size.y, ceili(maxf(a.y, b.y) + margin))):
+			for x in range(maxi(0, floori(minf(a.x, b.x) - margin)),
+					mini(size.x, ceili(maxf(a.x, b.x) + margin))):
+				var p := Vector2(x + 0.5, y + 0.5)
+				var t := clampf((p - a).dot(segment) / (length * length), 0.0, 1.0)
+				var along := run + t * length
+				var local_radius := radius * (1.0 + 0.14 * sin(along * 0.85))
+				var ratio := p.distance_to(a.lerp(b, t)) / local_radius
+				if ratio >= 1.0:
 					continue
-				if had_last:
-					run += p.distance_to(last)
-				last = p
-				had_last = true
-				var rad := base_radius * (1.0 + 0.18 * sin(run * 1.3) + 0.07 * sin(run * 2.9))
-				doc.paint_terrain_brush(p, maxf(0.3, rad), strength, mode, "Lit de rivière")
+				var idx := y * size.x + x
+				var current := float(heights[idx])
+				var target := current - _water_river_bed * (1.0 - smoothstep(0.15, 1.0, ratio))
+				# Une cellule ne descend qu'une fois, même si le tracé se recoupe.
+				targets[idx] = minf(float(targets.get(idx, current)), target)
+		run += length
+	doc.apply_terrain_heights(targets, "Lit de rivière")
 
 ## Exporte le dernier tracé de rivière (QA) : je peux rejouer EXACTEMENT le
 ## tracé de l'utilisateur dans une sonde, sans le recréer à la main.
@@ -211,27 +218,56 @@ func _write_river_trace(path: Array) -> void:
 		f.close()
 		print("[riviere] tracé exporté -> user://last_river_trace.json (%d points)" % path.size())
 
-## Fin de rectangle de lac/mare : rempli jusqu'à `_water_lake_level` — l'eau
-## ne remplit que les creux sous ce niveau.
+## L'emprise du geste définit une cuvette aux berges irrégulières.
 func _finish_water_lake(a: Vector2, b: Vector2) -> void:
-	var x0 := snappedf(minf(a.x, b.x), 0.5)
-	var x1 := snappedf(maxf(a.x, b.x), 0.5)
-	var z0 := snappedf(minf(a.y, b.y), 0.5)
-	var z1 := snappedf(maxf(a.y, b.y), 0.5)
+	var size: Vector2i = doc.terrain_size()
+	var start := a.min(b).snapped(Vector2(0.5, 0.5)).clamp(Vector2.ZERO, Vector2(size))
+	var end := a.max(b).snapped(Vector2(0.5, 0.5)).clamp(Vector2.ZERO, Vector2(size))
 	_overlay.polygon_points = []
 	_refresh_overlay()
-	if x1 - x0 < 0.5 or z1 - z0 < 0.5:
-		_set_status("Lac : rectangle trop petit.")
+	var minimum := 2.0 if _water_lake_bed > 0.0 else 0.5
+	if minf(end.x - start.x, end.y - start.y) < minimum:
+		_set_status("Lac : tracez une emprise d'au moins %.1f case(s) de côté." % minimum)
 		return
+	var center := (start + end) * 0.5
+	var radius := (end - start) * 0.5
+	var phase := center.dot(Vector2(0.42, 0.73))
+	var area: Array = []
+	var targets: Dictionary = {}
+	doc.begin_transaction()
+	if _water_lake_bed > 0.0:
+		for i in range(32):
+			var angle := TAU * float(i) / 32.0
+			var p := center + Vector2.from_angle(angle) * radius * _lake_radius(angle, phase)
+			area.append([p.x, p.y])
+		var heights: Array = doc.terrain_heights()
+		for y in range(floori(start.y), ceili(end.y)):
+			for x in range(floori(start.x), ceili(end.x)):
+				var local := (Vector2(x + 0.5, y + 0.5) - center) / radius
+				var ratio := local.length() / _lake_radius(local.angle(), phase)
+				if ratio >= 1.0:
+					continue
+				var idx := y * size.x + x
+				var current := float(heights[idx])
+				var bottom := _water_lake_level - _water_lake_bed
+				var target := lerpf(bottom, current, smoothstep(0.25, 1.0, ratio))
+				targets[idx] = minf(current, target)
+		doc.apply_terrain_heights(targets, "Cuvette du lac")
+	else:
+		area = [[start.x, start.y], [end.x, start.y], [end.x, end.y], [start.x, end.y]]
 	doc.add_water_body({
 		"kind": "lake", "level": _water_lake_level,
-		"area": [[x0, z0], [x1, z0], [x1, z1], [x0, z1]],
+		"area": area,
 	}, "Lac")
+	doc.commit_transaction()
 	if _engine != null and _engine.has_method("refresh_terrain"):
 		_engine.call("refresh_terrain", doc.map_data)
-	_set_status("Lac créé (niveau %.2f) — il remplit uniquement les creux sous ce niveau." % _water_lake_level)
+	_set_status("Lac créé au niveau %.2f." % _water_lake_level)
 	_refresh_panels()
 	_refresh_overlay()
+
+func _lake_radius(angle: float, phase: float) -> float:
+	return 0.9 + 0.07 * sin(3.0 * angle + phase) + 0.03 * cos(5.0 * angle - phase)
 ## Dernier point tamponné du trait carve/fill (espacement 3D des sphères) ;
 ## INF = aucun tampon depuis le début du trait.
 var _carve_spacing_last: Vector3 = Vector3(INF, INF, INF)
@@ -439,6 +475,12 @@ var _layout_applied_size: Vector2 = Vector2(-1, -1)
 var _layout_retry: int = 0
 var _layout_force: bool = true
 var _viewport_frame: PanelContainer
+var _immersive_header: VBoxContainer
+var _immersive_dock: PanelContainer
+var _immersive_buttons: Dictionary = {}
+var _immersive_save: Button
+var _commands: VBoxContainer
+var _commands_open := false
 
 func _ready() -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -446,7 +488,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(0, 0)
 	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
-	theme = CartographerThemeScript.build()
+	theme = CartographerThemeScript.build(true)
 	doc.changed.connect(_on_doc_changed)
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
@@ -468,8 +510,6 @@ func _process(_delta: float) -> void:
 
 func set_editable(on: bool) -> void:
 	_editable = on
-	if _left_scroll:
-		_left_scroll.visible = on
 	_apply_palette_visibility()
 	if _right_scroll:
 		_right_scroll.visible = on
@@ -482,7 +522,9 @@ func set_editable(on: bool) -> void:
 
 func load_map(map_data: Dictionary) -> void:
 	doc.load_map(map_data)
-	_path_focus = str(map_data.get("focusMode", "")) == "paths"
+	var focus_paths := str(map_data.get("focusMode", "")) == "paths"
+	if focus_paths != _path_focus:
+		_set_path_focus(focus_paths)
 	_paint_tile = _default_tile()
 	_marker_type = _first_marker_type()
 	_sync_settings_ui()
@@ -534,7 +576,14 @@ func _bind_ui() -> void:
 	_hint_lbl = %LblHint
 	_right_tabs = %RightTabs
 	_right_scroll = null
-	_move_tool_options_to_top()
+	_move_tool_options_above_dock()
+	_left_scroll.reparent(self, false)
+	_reown_recursive(_left_scroll)
+	_left_scroll.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	_left_scroll.offset_left = 12.0
+	_left_scroll.offset_top = 118.0
+	_left_scroll.offset_bottom = -92.0
+	_viewport_frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_float_right_palette()
 
 ## Palette droite (Inspecteur / Calques / Carte / Monde) flottante au-dessus
@@ -547,12 +596,12 @@ func _float_right_palette() -> void:
 		Vector2(300, 0), "Inspecteur / Calques", "right")
 	if palette != null:
 		palette.offset_left = -318.0
-		palette.offset_top = 8.0
+		palette.offset_top = 58.0
 		palette.offset_right = -8.0
 		palette.offset_bottom = -8.0
 	# Colonne de gauche épurée (plan) : icônes seules. Aimantation et mini-carte
 	# sortent de la colonne (grille/magnétisme restent dans l'onglet Carte).
-	for path in ["%LblSnap", "%SnapOption", "%LblMinimap", "%MinimapHost"]:
+	for path in ["%SnapOption", "%MinimapHost"]:
 		var legacy := get_node_or_null(path)
 		if legacy is CanvasItem:
 			(legacy as CanvasItem).visible = false
@@ -585,7 +634,6 @@ func _float_right_palette() -> void:
 	_build_more_tools()
 	_path_panel = MapEditorPathUIScript.new()
 	_left_panel.add_child(_path_panel)
-	_left_panel.move_child(_path_panel, _tool_options.get_index() + 1)
 	_path_panel.setup(self)
 	_path_panel.visible = false
 	_path_panel.focus_mode_toggled.connect(_set_path_focus)
@@ -596,7 +644,6 @@ func _float_right_palette() -> void:
 	)
 	_environ_palette = MapEditorEnvironPaletteScript.new()
 	_left_panel.add_child(_environ_palette)
-	_left_panel.move_child(_environ_palette, _tool_options.get_index() + 2)
 	_environ_palette.setup(self)
 	# Doublon de l'onglet « Carte » du panneau droit → masqué pour alléger la
 	# colonne de gauche. Les mêmes réglages (eau/végétation/ambiance/lumière)
@@ -613,6 +660,7 @@ func _float_right_palette() -> void:
 
 	_build_action_bar()
 	_create_engine(%ViewportStack)
+	_build_immersive_chrome()
 	_bind_docks()
 	_build_dialogs()
 	_minimap.set_context(_engine, doc)
@@ -633,6 +681,7 @@ func _float_right_palette() -> void:
 
 	_set_tool(ToolsScript.SELECT)
 	_layout_force = true
+	_apply_palette_visibility()
 	call_deferred("_apply_responsive_layout")
 	call_deferred("_refresh_status_badges")
 
@@ -693,6 +742,7 @@ func _create_engine(stack: Control) -> void:
 	_engine = ComplexMapEngineScript.new()
 	_engine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_engine.editor_mode = true
+	_engine.show_camera_diagnostics = false
 	_engine.editor_pointer_pressed.connect(_on_pointer_pressed)
 	_engine.editor_pointer_moved.connect(_on_pointer_moved)
 	_engine.editor_pointer_released.connect(_on_pointer_released)
@@ -702,6 +752,7 @@ func _create_engine(stack: Control) -> void:
 	stack.add_child(_engine)
 
 	_overlay = OverlayScript.new()
+	_overlay.show_navigation_help = false
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_overlay.set_context(_engine, doc)
 	stack.add_child(_overlay)
@@ -895,6 +946,149 @@ func _build_action_bar() -> void:
 
 # --- Colonne droite : panneaux -------------------------------------------------
 
+func _build_immersive_chrome() -> void:
+	_immersive_header = VBoxContainer.new()
+	_immersive_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_immersive_header.add_theme_constant_override("separation", 6)
+	add_child(_immersive_header)
+	_immersive_header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_immersive_header.offset_left = 12.0
+	_immersive_header.offset_right = -12.0
+	_immersive_header.offset_top = 8.0
+
+	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_immersive_header.add_child(top)
+	var brand := Label.new()
+	brand.text = "OpenQuest"
+	brand.add_theme_font_override("font", preload("res://assets/fonts/ringbearer_medium.ttf"))
+	brand.add_theme_font_size_override("font_size", 22)
+	brand.add_theme_color_override("font_color", Color("#F2C46C"))
+	brand.add_theme_color_override("font_shadow_color", Color("#17130E"))
+	brand.add_theme_constant_override("shadow_offset_y", 2)
+	top.add_child(brand)
+	var subtitle := Label.new()
+	subtitle.text = "   Éditeur de cartes 3D"
+	subtitle.add_theme_color_override("font_shadow_color", Color("#17130E"))
+	subtitle.add_theme_constant_override("shadow_offset_y", 2)
+	subtitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	subtitle.clip_text = true
+	top.add_child(subtitle)
+	_immersive_save = _immersive_header_button(top, "Enregistrer", "Enregistrer (Ctrl+S)", save_now)
+	var test := _immersive_header_button(top, "Tester", "Enregistrer puis ouvrir une session de test", _test_current_map)
+	test.add_theme_stylebox_override("normal", _immersive_surface(Color("#39301D"), Color("#DAAF56"), 6, 8))
+	_immersive_header_button(top, "Commandes", "Commandes avancées, panneaux et aide", func():
+		_commands_open = not _commands_open
+		_apply_palette_visibility()
+	)
+
+	var location := PanelContainer.new()
+	location.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	location.add_theme_stylebox_override("panel", _immersive_surface(Color("#241F17EF"), Color("#68563B"), 8, 6))
+	_immersive_header.add_child(location)
+	_breadcrumb.reparent(location)
+
+	_commands = VBoxContainer.new()
+	_commands.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_immersive_header.add_child(_commands)
+	var advanced := PanelContainer.new()
+	advanced.add_theme_stylebox_override("panel", _immersive_surface(Color("#231D15F5"), Color("#68563B"), 8, 5))
+	_commands.add_child(advanced)
+	var command_rows := VBoxContainer.new()
+	advanced.add_child(command_rows)
+	var action_scroll: ScrollContainer = %ActionBarScroll
+	action_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	action_scroll.custom_minimum_size.y = 62.0
+	var status_row := _status_lbl.get_parent()
+	action_scroll.reparent(command_rows)
+	status_row.reparent(command_rows)
+	_hint_lbl.reparent(command_rows)
+	_reown_recursive(action_scroll)
+	_reown_recursive(status_row)
+	_reown_recursive(_hint_lbl)
+	_immersive_header.resized.connect(func():
+		_left_scroll.offset_top = _immersive_header.get_rect().end.y + 8.0
+	)
+
+	_immersive_dock = PanelContainer.new()
+	_immersive_dock.add_theme_stylebox_override("panel", _immersive_surface(Color("#262016F5"), Color("#68563B"), 14, 6))
+	add_child(_immersive_dock)
+	_immersive_dock.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_immersive_dock.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_immersive_dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_immersive_dock.offset_bottom = -22.0
+	_immersive_dock.offset_top = -86.0
+	_immersive_dock.item_rect_changed.connect(func(): _fit_tool_options.call_deferred())
+	var dock := HBoxContainer.new()
+	dock.add_theme_constant_override("separation", 2)
+	_immersive_dock.add_child(dock)
+	for entry in [[ToolsScript.SELECT, "Sélection"], [ToolsScript.TERRAIN_HEIGHT, "Relief"],
+			[ToolsScript.GROUND_MATERIAL, "Sol"], [ToolsScript.HOUSE_3D, "Construction"],
+			[ToolsScript.MESH, "Objets"]]:
+		var id: String = entry[0]
+		var button := Button.new()
+		button.text = entry[1]
+		var icon_path := str(_icon_manifest.get(id, ""))
+		if not icon_path.is_empty():
+			button.icon = load(icon_path) as Texture2D
+		button.set_meta("skip_button_sizing", true)
+		button.expand_icon = true
+		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		button.add_theme_constant_override("icon_max_width", 22)
+		button.custom_minimum_size = Vector2(108, 52)
+		button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		button.toggle_mode = true
+		button.tooltip_text = ToolsScript.hint(id)
+		button.pressed.connect(_on_dock_tool_pressed.bind(id))
+		dock.add_child(button)
+		_immersive_buttons[id] = button
+
+func _immersive_header_button(parent: Control, label: String, tooltip: String, action: Callable) -> Button:
+	var button := _text_button(parent, label, action)
+	button.set_meta("skip_button_sizing", true)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	button.custom_minimum_size.y = 32.0
+	button.tooltip_text = tooltip
+	return button
+
+func _immersive_surface(background: Color, border: Color, radius: int, padding: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(radius)
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		style.set_content_margin(side, padding)
+	return style
+
+func _on_dock_tool_pressed(id: String) -> void:
+	if id == ToolsScript.MESH:
+		if not _palette_lib:
+			_prop_category = "objects3d"
+			_refresh_asset_library()
+		_toggle_palette("lib")
+	elif id == ToolsScript.HOUSE_3D:
+		_set_palette("lib", false)
+		var button: Button = _immersive_buttons[id]
+		_flyout.setup({"Construction": _flyout_tools(BUILD_TOOLS)})
+		_flyout.open_at(Vector2(button.global_position.x, maxf(4.0, button.global_position.y - 326.0)))
+	else:
+		_set_palette("lib", false)
+		_set_tool(id)
+		if id != ToolsScript.SELECT:
+			_set_palette("opts", true)
+	_sync_dock_buttons()
+
+func _sync_dock_buttons() -> void:
+	for id in _immersive_buttons:
+		var active: bool = _tool == id
+		if id == ToolsScript.MESH:
+			active = _palette_lib or _tool in [ToolsScript.MESH, ToolsScript.PROP, ToolsScript.TEMPLATE]
+		elif id == ToolsScript.HOUSE_3D:
+			active = _tool in BUILD_TOOLS
+		(_immersive_buttons[id] as Button).set_pressed_no_signal(active)
+
 func _bind_docks() -> void:
 	_inspector = %Inspector
 	_inspector.set_document(doc)
@@ -1005,7 +1199,7 @@ func _apply_responsive_layout() -> void:
 
 	if _left_scroll:
 		_left_scroll.custom_minimum_size = Vector2(left_w if left_w > 1.0 else 0.0, 0)
-		_left_scroll.visible = _editable
+		_left_scroll.offset_right = _left_scroll.offset_left + (250.0 if _path_focus else left_w)
 		_left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	if _right_tabs:
 		_right_tabs.custom_minimum_size = Vector2(right_w if right_w > 1.0 else 0.0, 0)
@@ -1193,21 +1387,29 @@ func _bind_library_tab() -> void:
 ## Palettes repliables : droite (inspecteur), bibliothèque, options d'outil.
 var _palette_right: bool = false
 var _palette_lib: bool = false
-var _palette_opts: bool = true
+var _palette_opts: bool = false
 var _options_bar = null
 ## Conteneurs déplaçables des palettes (clé -> MapEditorDraggablePalette).
 var _palette_wrappers: Dictionary = {}
 
 func _apply_palette_visibility() -> void:
-	var show_right := _editable and _palette_right and not _path_focus
+	var show_ui := _editable and not _ui_hidden
+	var show_right := show_ui and _palette_right and not _path_focus
+	_left_scroll.visible = show_ui and (_commands_open or _path_focus)
+	if _immersive_header != null:
+		_immersive_header.visible = show_ui
+		_immersive_dock.visible = show_ui and not _path_focus
+		_commands.visible = _commands_open
 	if _right_tabs != null:
 		_right_tabs.visible = show_right
 	if _palette_wrappers.has("right"):
 		(_palette_wrappers["right"] as CanvasItem).visible = show_right
 	if _library_dock != null and _library_dock is CanvasItem:
-		(_library_dock as CanvasItem).visible = _editable and _palette_lib
+		(_library_dock as CanvasItem).visible = show_ui and _palette_lib
 	if _options_bar != null and _options_bar is CanvasItem:
-		(_options_bar as CanvasItem).visible = _editable and _palette_opts
+		(_options_bar as CanvasItem).visible = show_ui and _palette_opts and not _palette_lib \
+			and not _path_focus and _tool_options.get_child_count() > 0
+	_sync_dock_buttons()
 
 ## État courant d'une palette.
 func _palette_open(which: String) -> bool:
@@ -1285,56 +1487,51 @@ func _move_library_to_bottom() -> void:
 	var palette := _float_palette(biblio_tab, Control.PRESET_BOTTOM_WIDE,
 		Vector2(0, 220), "Bibliothèque de décors", "lib")
 	if palette != null:
-		palette.offset_left = 64.0
-		palette.offset_top = -238.0
+		palette.offset_left = 12.0
+		palette.offset_top = -326.0
 		palette.offset_right = -12.0
-		palette.offset_bottom = -8.0
+		palette.offset_bottom = -94.0
 	_library_dock = palette
 
-## Déplace les options de l'outil actif en **palette flottante** en haut à
-## gauche de la carte (comme l'en-tête de Blender : Rayon/Force/symétrie sous
-## la barre d'actions) — plus aucune hauteur de vue n'est volée.
-func _move_tool_options_to_top() -> void:
+## Ancre les réglages contextuels au-dessus du dock.
+func _move_tool_options_above_dock() -> void:
 	if _tool_options == null or _center_column == null:
 		return
-	var label := get_node_or_null("%LblToolOptions")
-	if _tool_options.get_parent() != null:
-		_tool_options.get_parent().remove_child(_tool_options)
-	if label != null and label.get_parent() != null:
-		label.get_parent().remove_child(label)
 	var stack := VBoxContainer.new()
 	stack.name = "OptionsStack"
 	stack.add_theme_constant_override("separation", 6)
-	var box := HBoxContainer.new()
-	box.name = "OptionsRow"
-	box.add_theme_constant_override("separation", 8)
-	if label != null:
-		box.add_child(label)
-		var sep := VSeparator.new()
-		sep.custom_minimum_size = Vector2(1, 20)
-		box.add_child(sep)
-	box.add_child(_tool_options)
-	stack.add_child(box)
-	# TOUT ce qui n'est pas la colonne d'icônes quitte le bandeau gauche
-	# (aimantation, mini-carte, libellés…) — le bandeau redevient une simple
-	# colonne de 56 px, comme la toolbar de Blender.
+	_tool_options.get_parent().remove_child(_tool_options)
+	stack.add_child(_tool_options)
 	var left_panel := get_node_or_null("%LeftPanel")
 	if left_panel != null:
 		for child in left_panel.get_children():
 			if child.name == "ToolHost":
 				continue
+			child.hide()
 			left_panel.remove_child(child)
 			stack.add_child(child)
-	# Palette flottante déplaçable : recouvre la carte, sous la barre d'actions.
-	var palette := _float_palette(stack, Control.PRESET_TOP_LEFT,
-		Vector2(560, 0), "Options de l'outil", "opts")
+	var palette := _float_palette(stack, Control.PRESET_CENTER_BOTTOM,
+		Vector2(360, 0), "Options de l'outil", "opts")
 	if palette != null:
-		palette.offset_left = 64.0
-		palette.offset_top = 56.0
-		palette.offset_right = 700.0
-		palette.offset_bottom = 56.0
-		palette.grow_vertical = Control.GROW_DIRECTION_END
+		palette.offset_left = -180.0
+		palette.offset_right = 180.0
+		palette.offset_top = -94.0
+		palette.offset_bottom = -94.0
+		palette.custom_minimum_size = Vector2(220, 0)
+		palette.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		palette.get_node("PaletteStack/TitleBar/CloseButton").set_meta("skip_button_sizing", true)
+		palette.minimum_size_changed.connect(func(): _fit_tool_options.call_deferred())
 	_options_bar = palette
+
+func _fit_tool_options() -> void:
+	# Une palette déplacée manuellement conserve sa position et sa taille.
+	if _options_bar == null or _immersive_dock == null or _options_bar.anchor_bottom != 1.0:
+		return
+	var minimum: Vector2 = _options_bar.get_combined_minimum_size()
+	_options_bar.size.y = minimum.y
+	_options_bar.position.x = clampf(_immersive_dock.position.x + 42.0, 8.0,
+		maxf(8.0, size.x - _options_bar.size.x - 8.0))
+	_options_bar.position.y = _immersive_dock.position.y - _options_bar.size.y - 9.0
 
 func _bind_history_tab() -> void:
 	var panel = %History
@@ -1559,14 +1756,11 @@ func _set_path_focus(on: bool) -> void:
 			_path_panel.sync_from_host()
 	if _tool_options != null:
 		_tool_options.visible = not on
-	for path in ["%LblToolOptions", "%LblSnap", "%SnapOption", "%LblMinimap", "%MinimapHost"]:
-		var node := get_node_or_null(path)
-		if node is CanvasItem:
-			(node as CanvasItem).visible = not on
 	if on and _tool != ToolsScript.PROC_PATH and _tool != ToolsScript.PATH_BRUSH \
 			and _tool != ToolsScript.SELECT and _tool != ToolsScript.PAN:
 		_set_tool(ToolsScript.PROC_PATH)
 	_rebuild_palette_v2()
+	_apply_palette_visibility()
 	_set_status("Mode chemins : trace libre, pinceau, largeur, creux et matière. Cliquez sur « Chemins » pour tout réafficher." if on else "Tous les outils réaffichés.")
 	_layout_force = true
 	call_deferred("_apply_responsive_layout")
@@ -1656,13 +1850,7 @@ func _build_more_tools() -> void:
 
 func _flyout_categories() -> Dictionary:
 	return {
-		"Bâtir": _flyout_tools([
-			ToolsScript.MESH_WALL, ToolsScript.ROOM_3D, ToolsScript.ROOF_3D,
-			ToolsScript.DOOR_3D, ToolsScript.WINDOW_3D, ToolsScript.STAIRS_3D,
-			ToolsScript.FENCE_3D, ToolsScript.INTERIOR_3D, ToolsScript.HOUSE_3D,
-			ToolsScript.FLOOR_3D, ToolsScript.PATH_3D, ToolsScript.PROC_ROOF,
-			ToolsScript.PROC_POLY_ROOF,
-		]),
+		"Bâtir": _flyout_tools(BUILD_TOOLS),
 		"Mobilier": _flyout_tools([ToolsScript.FURNISH_3D, ToolsScript.TEMPLATE, ToolsScript.PROP]),
 		"Ambiance": _flyout_tools([
 			ToolsScript.LIGHT, ToolsScript.FOG_REVEAL, ToolsScript.FOG_HIDE,
@@ -1690,8 +1878,8 @@ func _flyout_tools(ids: Array) -> Array:
 func _open_flyout() -> void:
 	if _flyout == null or _more_tools_btn == null:
 		return
-	var pos := _more_tools_btn.get_global_rect().position
-	_flyout.open_at(pos + Vector2(48, 0))
+	_flyout.setup(_flyout_categories())
+	_flyout.open_at(Vector2(66.0, 86.0))
 
 func _on_flyout_tool_chosen(tool_id: String, _keep_open: bool) -> void:
 	_set_tool(tool_id)
@@ -1733,6 +1921,8 @@ func _refresh_recent_buttons() -> void:
 func _set_tool(tool_id: String) -> void:
 	var changed := tool_id != _tool
 	_tool = tool_id
+	if changed:
+		_palette_opts = tool_id not in [ToolsScript.SELECT, ToolsScript.PAN]
 	if _palette_v2 != null:
 		_palette_v2.set_active(tool_id)
 	if _path_panel != null:
@@ -2053,10 +2243,12 @@ func _create_platform(from: Vector2, to: Vector2) -> void:
 ## les garde-corps et les piles sont cuits en coordonnées monde par le moteur ;
 ## les deux extrémités sont stockées pour pouvoir les déplacer ensuite.
 func _create_bridge(from: Vector2, to: Vector2) -> void:
+	if not _in_bounds(from) or not _in_bounds(to):
+		return
 	if from.distance_to(to) < 0.6:
 		_set_status("Pont : tracé trop court (tirez d'un bord à l'autre).")
 		return
-	var width := 1.6
+	var width := _bridge_width
 	var h_from := doc.terrain_height(int(roundf(from.x)), int(roundf(from.y)))
 	var h_to := doc.terrain_height(int(roundf(to.x)), int(roundf(to.y)))
 	var delta := to - from
@@ -2069,6 +2261,7 @@ func _create_bridge(from: Vector2, to: Vector2) -> void:
 		"w": length, "h": width,
 		"sizeX": length, "sizeZ": width,
 		"asset": "procedural://bridge",
+		"followBanks": true,
 		"start": {"x": from.x, "y": from.y, "h": h_from},
 		"end": {"x": to.x, "y": to.y, "h": h_to},
 		"width": width,
@@ -2079,7 +2272,7 @@ func _create_bridge(from: Vector2, to: Vector2) -> void:
 	doc.select_only(id)
 	doc.commit_transaction()
 	_sync_engine()
-	_set_status("Pont créé : %.1f case(s) de long, hauteurs %.2f → %.2f." % [length, h_from, h_to])
+	_set_status("Pont créé (%.1f × %.1f cases). Déplacez les poignées pour ajuster les rives." % [length, width])
 # Wrappers fins conservés pour les tests et l'API existante.
 var _construction = ConstructionScript.new()
 
@@ -3325,15 +3518,7 @@ func _apply_shortcut_tool(key: InputEventKey) -> void:
 ## garde la barre supérieure.
 func _toggle_ui(immersive: bool) -> void:
 	_ui_hidden = not _ui_hidden
-	var show := not _ui_hidden
-	for path in ["%LeftScroll", "%RightTabs", "%ActionBarScroll"]:
-		var node := get_node_or_null(path)
-		if node is CanvasItem:
-			(node as CanvasItem).visible = show
-	if _status_lbl != null and _status_lbl.get_parent() is CanvasItem:
-		(_status_lbl.get_parent() as CanvasItem).visible = show
-	if _hint_lbl != null:
-		_hint_lbl.visible = show
+	_apply_palette_visibility()
 	_set_status("Interface masquée (Tab pour réafficher)." if _ui_hidden else "Interface affichée.")
 
 ## Bascule le plein écran (F11).
@@ -3913,13 +4098,12 @@ func _refresh_breadcrumb() -> void:
 	if _breadcrumb == null:
 		return
 	for child in _breadcrumb.get_children():
+		_breadcrumb.remove_child(child)
 		child.queue_free()
 	var map_id := str(doc.map_data.get("id", ""))
-	if map_id.is_empty():
-		return
-	var chain: Array = MapData.get_map_breadcrumb(map_id)
-	if chain.size() <= 1:
-		return
+	var chain: Array = MapData.get_map_breadcrumb(map_id) if not map_id.is_empty() else []
+	if chain.is_empty():
+		chain = [{"id": map_id, "title": doc.map_data.get("title", "Carte")}]
 	for i in range(chain.size()):
 		var step: Dictionary = chain[i]
 		if i > 0:
@@ -3931,11 +4115,13 @@ func _refresh_breadcrumb() -> void:
 		var btn := Button.new()
 		btn.text = str(step.get("title", "Carte"))
 		btn.flat = true
+		btn.set_meta("skip_button_sizing", true)
 		btn.disabled = is_current
 		btn.clip_text = true
 		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		btn.custom_minimum_size = Vector2(0, 26)
-		btn.add_theme_font_size_override("font_size", 11)
+		btn.custom_minimum_size = Vector2(clampf(btn.text.length() * 7.0 + 16.0, 54.0, 136.0), 26)
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.tooltip_text = btn.text
 		if is_current:
 			btn.add_theme_color_override("font_color_disabled", ThemeColors.GOLD_LIGHT)
 		var target := str(step.get("id", ""))
@@ -4010,6 +4196,8 @@ func _on_history_changed() -> void:
 	_refresh_status_badges()
 
 func _on_dirty_changed(is_dirty: bool) -> void:
+	if _immersive_save:
+		_immersive_save.text = "Enregistrer •" if is_dirty else "Enregistrer"
 	if _dirty_lbl:
 		_dirty_lbl.text = "● non enregistré" if is_dirty else "✓ enregistré"
 		_dirty_lbl.add_theme_color_override("font_color",
@@ -4689,6 +4877,13 @@ var _tool_opts = ToolOptionsScript.new()
 ## Wrapper de compatibilité → MapEditorToolOptions.
 func _rebuild_tool_options() -> void:
 	_tool_opts._rebuild_tool_options()
+	for button in _tool_options.find_children("*", "BaseButton", true, false):
+		button.set_meta("skip_button_sizing", true)
+	if _options_bar != null:
+		var title: Label = _options_bar.get_node("PaletteStack/TitleBar/TitleLabel")
+		title.text = "Pinceau de terrain" if _tool == ToolsScript.TERRAIN_HEIGHT else ToolsScript.label(_tool)
+		_fit_tool_options.call_deferred()
+	_apply_palette_visibility()
 
 func _set_status(text: String) -> void:
 	if _status_lbl:

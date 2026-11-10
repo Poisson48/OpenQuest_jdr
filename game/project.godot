@@ -50,6 +50,12 @@ project/assembly_name="OpenQuest JDR"
 theme/custom="res://theme/openquest_theme.tres"
 timers/tooltip_delay_sec=0.45
 
+[importer_defaults]
+
+scene={
+"gltf/embedded_image_handling": 3
+}
+
 [internationalization]
 
 locale/translations=PackedStringArray("res://locale/ui.en.translation")

@@ -28,6 +28,7 @@ var drag_preview: Dictionary = {}
 var link_source_id: String = ""
 var show_links: bool = true
 var show_ids: bool = false
+var show_navigation_help := true
 var show_vision: bool = false
 var show_light_radii: bool = true
 var vision_cells: Dictionary = {}
@@ -135,7 +136,7 @@ func _draw() -> void:
 	_draw_measure()
 	if show_light_radii:
 		_draw_light_radii()
-	if not player_preview:
+	if show_navigation_help and not player_preview:
 		_draw_navigation_help()
 
 ## Aperçu du champ de vision : les cases atteintes sont éclaircies, la source
@@ -676,6 +677,10 @@ func _is_bridge(elem: Dictionary) -> bool:
 
 ## Positions écran des deux extrémités d'un pont `[start, end]`.
 func bridge_endpoint_screen(elem: Dictionary) -> Array:
+	if engine != null and engine.has_method("project_bridge_endpoints"):
+		var points: PackedVector2Array = engine.project_bridge_endpoints(str(elem.get("id", "")))
+		if points.size() == 2:
+			return [points[0], points[1]]
 	var start: Dictionary = elem.get("start", {}) if elem.get("start") is Dictionary else {}
 	var end: Dictionary = elem.get("end", {}) if elem.get("end") is Dictionary else {}
 	if start.is_empty() or end.is_empty():

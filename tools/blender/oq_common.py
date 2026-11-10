@@ -195,7 +195,6 @@ def reset_scene() -> bpy.types.Scene:
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.scale_length = 1.0
     # Unites glTF = metres, 1 unite = 1 case : on garde un scale neutre.
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
     return scene
 
 
@@ -997,7 +996,7 @@ def configure_render(
             scene.cycles.use_adaptive_sampling = True
             return "CYCLES"
 
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    scene.render.engine = "BLENDER_EEVEE" if bpy.app.version >= (5, 0, 0) else "BLENDER_EEVEE_NEXT"
     scene.eevee.taa_render_samples = samples
     scene.eevee.use_shadows = True
     try:
@@ -1006,7 +1005,7 @@ def configure_render(
         scene.eevee.gtao_quality = 1.25
     except AttributeError:  # pragma: no cover - variante de version
         pass
-    return "BLENDER_EEVEE_NEXT"
+    return scene.render.engine
 
 
 def setup_world(

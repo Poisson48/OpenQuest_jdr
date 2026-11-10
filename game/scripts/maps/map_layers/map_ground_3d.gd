@@ -224,7 +224,7 @@ func set_terrain_heights(heights: Array) -> void:
 	var next: Array = heights if heights is Array else []
 	_cfg["terrain_heights"] = next
 	if not _cfg.has("map_width"):
-		_terrain_heights = next
+		_terrain_heights = next.duplicate()
 		return
 	if _arrays_equal(_terrain_heights, next):
 		return
@@ -234,7 +234,7 @@ func set_terrain_heights(heights: Array) -> void:
 	# sculptée. Sans creusement, on garde le chemin historique complet.
 	if is_terrain3d() and _carve_field != null and not _terrain_carves.is_empty():
 		var changed := _changed_height_rect(_terrain_heights, next)
-		_terrain_heights = next
+		_terrain_heights = next.duplicate()
 		_compute_terrain_bounds()
 		_carve_field.set_data(_terrain_heights, _terrain_w, _terrain_h, _terrain_carves)
 		var cell_size := float(_cfg.get("cell_size", 1.0))
@@ -518,7 +518,9 @@ func _apply_config() -> void:
 	_terrain_w = maxi(0, map_width)
 	_terrain_h = maxi(0, map_height)
 	var raw_heights = _cfg.get("terrain_heights", [])
-	_terrain_heights = raw_heights if raw_heights is Array else []
+	# Le document édite son tableau en place. Garder un instantané permet de
+	# détecter ces changements, y compris quand une édition est annulée.
+	_terrain_heights = (raw_heights as Array).duplicate() if raw_heights is Array else []
 	_terrain_detail = clampi(int(_cfg.get("terrain_detail", 1)), 1, 4)
 	_night_mode_enabled = night_mode
 	_night_active = false

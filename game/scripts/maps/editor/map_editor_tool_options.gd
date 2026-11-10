@@ -206,6 +206,7 @@ func _rebuild_tool_options() -> void:
 	# affiché avant de reconstruire la barre pour le nouvel outil.
 	_save_tool_spin_values()
 	for child in _ed._tool_options.get_children():
+		_ed._tool_options.remove_child(child)
 		child.queue_free()
 	_options_tool_id = str(_ed._tool)
 	_spin_field_index = 0
@@ -591,6 +592,12 @@ func _rebuild_tool_options() -> void:
 		_sep(_ed._tool_options)
 		_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._brush_size), 1, func(v): _ed._brush_size = int(v))
 		_option_note("Tuile : %s" % _ed._paint_tile)
+	elif _ed._tool == ToolsScript.BRIDGE:
+		_sep(_ed._tool_options)
+		_spin_field(_ed._tool_options, "Largeur (cases)", 0.6, 5.0, _ed._bridge_width, 0.1, func(v):
+			_ed._bridge_width = v
+		)
+		_option_note("Tracez le pont d’une rive à l’autre. Le tablier suit les extrémités et porte les figurines.")
 	elif _ed._tool == ToolsScript.WATER_PAINT:
 		var water_opt := OptionButton.new()
 		var water_modes := [
@@ -652,7 +659,10 @@ func _rebuild_tool_options() -> void:
 				_spin_field(_ed._tool_options, "Niveau (cases)", -1.0, 12.0, _ed._water_lake_level, 0.05, func(v):
 					_ed._water_lake_level = v
 				)
-				_option_note("Glissez un rectangle : le lac se remplit jusqu'au niveau réglé — il n'apparaît que dans les creux sculptés sous ce niveau (lacs, mares, étangs).")
+				_spin_field(_ed._tool_options, "Profondeur du bassin", 0.0, 2.0, _ed._water_lake_bed, 0.05, func(v):
+					_ed._water_lake_bed = v
+				)
+				_option_note("Glissez pour creuser un bassin aux berges progressives. Réglez la profondeur à 0 pour remplir les creux existants.")
 			_:
 				_sep(_ed._tool_options)
 				_spin_field(_ed._tool_options, "Pinceau", 0, 6, float(_ed._water_brush), 1, func(v): _ed._water_brush = int(v))
@@ -868,12 +878,12 @@ func _rebuild_tool_options() -> void:
 					_option_note("Clic-glisser : aplatit la terre vers le niveau du point de départ du trait — plateaux, terrasses, plages. Undo par trait.")
 		else:
 			_sep(_ed._tool_options)
-			_spin_field(_ed._tool_options, "Pinceau (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
+			_slider_field(_ed._tool_options, "Rayon (cases)", 0.5, 8.0, _ed._relief_radius, 0.5, func(v):
 				_ed._relief_radius = v
 				_ed._refresh_ghost()
 			)
 			_sep(_ed._tool_options)
-			_spin_field(_ed._tool_options, "Force (cases)", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
+			_slider_field(_ed._tool_options, "Intensité", 0.05, 2.0, _ed._relief_strength, 0.05, func(v):
 				_ed._relief_strength = v
 			)
 			var flatten_btn := Button.new()
@@ -887,17 +897,21 @@ func _rebuild_tool_options() -> void:
 			)
 			_sep(_ed._tool_options)
 			_ed._tool_options.add_child(flatten_btn)
-			var lower_btn := Button.new()
-			lower_btn.text = "Mode baisser"
-			lower_btn.tooltip_text = "Passe le pinceau en mode Baisser (creuser)."
-			lower_btn.add_theme_font_size_override("font_size", 10)
-			lower_btn.pressed.connect(func():
-				_ed._relief_mode = "lower"
-				_ed._set_status("Relief : mode Baisser — glissez pour creuser.")
-				_ed._rebuild_tool_options()
-			)
-			_sep(_ed._tool_options)
-			_ed._tool_options.add_child(lower_btn)
+			var modes := HBoxContainer.new()
+			modes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for mode in [["raise", "Élever"], ["lower", "Abaisser"], ["smooth", "Lisser"]]:
+				var mode_id: String = mode[0]
+				var button := Button.new()
+				button.text = mode[1]
+				button.toggle_mode = true
+				button.button_pressed = _ed._relief_mode == mode_id
+				button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				button.pressed.connect(func():
+					_ed._relief_mode = mode_id
+					_ed._rebuild_tool_options()
+				)
+				modes.add_child(button)
+			_ed._tool_options.add_child(modes)
 			_option_note("Les objets 3D posés s'adaptent à la hauteur du terrain. Le relief est enregistré avec la carte.")
 	elif _ed._tool == ToolsScript.GROUND_MATERIAL:
 		var mat_opt := OptionButton.new()

@@ -1228,8 +1228,8 @@ func cell_bilinear(gx: float, gy: float) -> float:
 ## la surface de pose historique si elle est encore pleine et sans remblai
 ## au-dessus ; sinon le sommet de la matière suivante (fond de trou, sol de
 ## grotte ou **haut d'un remblai** `op = union`).
-func top_surface_at(gx: float, gy: float) -> float:
-	var base := cell_bilinear(gx, gy)
+func top_surface_at(gx: float, gy: float, rendered_surface: bool = false) -> float:
+	var base := height_at(gx, gy) if rendered_surface else cell_bilinear(gx, gy)
 	if _carves.is_empty() and _sculpt.is_empty():
 		return base
 	var h_mesh := height_at(gx, gy)

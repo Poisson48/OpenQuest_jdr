@@ -38,6 +38,9 @@ python tools/blender/make_terrain_textures.py --verify
 
 # Variante plus grande / autre graine
 python tools/blender/make_terrain_textures.py --size 1024 --seed 2026
+
+# Régénérer l’herbe et sa vignette uniquement
+python tools/blender/make_terrain_textures.py --only grass
 ```
 
 `.\tools\blender\run_build.ps1` exécute cette étape automatiquement s'il trouve
@@ -54,6 +57,10 @@ un Python avec Pillow (`-PythonExe`, `$env:OQ_PYTHON`, `python`, `python3`).
 * pavé : cellules de Voronoï **périodiques**, joints et mousse dérivés de la
   distance au bord de cellule ;
 * flou/netteté appliqués sur une tuile 3×3 puis recadrés au centre ;
+* pour l’herbe, le shader mélange trois décalages déterministes sur un
+  maillage triangulaire et ajoute des variations de teinte à l’échelle de
+  plusieurs cases. La texture reste lisible près du sol sans former de
+  damier dans les vues larges ;
 * `--verify` compare l'écart entre bords opposés à l'écart entre colonnes
   voisines intérieures et échoue si le raccord est visible.
 

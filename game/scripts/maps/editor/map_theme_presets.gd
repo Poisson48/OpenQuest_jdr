@@ -113,13 +113,16 @@ static func apply(map: Dictionary, theme_id: String) -> void:
 			ambient = "leaves"
 		"lake":
 			var lake_center := Vector2(w * 0.5, h * 0.5)
+			var radius := Vector2(maxf(1.1, w * 0.30), maxf(1.1, h * 0.32))
 			for y in range(h):
 				for x in range(w):
 					var idx := y * w + x
-					var d := Vector2(x, y).distance_to(lake_center)
-					if d < 2.8:
-						heights[idx] = -0.9 * (1.0 - d / 2.8)
-					if d >= 2.8 and d < 4.0:
+					var local := (Vector2(x + 0.5, y + 0.5) - lake_center) / radius
+					var angle := local.angle()
+					var contour := 1.0 + 0.13 * sin(3.0 * angle) + 0.08 * cos(5.0 * angle)
+					var d := local.length() / contour
+					heights[idx] = lerpf(-1.15, 0.0, smoothstep(0.12, 1.15, d))
+					if d > 0.62 and d < 1.19 + 0.05 * sin(angle * 8.0):
 						materials[idx] = SAND
 			map["waterLevel"] = -0.25
 			ambient = "fireflies"
@@ -142,6 +145,8 @@ static func _starter_meshes(theme_id: String, w: int, h: int) -> Array:
 	var arbre := "res://assets/objects3d/vegetation/arbre.glb"
 	var arbre_auto := "res://assets/objects3d/vegetation/arbre_automne.glb"
 	var rocher := "res://assets/objects3d/terrain/rocher.glb"
+	var galets := "res://assets/objects3d/terrain/galets_de_rive.glb"
+	var bois_flotte := "res://assets/objects3d/props/bois_flotte.glb"
 	var mur := "res://assets/objects3d/buildings/mur.glb"
 	var puits := "res://assets/objects3d/props/puits.glb"
 	var banc := "res://assets/objects3d/props/banc.glb"
@@ -192,8 +197,9 @@ static func _starter_meshes(theme_id: String, w: int, h: int) -> Array:
 			]
 		"lake":
 			specs = [
-				[rocher, 2.2, h * 0.5, 1.0, 1.0, 0.0, true],
-				[arbre, w - 2.2, h * 0.5, 1.0, 1.0, 30.0, true],
+				[galets, w * 0.18, h * 0.46, 1.5, 1.25, 12.0, true],
+				[bois_flotte, w * 0.63, h * 0.82, 1.9, 0.85, 24.0, true],
+				[arbre, w * 0.88, h * 0.48, 1.0, 1.0, 30.0, true],
 				[barque, w * 0.5, h * 0.5, 1.0, 1.0, 80.0, true],
 				[buisson, 3.2, 2.5, 0.9, 0.9, 0.0, true],
 			]
