@@ -111,11 +111,14 @@ au lieu de 1 400–2 418, et **la silhouette peinte est retrouvée**. Le moteur
 non éclairée) au lieu du matériau standard qui forçait le cull back. Test :
 `vegetation_cards_test`.
 
-**B — Rochers PBR d'origine (à faire)** : les GLB Tripo3D bruts
-(`artifacts/tripo-review/rock-kit/rocher_*.glb`) ont la **même géométrie**
-(973–1 036 tris) que les `bloc_rocheux_*` livrés, mais avec **3 textures 2048²
-PBR** (albédo + rugosité/métal + normale). Restaurer ces textures (et la
-normale) redonne le rendu Tripo sans coût géométrique.
+**B — Rochers PBR d'origine (livré)** : les GLB Tripo3D bruts
+(`artifacts/tripo-review/rock-kit/recolored_1024/`) ont la **même géométrie**
+(973–1 036 tris) que les `bloc_rocheux_*` livrés, mais des textures PBR plus
+fines. Régénération par `tools/blender/build_tripo_rocks.py --texture-size 1024` :
+albédo **1024²** (au lieu de 512²) + **normale 1024²**, palette Valbois, AO et
+mottling en vertex colors, vignettes et manifeste à jour. GLB : 258–469 Ko
+(contre 164–230 Ko). Test : `rock_pbr_test` ; captures :
+`rochers_formation_*.png`.
 
 **C — Bâti/décors HD + LOD (à faire)** : régénérer depuis les planches avec
 `SIZE 160–256`, budget 6 000–12 000 tris, atlas 1024–2048 et contour conservé,

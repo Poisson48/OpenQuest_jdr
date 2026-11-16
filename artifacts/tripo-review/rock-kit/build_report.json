@@ -3,7 +3,7 @@
   "blender_version": "4.5.10 LTS",
   "source_root": "artifacts/tripo-review/rock-kit/recolored_1024",
   "triangle_budget": 1500,
-  "texture_size": 512,
+  "texture_size": 1024,
   "jpeg_quality": 88,
   "palette": {
     "saturation": 0.92,
@@ -38,8 +38,8 @@
       ],
       "glb": "game/assets/objects3d/terrain/bloc_rocheux_socle.glb",
       "thumb": "game/assets/objects3d/terrain/bloc_rocheux_socle_thumb.png",
-      "glb_bytes": 167752,
-      "thumb_bytes": 168562,
+      "glb_bytes": 263796,
+      "thumb_bytes": 170111,
       "triangles": 1014,
       "triangles_before_decimation": 1014,
       "decimated": false,
@@ -56,12 +56,12 @@
       "yaw_deg": 0.0,
       "textures": {
         "albedo": {
-          "size": 512,
+          "size": 1024,
           "format": "JPEG",
           "quality": 88
         },
         "normal": {
-          "size": 512
+          "size": 1024
         },
         "orm": "abandonnee (materiau mat)"
       },
@@ -85,8 +85,8 @@
       ],
       "glb": "game/assets/objects3d/terrain/bloc_rocheux_bloc.glb",
       "thumb": "game/assets/objects3d/terrain/bloc_rocheux_bloc_thumb.png",
-      "glb_bytes": 187764,
-      "thumb_bytes": 156035,
+      "glb_bytes": 349336,
+      "thumb_bytes": 158601,
       "triangles": 973,
       "triangles_before_decimation": 973,
       "decimated": false,
@@ -103,12 +103,12 @@
       "yaw_deg": 0.0,
       "textures": {
         "albedo": {
-          "size": 512,
+          "size": 1024,
           "format": "JPEG",
           "quality": 88
         },
         "normal": {
-          "size": 512
+          "size": 1024
         },
         "orm": "abandonnee (materiau mat)"
       },
@@ -132,8 +132,8 @@
       ],
       "glb": "game/assets/objects3d/terrain/bloc_rocheux_coin.glb",
       "thumb": "game/assets/objects3d/terrain/bloc_rocheux_coin_thumb.png",
-      "glb_bytes": 235024,
-      "thumb_bytes": 173886,
+      "glb_bytes": 480332,
+      "thumb_bytes": 176394,
       "triangles": 1028,
       "triangles_before_decimation": 1028,
       "decimated": false,
@@ -150,12 +150,12 @@
       "yaw_deg": 0.0,
       "textures": {
         "albedo": {
-          "size": 512,
+          "size": 1024,
           "format": "JPEG",
           "quality": 88
         },
         "normal": {
-          "size": 512
+          "size": 1024
         },
         "orm": "abandonnee (materiau mat)"
       },
@@ -179,8 +179,8 @@
       ],
       "glb": "game/assets/objects3d/terrain/bloc_rocheux_couronne.glb",
       "thumb": "game/assets/objects3d/terrain/bloc_rocheux_couronne_thumb.png",
-      "glb_bytes": 188344,
-      "thumb_bytes": 147542,
+      "glb_bytes": 328244,
+      "thumb_bytes": 148493,
       "triangles": 1036,
       "triangles_before_decimation": 1036,
       "decimated": false,
@@ -197,12 +197,12 @@
       "yaw_deg": 0.0,
       "textures": {
         "albedo": {
-          "size": 512,
+          "size": 1024,
           "format": "JPEG",
           "quality": 88
         },
         "normal": {
-          "size": 512
+          "size": 1024
         },
         "orm": "abandonnee (materiau mat)"
       },
