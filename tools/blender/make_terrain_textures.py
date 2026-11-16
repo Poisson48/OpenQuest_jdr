@@ -1,6 +1,6 @@
 """Genere les textures de sol tuilables de la carte 2.5D (offline).
 
-Six textures 512x512 **seamless** (bords raccord quand on les répète) :
+Six textures 1024x1024 **seamless** (bords raccord quand on les répète) :
 
 * ``grass.png``  : herbe Valbois, vert désaturé, touffes et brins peints ;
 * ``dirt.png``   : terre / chemin, brun chaud, cailloux, fissures et taches ;
@@ -23,7 +23,7 @@ Usage :
 
 Sorties (par défaut dans ``game/assets/terrain/``) :
 
-    grass.png, dirt.png, stone.png, cliff.png, snow.png, sand.png  # 512x512 RGB, tuilables
+    grass.png, dirt.png, stone.png, cliff.png, snow.png, sand.png  # 1024x1024 RGB, tuilables
     grass_thumb.png, ...                                 # 256x256, pour la bibliothèque
     _planche_terrain.png                                 # planche de contrôle (tuile 2x2)
 """
@@ -41,7 +41,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TERRAIN_ROOT = REPO_ROOT / "game" / "assets" / "terrain"
 
-DEFAULT_SIZE = 512
+DEFAULT_SIZE = 1024
 DEFAULT_SEED = 2026
 THUMB_SIZE = 256
 

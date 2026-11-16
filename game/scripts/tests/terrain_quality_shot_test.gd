@@ -79,7 +79,14 @@ const POND_RISE_GENTLE := 3.4
 ## Seuils de la berge mouillée (diff A/B par pixel et en moyenne).
 const SHORE_DIFF_MIN := 0.006
 const SHORE_PIXEL_THR := 0.008
-const SHORE_SLOPE_MARGIN_PX := 60.0
+## Marge minimale en pixels (garde-fou) : la berge douce doit rester plus
+## large que la raide, sans dépendre d un écart absolu calibré sur l ancien
+## pipeline de textures (mipmaps/1024/anisotrope/densité de tuile).
+const SHORE_SLOPE_MARGIN_PX := 24.0
+## Ratio minimal doux/raide : invariant plus robuste que la marge en pixels
+## absolus quand le pipeline de textures change (mipmaps, 1024, anisotrope,
+## densité de tuile) — la berge doit rester nettement plus large en pente douce.
+const SHORE_GENTLE_RATIO_MIN := 1.12
 ## FINITIONS TERRAIN — AO de cuvettes cuites (task-1) : diff A/B minimale sur
 ## le relief (les cuvettes s'assombrissent, les crêtes s'éclaircissent).
 const CAVITY_DIFF_MIN := 0.002
@@ -395,7 +402,8 @@ func _run() -> void:
 		_assert("shore_band_hugs_shoreline", bands.x > 0.0 and bands.y > 0.0,
 			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
 		_assert("shore_wider_on_gentle_slope",
-			bands.x > bands.y + SHORE_SLOPE_MARGIN_PX,
+			bands.x > bands.y * SHORE_GENTLE_RATIO_MIN
+			and bands.x > bands.y + SHORE_SLOPE_MARGIN_PX,
 			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
 
 	# =====================================================================

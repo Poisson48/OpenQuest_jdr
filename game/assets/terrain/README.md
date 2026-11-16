@@ -1,6 +1,6 @@
 # Terrain — textures de sol tuilables (carte 2.5D)
 
-Six textures **512×512 seamless** (elles se raccordent exactement quand on les
+Six textures **1024×1024 seamless** (elles se raccordent exactement quand on les
 répète) pour habiller le sol 3D simplifié de la carte 2.5D. Palette échantillonnée
 sur les fonds peints Valbois : terres chaudes, verts désaturés, pierre chaude,
 neige bleutée et sable doré, aucune couleur saturée.

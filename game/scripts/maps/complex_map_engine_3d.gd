@@ -241,6 +241,11 @@ var _drag_start: Vector2 = Vector2.ZERO
 var _pan_start: Vector3 = Vector3.ZERO
 var _pan_velocity: Vector2 = Vector2.ZERO
 var _last_pan_pos: Vector2 = Vector2.ZERO
+## Pan « suivi de souris » : point monde saisi au début du glisser (et le plan
+## horizontal sur lequel le curseur est re-projeté à chaque mouvement).
+var _pan_anchor_world: Vector3 = Vector3.INF
+var _pan_anchor_plane_y: float = 0.0
+var _pan_anchor_valid: bool = false
 ## Navigation 3D de l'éditeur : orbite libre autour du point visé (clic milieu).
 var _orbit_dragging: bool = false
 var _orbit_enabled: bool = false
@@ -919,9 +924,171 @@ func get_shadow_caster_count() -> int:
 		return int(_meshes_layer.get_shadow_caster_count())
 	return 0
 
+# ===========================================================================
+# Surcharges globales (menu Paramètres) — confort machine, pas la carte
+# ===========================================================================
+#
+# Ces réglages viennent de `AppSettings` (préférences personnelles) et ne
+# doivent JAMAIS voyager avec la carte. `configure()` réapplique les valeurs de
+# la carte ; on les réécrit donc **après**, via `_apply_global_overrides()`
+# appelé à la fin de `_apply_lighting()` et de `_apply_render_quality()`.
+#
+# Les surcharges ne peuvent que **réduire** le rendu (jamais l'embellir) : une
+# carte sans ombres ni AO le reste, quel que soit le réglage global. C'est ce
+# qui garantit qu'un réglage de confort ne change pas l'identité visuelle de la
+# carte exportée.
+
+var _global_overrides: Dictionary = {}
+## État des ombres décidé par la carte, avant surcharge globale.
+var _map_shadows_enabled: bool = false
+## Paramètres d'ombres de la carte (restitués quand la préférence est « map »).
+var _map_shadow_state: Dictionary = {}
+
+## Viewport 3D (aperçu « en direct » du menu Paramètres, tests de rendu).
+func get_3d_viewport() -> SubViewport:
+	return _viewport
+
+## Réglages globaux de confort machine. Appelé par `AppSettings.apply_to_engine`
+## après chaque `configure()` et à chaque changement dans le menu Paramètres.
+func set_global_overrides(overrides: Dictionary) -> void:
+	_global_overrides = overrides.duplicate(true) if overrides is Dictionary else {}
+	_apply_global_overrides()
+
+func get_global_overrides() -> Dictionary:
+	return _global_overrides.duplicate(true)
+
+## Applique les surcharges globales au rendu courant (idempotent : peut être
+## appelé après chaque configure / chaque changement de réglage).
+func _apply_global_overrides() -> void:
+	if _viewport != null:
+		if _global_overrides.has("msaa"):
+			var msaa := int(_global_overrides["msaa"])
+			# -1 = « auto » : la carte décide (2×, ou 4× en preset cinéma).
+			_viewport.msaa_3d = clampi(msaa, 0, Viewport.MSAA_MAX) if msaa >= 0 \
+				else (Viewport.MSAA_4X if is_cinema_quality() else Viewport.MSAA_2X)
+		if _global_overrides.has("screen_space_aa"):
+			var ssaa := int(_global_overrides["screen_space_aa"])
+			_viewport.screen_space_aa = clampi(ssaa, 0, 1) if ssaa >= 0 else 0
+		if _global_overrides.has("render_scale"):
+			_viewport.scaling_3d_scale = clampf(
+				float(_global_overrides["render_scale"]), 0.25, 2.0)
+	if _world_env != null and _world_env.environment != null:
+		var env: Environment = _world_env.environment
+		if not bool(_global_overrides.get("ssao", true)):
+			env.ssao_enabled = false
+		if not bool(_global_overrides.get("ssil", true)):
+			env.ssil_enabled = false
+		if not bool(_global_overrides.get("glow", true)):
+			env.glow_enabled = false
+		if not bool(_global_overrides.get("volumetric_fog", true)):
+			env.volumetric_fog_enabled = false
+	if _sun != null and _global_overrides.has("shadow_quality"):
+		var quality := str(_global_overrides["shadow_quality"])
+		if quality == "off":
+			_sun.shadow_enabled = false
+		else:
+			# La carte décide s'il y a des ombres ; le réglage global ne fait
+			# que régler leur qualité (ou restituer celle de la carte en « map »).
+			_sun.shadow_enabled = _map_shadows_enabled
+			_apply_shadow_quality(quality, float(_global_overrides.get("shadow_max_distance", 160.0)))
+	_apply_water_reflections(bool(_global_overrides.get("water_reflections", true)))
+
+## Qualité des ombres demandée par les préférences (orthogonal / 2 / 4 splits).
+## « map » restitue l'état exact décidé par la carte (préférence neutre).
+func _apply_shadow_quality(quality: String, max_distance: float) -> void:
+	if _sun == null:
+		return
+	if quality == "map":
+		_restore_map_shadows()
+		return
+	var distance := clampf(max_distance, 60.0, 260.0)
+	match quality:
+		"low":
+			_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+			_sun.shadow_blur = minf(_sun.shadow_blur, 1.0)
+			_sun.directional_shadow_max_distance = clampf(distance * 0.6, 40.0, 260.0)
+			_sun.directional_shadow_split_1 = 0.25
+			_sun.directional_shadow_split_2 = 0.5
+			_sun.directional_shadow_split_3 = 0.75
+		"high":
+			_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+			_sun.shadow_blur = maxf(_sun.shadow_blur, 2.2)
+			_sun.directional_shadow_max_distance = distance
+			_sun.directional_shadow_split_1 = 0.10
+			_sun.directional_shadow_split_2 = 0.28
+			_sun.directional_shadow_split_3 = 0.52
+		_:
+			_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			_sun.shadow_blur = clampf(_sun.shadow_blur, 1.0, 1.8)
+			_sun.directional_shadow_max_distance = distance
+			_sun.directional_shadow_split_1 = 0.18
+			_sun.directional_shadow_split_2 = 0.42
+			_sun.directional_shadow_split_3 = 0.68
+
+## Restitue les réglages d'ombres de la carte (mémorisés par
+## `_apply_render_quality`) quand la préférence revient à « Comme la carte ».
+func _restore_map_shadows() -> void:
+	if _sun == null or _map_shadow_state.is_empty():
+		return
+	_sun.shadow_enabled = _map_shadows_enabled
+	_sun.directional_shadow_mode = int(_map_shadow_state.get("mode", _sun.directional_shadow_mode))
+	_sun.shadow_blur = float(_map_shadow_state.get("blur", _sun.shadow_blur))
+	_sun.shadow_bias = float(_map_shadow_state.get("bias", _sun.shadow_bias))
+	_sun.shadow_normal_bias = float(_map_shadow_state.get("normal_bias", _sun.shadow_normal_bias))
+	_sun.light_angular_distance = float(_map_shadow_state.get("angular", _sun.light_angular_distance))
+	_sun.directional_shadow_max_distance = float(
+		_map_shadow_state.get("max_distance", _sun.directional_shadow_max_distance))
+	_sun.directional_shadow_fade_start = float(
+		_map_shadow_state.get("fade_start", _sun.directional_shadow_fade_start))
+	_sun.directional_shadow_split_1 = float(_map_shadow_state.get("s1", _sun.directional_shadow_split_1))
+	_sun.directional_shadow_split_2 = float(_map_shadow_state.get("s2", _sun.directional_shadow_split_2))
+	_sun.directional_shadow_split_3 = float(_map_shadow_state.get("s3", _sun.directional_shadow_split_3))
+	_sun.directional_shadow_blend_splits = bool(
+		_map_shadow_state.get("blend", _sun.directional_shadow_blend_splits))
+
+## Réflexions d'eau : uniform `reflection_enabled` des matériaux de surface.
+## Même patron de traversée que `game/scripts/tests/water_quality_shot_test.gd`.
+## `_water_reflections_state` évite de reparcourir tous les matériaux à chaque
+## changement de réglage ; il est invalidé quand `configure()` reconstruit l'eau.
+var _water_reflections_state: int = -1
+
+func _apply_water_reflections(on: bool) -> void:
+	if _water_layer == null or not is_instance_valid(_water_layer):
+		return
+	var wanted := 1 if on else 0
+	if wanted == _water_reflections_state:
+		return
+	_water_reflections_state = wanted
+	var bodies: Variant = _water_layer.get("_body_nodes")
+	if not (bodies is Array):
+		return
+	var value := 1.0 if on else 0.0
+	for node in (bodies as Array):
+		if node == null or not is_instance_valid(node):
+			continue
+		var candidates: Array = []
+		var material_override: Variant = node.get("material_override")
+		if material_override is ShaderMaterial:
+			candidates.append(material_override)
+		var mesh: Variant = node.get("mesh")
+		if mesh is ArrayMesh:
+			for si in range((mesh as ArrayMesh).get_surface_count()):
+				var surface_material = (mesh as ArrayMesh).surface_get_material(si)
+				if surface_material is ShaderMaterial:
+					candidates.append(surface_material)
+		for material in candidates:
+			var shader_material := material as ShaderMaterial
+			if shader_material == null:
+				continue
+			if shader_material.get_shader_parameter("reflection_enabled") != null:
+				shader_material.set_shader_parameter("reflection_enabled", value)
+
 func _apply_render_quality() -> void:
 	if _world_env == null:
 		return
+	# L'eau vient d'être reconstruite par `configure()` : les matériaux ont
+	# retrouvé leur valeur par défaut, la surcharge doit être réappliquée.
+	_water_reflections_state = -1
 	var env: Environment = _world_env.environment
 	if env == null:
 		return
@@ -930,6 +1097,10 @@ func _apply_render_quality() -> void:
 	# Preset qualité « cinéma » : n'a de sens que sur un vrai terrain (ombres,
 	# AO de contact) et jamais en vue table (salle intérieure).
 	var cinema := bool(cfg.get("cinemaQuality", false)) and terrain and not table_view
+	# Qualité d'image : MSAA plus élevé en preset cinéma (arêtes des toits,
+	# coques d'encre et détails d'assets nets au lieu d'escaliers).
+	if _viewport != null:
+		_viewport.msaa_3d = Viewport.MSAA_4X if cinema else Viewport.MSAA_2X
 	env.ssao_enabled = terrain
 	if terrain:
 		env.ssao_radius = 1.35
@@ -1067,8 +1238,27 @@ func _apply_render_quality() -> void:
 			_sun.directional_shadow_split_1 = float(cfg.get("shadowSplit1", 0.10))
 			_sun.directional_shadow_split_2 = float(cfg.get("shadowSplit2", 0.28))
 			_sun.directional_shadow_split_3 = float(cfg.get("shadowSplit3", 0.52))
+		# Trace l'état voulu par la carte AVANT surcharges globales (le menu
+		# Paramètres ne peut régler que la qualité, pas créer des ombres).
+		_map_shadows_enabled = _sun.shadow_enabled
+		_map_shadow_state = {
+			"mode": _sun.directional_shadow_mode,
+			"blur": _sun.shadow_blur,
+			"bias": _sun.shadow_bias,
+			"normal_bias": _sun.shadow_normal_bias,
+			"angular": _sun.light_angular_distance,
+			"max_distance": _sun.directional_shadow_max_distance,
+			"fade_start": _sun.directional_shadow_fade_start,
+			"s1": _sun.directional_shadow_split_1,
+			"s2": _sun.directional_shadow_split_2,
+			"s3": _sun.directional_shadow_split_3,
+			"blend": _sun.directional_shadow_blend_splits,
+		}
 	# DOF très léger : donne de la profondeur au fond sans flouter la carte.
 	_apply_depth_of_field(env, terrain)
+	# Dernier mot aux préférences de confort machine (MSAA, ombres, AO…) :
+	# `configure()` vient d'écrire les valeurs de la carte, on les ajuste.
+	_apply_global_overrides()
 
 func _load_ground(p_ground_mode: String = "") -> void:
 	if _ground == null:
@@ -1821,6 +2011,10 @@ func _apply_lighting() -> void:
 		# sinon brume exponentielle historique (rendu d'origine strict).
 		_apply_environment_fog(env, terrain3d, preset, fog_density)
 		_apply_sky(env, terrain3d, preset)
+	# Préférences globales (menu Paramètres) : elles ont le dernier mot sur les
+	# valeurs de la carte, sans jamais en ajouter (réduction uniquement).
+	_map_shadows_enabled = _sun.shadow_enabled
+	_apply_global_overrides()
 
 # ===========================================================================
 # Brume atmosphérique (distance + hauteur) — voir le bloc de constantes
@@ -3262,11 +3456,45 @@ func _gui_input(event: InputEvent) -> void:
 			_update_area_hover(motion.position)
 			_update_move_pointer(motion.position)
 
+## Point monde du plan horizontal `plane_y` sous une position écran. Sert au
+## pan « suivi de souris » : le point saisi au clic reste EXACTEMENT sous le
+## curseur, quel que soit l'angle/la perspective de la caméra (au lieu d'un
+## déplacement en coordonnées monde XYZ à échelle fixe).
+func _screen_point_on_plane(screen_pos: Vector2, plane_y: float) -> Vector3:
+	if _camera == null:
+		return Vector3.INF
+	var vp := _control_to_viewport(screen_pos)
+	var origin := _camera.project_ray_origin(vp)
+	var direction := _camera.project_ray_normal(vp)
+	if absf(direction.y) < 0.0001:
+		return Vector3.INF
+	var t := (plane_y - origin.y) / direction.y
+	if t < 0.0:
+		return Vector3.INF
+	return origin + direction * t
+
 ## Applique le déplacement de vue correspondant à un mouvement souris.
 func _pan_from_motion(motion: InputEventMouseMotion) -> void:
 	if table_view:
 		_table_orbit_from_motion(motion.position)
 		return
+	# Pan « suivi de souris » : on translate la caméra de (ancre - point courant
+	# sous le curseur) sur le plan horizontal de l'ancre. Le décor saisi reste
+	# donc collé au curseur, y compris en perspective inclinée.
+	if _pan_anchor_valid:
+		var current := _screen_point_on_plane(motion.position, _pan_anchor_plane_y)
+		if current != Vector3.INF:
+			var camera_before := _camera.position
+			var move := _pan_anchor_world - current
+			_camera.position.x = _pan_start.x + move.x
+			_camera.position.z = _pan_start.z + move.z
+			if not editor_mode:
+				var camera_delta := _camera.position - camera_before
+				_pan_velocity = Vector2(camera_delta.x, camera_delta.z) \
+					/ maxf(get_process_delta_time(), 0.001)
+			_last_pan_pos = motion.position
+			_clamp_camera()
+			return
 	var delta_pos := motion.position - _drag_start
 	var span := _ground_span_per_pixel()
 	# Sécurité : une mesure de span aberrante ne doit pas téléporter la vue.
@@ -3412,6 +3640,8 @@ func _begin_orbit_drag(screen_pos: Vector2) -> void:
 	_orbit_dragging = true
 	_orbit_enabled = true
 	_pan_dragging = false
+	# Une orbite n'est pas un pan : on désarme l'ancre de suivi de souris.
+	_pan_anchor_valid = false
 	# Ancre = le VRAI point visé de la caméra (zone utile, hors HUD).
 	var world := _raycast_ground(_control_to_viewport(_focus_screen_pos()))
 	var forward := -_camera.global_transform.basis.z
@@ -3483,6 +3713,15 @@ func _begin_view_drag(screen_pos: Vector2, pan_mode: bool = false) -> void:
 	_table_drag_elev = _table_elev
 	_drag_pan_mode = pan_mode
 	_table_drag_target_start = _table_target
+	# Pan « suivi de souris » : mémorise le point de sol saisi (et son plan
+	# horizontal) pour que le décor reste collé au curseur pendant le glisser.
+	_pan_anchor_valid = false
+	if pan_mode and not table_view and _camera != null:
+		var hit := _raycast_ground(_control_to_viewport(screen_pos))
+		if hit != Vector3.INF:
+			_pan_anchor_world = hit
+			_pan_anchor_plane_y = hit.y
+			_pan_anchor_valid = true
 
 # ===========================================================================
 # Vue table (plateau virtuel)

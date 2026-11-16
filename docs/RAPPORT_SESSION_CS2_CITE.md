@@ -87,6 +87,36 @@ Opt-in `map_data["qualityPreset"] = "classique" | "cinema"`, orthogonal au
   nord-sud + **baie/lac** de bordure, berges sable/pierre, 2 plans d'eau,
   aucune construction noyée, 582 cases de rues conservées.
 
+### 1.6 Netteté des textures & navigation (retours terrain)
+
+- **Mipmaps** activés pour toutes les textures importées (`[importer_defaults]`) :
+  les textures de sol et les textures extraites des GLB étaient importées sans
+  mipmaps (import 2D par défaut) → scintillement au loin et flou en vue rasante.
+- **Textures de sol régénérées en 1024²** (procédural seamless, 6 matières).
+- **Filtrage anisotrope 8×** (`rendering/textures/default_filters/...`) et
+  **MSAA 4×** en preset cinéma (2× en classique) pour des détails/arêtes nets.
+- **Pan au clic droit ancré au curseur** : le décor saisi reste exactement sous
+  la souris (projection du curseur sur le plan de l'ancre) au lieu de défiler en
+  coordonnées monde XYZ à échelle fixe ; orbite = `Maj`+clic droit / clic milieu.
+- Tests : `texture_quality_test`, `pan_cursor_tracking_test` (+ `camera_navigation_test`,
+  `map_quality_cs2_test` étendu aux assertions MSAA).
+
+### 1.7 Végétation en cartes alpha (prototype roseaux)
+
+Le pipeline `reference_hull.py` reconstruit un volume d'intersection de
+silhouettes sur une grille **64³** puis le décime (`target = 700..2150` tris) :
+les feuilles fines et les plumes ne survivent pas (roseaux livrés = tas de
+facettes olive, 2 418 tris, atlas 630² cuit par îlots de 18 px).
+
+Nouveau prototype `tools/blender/build_vegetation_cards.py` : à partir de la
+planche de référence IA (vue de face RGBA), génère un GLB de **cartes alpha
+croisées** (6 tris, atlas 1024², alpha mask double face) — le roseau retrouve
+ses tiges/feuilles/plumes peintes. Comparatif rendu réel :
+`docs/screenshots/roseaux_cards_proto.png` / `_detail.png` (livré vs cartes),
+test : `roseaux_cards_proto_shot_test`. Reste à intégrer : variation
+d'instances, balancement au vent, puis buisson/haie/nénuphars/arbres ; et
+régénération HD des bâtiments (grille + budget tris + atlas) avec LOD.
+
 ---
 
 ## 2. Preuves

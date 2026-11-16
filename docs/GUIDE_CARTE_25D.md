@@ -192,8 +192,8 @@ Outils terrain :
   de coin / rotation sur la carte ; `R` pivote de 90°.
 - En session, la caméra **recadre le personnage** après un déplacement et à
   l'arrivée dans une zone voisine.
-- Navigation éditeur : **clic droit glissé = déplacer la vue**, `Maj` + clic
-  droit = orbite, molette = zoom.
+- Navigation éditeur : **clic droit glissé = déplacer la vue** (suivi 1:1 du
+  curseur), `Maj` + clic droit = orbite, molette = zoom.
 - Élévation réglable pour les modules posés librement.
 
 Conventions des assets : 1 unité Blender = 1 case, origine au pied, avant `+Z`,
@@ -207,10 +207,7 @@ palette Valbois. Voir [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
 - **G** recentre la caméra sur le groupe (ou bouton **Groupe** dans la barre), **F** recadre toute la carte.
 - **N** affiche/masque les noms flottants ; **C** affiche/masque la **mini-carte** (clic = recentrer la caméra).
 - **+ / −** zooment ; **1-9** bascule entre les cartes/onglets.
-- **Navigation 3D dans l'éditeur** : molette = zoom · **clic milieu ou clic droit
-  glissé = orbite libre** autour du point visé · **Maj + clic milieu/droit =
-  déplacer** la vue · bouton **🧭** = revenir à l'angle de la carte. Un clic
-  droit sans glisser ouvre le menu contextuel.
+- **Navigation 3D dans l'éditeur** : molette = zoom · **clic droit glissé = déplacer la vue** (le décor saisi reste collé au curseur, quel que soit l'angle) · **Maj + clic droit = orbite libre** autour du point visé · **clic milieu = orbite**, **Maj + clic milieu = déplacer** · bouton **🧭** = revenir à l'angle de la carte. Un clic droit sans glisser ouvre le menu contextuel.
 - **H** ouvre l'**aide des raccourcis** de session (Échap pour fermer).
 - **D** ou bouton **Pas** : outil Déplacer — clique une case pour y déplacer le personnage sélectionné (ou actif) ; le survol affiche un curseur sur la case visée. Une case déjà occupée par une figurine est refusée, et les **murs/bâtiments 3D bloquent le passage**. Le pion du personnage actif est **sélectionné automatiquement** à l'ouverture d'une zone.
 - Glisse un pion vers un **bord** de carte pour passer dans la zone voisine :

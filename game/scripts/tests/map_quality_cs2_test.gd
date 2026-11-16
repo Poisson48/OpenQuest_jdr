@@ -885,6 +885,10 @@ func _test_editor_ui() -> void:
 	_assert("ui_engine_switches",
 		editor._engine.get_quality_preset() == StyleScript.QUALITY_CINEMA)
 	_assert("ui_engine_cinema_ssil", editor._engine._world_env.environment.ssil_enabled)
+	# Qualité d'image : MSAA renforcé en cinéma (détails/arêtes nets).
+	_assert("ui_engine_cinema_msaa",
+		editor._engine._viewport.msaa_3d == Viewport.MSAA_4X,
+		"msaa=%d" % editor._engine._viewport.msaa_3d)
 	# Undo : le panneau se resynchronise depuis la carte (undo/redo/import).
 	editor.doc.undo()
 	await _wait_frames(10)
@@ -892,6 +896,9 @@ func _test_editor_ui() -> void:
 		str(widget.get_item_metadata(widget.selected)) == StyleScript.QUALITY_CLASSIQUE)
 	_assert("ui_undo_engine",
 		editor._engine.get_quality_preset() == StyleScript.QUALITY_CLASSIQUE)
+	_assert("ui_engine_classic_msaa",
+		editor._engine._viewport.msaa_3d == Viewport.MSAA_2X,
+		"msaa=%d" % editor._engine._viewport.msaa_3d)
 	editor.queue_free()
 	await _wait_frames(2)
 

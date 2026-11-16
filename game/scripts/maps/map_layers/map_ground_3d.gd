@@ -77,7 +77,12 @@ const MAX_MASK_SIDE := 1024
 const GROUND_MODE_TERRAIN3D := "terrain3d"
 const GROUND_MODE_ILLUSTRATED := "illustrated"
 ## Nombre de cases couvertes par une répétition de la texture de détail du sol.
-const TERRAIN_TILE_CELLS := 2.0
+## Taille d'une répétition de texture de sol, en cases. 1,75 (au lieu de 2) :
+## ~14 % de densité de texels en plus sur le sol — avec les textures 1024 et le
+## filtrage anisotrope, le sol reste net au plus près sans tirer sur la VRAM.
+const TERRAIN_TILE_CELLS := 1.75
+## Force du micro-détail procédural projeté (grain fin qui casse la répétition).
+const TERRAIN_DETAIL_STRENGTH := 0.38
 ## Un tableau de hauteurs n'est « relief » que si une case dépasse ce seuil.
 const TERRAIN_RELIEF_EPSILON := 0.001
 ## Force de l'auto-matériau par pente/altitude (méthode CS2) : 1 = actif,
@@ -948,6 +953,9 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		# terrain et les clusters de creusement partagent le même alignement.
 		shader_mat.set_shader_parameter(
 			"tile_world_size", cell_size * TERRAIN_TILE_CELLS)
+		# Micro-détail procédural : grain fin qui casse la répétition des textures
+		# (visible au plus près sur les 1024 px).
+		shader_mat.set_shader_parameter("detail_strength", TERRAIN_DETAIL_STRENGTH)
 		# Triplanar net (méthode CS2) : fenêtre de fondu décalée vers les
 		# PAROIS pour que les pentes intermédiaires (flancs ≈ 30-55°) restent
 		# en projection XZ — non déformée, à la bonne échelle — au lieu de

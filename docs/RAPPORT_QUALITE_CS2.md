@@ -90,6 +90,16 @@ sortie littérale `:PASS`.
 | **Brume de hauteur adaptée au tilt** | la composante hauteur est pondérée par l'angle caméra (nulle en vue plongeante, pleine en vue rasante), profondeur inchangée, recalcul au mouvement sans reconstruction — `atmosphericFog.tiltAware` (A/B) — voir [`RAPPORT_QUALITE_CS2_PRESET.md`](RAPPORT_QUALITE_CS2_PRESET.md) §2.6 | `fog_quality_tilt_{top,default,low}_{off,on}.png` (vue carte 0,0521 → 0,0134) |
 | **Preset qualité « cinéma »** (carte peuplée d'objets 3D) | opt-in `map_data["qualityPreset"] = "cinema"` : ombres portées des GLB (PCF 4 splits, jamais les coques `*_outline`), matériaux PBR éclairés + perspective aérienne, SSAO renforcée + SSIL, tonemap ACES/étalonnage, ombre de contact atténuée — orthogonal au `renderStyle`, `classique` inchangé. Voir [`RAPPORT_QUALITE_CS2_PRESET.md`](RAPPORT_QUALITE_CS2_PRESET.md) | `quality_cs2_{off,on}_{overview,close}.png` · perf 4,08 → 5,46 ms (148 meshes) |
 
+### Netteté des textures & confort de navigation
+
+| Amélioration | Implémentation | Preuve |
+|---|---|---|
+| **Mipmaps** sur les textures importées (sol + textures extraites des GLB) | `[importer_defaults] texture={"mipmaps/generate": true}` dans `game/project.godot` ; réimport des textures de terrain et des `*_surface.png` — fini le scintillement/moquette au loin et le flou en vue rasante | `texture_quality_test` (mipmaps présents sur 6 textures de sol + albédo GLB) |
+| **Textures de sol en 1024²** | régénération procédurale seamless (`tools/blender/make_terrain_textures.py --size 1024`) : herbe/terre/pierre/falaise/neige/sable + vignettes + planche | captures `terrain_quality_*`, `cite_*` (pavés/détails nets) |
+| **Filtrage anisotrope 8×** | `rendering/textures/default_filters/anisotropic_filtering_level=3` | `texture_quality_test` |
+| **MSAA 4× en preset cinéma** (2× en classique) | `_apply_render_quality()` : `_viewport.msaa_3d` suit le preset — arêtes de toits/coques d'encre nettes | `map_quality_cs2_test` (`ui_engine_cinema_msaa` / `ui_engine_classic_msaa`) |
+| **Navigation 1:1 au clic droit** | pan ancré au point de sol saisi (`_screen_point_on_plane`) : le décor reste collé au curseur, quel que soit l'angle/perspective ; orbite sur `Maj`+clic droit / clic milieu | `pan_cursor_tracking_test`, `camera_navigation_test` |
+
 ## Reste (pistes)
 - Réflexions ray-marchées (SSR profond) — coût, non retenu dans le budget actuel.
 - Brume de pied de cascade **non éclairée** (choix) : éclairage de la brume par le soleil/les torches.
