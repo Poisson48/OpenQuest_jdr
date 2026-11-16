@@ -30,15 +30,21 @@ func _run() -> void:
 		var moved: float = engine._camera.position.distance_to(before)
 		_assert("tool_stable_%s" % tool_id, moved < 3.0, "moved=%.2f" % moved)
 
-	# Pan au clic droit.
+	# Pan au clic droit. Le pan s'ancre au franchissement du seuil (8 px) : on
+	# simule donc un premier motion de seuil, puis le vrai déplacement.
 	var before_pan: Vector3 = engine._camera.position
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_RIGHT
 	press.pressed = true
 	press.position = Vector2(500, 350)
 	engine._editor_gui_input(press)
+	var threshold_motion := InputEventMouseMotion.new()
+	threshold_motion.position = Vector2(512, 350)
+	threshold_motion.relative = Vector2(12, 0)
+	engine._editor_gui_input(threshold_motion)
 	var motion := InputEventMouseMotion.new()
 	motion.position = Vector2(620, 350)
+	motion.relative = Vector2(108, 0)
 	engine._editor_gui_input(motion)
 	var release := InputEventMouseButton.new()
 	release.button_index = MOUSE_BUTTON_RIGHT

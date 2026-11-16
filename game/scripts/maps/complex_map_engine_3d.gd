@@ -246,6 +246,11 @@ var _last_pan_pos: Vector2 = Vector2.ZERO
 var _pan_anchor_world: Vector3 = Vector3.INF
 var _pan_anchor_plane_y: float = 0.0
 var _pan_anchor_valid: bool = false
+## Transform caméra AU DÉBUT du pan : la projection du curseur sur le plan de
+## l'ancre doit être calculée avec cette référence FIXE. Avec la caméra courante
+## (qui bouge), `move = ancre - point(caméra)` boucle sur elle-même et oscille :
+## la caméra « tremblait » d'une frame à l'autre pendant le clic droit.
+var _pan_camera_xform: Transform3D = Transform3D.IDENTITY
 ## Navigation 3D de l'éditeur : orbite libre autour du point visé (clic milieu).
 var _orbit_dragging: bool = false
 var _orbit_enabled: bool = false
@@ -3456,6 +3461,21 @@ func _gui_input(event: InputEvent) -> void:
 			_update_area_hover(motion.position)
 			_update_move_pointer(motion.position)
 
+## Point du plan `plane_y` sous une position écran, calculé avec une transform
+## caméra de RÉFÉRENCE (celle du début du pan). Indispensable : projeter avec
+## la caméra courante pendant qu'elle se déplace crée une boucle de rétroaction
+## (le point « fuit » et la caméra oscille entre deux positions).
+func _screen_point_on_plane_fixed(screen_pos: Vector2, plane_y: float,
+		camera_xform: Transform3D) -> Vector3:
+	if _camera == null:
+		return Vector3.INF
+	var saved := _camera.global_transform
+	_camera.global_transform = camera_xform
+	var point := _screen_point_on_plane(screen_pos, plane_y)
+	_camera.global_transform = saved
+	return point
+
+
 ## Point monde du plan horizontal `plane_y` sous une position écran. Sert au
 ## pan « suivi de souris » : le point saisi au clic reste EXACTEMENT sous le
 ## curseur, quel que soit l'angle/la perspective de la caméra (au lieu d'un
@@ -3482,7 +3502,8 @@ func _pan_from_motion(motion: InputEventMouseMotion) -> void:
 	# sous le curseur) sur le plan horizontal de l'ancre. Le décor saisi reste
 	# donc collé au curseur, y compris en perspective inclinée.
 	if _pan_anchor_valid:
-		var current := _screen_point_on_plane(motion.position, _pan_anchor_plane_y)
+		var current := _screen_point_on_plane_fixed(
+			motion.position, _pan_anchor_plane_y, _pan_camera_xform)
 		if current != Vector3.INF:
 			var camera_before := _camera.position
 			var move := _pan_anchor_world - current
@@ -3600,10 +3621,12 @@ func _editor_gui_input(event: InputEvent) -> void:
 					_pan_dragging = false
 					_begin_orbit_drag(_right_nav_start)
 				else:
-					# Clic droit glissé : déplacer la vue (pan).
+					# Clic droit glissé : déplacer la vue (pan). On ancre le pan
+					# sur la position COURANTE du curseur (et non sur le press) :
+					# les pixels du seuil de 8 px ne font plus sauter la vue.
 					_pan_dragging = true
 					_orbit_dragging = false
-					_begin_view_drag(_right_nav_start, true)
+					_begin_view_drag(motion.position, true)
 			if _right_nav_dragging:
 				if _right_nav_shift:
 					_update_orbit_drag(motion.position)
@@ -3717,6 +3740,7 @@ func _begin_view_drag(screen_pos: Vector2, pan_mode: bool = false) -> void:
 	# horizontal) pour que le décor reste collé au curseur pendant le glisser.
 	_pan_anchor_valid = false
 	if pan_mode and not table_view and _camera != null:
+		_pan_camera_xform = _camera.global_transform
 		var hit := _raycast_ground(_control_to_viewport(screen_pos))
 		if hit != Vector3.INF:
 			_pan_anchor_world = hit
