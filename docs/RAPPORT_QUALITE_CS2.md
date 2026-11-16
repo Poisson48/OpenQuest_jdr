@@ -81,6 +81,7 @@ sortie littérale `:PASS`.
 | Brume / écume volumétrique au pied des cascades | `water_mist.gdshader` : 2 quads par chute accumulés en un seul maillage, alpha dissipé avec la hauteur, budget `MIST_MAX_QUADS = 64` — voir [`RAPPORT_QUALITE_CS2_FINITIONS.md`](RAPPORT_QUALITE_CS2_FINITIONS.md) | `cs2_finitions_mist_off/on.png` (diff moyenne 0,0235) |
 | Éclairage double du lit réfracté | lumière **directe** (caustiques sur le lit réfracté) + **ambiance/diffusion d'eau** sur les hauts-fonds (`bed_ambient_lift`, shaders eau + terrain) — fin de l'effet « fond plat » | `cs2_finitions_bed_off/on.png` (0,0190) · `cs2_finitions_terrain_bed_off/on.png` (0,0143) |
 | Nez de ruban adoucis vus de très haut | masque de pointe en `COLOR.b` + détection de l'empreinte écran par `fwidth()` (`tip_soften_distance`), aucun uniform caméra, vrai en perspective et ortho | `cs2_finitions_tip_off/on.png` (signal 0,00904, bruit d'animation 0,000000) |
+| Dérive du motif **dans le sens du courant** | rivières : espace de dérive du ruban (UV : u en travers, v le long du tracé) remis à l'échelle monde (`flow_ribbon`) au lieu de l'UV2 monde fixe ; vitesse visuelle calmée (`RIVER_FLOW_VISUAL_SCALE`) — le motif suit les méandres au lieu de défiler dans une direction unique à toute vitesse | `demo_riviere_s.png` / `demo_riviere_s_detail.png` (démo rivière en S) |
 
 ### Ambiance
 | Méthode CS2 | Implémentation | Preuve |

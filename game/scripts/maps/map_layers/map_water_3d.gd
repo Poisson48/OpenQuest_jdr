@@ -42,6 +42,12 @@ const FOAM_COLOR := Color(0.78, 0.88, 0.88)
 const NIGHT_TINT := Color(0.28, 0.34, 0.46)
 const BASE_ALPHA := 0.78
 const ALPHA_DEPTH := 0.10
+## Rivières : facteur appliqué au `flow_speed` des données de carte pour la
+## DÉRIVE VISIBLE du motif. Le ruban est animé dans son propre repère (le long
+## du tracé) en coordonnées monde normalisées ; sans ce facteur la texture
+## « défile à toute vitesse » (le bruit de détail est à haute fréquence).
+## 0 = eau figée, 1 = vitesse brute (rapide). 0,10 = courant lisible et calme.
+const RIVER_FLOW_VISUAL_SCALE := 0.10
 
 ## Décor de surface (lentilles d'eau + nénuphars), posé sur le plan d'eau.
 ## Densités (probabilité par case immergée) et bornes de performance.
@@ -1278,7 +1284,13 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 	# largeur, de chaque côté — la nappe s'achève en lame d'eau qui lappe la
 	# berge au lieu d'un bord de maillage franc (silhouette vue de dessus
 	# adoucie, cœur du chenal intact).
-	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.72)
+	# Déplacement du motif DANS LE REPÈRE DU RUBAN (le long du tracé), remis à
+	# l'échelle monde normalisée pour garder les fréquences d'un lac.
+	var ribbon_flow := Vector2(
+		geo_width / maxf(float(_map_w) * cell, 0.0001),
+		1.0 / maxf(float(_map_h) * cell, 0.0001))
+	var mat := _make_body_material(depth_data["texture"], Vector2(0.0, 1.0), speed, 0.72,
+		ribbon_flow)
 	var mesh := ArrayMesh.new()
 	if not arrays0.is_empty():
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays0)
@@ -1744,7 +1756,8 @@ func _make_river_depth(dense: Array, width: float) -> Dictionary:
 ## valeurs par défaut du shader.
 func _make_body_material(depth_texture: ImageTexture,
 		flow_dir: Vector2, flow_speed: float,
-		edge_softness: float = 0.0) -> ShaderMaterial:
+		edge_softness: float = 0.0,
+		ribbon_flow: Vector2 = Vector2.ZERO) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = WATER_SHADER
 	mat.set_shader_parameter("depth_map", depth_texture)
@@ -1820,6 +1833,10 @@ func _make_body_material(depth_texture: ImageTexture,
 		# Rivière claire et agitée : distorsion du lit un peu plus marquée
 		# (0.40) — le courant plisse nettement le fond du chenal.
 		refr_str = 0.40
+		# DÉRIVE CALME : le `flow_speed` des données est une vitesse de courant
+		# « donnée » ; la dérive VISIBLE du motif est tempérée par
+		# `RIVER_FLOW_VISUAL_SCALE` (sinon la texture défile à toute vitesse).
+		flow_speed *= RIVER_FLOW_VISUAL_SCALE
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)
 	mat.set_shader_parameter("foam_color", FOAM_COLOR)
@@ -1841,6 +1858,13 @@ func _make_body_material(depth_texture: ImageTexture,
 	mat.set_shader_parameter("flow_dir", flow_dir)
 	mat.set_shader_parameter("flow_speed", flow_speed)
 	mat.set_shader_parameter("flow_strength", flow_strength)
+	# Rivières : le motif dérive DANS LE REPÈRE DU RUBAN (u en travers, v le
+	# long du tracé, ramenés à l'échelle monde normalisée) → le courant suit
+	# les méandres au lieu de défiler dans une direction monde fixe.
+	if ribbon_flow != Vector2.ZERO:
+		mat.set_shader_parameter("flow_ribbon", 1.0)
+		mat.set_shader_parameter("flow_ribbon_u_scale", ribbon_flow.x)
+		mat.set_shader_parameter("flow_ribbon_v_scale", ribbon_flow.y)
 	mat.set_shader_parameter("edge_softness", edge_softness)
 	# Liseré de mousse de contact (rayon de sonde en texels) et reflet de ciel.
 	mat.set_shader_parameter("shore_texels", shore_texels)

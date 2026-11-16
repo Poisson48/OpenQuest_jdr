@@ -85,6 +85,13 @@ uniform float flow_speed = 0.12;          // vitesse de dérive du motif (UV/s)
 // 0 = animation isotrope historique (repère UV d'origine, sans dérive) ;
 // 1 = pleine dérive des vagues le long de `flow_dir`.
 uniform float flow_strength : hint_range(0.0, 1.0) = 1.0;
+// RIVIÈRES : l'espace de dérive est le RUBAN (UV : u en travers, v le long du
+// tracé), remis à l'échelle des coordonnées monde normalisées de la carte
+// (mêmes fréquences de motif qu'un lac). `flow_ribbon = 0` = espace UV2
+// historique (lacs, plans d'eau) : aucun changement.
+uniform float flow_ribbon : hint_range(0.0, 1.0) = 0.0;
+uniform float flow_ribbon_u_scale = 1.0;
+uniform float flow_ribbon_v_scale = 1.0;
 // Adoucissement des bords de ruban (rivières) : l'alpha s'atténue sur les
 // bords latéraux du maillage pour fondre la nappe dans les berges
 // (0 = désactivé — lacs et plan d'eau historique inchangés).
@@ -197,6 +204,13 @@ void vertex() {
 
 void fragment() {
 	vec2 uv = UV2;
+	// Espace de dérive du motif : UV2 (monde normalisé) pour les lacs, ou le
+	// RUBAN le long du tracé pour les rivières (v = aval). La profondeur, la
+	// berge et les reflets restent TOUJOURS échantillonnés en UV2.
+	vec2 flow_uv = uv;
+	if (flow_ribbon > 0.5) {
+		flow_uv = vec2(UV.x * flow_ribbon_u_scale, UV.y * flow_ribbon_v_scale);
+	}
 	vec4 depth_sample = texture(depth_map, uv);
 	float depth01 = depth_sample.r;
 
@@ -225,8 +239,8 @@ void fragment() {
 	}
 	vec2 across_dir = vec2(-flow.y, flow.x);
 	vec2 flow_frame = vec2(
-		dot(uv, flow) - TIME * flow_speed,
-		dot(uv, across_dir)
+		dot(flow_uv, flow) - TIME * flow_speed,
+		dot(flow_uv, across_dir)
 	);
 	// `flow_strength` : 0 = repère historique (uv, sans dérive), 1 = repère du
 	// courant entièrement dérivé ; les valeurs intermédiaires mélangent les
