@@ -54,7 +54,8 @@ timers/tooltip_delay_sec=0.45
 [importer_defaults]
 
 scene={
-"gltf/embedded_image_handling": 3
+"gltf/embedded_image_handling": 3,
+"meshes/generate_lods": true
 }
 texture={
 "mipmaps/generate": true

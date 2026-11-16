@@ -115,11 +115,11 @@ def match_figurine_parts(field, views, x, y, z, front, side):
                     field[xa:xb, ya:yb, k] = -2.0
 
 
-def reconstruct(views, dimensions, figurine=False):
+def reconstruct(views, dimensions, figurine=False, size=SIZE):
     # Les axes sont X largeur, Y profondeur, Z hauteur (repère Blender).
     # Les éléments minces conservent assez de tranches pour le relief.
     longest = max(dimensions)
-    steps = [max(13, round(SIZE * (d / longest) ** 0.55)) for d in dimensions]
+    steps = [max(13, round(size * (d / longest) ** 0.55)) for d in dimensions]
     axis = [np.linspace(-0.06, 1.06, n + 1) for n in steps]
     x, y, z = np.ix_(*axis)
     front = sample_distance(views[0][1], x, z).squeeze(1)
@@ -169,15 +169,20 @@ def reconstruct(views, dimensions, figurine=False):
     return vertices, triangles, coverage
 
 
-def make_atlas(views, path):
+def make_atlas(views, path, tile_size=ATLAS_TILE):
+    """Atlas des 3 vues (résolution `tile_size` par vue).
+
+    C'est la SOURCE du bake de projection : plus la tuile est grande, plus la
+    texture des volumes est fine (références natives ~724 px par vue).
+    """
     tiles = []
     for rgb, mask in views:
         indices = ndimage.distance_transform_edt(~mask, return_distances=False, return_indices=True)
-        tile = Image.fromarray(rgb[tuple(indices)])
-        tiles.append(tile.resize((ATLAS_TILE, ATLAS_TILE), Image.Resampling.LANCZOS))
-    atlas = Image.new("RGB", (ATLAS_TILE * 3, ATLAS_TILE))
-    for i, tile in enumerate(tiles):
-        atlas.paste(tile, (i * ATLAS_TILE, 0))
+        view = Image.fromarray(rgb[tuple(indices)])
+        tiles.append(view.resize((tile_size, tile_size), Image.Resampling.LANCZOS))
+    atlas = Image.new("RGB", (tile_size * 3, tile_size))
+    for i, view in enumerate(tiles):
+        atlas.paste(view, (i * tile_size, 0))
     atlas.save(path)
 
 
@@ -187,6 +192,10 @@ def main():
     parser.add_argument("--references", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--only", nargs="+")
+    parser.add_argument("--hull-size", type=int, default=SIZE,
+                        help="résolution de la grille de reconstruction (64 = historique)")
+    parser.add_argument("--atlas-tile", type=int, default=ATLAS_TILE,
+                        help="résolution de chaque vue dans l'atlas source (256 = historique)")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     assets = json.loads(args.manifest.read_text(encoding="utf-8"))["assets"]
@@ -200,8 +209,9 @@ def main():
             path = args.references / f"{name}.png"
             views = extract_views(path)
             dimensions = asset.get("reference_bounds", asset["dimensions_cells"])
-            vertices, triangles, coverage = reconstruct(views, dimensions, name.startswith("pnj_"))
-            make_atlas(views, args.out / f"{name}_atlas.png")
+            vertices, triangles, coverage = reconstruct(
+                views, dimensions, name.startswith("pnj_"), size=args.hull_size)
+            make_atlas(views, args.out / f"{name}_atlas.png", tile_size=args.atlas_tile)
             np.savez_compressed(args.out / f"{name}.npz", vertices=vertices, triangles=triangles)
             print(f"[OK] {name} silhouette {' '.join(f'{v:.0%}' for v in coverage)}", flush=True)
         except (ValueError, OSError) as error:

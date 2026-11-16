@@ -1,6 +1,6 @@
 {
   "generated_by": "tools/blender/build_reference_volumes.py + tools/blender/build_prototypes.py",
-  "blender_version": "5.0.0",
+  "blender_version": "4.5.10 LTS",
   "unit": "1 unite = 1 case de carte",
   "forward_axis_gltf": "+Z",
   "assets": [
@@ -24,9 +24,9 @@
       ],
       "height_above_floor": 2.586,
       "anchor": "wall",
-      "triangles": 1596,
-      "triangles_base": 798,
-      "vertices": 798,
+      "triangles": 4788,
+      "triangles_base": 2394,
+      "vertices": 2394,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 2.0020000000000002,
@@ -53,15 +53,15 @@
         "balcon"
       ],
       "dimensions_cells": [
-        1.077,
-        0.565,
-        0.9
+        1.079,
+        0.57,
+        0.904
       ],
-      "height_above_floor": 1.597,
+      "height_above_floor": 1.6,
       "anchor": "wall",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 636,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2036,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 0.709,
@@ -89,14 +89,14 @@
       ],
       "dimensions_cells": [
         2.577,
-        2.619,
-        3.388
+        2.62,
+        3.402
       ],
-      "height_above_floor": 3.374,
+      "height_above_floor": 3.388,
       "anchor": "base",
-      "triangles": 3704,
-      "triangles_base": 1852,
-      "vertices": 1862,
+      "triangles": 11112,
+      "triangles_base": 5556,
+      "vertices": 5500,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/chapelle.png",
@@ -124,14 +124,14 @@
       ],
       "dimensions_cells": [
         0.82,
-        0.639,
-        2.54
+        0.64,
+        2.541
       ],
-      "height_above_floor": 2.528,
+      "height_above_floor": 2.529,
       "anchor": "roof",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 676,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2072,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/cheminee_fumante.png",
@@ -158,15 +158,15 @@
         "colombage"
       ],
       "dimensions_cells": [
-        2.053,
+        2.055,
         0.208,
-        1.806
+        1.809
       ],
-      "height_above_floor": 1.794,
+      "height_above_floor": 1.795,
       "anchor": "wall",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 0.0,
@@ -193,15 +193,15 @@
         "village"
       ],
       "dimensions_cells": [
-        2.876,
-        2.505,
-        2.353
+        2.875,
+        2.504,
+        2.354
       ],
-      "height_above_floor": 2.339,
+      "height_above_floor": 2.34,
       "anchor": "base",
-      "triangles": 3312,
-      "triangles_base": 1656,
-      "vertices": 1620,
+      "triangles": 9936,
+      "triangles_base": 4968,
+      "vertices": 4924,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/ecurie.png",
@@ -228,15 +228,15 @@
         "escalier"
       ],
       "dimensions_cells": [
-        1.049,
-        2.053,
-        1.962
+        1.058,
+        2.056,
+        1.963
       ],
-      "height_above_floor": 1.951,
+      "height_above_floor": 1.952,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 552,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 1904,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/escalier_exterieur.png",
@@ -263,15 +263,15 @@
         "fenetre"
       ],
       "dimensions_cells": [
-        1.577,
-        0.247,
-        1.043
+        1.579,
+        0.248,
+        1.045
       ],
-      "height_above_floor": 1.684,
+      "height_above_floor": 1.686,
       "anchor": "wall",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 0.655,
@@ -298,15 +298,15 @@
         "village"
       ],
       "dimensions_cells": [
-        2.449,
+        2.448,
         2.169,
         2.572
       ],
       "height_above_floor": 2.558,
       "anchor": "base",
-      "triangles": 4298,
-      "triangles_base": 2149,
-      "vertices": 2134,
+      "triangles": 11996,
+      "triangles_base": 5998,
+      "vertices": 6000,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/forge.png",
@@ -333,15 +333,15 @@
         "village"
       ],
       "dimensions_cells": [
-        2.933,
-        3.181,
+        2.932,
+        3.182,
         2.479
       ],
       "height_above_floor": 2.465,
       "anchor": "base",
-      "triangles": 3732,
-      "triangles_base": 1866,
-      "vertices": 1866,
+      "triangles": 11196,
+      "triangles_base": 5598,
+      "vertices": 5598,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/grange.png",
@@ -368,15 +368,15 @@
         "passage"
       ],
       "dimensions_cells": [
-        2.208,
-        0.437,
-        2.436
+        2.215,
+        0.44,
+        2.439
       ],
       "height_above_floor": 2.426,
       "anchor": "base",
-      "triangles": 1728,
-      "triangles_base": 864,
-      "vertices": 760,
+      "triangles": 5184,
+      "triangles_base": 2592,
+      "vertices": 2488,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/herse.png",
@@ -403,15 +403,15 @@
         "toit"
       ],
       "dimensions_cells": [
-        1.946,
+        1.947,
         1.807,
         1.877
       ],
       "height_above_floor": 1.863,
       "anchor": "base",
-      "triangles": 4300,
-      "triangles_base": 2150,
-      "vertices": 2138,
+      "triangles": 12000,
+      "triangles_base": 6000,
+      "vertices": 5968,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/maison.png",
@@ -438,15 +438,15 @@
         "etage"
       ],
       "dimensions_cells": [
-        2.239,
+        2.241,
         2.046,
-        3.165
+        3.167
       ],
-      "height_above_floor": 3.151,
+      "height_above_floor": 3.153,
       "anchor": "base",
-      "triangles": 3192,
-      "triangles_base": 1596,
-      "vertices": 1568,
+      "triangles": 9576,
+      "triangles_base": 4788,
+      "vertices": 4760,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/maison_etage.png",
@@ -473,15 +473,15 @@
         "toit"
       ],
       "dimensions_cells": [
-        2.254,
+        2.255,
         2.096,
-        2.172
+        2.174
       ],
-      "height_above_floor": 2.158,
+      "height_above_floor": 2.16,
       "anchor": "base",
-      "triangles": 3456,
-      "triangles_base": 1728,
-      "vertices": 1732,
+      "triangles": 10368,
+      "triangles_base": 5184,
+      "vertices": 5184,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/maison_grande.png",
@@ -509,14 +509,14 @@
       ],
       "dimensions_cells": [
         1.6,
-        1.484,
+        1.486,
         1.543
       ],
       "height_above_floor": 1.529,
       "anchor": "base",
-      "triangles": 2784,
-      "triangles_base": 1392,
-      "vertices": 1396,
+      "triangles": 8352,
+      "triangles_base": 4176,
+      "vertices": 4180,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/maison_petite.png",
@@ -543,15 +543,15 @@
         "village"
       ],
       "dimensions_cells": [
-        3.937,
-        3.132,
-        3.658
+        3.936,
+        3.133,
+        3.656
       ],
-      "height_above_floor": 3.644,
+      "height_above_floor": 3.642,
       "anchor": "base",
-      "triangles": 4296,
-      "triangles_base": 2148,
-      "vertices": 2166,
+      "triangles": 12000,
+      "triangles_base": 6000,
+      "vertices": 6004,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/manoir.png",
@@ -579,14 +579,14 @@
       ],
       "dimensions_cells": [
         3.149,
-        2.734,
-        2.953
+        2.735,
+        2.957
       ],
-      "height_above_floor": 2.939,
+      "height_above_floor": 2.943,
       "anchor": "base",
-      "triangles": 2712,
-      "triangles_base": 1356,
-      "vertices": 1232,
+      "triangles": 8136,
+      "triangles_base": 4068,
+      "vertices": 3844,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/marche_couvert.png",
@@ -619,9 +619,9 @@
       ],
       "height_above_floor": 1.284,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/mur.png",
@@ -648,15 +648,15 @@
         "angle"
       ],
       "dimensions_cells": [
-        2.1,
-        1.687,
+        2.101,
+        1.689,
         1.294
       ],
       "height_above_floor": 1.28,
       "anchor": "base",
-      "triangles": 2004,
-      "triangles_base": 1002,
-      "vertices": 1002,
+      "triangles": 6012,
+      "triangles_base": 3006,
+      "vertices": 3006,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/mur_coin.png",
@@ -684,14 +684,14 @@
       ],
       "dimensions_cells": [
         1.369,
-        0.734,
-        2.362
+        0.736,
+        2.363
       ],
-      "height_above_floor": 2.348,
+      "height_above_floor": 2.35,
       "anchor": "wall",
-      "triangles": 1396,
-      "triangles_base": 698,
-      "vertices": 702,
+      "triangles": 4188,
+      "triangles_base": 2094,
+      "vertices": 2094,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 0.0,
@@ -718,15 +718,15 @@
         "batiment"
       ],
       "dimensions_cells": [
-        2.154,
-        2.119,
-        0.949
+        2.155,
+        2.12,
+        0.95
       ],
       "height_above_floor": 0.936,
       "anchor": "roof",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_2pentes.png",
@@ -753,15 +753,15 @@
         "batiment"
       ],
       "dimensions_cells": [
-        2.115,
-        1.114,
-        0.66
+        2.116,
+        1.115,
+        0.661
       ],
       "height_above_floor": 0.647,
       "anchor": "roof",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 700,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2100,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_appentis.png",
@@ -788,15 +788,15 @@
         "chaume"
       ],
       "dimensions_cells": [
-        2.135,
+        2.136,
         2.147,
-        1.073
+        1.074
       ],
       "height_above_floor": 1.06,
       "anchor": "roof",
-      "triangles": 1596,
-      "triangles_base": 798,
-      "vertices": 802,
+      "triangles": 4788,
+      "triangles_base": 2394,
+      "vertices": 2398,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_chaume.png",
@@ -823,15 +823,15 @@
         "clocher"
       ],
       "dimensions_cells": [
-        0.644,
-        0.644,
-        1.821
+        0.646,
+        0.645,
+        1.819
       ],
-      "height_above_floor": 1.808,
+      "height_above_floor": 1.806,
       "anchor": "roof",
-      "triangles": 1396,
-      "triangles_base": 698,
-      "vertices": 666,
+      "triangles": 4188,
+      "triangles_base": 2094,
+      "vertices": 2074,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_clocheton.png",
@@ -858,15 +858,15 @@
         "batiment"
       ],
       "dimensions_cells": [
-        2.209,
-        2.108,
-        0.944
+        2.21,
+        2.109,
+        0.945
       ],
       "height_above_floor": 0.931,
       "anchor": "roof",
-      "triangles": 1396,
-      "triangles_base": 698,
-      "vertices": 702,
+      "triangles": 4188,
+      "triangles_base": 2094,
+      "vertices": 2098,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_croupe.png",
@@ -894,14 +894,14 @@
       ],
       "dimensions_cells": [
         1.527,
-        1.126,
-        0.871
+        1.125,
+        0.872
       ],
       "height_above_floor": 0.858,
       "anchor": "base",
-      "triangles": 2096,
-      "triangles_base": 1048,
-      "vertices": 1022,
+      "triangles": 6258,
+      "triangles_base": 3129,
+      "vertices": 3072,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/toit_lucarne.png",
@@ -928,15 +928,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.471,
-        1.329,
-        2.366
+        1.472,
+        1.33,
+        2.367
       ],
-      "height_above_floor": 2.352,
+      "height_above_floor": 2.353,
       "anchor": "base",
-      "triangles": 2446,
-      "triangles_base": 1223,
-      "vertices": 1224,
+      "triangles": 7336,
+      "triangles_base": 3668,
+      "vertices": 3640,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tour.png",
@@ -963,15 +963,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.704,
+        1.705,
         1.538,
-        2.742
+        2.743
       ],
-      "height_above_floor": 2.728,
+      "height_above_floor": 2.729,
       "anchor": "base",
-      "triangles": 2572,
-      "triangles_base": 1286,
-      "vertices": 1282,
+      "triangles": 7716,
+      "triangles_base": 3858,
+      "vertices": 3818,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tour_grande.png",
@@ -998,15 +998,15 @@
         "bois"
       ],
       "dimensions_cells": [
-        1.903,
-        1.916,
-        3.543
+        1.91,
+        1.924,
+        3.544
       ],
       "height_above_floor": 3.53,
       "anchor": "base",
-      "triangles": 4292,
-      "triangles_base": 2146,
-      "vertices": 1942,
+      "triangles": 11996,
+      "triangles_base": 5998,
+      "vertices": 5558,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tour_guet_bois.png",
@@ -1033,15 +1033,15 @@
         "repos"
       ],
       "dimensions_cells": [
-        1.319,
+        1.32,
         0.676,
-        0.977
+        0.978
       ],
       "height_above_floor": 0.964,
       "anchor": "base",
-      "triangles": 2100,
-      "triangles_base": 1050,
-      "vertices": 1038,
+      "triangles": 6300,
+      "triangles_base": 3150,
+      "vertices": 3138,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/banc.png",
@@ -1068,15 +1068,15 @@
         "place"
       ],
       "dimensions_cells": [
-        1.345,
-        0.885,
-        2.967
+        1.344,
+        0.887,
+        2.968
       ],
       "height_above_floor": 2.955,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2100,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/banniere.png",
@@ -1104,14 +1104,14 @@
       ],
       "dimensions_cells": [
         1.882,
-        0.981,
+        0.98,
         0.501
       ],
       "height_above_floor": 0.487,
       "anchor": "base",
-      "triangles": 1428,
-      "triangles_base": 714,
-      "vertices": 718,
+      "triangles": 4282,
+      "triangles_base": 2141,
+      "vertices": 2150,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/barque.png",
@@ -1138,15 +1138,15 @@
         "campagne"
       ],
       "dimensions_cells": [
-        2.103,
+        2.1,
         0.437,
-        0.936
+        0.937
       ],
       "height_above_floor": 0.924,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 680,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2076,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/barriere.png",
@@ -1173,20 +1173,26 @@
         "bois"
       ],
       "dimensions_cells": [
+        2.119,
+        0.973,
+        0.614
+      ],
+      "height_above_floor": 0.6,
+      "anchor": "base",
+      "triangles": 4392,
+      "triangles_base": 2196,
+      "vertices": 2200,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/bois_flotte.png",
+      "reference_sha256": "1a18ce9762079a9cf824bf50c93f04392486e2020335239b1649d3932471b80d",
+      "geometry_source": "intersection des silhouettes avant/droite/dessus",
+      "reference_bounds": [
         2.121,
         0.973,
         0.614
       ],
-      "height_above_floor": 0.614,
-      "anchor": "base",
-      "triangles": 1464,
-      "triangles_base": 732,
-      "vertices": 744,
-      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
-      "outline": true,
-      "reference_image": "tools/blender/references/bois_flotte.png",
-      "reference_sha256": "1a18ce9762079a9cf824bf50c93f04392486e2020335239b1649d3932471b80d",
-      "geometry_source": "modelage d'après la référence"
+      "reference_floor": 0.0
     },
     {
       "name": "botte_foin",
@@ -1202,15 +1208,15 @@
         "decor"
       ],
       "dimensions_cells": [
-        1.099,
-        0.845,
+        1.092,
+        0.841,
         0.664
       ],
-      "height_above_floor": 0.651,
+      "height_above_floor": 0.652,
       "anchor": "base",
-      "triangles": 2098,
-      "triangles_base": 1049,
-      "vertices": 1058,
+      "triangles": 6286,
+      "triangles_base": 3143,
+      "vertices": 3162,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/botte_foin.png",
@@ -1243,9 +1249,9 @@
       ],
       "height_above_floor": 0.748,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/caisse.png",
@@ -1272,15 +1278,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.336,
-        1.319,
+        1.337,
+        1.32,
         0.954
       ],
       "height_above_floor": 0.94,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/caisse_grande.png",
@@ -1342,15 +1348,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.608,
-        1.742,
-        0.939
+        1.604,
+        1.743,
+        0.94
       ],
       "height_above_floor": 0.926,
       "anchor": "base",
-      "triangles": 1808,
-      "triangles_base": 904,
-      "vertices": 832,
+      "triangles": 5424,
+      "triangles_base": 2712,
+      "vertices": 2640,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/charrette.png",
@@ -1377,15 +1383,15 @@
         "campagne"
       ],
       "dimensions_cells": [
-        2.207,
+        2.21,
         0.414,
-        0.677
+        0.678
       ],
       "height_above_floor": 0.664,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 700,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2100,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/cloture_basse.png",
@@ -1412,15 +1418,15 @@
         "interieur"
       ],
       "dimensions_cells": [
-        2.339,
+        2.34,
         1.279,
         1.873
       ],
       "height_above_floor": 1.859,
       "anchor": "base",
-      "triangles": 3804,
-      "triangles_base": 1902,
-      "vertices": 1906,
+      "triangles": 11412,
+      "triangles_base": 5706,
+      "vertices": 5694,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/comptoir.png",
@@ -1447,15 +1453,15 @@
         "exterieur"
       ],
       "dimensions_cells": [
-        1.039,
-        0.994,
-        1.082
+        1.04,
+        0.996,
+        1.083
       ],
-      "height_above_floor": 2.523,
+      "height_above_floor": 2.524,
       "anchor": "wall",
-      "triangles": 1620,
-      "triangles_base": 810,
-      "vertices": 794,
+      "triangles": 4860,
+      "triangles_base": 2430,
+      "vertices": 2378,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 1.4549999999999998,
@@ -1482,15 +1488,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.959,
-        1.526,
-        2.002
+        1.961,
+        1.525,
+        2.004
       ],
-      "height_above_floor": 1.988,
+      "height_above_floor": 1.99,
       "anchor": "base",
-      "triangles": 2688,
-      "triangles_base": 1344,
-      "vertices": 1268,
+      "triangles": 8064,
+      "triangles_base": 4032,
+      "vertices": 3936,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/etal_marche.png",
@@ -1517,15 +1523,15 @@
         "village"
       ],
       "dimensions_cells": [
-        2.103,
-        2.284,
+        2.104,
+        2.285,
         1.414
       ],
       "height_above_floor": 1.4,
       "anchor": "base",
-      "triangles": 2386,
-      "triangles_base": 1193,
-      "vertices": 1212,
+      "triangles": 7156,
+      "triangles_base": 3578,
+      "vertices": 3550,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/fontaine.png",
@@ -1587,15 +1593,15 @@
         "interieur"
       ],
       "dimensions_cells": [
-        1.479,
-        2.039,
+        1.48,
+        2.04,
         0.784
       ],
       "height_above_floor": 0.77,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/lit.png",
@@ -1622,15 +1628,15 @@
         "camp"
       ],
       "dimensions_cells": [
-        2.193,
-        0.509,
-        1.244
+        2.195,
+        0.51,
+        1.243
       ],
-      "height_above_floor": 1.23,
+      "height_above_floor": 1.229,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/palissade.png",
@@ -1657,15 +1663,15 @@
         "village"
       ],
       "dimensions_cells": [
-        0.864,
-        0.781,
-        2.013
+        0.865,
+        0.782,
+        2.014
       ],
       "height_above_floor": 2.0,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/panneau.png",
@@ -1692,15 +1698,15 @@
         "interieur"
       ],
       "dimensions_cells": [
-        1.319,
-        1.063,
+        1.32,
+        1.062,
         0.406
       ],
       "height_above_floor": 0.392,
       "anchor": "base",
-      "triangles": 1476,
-      "triangles_base": 738,
-      "vertices": 742,
+      "triangles": 4428,
+      "triangles_base": 2214,
+      "vertices": 2218,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pile_os.png",
@@ -1727,15 +1733,15 @@
         "class:archere"
       ],
       "dimensions_cells": [
+        0.701,
         0.7,
-        0.7,
-        1.242
+        1.243
       ],
-      "height_above_floor": 1.228,
+      "height_above_floor": 1.229,
       "anchor": "base",
-      "triangles": 3614,
-      "triangles_base": 1807,
-      "vertices": 1820,
+      "triangles": 10840,
+      "triangles_base": 5420,
+      "vertices": 5408,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_archere.png",
@@ -1763,14 +1769,14 @@
       ],
       "dimensions_cells": [
         0.859,
-        0.7,
+        0.699,
         1.138
       ],
       "height_above_floor": 1.124,
       "anchor": "base",
-      "triangles": 2284,
-      "triangles_base": 1142,
-      "vertices": 1146,
+      "triangles": 6848,
+      "triangles_base": 3424,
+      "vertices": 3428,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_aventurier.png",
@@ -1798,14 +1804,14 @@
       ],
       "dimensions_cells": [
         0.851,
-        0.698,
+        0.701,
         2.013
       ],
       "height_above_floor": 1.999,
       "anchor": "base",
-      "triangles": 3148,
-      "triangles_base": 1574,
-      "vertices": 1594,
+      "triangles": 9442,
+      "triangles_base": 4721,
+      "vertices": 4750,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_garde.png",
@@ -1832,15 +1838,15 @@
         "creature:gobelin"
       ],
       "dimensions_cells": [
-        0.62,
+        0.617,
         0.62,
         0.855
       ],
       "height_above_floor": 0.841,
       "anchor": "base",
-      "triangles": 3146,
-      "triangles_base": 1573,
-      "vertices": 1570,
+      "triangles": 9434,
+      "triangles_base": 4717,
+      "vertices": 4718,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_gobelin.png",
@@ -1867,15 +1873,15 @@
         "class:mage"
       ],
       "dimensions_cells": [
-        0.829,
-        0.703,
+        0.83,
+        0.702,
         1.803
       ],
       "height_above_floor": 1.789,
       "anchor": "base",
-      "triangles": 2884,
-      "triangles_base": 1442,
-      "vertices": 1426,
+      "triangles": 8652,
+      "triangles_base": 4326,
+      "vertices": 4318,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_mage.png",
@@ -1903,14 +1909,14 @@
       ],
       "dimensions_cells": [
         0.835,
-        0.7,
-        1.602
+        0.699,
+        1.603
       ],
-      "height_above_floor": 1.588,
+      "height_above_floor": 1.589,
       "anchor": "base",
-      "triangles": 2520,
-      "triangles_base": 1260,
-      "vertices": 1260,
+      "triangles": 7558,
+      "triangles_base": 3779,
+      "vertices": 3800,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_marchand.png",
@@ -1938,14 +1944,14 @@
       ],
       "dimensions_cells": [
         0.701,
-        0.7,
+        0.701,
         1.393
       ],
       "height_above_floor": 1.379,
       "anchor": "base",
-      "triangles": 2772,
-      "triangles_base": 1386,
-      "vertices": 1390,
+      "triangles": 8316,
+      "triangles_base": 4158,
+      "vertices": 4158,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_pretresse.png",
@@ -2008,14 +2014,14 @@
       ],
       "dimensions_cells": [
         0.807,
-        0.7,
+        0.701,
         1.048
       ],
       "height_above_floor": 1.034,
       "anchor": "base",
-      "triangles": 2284,
-      "triangles_base": 1142,
-      "vertices": 1118,
+      "triangles": 6852,
+      "triangles_base": 3426,
+      "vertices": 3406,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_villageois.png",
@@ -2042,15 +2048,15 @@
         "class:voleuse"
       ],
       "dimensions_cells": [
-        0.697,
-        0.7,
+        0.699,
+        0.699,
         0.995
       ],
       "height_above_floor": 0.981,
       "anchor": "base",
-      "triangles": 3146,
-      "triangles_base": 1573,
-      "vertices": 1582,
+      "triangles": 9436,
+      "triangles_base": 4718,
+      "vertices": 4714,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/pnj_voleuse.png",
@@ -2077,20 +2083,26 @@
         "elevation"
       ],
       "dimensions_cells": [
+        2.558,
+        1.236,
+        0.84
+      ],
+      "height_above_floor": 0.827,
+      "anchor": "base",
+      "triangles": 6984,
+      "triangles_base": 3492,
+      "vertices": 3496,
+      "vertex_colors": "AO léger + atlas UV de référence",
+      "outline": true,
+      "reference_image": "tools/blender/references/pont.png",
+      "reference_sha256": "230dffb29c31d5913fb455f7a7003faafd710616501ea6d66128ba5ed0f537fe",
+      "geometry_source": "intersection des silhouettes avant/droite/dessus",
+      "reference_bounds": [
         2.559,
         1.236,
         0.841
       ],
-      "height_above_floor": 0.841,
-      "anchor": "base",
-      "triangles": 2328,
-      "triangles_base": 1164,
-      "vertices": 1368,
-      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
-      "outline": true,
-      "reference_image": "tools/blender/references/pont.png",
-      "reference_sha256": "230dffb29c31d5913fb455f7a7003faafd710616501ea6d66128ba5ed0f537fe",
-      "geometry_source": "modelage d'après la référence"
+      "reference_floor": 0.0
     },
     {
       "name": "ponton",
@@ -2106,15 +2118,15 @@
         "quai"
       ],
       "dimensions_cells": [
-        2.255,
+        2.251,
         0.916,
         1.28
       ],
-      "height_above_floor": 1.267,
+      "height_above_floor": 1.266,
       "anchor": "base",
-      "triangles": 2208,
-      "triangles_base": 1104,
-      "vertices": 1094,
+      "triangles": 6624,
+      "triangles_base": 3312,
+      "vertices": 3260,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/ponton.png",
@@ -2141,15 +2153,15 @@
         "point d'interet"
       ],
       "dimensions_cells": [
-        1.191,
-        1.019,
-        1.443
+        1.193,
+        1.02,
+        1.444
       ],
-      "height_above_floor": 1.429,
+      "height_above_floor": 1.43,
       "anchor": "base",
-      "triangles": 2100,
-      "triangles_base": 1050,
-      "vertices": 1026,
+      "triangles": 6300,
+      "triangles_base": 3150,
+      "vertices": 3102,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/puits.png",
@@ -2176,15 +2188,15 @@
         "village"
       ],
       "dimensions_cells": [
-        1.691,
-        1.705,
-        2.289
+        1.692,
+        1.703,
+        2.288
       ],
-      "height_above_floor": 2.275,
+      "height_above_floor": 2.274,
       "anchor": "base",
-      "triangles": 2100,
-      "triangles_base": 1050,
-      "vertices": 1014,
+      "triangles": 6300,
+      "triangles_base": 3150,
+      "vertices": 3086,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/puits_couvert.png",
@@ -2217,9 +2229,9 @@
       ],
       "height_above_floor": 1.004,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/sarcophage.png",
@@ -2246,15 +2258,15 @@
         "interieur"
       ],
       "dimensions_cells": [
-        1.739,
-        1.759,
-        1.284
+        1.738,
+        1.757,
+        1.288
       ],
-      "height_above_floor": 1.27,
+      "height_above_floor": 1.274,
       "anchor": "base",
-      "triangles": 2100,
-      "triangles_base": 1050,
-      "vertices": 1038,
+      "triangles": 6298,
+      "triangles_base": 3149,
+      "vertices": 3126,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/table_tabourets.png",
@@ -2287,9 +2299,9 @@
       ],
       "height_above_floor": 0.08,
       "anchor": "base",
-      "triangles": 3040,
-      "triangles_base": 1520,
-      "vertices": 1524,
+      "triangles": 9120,
+      "triangles_base": 4560,
+      "vertices": 4564,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tapis.png",
@@ -2322,9 +2334,9 @@
       ],
       "height_above_floor": 1.027,
       "anchor": "base",
-      "triangles": 2040,
-      "triangles_base": 1020,
-      "vertices": 1024,
+      "triangles": 6120,
+      "triangles_base": 3060,
+      "vertices": 3064,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tas_de_bois.png",
@@ -2357,9 +2369,9 @@
       ],
       "height_above_floor": 0.829,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tonneau.png",
@@ -2386,15 +2398,15 @@
         "interieur"
       ],
       "dimensions_cells": [
-        1.178,
-        0.978,
+        1.18,
+        0.979,
         0.747
       ],
       "height_above_floor": 0.733,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 700,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/tonneau_couche.png",
@@ -2422,14 +2434,14 @@
       ],
       "dimensions_cells": [
         0.226,
-        0.514,
-        0.886
+        0.515,
+        0.887
       ],
       "height_above_floor": 2.367,
       "anchor": "wall",
-      "triangles": 2100,
-      "triangles_base": 1050,
-      "vertices": 1050,
+      "triangles": 6300,
+      "triangles_base": 3150,
+      "vertices": 3150,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_floor": 1.4940000000000002,
@@ -2588,15 +2600,15 @@
         "bord"
       ],
       "dimensions_cells": [
-        2.319,
-        2.309,
+        2.32,
+        2.31,
         2.004
       ],
       "height_above_floor": 1.99,
       "anchor": "base",
-      "triangles": 2328,
-      "triangles_base": 1164,
-      "vertices": 1168,
+      "triangles": 6984,
+      "triangles_base": 3492,
+      "vertices": 3496,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/falaise.png",
@@ -2624,19 +2636,25 @@
       ],
       "dimensions_cells": [
         1.791,
-        1.357,
-        0.919
+        1.356,
+        0.918
       ],
-      "height_above_floor": 0.919,
+      "height_above_floor": 0.904,
       "anchor": "base",
-      "triangles": 480,
-      "triangles_base": 240,
-      "vertices": 252,
-      "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
+      "triangles": 1440,
+      "triangles_base": 720,
+      "vertices": 724,
+      "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/galets_de_rive.png",
       "reference_sha256": "1c2e58be2cc18b2f9921156eaa1d817d385361af1f5f3b3fc09f580395c110c8",
-      "geometry_source": "modelage d'après la référence"
+      "geometry_source": "intersection des silhouettes avant/droite/dessus",
+      "reference_bounds": [
+        1.791,
+        1.357,
+        0.919
+      ],
+      "reference_floor": 0.0
     },
     {
       "name": "gros_rocher",
@@ -2652,15 +2670,15 @@
         "obstacle"
       ],
       "dimensions_cells": [
-        2.12,
+        2.121,
         1.884,
         1.364
       ],
       "height_above_floor": 1.35,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/gros_rocher.png",
@@ -2686,15 +2704,15 @@
         "pierre"
       ],
       "dimensions_cells": [
-        10.746,
-        5.689,
+        10.749,
+        5.691,
         0.325
       ],
       "height_above_floor": 0.311,
       "anchor": "base",
-      "triangles": 4300,
-      "triangles_base": 2150,
-      "vertices": 2154,
+      "triangles": 12000,
+      "triangles_base": 6000,
+      "vertices": 6004,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/path_generated_demo.png",
@@ -2720,15 +2738,15 @@
         "pierre"
       ],
       "dimensions_cells": [
-        10.503,
-        3.096,
+        10.505,
+        3.097,
         0.264
       ],
       "height_above_floor": 0.25,
       "anchor": "base",
-      "triangles": 3240,
-      "triangles_base": 1620,
-      "vertices": 1624,
+      "triangles": 9720,
+      "triangles_base": 4860,
+      "vertices": 4864,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/path_stone_procedural.png",
@@ -2755,15 +2773,15 @@
         "herbe"
       ],
       "dimensions_cells": [
-        10.745,
-        4.511,
+        10.748,
+        4.512,
         0.325
       ],
       "height_above_floor": 0.311,
       "anchor": "base",
-      "triangles": 4300,
-      "triangles_base": 2150,
-      "vertices": 2154,
+      "triangles": 12000,
+      "triangles_base": 6000,
+      "vertices": 6004,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/path_through_grass.png",
@@ -2790,15 +2808,15 @@
         "decor"
       ],
       "dimensions_cells": [
-        1.446,
+        1.448,
         1.18,
         0.866
       ],
       "height_above_floor": 0.852,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2104,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/rocher.png",
@@ -2825,15 +2843,15 @@
         "decor"
       ],
       "dimensions_cells": [
-        1.029,
-        1.049,
+        1.028,
+        1.047,
         2.103
       ],
       "height_above_floor": 2.089,
       "anchor": "base",
-      "triangles": 2098,
-      "triangles_base": 1049,
-      "vertices": 1010,
+      "triangles": 6290,
+      "triangles_base": 3145,
+      "vertices": 3054,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/arbre.png",
@@ -2860,15 +2878,15 @@
         "decor"
       ],
       "dimensions_cells": [
-        1.03,
-        1.049,
-        2.101
+        1.029,
+        1.048,
+        2.103
       ],
       "height_above_floor": 2.089,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 688,
+      "triangles": 4200,
+      "triangles_base": 2100,
+      "vertices": 2096,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/arbre_automne.png",
@@ -2901,9 +2919,9 @@
       ],
       "height_above_floor": 4.415,
       "anchor": "base",
-      "triangles": 3546,
-      "triangles_base": 1773,
-      "vertices": 1644,
+      "triangles": 10632,
+      "triangles_base": 5316,
+      "vertices": 4958,
       "vertex_colors": "AO léger + atlas UV de référence",
       "outline": true,
       "reference_image": "tools/blender/references/arbre_majestueux.png",
