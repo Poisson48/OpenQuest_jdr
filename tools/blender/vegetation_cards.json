@@ -1,0 +1,62 @@
+{
+  "roseaux": {
+    "reference": "tools/blender/references/roseaux.png",
+    "out": "game/assets/objects3d/vegetation/roseaux.glb",
+    "glb": "vegetation/roseaux.glb",
+    "thumb": "game/assets/objects3d/vegetation/roseaux_thumb.png",
+    "width": 1.436,
+    "depth": 1.174,
+    "height": 1.744,
+    "layout": "cross",
+    "planes": 3,
+    "texture_size": 1024
+  },
+  "buisson": {
+    "reference": "tools/blender/references/buisson.png",
+    "out": "game/assets/objects3d/vegetation/buisson.glb",
+    "glb": "vegetation/buisson.glb",
+    "thumb": "game/assets/objects3d/vegetation/buisson_thumb.png",
+    "width": 1.228,
+    "depth": 1.074,
+    "height": 0.783,
+    "layout": "cross",
+    "planes": 3,
+    "texture_size": 1024
+  },
+  "haie": {
+    "reference": "tools/blender/references/haie.png",
+    "out": "game/assets/objects3d/vegetation/haie.glb",
+    "glb": "vegetation/haie.glb",
+    "thumb": "game/assets/objects3d/vegetation/haie_thumb.png",
+    "width": 2.465,
+    "depth": 0.904,
+    "height": 0.951,
+    "layout": "hedge",
+    "planes": 2,
+    "texture_size": 1024
+  },
+  "nenuphars": {
+    "reference": "tools/blender/references/nenuphars.png",
+    "out": "game/assets/objects3d/vegetation/nenuphars.glb",
+    "glb": "vegetation/nenuphars.glb",
+    "thumb": "game/assets/objects3d/vegetation/nenuphars_thumb.png",
+    "width": 1.332,
+    "depth": 1.012,
+    "height": 0.186,
+    "layout": "flat",
+    "planes": 2,
+    "texture_size": 1024
+  },
+  "bosquet": {
+    "reference": "tools/blender/references/bosquet.png",
+    "out": "game/assets/objects3d/vegetation/bosquet.glb",
+    "glb": "vegetation/bosquet.glb",
+    "thumb": "game/assets/objects3d/vegetation/bosquet_thumb.png",
+    "width": 2.407,
+    "depth": 2.370,
+    "height": 2.480,
+    "layout": "cross",
+    "planes": 3,
+    "texture_size": 1024
+  }
+}

@@ -67,6 +67,10 @@ const ProceduralRoofMeshScript := preload("res://scripts/maps/construction/proce
 const ProceduralWallShader := preload("res://shaders/procedural_wall.gdshader")
 const ProceduralRoofShader := preload("res://shaders/procedural_roof.gdshader")
 const PathRibbonShader := preload("res://shaders/path_ribbon.gdshader")
+## Végétation en cartouches alpha (roseaux, buissons, haies, nénuphars…).
+## Deux variantes : éclairée (cinema) et non éclairée (classique).
+const VegetationCardShader := preload("res://shaders/vegetation_card.gdshader")
+const VegetationCardUnshadedShader := preload("res://shaders/vegetation_card_unshaded.gdshader")
 const ProceduralFloorMeshScript := preload("res://scripts/maps/construction/procedural_floor_mesh.gd")
 const ProceduralFenceMeshScript := preload("res://scripts/maps/construction/procedural_fence_mesh.gd")
 const ProceduralPathMeshScript := preload("res://scripts/maps/construction/procedural_path_mesh.gd")
@@ -1331,6 +1335,10 @@ func _apply_unshaded_materials(mesh_instance: MeshInstance3D) -> void:
 	var surface_count := mesh_instance.mesh.get_surface_count()
 	for i in range(surface_count):
 		var source := mesh_instance.get_active_material(i)
+		if _is_vegetation_card(source):
+			mesh_instance.set_surface_override_material(
+				i, _vegetation_card_material(mesh_instance, source as StandardMaterial3D, false))
+			continue
 		if source is StandardMaterial3D:
 			var material: StandardMaterial3D = (source as StandardMaterial3D).duplicate()
 			material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1361,6 +1369,10 @@ func _apply_lit_materials(mesh_instance: MeshInstance3D, depth01: float) -> void
 	var surface_count := mesh_instance.mesh.get_surface_count()
 	for i in range(surface_count):
 		var source := mesh_instance.get_active_material(i)
+		if _is_vegetation_card(source):
+			mesh_instance.set_surface_override_material(
+				i, _vegetation_card_material(mesh_instance, source as StandardMaterial3D, true))
+			continue
 		if source is StandardMaterial3D:
 			mesh_instance.set_surface_override_material(
 				i, _lit_material(source as StandardMaterial3D, haze, haze_amount))
@@ -1385,6 +1397,44 @@ func _lit_material(source: StandardMaterial3D, haze: Color, haze_amount: float) 
 		var faded := base.lerp(haze, clampf(weight, 0.0, 0.5))
 		faded.a = base.a
 		material.albedo_color = faded
+	return material
+
+## Vrai pour un matériau de VÉGÉTATION EN CARTOUCHES ALPHA (généré par
+## `tools/blender/build_vegetation_cards.py`) : le glTF porte `alphaMode MASK`
+## (donc une transparence alpha-scissor) et une texture à découpe. Ces assets ne
+## doivent PAS passer par les matériaux standard (qui forcent le cull back et
+## cassent la double face), mais par le shader de végétation (vent + scissor).
+func _is_vegetation_card(source: Material) -> bool:
+	if not (source is StandardMaterial3D):
+		return false
+	var material := source as StandardMaterial3D
+	if material.albedo_texture == null:
+		return false
+	if str(material.resource_name).to_lower().contains("_cards"):
+		return true
+	# Le glTF `alphaMode MASK` devient une transparence alpha-scissor à
+	# l'import : c'est la signature fiable des cartouches (aucun autre asset
+	# importé n'est transparent).
+	return material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED
+
+## Matériau de cartouches : shader éclairé (cinema) ou non éclairé (classique),
+## avec vent par sommet proportionnel à la hauteur du cartouche.
+func _vegetation_card_material(mesh_instance: MeshInstance3D,
+		source: StandardMaterial3D, lit: bool) -> ShaderMaterial:
+	var height := 1.0
+	if mesh_instance.mesh != null:
+		height = maxf(0.15, mesh_instance.mesh.get_aabb().size.y)
+	var material := ShaderMaterial.new()
+	material.shader = VegetationCardShader if lit else VegetationCardUnshadedShader
+	material.set_shader_parameter("albedo_tex", source.albedo_texture)
+	material.set_shader_parameter("tint", source.albedo_color)
+	material.set_shader_parameter("roughness", maxf(source.roughness, _material_roughness_min))
+	material.set_shader_parameter("alpha_cutoff",
+		maxf(source.alpha_scissor_threshold, 0.5) if source.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED else 0.5)
+	material.set_shader_parameter("card_height", height)
+	# Vent : un peu plus ample sur les grands végétaux (bosquet, roseaux).
+	material.set_shader_parameter("wind_strength", clampf(0.035 + height * 0.014, 0.04, 0.09))
+	material.set_shader_parameter("wind_speed", 1.35)
 	return material
 
 ## Repositionne un mesh sans reconstruire la scène (glisser en cours).

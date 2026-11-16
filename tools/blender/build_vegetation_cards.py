@@ -1,40 +1,47 @@
-"""Construit un asset végétal « cartes alpha » à partir d'une planche de
+"""Construit des assets végétaux « cartes alpha » à partir des planches de
 référence IA (3 vues peintes, fond transparent).
 
-Le pipeline historique (`reference_hull.py`) reconstruit un VOLUME d'intersection
-de silhouettes sur une grille 64³ puis le décime à ~2 000 tris : les feuilles
-fines et les plumes ne peuvent pas survivre, et la texture est cuite par îlots de
-18 px par face. Pour la végétation, la bonne méthode est celle des jeux
-(Cities: Skylines II, Valheim…) : quelques **quads croisés** découpés par
-l'alpha des vues de référence, double face, avec l'alpha testé.
+Pourquoi : le pipeline historique (`reference_hull.py`) reconstruit un VOLUME
+d'intersection de silhouettes sur une grille 64³ puis le décime (~2 000 tris) et
+cuit la texture par îlots de 18 px par face. Les feuilles fines, les plumes et
+les fleurs ne peuvent pas survivre à ce traitement : roseaux, buissons, haies et
+nénuphars deviennent des tas de facettes. La méthode des jeux (Cities: Skylines
+II, Valheim…) est celle des **cartouches découpés par l'alpha** : 2–3 quads
+croisés, double face, alpha testé, texture peinte de la référence.
 
-Ce script ne dépend ni de Blender ni du pipeline : il lit la planche PNG,
-extrait la vue de face et la vue de 3/4, les nettoie (halo de détourage), les
-packs dans un atlas et écrit un GLB autonome (texture PNG embarquée).
+Le script ne dépend ni de Blender ni du reste du pipeline : il lit la planche,
+nettoie le halo de détourage, packe les vues dans un atlas et écrit un GLB
+autonome (texture PNG embarquée). Il met aussi à jour le manifeste de la
+bibliothèque (triangle/vertices/source) et la vignette.
+
+Config par défaut : `tools/blender/vegetation_cards.json`.
 
 Usage :
-    python tools/blender/build_vegetation_cards.py --help
-    python tools/blender/build_vegetation_cards.py \
-        --reference tools/blender/references/roseaux.png \
-        --name roseaux_cards --out game/assets/objects3d/vegetation/roseaux_cards.glb \
-        --width 1.42 --height 1.74 --planes 3 --texture-size 1024
+    python tools/blender/build_vegetation_cards.py --all
+    python tools/blender/build_vegetation_cards.py --only roseaux buisson
+    python tools/blender/build_vegetation_cards.py --reference tools/blender/references/haie.png \
+        --name haie --out /tmp/haie.glb --width 2.46 --depth 0.90 --height 0.95 \
+        --layout hedge --texture-size 1024
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import struct
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
-# Durée de vie du halo de détourage : les planches IA ont des pixels colorés
+# Largeur du halo de détourage : les planches IA ont des pixels colorés
 # (rouge/jaune) sous l'alpha faible, qui bavent sur les bords une fois la
-# texture échantillonnée en mipmaps. On les remplace par la couleur opaque la
-# plus proche, puis on rogne l'alpha d'un demi-texel.
+# texture échantillonnée en mipmaps. On remplit la couleur sous l'alpha, puis on
+# rogne l'alpha d'un demi-texel.
 FRINGE_BLEED_PX = 4
+THUMB_SIZE = 512
+MANIFEST_PATH = Path("game/assets/objects3d/manifest.json")
 
 
 def load_views(reference: Path) -> list[Image.Image]:
@@ -49,10 +56,10 @@ def load_views(reference: Path) -> list[Image.Image]:
         rows = np.where(alpha.max(axis=1) > 16)[0]
         if len(cols) == 0 or len(rows) == 0:
             continue
-        view = view.crop((int(cols[0]), int(rows[0]), int(cols[-1]) + 1, int(rows[-1]) + 1))
-        views.append(view)
-    if len(views) < 2:
-        raise SystemExit(f"{reference}: impossible d'extraire au moins 2 vues")
+        views.append(view.crop(
+            (int(cols[0]), int(rows[0]), int(cols[-1]) + 1, int(rows[-1]) + 1)))
+    if not views:
+        raise SystemExit(f"{reference}: aucune vue exploitable")
     return views
 
 
@@ -80,63 +87,91 @@ def bleed_edge_colors(rgba: np.ndarray, steps: int = FRINGE_BLEED_PX) -> np.ndar
 
 def prepare_view(view: Image.Image, size: int) -> Image.Image:
     """Carré `size`, alpha rogné, couleurs du bord étalées, mipmaps propres."""
-    rgba = np.array(view).astype(np.uint8)
-    # Recadrage carré centré (on garde toute la hauteur du végétal).
     side = max(view.width, view.height)
     canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
     canvas.paste(view, ((side - view.width) // 2, (side - view.height) // 2))
-    rgba = np.array(canvas).astype(np.uint8)
-    rgba = bleed_edge_colors(rgba)
-    # Rognage de l'alpha : évite le liseré coloré du détourage IA.
+    rgba = bleed_edge_colors(np.array(canvas).astype(np.uint8))
     alpha = rgba[..., 3].astype(np.float32)
     rgba[..., 3] = np.clip((alpha - 10.0) * 255.0 / 245.0, 0, 255).astype(np.uint8)
-    return Image.fromarray(rgba, "RGBA").resize((size, size), Image.LANCZOS)
+    return Image.fromarray(rgba).resize((size, size), Image.LANCZOS)
 
 
-def build_atlas(views: list[Image.Image], size: int) -> tuple[Image.Image, float, float]:
-    """Texture des cartes : la vue de FACE seule (la 3/4 est trop étroite : une
-    fois plaquée sur un plan de même largeur, elle donne une bande étirée).
+def build_atlas(views: dict[str, Image.Image], size: int) -> tuple[Image.Image, dict[str, tuple[float, float]]]:
+    """Atlas horizontal (une case carrée par vue) et bornes UV par vue."""
+    keys = list(views.keys())
+    atlas = Image.new("RGBA", (size * len(keys), size), (0, 0, 0, 0))
+    ranges: dict[str, tuple[float, float]] = {}
+    for i, key in enumerate(keys):
+        atlas.paste(prepare_view(views[key], size), (i * size, 0))
+        ranges[key] = (i / len(keys), (i + 1) / len(keys))
+    return atlas, ranges
 
-    Retourne l'atlas carré et les bornes UV `u0, u1` (0 → 1)."""
-    atlas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    atlas.paste(prepare_view(views[0], size), (0, 0))
-    return atlas, 0.0, 1.0
+
+def _append_vertical(positions, normals, uvs, indices, yaw: float, width: float,
+                     height: float, uv: tuple[float, float], flip: bool) -> None:
+    cos_y, sin_y = float(np.cos(yaw)), float(np.sin(yaw))
+    side = np.array([cos_y, 0.0, sin_y], dtype=np.float64)
+    normal = np.array([-sin_y, 0.0, cos_y], dtype=np.float64)
+    half = width * 0.5
+    u0, u1 = (uv[1], uv[0]) if flip else uv
+    base = len(positions)
+    for sx, sy in ((-half, 0.0), (half, 0.0), (-half, height), (half, height)):
+        positions.append((float(side[0] * sx), float(sy), float(side[2] * sx)))
+        normals.append((float(normal[0]), float(normal[1]), float(normal[2])))
+    # V=0 en haut de l'image (origine UV glTF en haut à gauche).
+    uvs.extend([(u0, 1.0), (u1, 1.0), (u0, 0.0), (u1, 0.0)])
+    indices.extend([base, base + 2, base + 1, base + 1, base + 2, base + 3])
 
 
-def card_geometry(width: float, height: float, planes: int) -> tuple[list, list, list, list, list]:
-    """Quads verticaux croisés, base à y=0, centrés ; retourne les tampons.
+def _append_flat(positions, normals, uvs, indices, yaw: float, width: float,
+                 depth: float, y: float, uv: tuple[float, float]) -> None:
+    cos_y, sin_y = float(np.cos(yaw)), float(np.sin(yaw))
+    ax = np.array([cos_y, 0.0, sin_y], dtype=np.float64)
+    az = np.array([-sin_y, 0.0, cos_y], dtype=np.float64)
+    hw, hd = width * 0.5, depth * 0.5
+    base = len(positions)
+    for sx, sz in ((-hw, -hd), (hw, -hd), (-hw, hd), (hw, hd)):
+        positions.append((float(ax[0] * sx + az[0] * sz), y, float(ax[2] * sx + az[2] * sz)))
+        normals.append((0.0, 1.0, 0.0))
+    uvs.extend([(uv[0], 0.0), (uv[1], 0.0), (uv[0], 1.0), (uv[1], 1.0)])
+    indices.extend([base, base + 1, base + 2, base + 2, base + 1, base + 3])
 
-    Toutes les cartes reprennent la vue de face (miroir horizontal sur une
-    carte sur deux pour varier la silhouette) : pas de bande étroite."""
 
-    def corners_for(yaw: float, u0: float, u1: float):
-        cos_y, sin_y = float(np.cos(yaw)), float(np.sin(yaw))
-        side = np.array([cos_y, 0.0, sin_y], dtype=np.float64)
-        normal = np.array([-sin_y, 0.0, cos_y], dtype=np.float64)
-        half = width * 0.5
-        # V=0 en haut de l'image (origine UV glTF en haut à gauche).
-        uv = [(u0, 1.0), (u1, 1.0), (u0, 0.0), (u1, 0.0)]
-        return side, normal, half, uv
-
-    patterns = [(0.0, False)]
-    if planes >= 2:
-        patterns.append((np.pi / 3.0, True))
-    if planes >= 3:
-        patterns.append((2.0 * np.pi / 3.0, False))
-
+def card_geometry(width: float, depth: float, height: float, layout: str,
+                  planes: int, ranges: dict[str, tuple[float, float]]):
+    """Géométrie des cartouches selon le gabarit de la plante."""
+    fronts = ranges.get("front", ranges.get("top", (0.0, 1.0)))
+    sides = ranges.get("side", fronts)
+    tops = ranges.get("top", fronts)
     positions: list[tuple[float, float, float]] = []
     normals: list[tuple[float, float, float]] = []
     uvs: list[tuple[float, float]] = []
     indices: list[int] = []
-    for yaw, flip in patterns:
-        side, normal, half, uv = corners_for(yaw, 1.0 if flip else 0.0, 0.0 if flip else 1.0)
-        base = len(positions)
-        for sx, sy in ((-half, 0.0), (half, 0.0), (-half, height), (half, height)):
-            positions.append((float(side[0] * sx), float(sy), float(side[2] * sx)))
-            normals.append((float(normal[0]), float(normal[1]), float(normal[2])))
-        uvs.extend(uv)
-        indices.extend([base, base + 2, base + 1, base + 1, base + 2, base + 3])
-    return positions, normals, uvs, indices, patterns
+
+    if layout == "flat":
+        # Nénuphars : raquettes horizontales posées au ras de l'eau.
+        y = max(0.01, height * 0.5)
+        _append_flat(positions, normals, uvs, indices, 0.0, width, depth, y, tops)
+        if planes >= 2:
+            _append_flat(positions, normals, uvs, indices, np.pi / 5.0,
+                         width * 0.82, depth * 0.82, y + 0.006, tops)
+        return positions, normals, uvs, indices
+
+    if layout == "hedge":
+        # Haie : une face longiligne + une extrémité, pas de « croix » aux mêmes
+        # dimensions (sinon la haie devient un panneau dans l'autre axe).
+        _append_vertical(positions, normals, uvs, indices, 0.0, width, height, fronts, False)
+        _append_vertical(positions, normals, uvs, indices, np.pi * 0.5, depth, height, sides, False)
+        return positions, normals, uvs, indices
+
+    # Buisson / bosquet / roseaux : croix de plans verticaux, miroir pour varier.
+    _append_vertical(positions, normals, uvs, indices, 0.0, width, height, fronts, False)
+    _append_vertical(positions, normals, uvs, indices, np.pi * 0.5, depth, height, sides, False)
+    if planes >= 3:
+        _append_vertical(positions, normals, uvs, indices, np.pi / 3.0, width, height, fronts, True)
+    if planes >= 4:
+        _append_vertical(positions, normals, uvs, indices, 2.0 * np.pi / 3.0, width, height, fronts, True)
+    return positions, normals, uvs, indices
 
 
 def _align4(data: bytes) -> bytes:
@@ -158,8 +193,7 @@ def write_glb(path: Path, positions, normals, uvs, indices, atlas: Image.Image) 
     nor_bytes = _align4(nor.tobytes())
     uv_bytes = _align4(uv.tobytes())
     idx_bytes = _align4(idx.tobytes())
-
-    chunks: list[bytes] = [pos_bytes, nor_bytes, uv_bytes, idx_bytes, image_bytes]
+    chunks = [pos_bytes, nor_bytes, uv_bytes, idx_bytes, image_bytes]
     offsets: list[int] = []
     cursor = 0
     for chunk in chunks:
@@ -230,24 +264,124 @@ def write_glb(path: Path, positions, normals, uvs, indices, atlas: Image.Image) 
         fh.write(bin_blob)
 
 
+def write_thumb(view: Image.Image, path: Path) -> None:
+    """Vignette de bibliothèque : la vue de face peinte, pied au sol."""
+    canvas = Image.new("RGBA", (THUMB_SIZE, THUMB_SIZE), (0, 0, 0, 0))
+    ratio = min((THUMB_SIZE - 40) / view.width, (THUMB_SIZE - 24) / view.height)
+    resized = view.resize((max(1, int(view.width * ratio)), max(1, int(view.height * ratio))),
+                          Image.LANCZOS)
+    x = (THUMB_SIZE - resized.width) // 2
+    y = THUMB_SIZE - 12 - resized.height
+    shadow = Image.new("RGBA", (THUMB_SIZE, THUMB_SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(shadow)
+    draw.ellipse((x + resized.width * 0.08, y + resized.height - 18,
+                  x + resized.width * 0.92, y + resized.height + 14),
+                 fill=(0, 0, 0, 90))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(6))
+    canvas = Image.alpha_composite(canvas, shadow)
+    canvas.paste(resized, (x, y), resized)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(path, optimize=True)
+
+
+def update_manifest(manifest_path: Path, name: str, glb_rel: str, thumb_rel: str,
+                    triangles: int, vertices: int) -> None:
+    """Met à jour l'entrée du manifeste (compteurs + source géométrique)."""
+    if not manifest_path.exists():
+        return
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for asset in manifest.get("assets", []):
+        if asset.get("name") != name:
+            continue
+        asset["glb"] = glb_rel
+        asset["thumb"] = thumb_rel
+        asset["triangles"] = triangles
+        asset["triangles_base"] = triangles
+        asset["vertices"] = vertices
+        asset["vertex_colors"] = "aucune (cartes alpha de la référence)"
+        asset["outline"] = False
+        asset["geometry_source"] = "cartes alpha croisées depuis la planche de référence"
+        asset["description"] = asset.get("description", "") + " — cartes alpha."
+        break
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                             encoding="utf-8")
+
+
+def build_one(cfg: dict, manifest_path: Path | None, only_thumb: bool = False) -> None:
+    reference = Path(cfg["reference"])
+    views = load_views(reference)
+    layout = cfg.get("layout", "cross")
+    texture_size = int(cfg.get("texture_size", 1024))
+
+    wanted: dict[str, Image.Image] = {"front": views[0]}
+    if layout == "flat":
+        wanted = {"top": views[2] if len(views) > 2 else views[0]}
+    elif layout == "hedge":
+        wanted = {"front": views[0], "side": views[1] if len(views) > 1 else views[0]}
+    elif len(views) > 1:
+        wanted = {"front": views[0], "side": views[1]}
+
+    out = Path(cfg["out"])
+    if not only_thumb:
+        atlas, ranges = build_atlas(wanted, texture_size)
+        planes = int(cfg.get("planes", 3))
+        positions, normals, uvs, indices = card_geometry(
+            float(cfg["width"]), float(cfg["depth"]), float(cfg["height"]),
+            layout, planes, ranges)
+        write_glb(out, positions, normals, uvs, indices, atlas)
+        kb = out.stat().st_size / 1024
+        print(f"[OK] {out} ({kb:.0f} Ko) — {len(indices) // 3} tris, "
+              f"atlas {atlas.width}x{atlas.height}, gabarit {layout}, "
+              f"{len(indices) // 6} cartouches")
+
+    thumb = cfg.get("thumb")
+    if thumb:
+        write_thumb(views[0], Path(thumb))
+        print(f"  vignette : {thumb}")
+
+    if manifest_path and not only_thumb:
+        update_manifest(manifest_path, cfg["name"], cfg["glb"], cfg.get("thumb", ""),
+                        len(indices) // 3, len(positions))
+        print(f"  manifeste mis à jour : {cfg['name']}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reference", type=Path, required=True)
-    parser.add_argument("--name", required=True)
-    parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--width", type=float, required=True, help="largeur en cases")
-    parser.add_argument("--height", type=float, required=True, help="hauteur en cases")
-    parser.add_argument("--planes", type=int, default=3, choices=[1, 2, 3])
+    parser.add_argument("--config", type=Path,
+                        default=Path("tools/blender/vegetation_cards.json"))
+    parser.add_argument("--all", action="store_true")
+    parser.add_argument("--only", nargs="+")
+    parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
+    parser.add_argument("--reference", type=Path)
+    parser.add_argument("--name")
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--width", type=float)
+    parser.add_argument("--depth", type=float)
+    parser.add_argument("--height", type=float)
+    parser.add_argument("--layout", choices=["cross", "hedge", "flat"], default="cross")
+    parser.add_argument("--planes", type=int, default=3, choices=[1, 2, 3, 4])
     parser.add_argument("--texture-size", type=int, default=1024)
     args = parser.parse_args()
 
-    views = load_views(args.reference)
-    atlas, _u0, _u1 = build_atlas(views, args.texture_size)
-    positions, normals, uvs, indices, _ = card_geometry(args.width, args.height, args.planes)
-    write_glb(args.out, positions, normals, uvs, indices, atlas)
-    kb = args.out.stat().st_size / 1024
-    print(f"[OK] {args.out} ({kb:.0f} Ko) — {len(indices) // 3} tris, "
-          f"atlas {atlas.width}x{atlas.height}, {args.planes} plans alpha")
+    if args.reference and args.name and args.out:
+        cfg = {
+            "name": args.name, "reference": str(args.reference), "out": str(args.out),
+            "glb": str(args.out), "width": args.width, "depth": args.depth,
+            "height": args.height, "layout": args.layout, "planes": args.planes,
+            "texture_size": args.texture_size,
+        }
+        build_one(cfg, args.manifest)
+        return
+
+    config = json.loads(args.config.read_text(encoding="utf-8"))
+    selected = [args.only] if isinstance(args.only, str) else (args.only or [])
+    names = selected or (list(config.keys()) if args.all else [])
+    if not names:
+        parser.error("préciser --all, --only, ou --reference/--name/--out")
+    for name in names:
+        cfg = dict(config[name])
+        cfg.setdefault("name", name)
+        build_one(cfg, args.manifest)
 
 
 if __name__ == "__main__":

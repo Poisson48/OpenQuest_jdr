@@ -101,22 +101,36 @@ Opt-in `map_data["qualityPreset"] = "classique" | "cinema"`, orthogonal au
 - Tests : `texture_quality_test`, `pan_cursor_tracking_test` (+ `camera_navigation_test`,
   `map_quality_cs2_test` étendu aux assertions MSAA).
 
-### 1.7 Végétation en cartes alpha (prototype roseaux)
+### 1.7 Végétation en cartes alpha (A — livré)
 
 Le pipeline `reference_hull.py` reconstruit un volume d'intersection de
-silhouettes sur une grille **64³** puis le décime (`target = 700..2150` tris) :
-les feuilles fines et les plumes ne survivent pas (roseaux livrés = tas de
-facettes olive, 2 418 tris, atlas 630² cuit par îlots de 18 px).
+silhouettes sur une grille **64³** puis le décime (`target = 700..2150` tris) et
+cuit la texture par îlots de 18 px par face : les feuilles fines, les plumes et
+les fleurs ne survivent pas (roseaux livrés = tas de facettes olive, 2 418 tris,
+atlas 630²). La méthode correcte pour la végétation est celle des jeux
+(Cities: Skylines II) : des **cartouches découpés par l'alpha**.
 
-Nouveau prototype `tools/blender/build_vegetation_cards.py` : à partir de la
-planche de référence IA (vue de face RGBA), génère un GLB de **cartes alpha
-croisées** (6 tris, atlas 1024², alpha mask double face) — le roseau retrouve
-ses tiges/feuilles/plumes peintes. Comparatif rendu réel :
-`docs/screenshots/roseaux_cards_proto.png` / `_detail.png` (livré vs cartes),
-test : `roseaux_cards_proto_shot_test`. Reste à intégrer : variation
-d'instances, balancement au vent, puis buisson/haie/nénuphars/arbres ; et
-régénération HD des bâtiments (grille + budget tris + atlas) avec LOD.
+`tools/blender/build_vegetation_cards.py` (+ `vegetation_cards.json`) lit les
+planches de référence IA (vues RGBA), nettoie le halo de détourage, packe les
+vues en atlas et écrit des GLB de quads croisés alpha-testés double face :
 
+| Asset | Avant (volume décimé) | Après (cartouches) |
+|---|---|---|
+| roseaux | 2 418 tris, atlas 630² | 6 tris, atlas 2048×1024 |
+| buisson | 1 400 tris | 6 tris |
+| haie | 1 400 tris | 4 tris |
+| nénuphars | 1 400 tris | 4 tris |
+| bosquet | 2 248 tris | 6 tris |
+
+Côté jeu (`map_meshes_3d.gd` + `shaders/vegetation_card*.gdshader`) : détection
+du matériau alpha-scissor, **double face conservée**, **balancement au vent**
+par sommet (pied planté, cime qui ondule), variantes éclairée (`cinema`) et non
+éclairée (`classique`). Vignettes de bibliothèque régénérées depuis les planches,
+manifeste mis à jour. Tests : `vegetation_cards_test` ; captures :
+`demo_riviere_s*.png`, `cite_*`.
+
+Reste : variations d'instances/miroir (déjà partiel via cartouches), feuillages
+d'arbres (hybride tronc 3D + cartouches), puis B (rochers PBR) et C (bâti HD + LOD).
 ---
 
 ## 2. Preuves

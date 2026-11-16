@@ -2922,8 +2922,8 @@
       "variant": "base",
       "category": "vegetation",
       "glb": "vegetation/bosquet.glb",
-      "thumb": "vegetation/bosquet_thumb.png",
-      "description": "Bosquet / taillis (~2,4 cases) : trois jeunes arbres et sous-bois.",
+      "thumb": "game/assets/objects3d/vegetation/bosquet_thumb.png",
+      "description": "Bosquet / taillis (~2,4 cases) : trois jeunes arbres et sous-bois. — cartes alpha.",
       "tags": [
         "nature",
         "foret",
@@ -2936,11 +2936,11 @@
       ],
       "height_above_floor": 2.466,
       "anchor": "base",
-      "triangles": 2248,
-      "triangles_base": 1124,
-      "vertices": 1000,
-      "vertex_colors": "AO léger + atlas UV de référence",
-      "outline": true,
+      "triangles": 6,
+      "triangles_base": 6,
+      "vertices": 12,
+      "vertex_colors": "aucune (cartes alpha de la référence)",
+      "outline": false,
       "reference_image": "tools/blender/references/bosquet.png",
       "reference_sha256": "794295ec43c415747aa76cead4159d64dbac497f63fa117e2f92a0d144e47ae8",
       "reference_bounds": [
@@ -2949,7 +2949,7 @@
         2.48
       ],
       "reference_floor": 0.0,
-      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+      "geometry_source": "cartes alpha croisées depuis la planche de référence"
     },
     {
       "name": "buisson",
@@ -2957,8 +2957,8 @@
       "variant": "base",
       "category": "vegetation",
       "glb": "vegetation/buisson.glb",
-      "thumb": "vegetation/buisson_thumb.png",
-      "description": "Buisson touffu avec quelques fleurs (~1,1 case).",
+      "thumb": "game/assets/objects3d/vegetation/buisson_thumb.png",
+      "description": "Buisson touffu avec quelques fleurs (~1,1 case). — cartes alpha.",
       "tags": [
         "nature",
         "decor",
@@ -2971,11 +2971,11 @@
       ],
       "height_above_floor": 0.767,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
-      "vertex_colors": "AO léger + atlas UV de référence",
-      "outline": true,
+      "triangles": 6,
+      "triangles_base": 6,
+      "vertices": 12,
+      "vertex_colors": "aucune (cartes alpha de la référence)",
+      "outline": false,
       "reference_image": "tools/blender/references/buisson.png",
       "reference_sha256": "02baaf8742be29ca51d59a2a5eb8f3f2fac08c0ab06d8aa78b4e74b9584907e1",
       "reference_bounds": [
@@ -2984,7 +2984,7 @@
         0.783
       ],
       "reference_floor": 0.0,
-      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+      "geometry_source": "cartes alpha croisées depuis la planche de référence"
     },
     {
       "name": "haie",
@@ -2992,8 +2992,8 @@
       "variant": "base",
       "category": "vegetation",
       "glb": "vegetation/haie.glb",
-      "thumb": "vegetation/haie_thumb.png",
-      "description": "Haie taillee (module 2 cases) en masses de feuillage.",
+      "thumb": "game/assets/objects3d/vegetation/haie_thumb.png",
+      "description": "Haie taillee (module 2 cases) en masses de feuillage. — cartes alpha.",
       "tags": [
         "nature",
         "cloture",
@@ -3006,11 +3006,11 @@
       ],
       "height_above_floor": 0.936,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 704,
-      "vertex_colors": "AO léger + atlas UV de référence",
-      "outline": true,
+      "triangles": 4,
+      "triangles_base": 4,
+      "vertices": 8,
+      "vertex_colors": "aucune (cartes alpha de la référence)",
+      "outline": false,
       "reference_image": "tools/blender/references/haie.png",
       "reference_sha256": "6cc52f80469f9ea3c503c82e7cb44b3b3b0a83a86d8afb00f2dbb612687450d0",
       "reference_bounds": [
@@ -3019,7 +3019,7 @@
         0.951
       ],
       "reference_floor": 0.0,
-      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+      "geometry_source": "cartes alpha croisées depuis la planche de référence"
     },
     {
       "name": "nenuphars",
@@ -3027,8 +3027,8 @@
       "variant": "base",
       "category": "vegetation",
       "glb": "vegetation/nenuphars.glb",
-      "thumb": "vegetation/nenuphars_thumb.png",
-      "description": "Touffe de nenuphars flottants (~1,4 x 1,0 case) : feuilles et fleurs.",
+      "thumb": "game/assets/objects3d/vegetation/nenuphars_thumb.png",
+      "description": "Touffe de nenuphars flottants (~1,4 x 1,0 case) : feuilles et fleurs. — cartes alpha.",
       "tags": [
         "eau",
         "nature",
@@ -3041,11 +3041,11 @@
       ],
       "height_above_floor": 0.18,
       "anchor": "base",
-      "triangles": 1400,
-      "triangles_base": 700,
-      "vertices": 692,
-      "vertex_colors": "AO léger + atlas UV de référence",
-      "outline": true,
+      "triangles": 4,
+      "triangles_base": 4,
+      "vertices": 8,
+      "vertex_colors": "aucune (cartes alpha de la référence)",
+      "outline": false,
       "reference_image": "tools/blender/references/nenuphars.png",
       "reference_sha256": "54c2e62f25f1a3021672ab12def574af49423c3c5175fd625abae84497460fea",
       "reference_bounds": [
@@ -3054,7 +3054,7 @@
         0.186
       ],
       "reference_floor": 0.0,
-      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+      "geometry_source": "cartes alpha croisées depuis la planche de référence"
     },
     {
       "name": "roseaux",
@@ -3062,8 +3062,8 @@
       "variant": "base",
       "category": "vegetation",
       "glb": "vegetation/roseaux.glb",
-      "thumb": "vegetation/roseaux_thumb.png",
-      "description": "Roseaux de berge (~1,3 case) sur terre humide : tiges, epis, feuilles.",
+      "thumb": "game/assets/objects3d/vegetation/roseaux_thumb.png",
+      "description": "Roseaux de berge (~1,3 case) sur terre humide : tiges, epis, feuilles. — cartes alpha.",
       "tags": [
         "nature",
         "eau",
@@ -3076,11 +3076,11 @@
       ],
       "height_above_floor": 1.723,
       "anchor": "base",
-      "triangles": 2418,
-      "triangles_base": 1209,
-      "vertices": 1248,
-      "vertex_colors": "AO léger + atlas UV de référence",
-      "outline": true,
+      "triangles": 6,
+      "triangles_base": 6,
+      "vertices": 12,
+      "vertex_colors": "aucune (cartes alpha de la référence)",
+      "outline": false,
       "reference_image": "tools/blender/references/roseaux.png",
       "reference_sha256": "5d2c7ea225064352916cb33cb8de8bf42b2387a33238c9450a078216a3ac3b68",
       "reference_bounds": [
@@ -3089,7 +3089,7 @@
         1.744
       ],
       "reference_floor": 0.0,
-      "geometry_source": "intersection des silhouettes avant/droite/dessus"
+      "geometry_source": "cartes alpha croisées depuis la planche de référence"
     }
   ]
 }

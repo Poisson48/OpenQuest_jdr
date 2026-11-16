@@ -100,6 +100,28 @@ sortie littérale `:PASS`.
 | **MSAA 4× en preset cinéma** (2× en classique) | `_apply_render_quality()` : `_viewport.msaa_3d` suit le preset — arêtes de toits/coques d'encre nettes | `map_quality_cs2_test` (`ui_engine_cinema_msaa` / `ui_engine_classic_msaa`) |
 | **Navigation 1:1 au clic droit** | pan ancré au point de sol saisi (`_screen_point_on_plane`) : le décor reste collé au curseur, quel que soit l'angle/perspective ; orbite sur `Maj`+clic droit / clic milieu | `pan_cursor_tracking_test`, `camera_navigation_test` |
 
+## Chantiers qualité des assets (A → B → C)
+
+**A — Végétation en cartouches alpha (livré)** : `tools/blender/build_vegetation_cards.py`
++ `vegetation_cards.json` regénèrent roseaux, buisson, haie, nénuphars et bosquet
+depuis les planches IA (alpha découpé, atlas 1024/2048, double face) : 4 à 6 tris
+au lieu de 1 400–2 418, et **la silhouette peinte est retrouvée**. Le moteur
+(`map_meshes_3d.gd`) détecte le matériau alpha-scissor et applique
+`shaders/vegetation_card*.gdshader` (vent par sommet, variantes éclairée /
+non éclairée) au lieu du matériau standard qui forçait le cull back. Test :
+`vegetation_cards_test`.
+
+**B — Rochers PBR d'origine (à faire)** : les GLB Tripo3D bruts
+(`artifacts/tripo-review/rock-kit/rocher_*.glb`) ont la **même géométrie**
+(973–1 036 tris) que les `bloc_rocheux_*` livrés, mais avec **3 textures 2048²
+PBR** (albédo + rugosité/métal + normale). Restaurer ces textures (et la
+normale) redonne le rendu Tripo sans coût géométrique.
+
+**C — Bâti/décors HD + LOD (à faire)** : régénérer depuis les planches avec
+`SIZE 160–256`, budget 6 000–12 000 tris, atlas 1024–2048 et contour conservé,
+puis LOD (HD près / niveau actuel au loin). Le kit complet ne pèse que
+191 072 tris aujourd'hui : la marge de performance est large.
+
 ## Reste (pistes)
 - Réflexions ray-marchées (SSR profond) — coût, non retenu dans le budget actuel.
 - Brume de pied de cascade **non éclairée** (choix) : éclairage de la brume par le soleil/les torches.
