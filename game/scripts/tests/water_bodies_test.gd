@@ -154,13 +154,14 @@ func _test_canal_flow_direction() -> void:
 		_assert("canal_flow_strength", absf(float(
 			canal_mat.get_shader_parameter("flow_strength")) - 0.85) < 0.01)
 		var visual := float(canal_mat.get_shader_parameter("flow_visual_scale"))
-		_assert("canal_flow_calmed", visual > 0.0 and visual <= 0.30,
-			"visual_scale=%.2f" % visual)
+		_assert("canal_flow_readable", absf(visual - 0.18) < 0.02,
+			"visual_scale=%.3f" % visual)
 		var lake_mat: ShaderMaterial = water._body_nodes[1].material_override
 		_assert("lake_flow_dir_default", (lake_mat.get_shader_parameter("flow_dir") as Vector2)
 			.is_equal_approx(Vector2(1.0, 0.0)))
-		_assert("lake_flow_calmed",
-			float(lake_mat.get_shader_parameter("flow_visual_scale")) <= 0.30)
+		var lake_visual := float(lake_mat.get_shader_parameter("flow_visual_scale"))
+		_assert("lake_barely_moves", lake_visual >= 0.0 and lake_visual <= 0.05,
+			"visual_scale=%.3f" % lake_visual)
 	water.queue_free()
 	await process_frame
 
