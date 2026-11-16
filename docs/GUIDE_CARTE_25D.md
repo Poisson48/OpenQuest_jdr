@@ -22,6 +22,26 @@ La démo éditeur construit un monde de 7 zones (village, place, forêt avec
 sur le village. Un **second monde** de démonstration (Île du Lac, Plage des
 Brumes) est visible via le sélecteur de mondes de l'onglet Monde.
 
+### Voir la cité de démonstration « Cité des Saules »
+
+La vitrine 2.5D composée de vrais assets 3D est aussi une **carte du catalogue**,
+jouable sans passer par une scène de debug :
+
+**Hub → onglet Cartes → Catalogue** (mode ⚔️ Aventure, section
+« Dioramas / VTT ») → carte **« Cité des Saules »** (`demo-cite-skyline`) →
+**Modifier** pour l'ouvrir dans l'éditeur, **Aperçu** ou **Tester**.
+
+C'est une carte 44 × 32 générée à graine fixe (37 bâtiments GLB, toits, façades,
+place de marché, tours d'angle), avec le preset qualité « cinéma ». Tout y est
+retouchable : un seul `Ctrl+Z` annule la génération complète. Pour la relancer
+depuis l'éditeur : outil **🏘 Générer scène**, style **Cité**, graine 20261112.
+Détail technique et captures : [RAPPORT_CITE_SKYLINE.md](./RAPPORT_CITE_SKYLINE.md).
+
+```powershell
+# Scène de debug équivalente (même graine, même cité)
+.\scripts\play-godot.ps1 res://scenes/debug/cite_boot.tscn
+```
+
 ## 2. Créer et gérer un monde de zones
 
 Onglet **Monde** (à droite, ou **⤢ Plein écran**) :
@@ -62,6 +82,9 @@ Onglet **Carte** :
   gardent les pieds sur les planches pendant la traversée.
 - **Ambiance** : lucioles, poussière, feuilles, pluie ou neige (particules animées).
 - **Style de rendu** : Carte 2.5D (défaut), Diorama, VTT 3D, Hybride DD2.
+- **✨ Qualité de rendu (CS2)** : preset **Classique** (rendu historique) ou
+  **Cinéma** (ombres portées des objets 3D, matières PBR éclairées, AO/SSIL,
+  perspective aérienne, étalonnage filmique) — enregistré avec la carte.
 
 Outils terrain :
 
@@ -72,7 +95,7 @@ Outils terrain :
 
 ## 4. Poser bâtiments et décors 3D
 
-**Biblio → 🧊 Objets 3D** (80 objets livrés) :
+**Biblio → 🧊 Objets 3D** (89 objets livrés) :
 
 - **Recherche** + filtres **Tous / Bâtiments / Toits & façades / Personnages /
   Nature / Intérieurs / Mobilier**.
@@ -122,9 +145,9 @@ Outils terrain :
 - **Outil 🌀 Tracé organique** : clic-glisser libre ; lisse la courbe et la pose
   en modules continus (mur/clôture/palissade) orientés sur la tangente. Idéal
   pour les virages doux et les tracés naturels façon Tiny Glade.
-- **Générer scène** : clic sur la carte ; produit un village, une forêt ou un
-  camp complet (chemins, maisons, décor) selon le style, la graine et la densité.
-  On retouche ensuite à la main.
+- **Générer scène** : clic sur la carte ; produit une **cité**, un village, une
+  forêt ou un camp complet (rues, bâtiments GLB, place, décor) selon le style,
+  la graine et la densité. On retouche ensuite à la main.
 - **Outil 🌿 Végétation** : clic-glisser ; disperse automatiquement buissons,
   haies, roseaux, arbres, bosquets ou rochers avec densité/taille/rayon. Un seul
   undo par trait, pas de doublon de case, eau évitée.

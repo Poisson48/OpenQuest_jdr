@@ -140,6 +140,13 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   héritée**), via la case « Aimantation aux bâtiments » des options de l'outil
   Objet 3D. Une façade choisit le **mur le plus proche du clic** (avant, arrière,
   gauche ou droite) et cale son dos contre le nu du mur.
+- **Qualité de rendu des objets** : onglet **Carte → ✨ Qualité de rendu (CS2)**.
+  Le preset **Cinéma** active les ombres portées des GLB, l'éclairage PBR des
+  matières, une AO/SSIL renforcée, une perspective aérienne et un étalonnage
+  filmique (rendu proche de *Cities: Skylines II*) ; **Classique** conserve le
+  rendu historique (défaut). Le preset est enregistré dans la carte, exporté en
+  JSON, et se bascule à chaud sans reconstruire la scène. Voir
+  [`RAPPORT_QUALITE_CS2_PRESET.md`](./RAPPORT_QUALITE_CS2_PRESET.md).
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
@@ -161,6 +168,20 @@ Chaque carte complexe a un **`renderStyle`** :
 Réglage : onglet **Carte → Style de rendu**. Les données (décors, lieux, murs)
 sont communes ; seul le rendu change. En session, cliquer un **lieu** lié
 entre dans sa carte enfant ; **← Remonter** remonte d'un cran.
+
+### Qualité de rendu : preset `classique` / `cinema`
+
+Indépendant du style, un **preset de qualité** règle le cran de rendu 3D
+(onglet **Carte → ✨ Qualité de rendu (CS2)**) :
+
+| Preset | Ombres | Matières des GLB | Ambiance |
+|---|---|---|---|
+| **Classique** (défaut) | objet : non (ombre de contact peinte) | non éclairées (couleurs/AO cuites) | preset lumière historique |
+| **Cinéma** | objets : oui, PCF 4 splits doux (jamais les coques d'encre) | PBR éclairé + perspective aérienne | SSAO/SSIL renforcées, tonemap ACES, étalonnage Valbois |
+
+Le socle de la carte (jupe de falaise) est lui aussi traité : strates
+géologiques, arête herbeuse adoucie et pied évasé
+([`RAPPORT_SOCLE_DIORAMA.md`](./RAPPORT_SOCLE_DIORAMA.md)).
 
 ## 1 quinquies. Onglet Monde : les cartes comme zones (façon Dofus)
 
@@ -246,7 +267,7 @@ clic, le glisser et le relâchement (équivalent des `MouseLogic_*` de Meownopol
 | Placer | 🌿 Végétation | — | Clic-glisser : **dispersion automatique** de buissons/haies/roseaux/arbres/bosquets/rochers, densité/taille/rayon, sans doublon de case |
 | Placer | 🌸 Zone fleurie | — | Clic-glisser pour dessiner une zone fermée : fleurs procédurales ou herbe du type choisi (coquelicots, marguerites, lavande, bleues, herbe, mélange), densité/taille |
 | Placer | 🍂 Décor contextuel | — | Clic près d'un mur : sème buissons, rochers et haies le long de ses abords (rayon/densité, graine, un undo) |
-| Placer | 🏘 Générer scène | — | Clic : village, forêt ou camp complet (chemins, maisons, décor) avec graine et densité |
+| Placer | 🏘 Générer scène | — | Clic : **cité**, village, forêt ou camp complet (rues, bâtiments GLB, place, décor) avec graine et densité |
 | Placer | 🏠 Toit procédural | — | Clic-glisser un rectangle : **un seul mesh à deux pans ou à croupe**, débord et pignons, adapté à l'emprise |
 | Placer | ⛺ Toit libre | — | Clic-glisser une emprise libre : toit triangulé sur forme irrégulière (L, U, courbe) |
 | Placer | 🏚 Décor | `P` | Pose l'image sélectionnée dans la bibliothèque (bâtiment, charrette, mobilier…) |

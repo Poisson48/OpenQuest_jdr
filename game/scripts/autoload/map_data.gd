@@ -18,7 +18,15 @@ const MATERIAL_STONE := 2
 const MATERIAL_SNOW := 3
 const MATERIAL_SAND := 4
 const MATERIAL_IDS := [MATERIAL_GRASS, MATERIAL_DIRT, MATERIAL_STONE, MATERIAL_SNOW, MATERIAL_SAND]
-const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval"]
+const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval",
+	"demo-cite-skyline"]
+## Carte démo « Cité des Saules » : mêmes dimensions et graine que la scène de
+## debug `cite_boot.gd`, mais matérialisée dans le catalogue du Hub.
+const CITE_DEMO_ID := "demo-cite-skyline"
+const CITE_DEMO_SEED := 20261112
+const CITE_DEMO_WIDTH := 44
+const CITE_DEMO_HEIGHT := 32
+const ProceduralCityScript := preload("res://scripts/maps/construction/procedural_city.gd")
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
 	"opacity": 0.22,
@@ -1893,6 +1901,10 @@ func _build_demo_catalog() -> Array:
 	}
 	list.append(place)
 
+	# Vitrine 2.5D « qualité CS2 » : la cité composée de vrais assets 3D, générée
+	# à graine fixe par le MÊME convertisseur pur que l'éditeur.
+	list.append(_cite_skyline_map())
+
 	maps = list
 	var portrait_src := ProjectSettings.globalize_path("res://assets/portraits/voleur_kael.png")
 	var portrait_dest := import_token_image(portrait_src) if FileAccess.file_exists(portrait_src) else ""
@@ -1911,6 +1923,110 @@ func _build_demo_catalog() -> Array:
 	if FileAccess.file_exists(place_src):
 		import_background_image("demo-valbois-place", place_src)
 	return maps
+
+## Carte vitrine « Cité des Saules » : catalogue du Hub → Cartes.
+##
+## Elle est **matérialisée** à la construction du catalogue (pas de génération
+## paresseuse) avec le même convertisseur pur que l'éditeur
+## (`ProceduralCity.build_city_elements`) : la carte du Hub et celle générée par
+## `cite_boot.gd` (même graine) sont identiques, et l'utilisateur peut l'ouvrir
+## dans l'éditeur (Modifier) ou la tester, avec les vrais GLB 3D et le preset
+## qualité « cinéma ».
+func _cite_skyline_map() -> Dictionary:
+	var plan: Dictionary = ProceduralCityScript.generate(CITE_DEMO_WIDTH,
+		CITE_DEMO_HEIGHT, CITE_DEMO_SEED, 1.0)
+	var built: Dictionary = ProceduralCityScript.build_city_elements(plan,
+		CITE_DEMO_WIDTH, CITE_DEMO_HEIGHT)
+	# --- Éléments 3D (mêmes champs qu'un document d'éditeur) ------------------
+	# L'éditeur normalise les éléments à son chargement (`_ingest`), la session
+	# 3D lit directement x/y/w/h/asset/display/elevation. On ne stocke donc que
+	# les champs utiles + un id déterministe (le catalogue est reconstruit à
+	# chaque démarrage, les ids doivent être stables).
+	var meshes: Array = []
+	var index := 0
+	for entry_variant in built.get("elements", []):
+		var entry: Dictionary = entry_variant
+		var raw: Dictionary = (entry.get("elem", {}) as Dictionary).duplicate(true)
+		if raw.is_empty():
+			continue
+		raw["id"] = "cite-%04d" % index
+		raw["hidden"] = false
+		index += 1
+		meshes.append(raw)
+	# --- Sols : matières peintes par le plan (rues pavées, place, approches) ---
+	var terrain: Dictionary = built.get("terrain", {})
+	var materials: Array = []
+	materials.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
+	materials.fill(MATERIAL_GRASS)
+	for cell_variant in terrain.keys():
+		var cell: Vector2i = cell_variant
+		if cell.x < 0 or cell.y < 0 or cell.x >= CITE_DEMO_WIDTH \
+				or cell.y >= CITE_DEMO_HEIGHT:
+			continue
+		materials[cell.y * CITE_DEMO_WIDTH + cell.x] = clampi(
+			int(terrain[cell_variant]), MATERIAL_GRASS, MATERIAL_SAND)
+	var tiles: Array = []
+	tiles.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
+	tiles.fill("floor")
+	var map := ensure_map_schema({
+		"id": CITE_DEMO_ID,
+		"title": "Cité des Saules",
+		"description": "Vitrine 2.5D « qualité CS2 » : cité composée de vrais assets 3D (bâtiments, toits, façades, marché, tours), générée à graine fixe. Modifiable dans l'éditeur.",
+		"roster": "general",
+		"mapKind": "local",
+		"renderMode": RENDER_MODE_COMPLEX,
+		"renderStyle": "2.5d",
+		"scenarioId": "",
+		"parentMapId": "",
+		"width": CITE_DEMO_WIDTH,
+		"height": CITE_DEMO_HEIGHT,
+		"tiles": tiles,
+		"markers": [],
+		"locationLinks": [],
+		"backgroundImage": "",
+		"backgroundImageNight": "",
+		"groundMode": GROUND_TERRAIN3D,
+		"fogEnabled": false,
+		"perspective": PERSPECTIVE_TOPDOWN,
+		"elevationLayers": [],
+		# Même éclairage que `cite_boot.gd` (correctif Lead : soleil jour + ombres
+		# franches au lieu du preset pastel tiny_glade qui lavait la cité).
+		"lighting": {"enabled": true, "preset": "jour", "direction": "nw",
+			"intensity": 0.35, "sources": []},
+		"qualityPreset": "cinema",
+		# Brume fine de distance, composante hauteur neutralisée.
+		"atmosphericFog": {"enabled": true, "density": 0.04, "heightDensity": 0.0},
+		"atmosphere": {"enabled": false, "tint": "#1a1410", "opacity": 0.0,
+			"vignette": 0.0},
+		"terrainHeights": _cite_relief_heights(),
+		"terrainMaterials": materials,
+		"meshes": meshes,
+		"zoneX": 0,
+		"zoneY": 0,
+		"zoneW": CITE_DEMO_WIDTH,
+		"zoneH": CITE_DEMO_HEIGHT,
+		"schemaVersion": SCHEMA_VERSION,
+	})
+	var grid: Dictionary = get_grid_config(map).duplicate(true)
+	grid["show"] = false
+	map["grid"] = grid
+	return map
+
+## Relief doux des marges (identique à `cite_boot`) : le cœur de la cité reste
+## plat pour que les bâtiments soient droits, les ceintures ondulent doucement.
+func _cite_relief_heights() -> Array:
+	var heights: Array = []
+	heights.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
+	for y in range(CITE_DEMO_HEIGHT):
+		for x in range(CITE_DEMO_WIDTH):
+			var in_city := x >= 2 and x <= CITE_DEMO_WIDTH - 3 \
+				and y >= 2 and y <= CITE_DEMO_HEIGHT - 3
+			var value := 0.0
+			if not in_city:
+				value = 0.16 * sin(float(x) * 0.52) * cos(float(y) * 0.44) \
+					+ 0.06 * sin(float(x + y) * 0.85) + 0.04
+			heights[y * CITE_DEMO_WIDTH + x] = value
+	return heights
 
 ## Cimetière de Brumeval : sol texturé, décors PNG, quelques jetons — pas d'emojis.
 func _brumeval_cemetery_map() -> Dictionary:

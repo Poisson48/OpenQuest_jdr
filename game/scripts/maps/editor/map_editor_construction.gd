@@ -20,6 +20,7 @@ const OrganicPathScript := preload("res://scripts/maps/construction/organic_path
 const OrganicScatterScript := preload("res://scripts/maps/construction/organic_scatter.gd")
 const WaveFunctionCollapseScript := preload("res://scripts/maps/construction/wave_function_collapse.gd")
 const ProceduralSceneGeneratorScript := preload("res://scripts/maps/construction/procedural_scene_generator.gd")
+const ProceduralCityScript := preload("res://scripts/maps/construction/procedural_city.gd")
 
 const ROOF_STYLES := [
 	{"label": "Tuiles (2 pans)", "path": "res://assets/objects3d/buildings/toit_2pentes.glb"},
@@ -2010,46 +2011,114 @@ func _generate_scene(_grid: Vector2) -> void:
 	_apply_scene_plan(plan)
 
 ## Applique un plan généré (scène complète ou zone).
+## Une scène = **une seule étape d'undo** : tout le plan est appliqué dans une
+## transaction (Ctrl+Z annule la cité entière, pas élément par élément).
+## La synchro lourde de l'éditeur est **suspendue** pendant la pose : chaque
+## `add_element` déclenche sinon une reconstruction complète de la scène 3D,
+## soit ~200 rebuilds pour une cité. On la rejoue une seule fois à la fin.
 func _apply_scene_plan(plan: Dictionary) -> Dictionary:
-	var counts := {
-		"paths": _apply_scene_paths(plan),
-		"houses": _apply_scene_houses(plan),
-		"fences": _apply_scene_fences(plan),
-		"flowers": _apply_scene_flower_zones(plan),
-		"props": _apply_scene_props(plan),
-	}
-	_finalize_scene_status(counts)
-	return counts
-
-func _generate_scene_area(from: Vector2, to: Vector2) -> void:
+	var sync_handler := _begin_bulk_edit()
 	var width := int(_ed.doc.map_data.get("width", 0))
 	var height := int(_ed.doc.map_data.get("height", 0))
-	var area := Rect2(Vector2(minf(from.x, to.x), minf(from.y, to.y)),
-		Vector2(absf(to.x - from.x), absf(to.y - from.y)))
-	if area.size.x < 8.0 or area.size.y < 8.0:
-		_ed._set_status("Esquisse : dessinez une zone d'au moins 8 × 8 cases.")
-		return
-	var plan: Dictionary = ProceduralSceneGeneratorScript.generate_in_area(
-		_ed._scene_style, width, height, area, _ed._scene_seed, _ed._scene_density
-	)
-	_apply_scene_plan(plan)
+	var counts: Dictionary
+	_ed.doc.begin_transaction()
+	if _is_city_plan(plan):
+		# Cité : conversion **pure** partagée avec la carte démo du Hub
+		# (`ProceduralCity.build_city_elements`) — aucun code dupliqué.
+		counts = _apply_city_plan(plan, width, height)
+	else:
+		# Village / forêt / camp : maisons procédurales construites par l'éditeur,
+		# le reste passe par les convertisseurs purs.
+		var building_counts: Dictionary = _apply_scene_buildings(plan)
+		counts = {
+			"paths": _apply_scene_paths(plan),
+			"houses": _apply_scene_houses(plan),
+			"buildings": int(building_counts.get("buildings", 0)),
+			"roofs": int(building_counts.get("roofs", 0)),
+			"walls": int(building_counts.get("walls", 0)),
+			"fences": _apply_scene_fences(plan),
+			"flowers": _apply_scene_flower_zones(plan),
+			"rocks": _apply_scene_rocks(plan),
+			"props": _apply_scene_props(plan),
+		}
+	_ed.doc.commit_transaction()
+	_end_bulk_edit(sync_handler)
+	# Une seule synchro complète, puis le compte-rendu (le statut est posé après
+	# la synchro pour ne pas être écrasé par le rafraîchissement des panneaux).
+	if sync_handler.is_valid():
+		_ed._on_doc_changed("commit")
+	else:
+		_ed._sync_engine()
+		_ed._refresh_panels()
+	_finalize_scene_status(counts, false)
+	return counts
 
+## Vrai si le plan vient du style de scène « cite » (bâtiments GLB).
+func _is_city_plan(plan: Dictionary) -> bool:
+	if str(plan.get("style", "")) == "cite":
+		return true
+	return not (plan.get("buildings", []) as Array).is_empty()
+
+## Applique un plan de cité via le convertisseur **pur** : les mêmes éléments que
+## la carte démo générée au démarrage par `MapData` (aucune divergence éditeur /
+## Hub). Tout est ajouté dans la transaction ouverte par `_apply_scene_plan`.
+func _apply_city_plan(plan: Dictionary, width: int, height: int) -> Dictionary:
+	var built: Dictionary = ProceduralCityScript.build_city_elements(plan, width, height)
+	var terrain: Dictionary = built.get("terrain", {})
+	for cell_variant in terrain.keys():
+		var cell: Vector2i = cell_variant
+		_ed.doc.set_terrain_material(cell.x, cell.y, int(terrain[cell_variant]), "Scène")
+	_append_scene_elements(built.get("elements", []))
+	return (built.get("counts", {}) as Dictionary).duplicate()
+
+## Ajoute au document une liste d'éléments bruts `{elem, kind, note}`.
+func _append_scene_elements(entries: Array) -> int:
+	var count := 0
+	for entry_variant in entries:
+		var entry: Dictionary = entry_variant
+		var elem: Dictionary = entry.get("elem", {})
+		if elem.is_empty():
+			continue
+		_ed.doc.add_element(elem, str(entry.get("kind", DocumentScript.KIND_MESH)),
+			str(entry.get("note", "Scène")))
+		count += 1
+	return count
+
+## Débranche le gestionnaire `changed` de l'éditeur le temps d'une pose en masse
+## et renvoie le Callable à rebrancher (vide s'il n'était pas connecté).
+func _begin_bulk_edit() -> Callable:
+	if _ed == null or _ed.doc == null:
+		return Callable()
+	var handler := Callable(_ed, "_on_doc_changed")
+	if _ed.doc.changed.is_connected(handler):
+		_ed.doc.changed.disconnect(handler)
+		return handler
+	return Callable()
+
+func _end_bulk_edit(handler: Callable) -> void:
+	if handler.is_valid() and _ed != null and _ed.doc != null \
+			and not _ed.doc.changed.is_connected(handler):
+		_ed.doc.changed.connect(handler)
+
+## Pose les bâtiments GLB du plan et leurs modules empilés (toits/façades) via le
+## convertisseur pur — comportement identique, code partagé avec la carte démo.
+func _apply_scene_buildings(plan: Dictionary) -> Dictionary:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	var built: Dictionary = ProceduralCityScript.build_building_elements(plan, width, height)
+	_append_scene_elements(built.get("elements", []))
+	return (built.get("counts", {}) as Dictionary).duplicate()
+
+## Peint le sol du plan (rues rectangulaires, place, chemins) via le
+## convertisseur pur : une matière par case.
 func _apply_scene_paths(plan: Dictionary) -> int:
 	var width := int(_ed.doc.map_data.get("width", 0))
 	var height := int(_ed.doc.map_data.get("height", 0))
-	var count := 0
-	for path_variant in plan.get("paths", []):
-		var path_data: Dictionary = path_variant
-		var from: Vector2 = path_data.get("from", Vector2.ZERO)
-		var to: Vector2 = path_data.get("to", Vector2.ZERO)
-		var steps := maxi(1, int(ceil(from.distance_to(to) * 2.0)))
-		for i in range(steps + 1):
-			var t := float(i) / float(steps)
-			var cell := Vector2(round(lerpf(from.x, to.x, t)), round(lerpf(from.y, to.y, t)))
-			if cell.x >= 0.0 and cell.y >= 0.0 and cell.x < width and cell.y < height:
-				_ed.doc.set_terrain_material(int(cell.x), int(cell.y), DocumentScript.MATERIAL_DIRT, "Scène")
-				count += 1
-	return count
+	var paint: Dictionary = ProceduralCityScript.build_terrain_paint(plan, width, height)
+	for cell_variant in paint.keys():
+		var cell: Vector2i = cell_variant
+		_ed.doc.set_terrain_material(cell.x, cell.y, int(paint[cell_variant]), "Scène")
+	return paint.size()
 
 func _apply_scene_houses(plan: Dictionary) -> int:
 	var count := 0
@@ -2060,96 +2129,34 @@ func _apply_scene_houses(plan: Dictionary) -> int:
 	return count
 
 func _apply_scene_fences(plan: Dictionary) -> int:
-	var count := 0
-	for fence_variant in plan.get("fences", []):
-		var points: Array = fence_variant
-		if points.size() < 2:
-			continue
-		var min_p: Vector2 = points[0]
-		var max_p: Vector2 = points[0]
-		for p_variant in points:
-			var p: Vector2 = p_variant
-			min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
-			max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
-		var fence_center := (min_p + max_p) * 0.5
-		var local: Array = []
-		for p_variant in points:
-			var p: Vector2 = (p_variant as Vector2) - fence_center
-			local.append([p.x, p.y])
-		_ed.doc.add_element({
-			"x": fence_center.x, "y": fence_center.y,
-			"w": maxf(0.5, max_p.x - min_p.x), "h": maxf(0.5, max_p.y - min_p.y),
-			"asset": "procedural://fence",
-			"points": local, "height": 0.8, "spacing": 0.9,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
-			"label": "Clôture de scène", "layer": 1,
-			"display": {"rotation": 0.0, "scale": 1.0},
-		}, DocumentScript.KIND_MESH, "Clôture de scène")
-		count += 1
-	return count
+	return _append_scene_elements(ProceduralCityScript.build_fence_elements(plan))
 
 func _apply_scene_flower_zones(plan: Dictionary) -> int:
-	var count := 0
-	for zone_variant in plan.get("flowerZones", []):
-		var zone: Dictionary = zone_variant
-		var rect: Rect2 = zone.get("rect", Rect2())
-		if rect.size.x < 0.5 or rect.size.y < 0.5:
-			continue
-		var center := rect.get_center()
-		var local: Array = [
-			[rect.position.x - center.x, rect.position.y - center.y],
-			[rect.end.x - center.x, rect.position.y - center.y],
-			[rect.end.x - center.x, rect.end.y - center.y],
-			[rect.position.x - center.x, rect.end.y - center.y],
-		]
-		_ed.doc.add_element({
-			"x": center.x, "y": center.y,
-			"w": rect.size.x, "h": rect.size.y,
-			"asset": "procedural://flower_zone",
-			"points": local,
-			"flowerType": str(zone.get("type", "marguerite")),
-			"density": float(zone.get("density", 4.0)),
-			"size": 0.3, "seed": _ed._scene_seed + count,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": false,
-			"label": "Zone fleurie de scène", "layer": 1,
-			"display": {"rotation": 0.0, "scale": 1.0},
-		}, DocumentScript.KIND_MESH, "Zone fleurie de scène")
-		count += 1
-	return count
+	return _append_scene_elements(
+		ProceduralCityScript.build_flower_elements(plan, _ed._scene_seed))
+
+func _apply_scene_rocks(plan: Dictionary) -> int:
+	var width := int(_ed.doc.map_data.get("width", 0))
+	var height := int(_ed.doc.map_data.get("height", 0))
+	return _append_scene_elements(
+		ProceduralCityScript.build_rock_elements(plan, width, height))
 
 func _apply_scene_props(plan: Dictionary) -> int:
-	var count := 0
-	for prop_variant in plan.get("props", []):
-		var prop: Dictionary = prop_variant
-		var asset := str(prop.get("asset", ""))
-		if asset.is_empty() or (not asset.begins_with("procedural://") and not ResourceLoader.exists(asset)):
-			continue
-		var scale_v := maxf(0.1, float(prop.get("scale", 1.0)))
-		var footprint: Vector2
-		if asset.begins_with("procedural://"):
-			footprint = Vector2(2.0, 2.0)
-		else:
-			var natural_bounds := _mesh_bounds_cells(asset, 1.0)
-			footprint = Vector2(maxf(0.3, natural_bounds.x), maxf(0.3, natural_bounds.z))
-		_ed.doc.add_element({
-			"x": float(prop.get("x", 0.0)), "y": float(prop.get("y", 0.0)),
-			"w": footprint.x * scale_v, "h": footprint.y * scale_v,
-			"asset": asset,
-			"height": 1.8 if asset == "procedural://tent" else 1.0,
-			"elevation": 0.0, "followTerrain": true, "tiltToTerrain": true,
-			"label": "Décor de scène", "layer": 1,
-			"display": {"rotation": 0.0, "scale": scale_v},
-		}, DocumentScript.KIND_MESH, "Décor de scène")
-		count += 1
-	return count
+	return _append_scene_elements(ProceduralCityScript.build_prop_elements(plan))
 
-func _finalize_scene_status(counts: Dictionary) -> void:
-	_ed._set_status("Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d zone(s) fleurie(s), %d décor(s)." % [
+func _finalize_scene_status(counts: Dictionary, sync: bool = true) -> void:
+	var message := "Scène %s générée : %d maison(s), %d case(s) de chemin, %d clôture(s), %d zone(s) fleurie(s), %d rocher(s), %d décor(s)." % [
 		ProceduralSceneGeneratorScript.style_label(_ed._scene_style),
 		int(counts.get("houses", 0)), int(counts.get("paths", 0)),
 		int(counts.get("fences", 0)), int(counts.get("flowers", 0)),
-		int(counts.get("props", 0))])
-	_ed._sync_engine()
+		int(counts.get("rocks", 0)), int(counts.get("props", 0))]
+	var buildings := int(counts.get("buildings", 0))
+	if buildings > 0:
+		message += " %d bâtiment(s) GLB, %d toiture(s) empilée(s), %d façade(s)." % [
+			buildings, int(counts.get("roofs", 0)), int(counts.get("walls", 0))]
+	_ed._set_status(message)
+	if sync:
+		_ed._sync_engine()
 
 func _decorate_context(grid: Vector2) -> void:
 	var wall := _nearest_wall_element(grid, _ed._context_decor_radius)

@@ -4,13 +4,24 @@ class_name ProceduralSceneGenerator
 ## Générateur de scène déterministe pour MJ non graphiste.
 ##
 ## Ne touche pas à la carte : renvoie un plan de placements (maisons, chemins,
-## décor) que l'éditeur applique avec ses propres outils. Trois styles :
-## village, forêt, camp. Une graine rend le résultat reproductible.
+## décor, rochers) que l'éditeur applique avec ses propres outils. Quatre styles :
+## village, cité, forêt, camp. Une graine rend le résultat reproductible.
+##
+## Le style « cite » délègue à `ProceduralCity` : il compose de vrais GLB du
+## catalogue (bâtiments + modules de toit/façade empilés + props + végétation +
+## rochers + clôtures) au lieu des maisons procédurales.
 
-const STYLES := ["village", "foret", "camp"]
+const STYLES := ["village", "cite", "foret", "camp"]
+const RockWallScript := preload("res://scripts/maps/construction/procedural_rock_wall.gd")
+const ProceduralCityScript := preload("res://scripts/maps/construction/procedural_city.gd")
+## Kit de rochers empilables livré dans la bibliothèque (`terrain/rocher_*.glb`).
+const ROCK_WALL_MIN_ROWS := 2
+const ROCK_WALL_MAX_ROWS := 3
 
 static func style_label(style_id: String) -> String:
 	match style_id:
+		"cite":
+			return "Cité"
 		"foret":
 			return "Forêt"
 		"camp":
@@ -18,15 +29,60 @@ static func style_label(style_id: String) -> String:
 		_:
 			return "Village"
 
-## Renvoie {houses: Array[Rect2], paths: Array[Dictionary], props: Array[Dictionary]}.
+## Ajoute un mur/affleurement de rochers empilés au plan.
+## `rocks` reçoit des placements prêts pour `doc.add_element` (kind mesh).
+## `max_stones` borne le budget : un mur de village reste lisible et léger.
+static func _add_rock_wall(result: Dictionary, from: Vector2, to: Vector2,
+		rows: int, rng: RandomNumberGenerator, width: int, height: int,
+		max_stones: int = 18) -> void:
+	var direction := to - from
+	var length := direction.length()
+	if length < 1.0 or rows <= 0:
+		return
+	# Un mur trop long est tronqué : mieux vaut un affleurement crédible qu'une
+	# ceinture de pierres sur toute la carte.
+	length = minf(length, float(rows) * float(max_stones) * 0.42)
+	var placements := RockWallScript.build_run_cells(
+		from, direction, length, clampi(rows, ROCK_WALL_MIN_ROWS, ROCK_WALL_MAX_ROWS),
+		rng.randi() % 1000000
+	)
+	# On ajoute colonne par colonne : si le budget coupe, le mur garde sa
+	# hauteur au lieu de finir en escalier.
+	var columns: Dictionary = {}
+	for placement_variant in placements:
+		var placement: Dictionary = placement_variant
+		var column := int(placement.get("slot", 0))
+		if not columns.has(column):
+			columns[column] = []
+		(columns[column] as Array).append(placement)
+	var column_keys: Array = columns.keys()
+	column_keys.sort()
+	for column_variant in column_keys:
+		for placement_variant in columns[column_variant]:
+			if result["rocks"].size() >= max_stones:
+				return
+			var placement: Dictionary = placement_variant
+			var px := float(placement.get("x", 0.0))
+			var py := float(placement.get("y", 0.0))
+			# Une pierre à cheval hors carte est ignorée : le mur reste praticable.
+			if px < 0.4 or py < 0.4 or px > float(width) - 0.4 or py > float(height) - 0.4:
+				continue
+			result["rocks"].append(placement)
+
+## Renvoie {houses, paths, props, fences, flowerZones, rocks, buildings}.
+## `buildings` n'est rempli que par le style « cite » : chaque entrée porte
+## l'asset GLB, la rotation et les modules de toit (`roofs`, élevés) / façade
+## (`walls`) qui l'habillent.
 static func generate(style_id: String, width: int, height: int, seed: int,
 		density: float = 1.0, origin: Vector2 = Vector2.ZERO) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	var result := {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [], "style": style_id}
+	var result := _empty_plan(style_id)
 	if width < 8 or height < 8:
 		return result
 	match style_id:
+		"cite":
+			result = ProceduralCityScript.generate(width, height, seed, density)
 		"foret":
 			_generate_forest(result, width, height, rng, density)
 		"camp":
@@ -36,6 +92,10 @@ static func generate(style_id: String, width: int, height: int, seed: int,
 	_offset_plan(result, origin)
 	return result
 
+static func _empty_plan(style_id: String) -> Dictionary:
+	return {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [],
+		"rocks": [], "buildings": [], "style": style_id}
+
 ## Génère une scène complète à l'intérieur d'une zone dessinée par le MJ.
 static func generate_in_area(style_id: String, map_width: int, map_height: int,
 		area: Rect2, seed: int, density: float = 1.0) -> Dictionary:
@@ -43,7 +103,7 @@ static func generate_in_area(style_id: String, map_width: int, map_height: int,
 	var w := int(round(clipped.size.x))
 	var h := int(round(clipped.size.y))
 	if w < 8 or h < 8:
-		return {"houses": [], "paths": [], "props": [], "fences": [], "flowerZones": [], "style": style_id}
+		return _empty_plan(style_id)
 	return generate(style_id, w, h, seed, density, clipped.position)
 
 static func _offset_plan(result: Dictionary, origin: Vector2) -> void:
@@ -55,8 +115,12 @@ static func _offset_plan(result: Dictionary, origin: Vector2) -> void:
 		houses[i] = Rect2(rect.position + origin, rect.size)
 	for path_variant in result.get("paths", []):
 		var path: Dictionary = path_variant
-		path["from"] = (path.get("from", Vector2.ZERO) as Vector2) + origin
-		path["to"] = (path.get("to", Vector2.ZERO) as Vector2) + origin
+		if path.has("rect"):
+			var path_rect: Rect2 = path["rect"]
+			path["rect"] = Rect2(path_rect.position + origin, path_rect.size)
+		else:
+			path["from"] = (path.get("from", Vector2.ZERO) as Vector2) + origin
+			path["to"] = (path.get("to", Vector2.ZERO) as Vector2) + origin
 	for prop_variant in result.get("props", []):
 		var prop: Dictionary = prop_variant
 		prop["x"] = float(prop.get("x", 0.0)) + origin.x
@@ -69,6 +133,27 @@ static func _offset_plan(result: Dictionary, origin: Vector2) -> void:
 		var zone: Dictionary = zone_variant
 		var rect: Rect2 = zone.get("rect", Rect2())
 		zone["rect"] = Rect2(rect.position + origin, rect.size)
+	for rock_variant in result.get("rocks", []):
+		var rock: Dictionary = rock_variant
+		rock["x"] = float(rock.get("x", 0.0)) + origin.x
+		rock["y"] = float(rock.get("y", 0.0)) + origin.y
+	_offset_buildings_plan(result, origin)
+
+## Décale les bâtiments GLB de la cité et leurs modules (toits, façades) :
+## les positions sont stockées dans le repère local du plan.
+static func _offset_buildings_plan(result: Dictionary, origin: Vector2) -> void:
+	for building_variant in result.get("buildings", []):
+		var building: Dictionary = building_variant
+		building["x"] = float(building.get("x", 0.0)) + origin.x
+		building["y"] = float(building.get("y", 0.0)) + origin.y
+		for roof_variant in building.get("roofs", []):
+			var roof: Dictionary = roof_variant
+			roof["x"] = float(roof.get("x", 0.0)) + origin.x
+			roof["y"] = float(roof.get("y", 0.0)) + origin.y
+		for wall_variant in building.get("walls", []):
+			var wall: Dictionary = wall_variant
+			wall["x"] = float(wall.get("x", 0.0)) + origin.x
+			wall["y"] = float(wall.get("y", 0.0)) + origin.y
 
 static func _generate_village(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
@@ -123,6 +208,12 @@ static func _generate_village(result: Dictionary, width: int, height: int,
 				"type": ["marguerite", "coquelicot", "lavande"][rng.randi() % 3],
 				"density": 4.0,
 			})
+	# Mur de soutènement en pierres sèches sur la bordure haute du village :
+	# il ferme la scène sans bloquer la route centrale.
+	var top_y := 1.2
+	var wall_from := Vector2(1.2, top_y)
+	var wall_to := Vector2(minf(float(width) - 1.2, 11.2), top_y + rng.randf_range(-0.6, 0.6))
+	_add_rock_wall(result, wall_from, wall_to, 2, rng, width, height, 14)
 
 static func _generate_forest(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
@@ -145,7 +236,7 @@ static func _generate_forest(result: Dictionary, width: int, height: int,
 				else "res://assets/objects3d/vegetation/buisson.glb",
 			"x": pos.x, "y": pos.y, "scale": rng.randf_range(0.7, 1.35),
 		})
-	# Clairière : quelques rochers et fleurs autour du centre.
+	# Clairière : quelques rochers Marching Cubes, encadrés d'un affleurement.
 	for i in range(4):
 		var angle := TAU * float(i) / 4.0 + rng.randf_range(-0.3, 0.3)
 		result["props"].append({
@@ -153,6 +244,16 @@ static func _generate_forest(result: Dictionary, width: int, height: int,
 			"x": center.x + cos(angle) * 2.6, "y": center.y + sin(angle) * 2.6,
 			"scale": rng.randf_range(0.7, 1.1),
 		})
+	# Deux affleurements de rochers empilés en lisière de clairière.
+	var clearance := 5.2
+	_add_rock_wall(result,
+		Vector2(center.x - clearance, center.y - clearance * 0.7),
+		Vector2(center.x + clearance * 0.2, center.y - clearance),
+		3, rng, width, height, 14)
+	_add_rock_wall(result,
+		Vector2(center.x + clearance * 0.4, center.y + clearance),
+		Vector2(center.x + clearance, center.y - clearance * 0.2),
+		2, rng, width, height, 10)
 
 static func _generate_camp(result: Dictionary, width: int, height: int,
 		rng: RandomNumberGenerator, density: float) -> void:
@@ -187,6 +288,12 @@ static func _generate_camp(result: Dictionary, width: int, height: int,
 			"y": pos.y + rng.randf_range(-1.2, 1.2),
 			"scale": 0.8,
 		})
+	# Enclos rocheux côté nord : deux assises de pierres empilées.
+	var north := maxf(1.2, center.y - 4.6)
+	_add_rock_wall(result,
+		Vector2(maxf(1.0, center.x - 4.4), north),
+		Vector2(minf(float(width) - 1.0, center.x + 4.4), north),
+		2, rng, width, height)
 
 static func _clamp_rect(rect: Rect2, width: int, height: int) -> Rect2:
 	var x := clampf(rect.position.x, 0.5, float(width) - rect.size.x - 0.5)
