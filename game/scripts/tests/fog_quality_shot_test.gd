@@ -198,6 +198,105 @@ func _run() -> void:
 		print("  [diff] ciel/backdrop A/B = %.4f" % d_far)
 		_assert("sky_far_hazed", d_far > DIFF_MIN_FAR, "diff=%.4f" % d_far)
 
+	# --- 5. Brume de hauteur ADAPTÉE AU TILT (vue de dessus ↔ rasante) -----
+	# La composante hauteur est pondérée par l'angle caméra : en vue plongeante
+	# elle doit disparaître (carte nette, contraste retrouvé), en vue rasante
+	# elle doit rester pleine (brume héroïque). A/B `set_atmospheric_tilt_aware`
+	# à caméra STRICTEMENT identique.
+	# On reproduit la configuration des cartes de DÉMO (cité) : densité de
+	# distance légère 0,06 et composante hauteur laissée par défaut — c'est ce
+	# couple qui « lavait » les captures.
+	var tilt_map: Dictionary = _make_fog_map(md)
+	tilt_map["atmosphericFog"] = {"enabled": true, "density": 0.06}
+	engine.configure(tilt_map, [], [], [], [], [], false, true,
+		{"mode": "select"}, {}, "")
+	for _i in range(10):
+		await process_frame
+	# --- 5a. Vue « carte » de l'éditeur (tilt 2,5D -50°) -------------------
+	# C'est LE cas des captures de démo (cité) : la brume de hauteur, pleine
+	# autrefois, voilait la carte. A/B tilt-aware à caméra identique, comparé
+	# à une référence SANS brume de hauteur (ce que la cité force aujourd'hui).
+	engine._fit_to_view()
+	for _i in range(8):
+		await process_frame
+	var factor_default: float = engine.get_atmospheric_fog_height_factor()
+	_assert("tilt_default_factor_partial",
+		factor_default > 0.25 and factor_default < 0.65,
+		"factor=%.3f" % factor_default)
+	var def_off: Image = await _shot_tilt_ab(engine, false, "fog_quality_tilt_default_off")
+	var def_on: Image = await _shot_tilt_ab(engine, true, "fog_quality_tilt_default_on")
+	var def_ref: Image = await _shot_height_ref(engine, "fog_quality_tilt_default_ref")
+	if def_off != null and def_on != null and def_ref != null:
+		_assert("tilt_default_not_blank", not _is_blank(def_on))
+		var d_off_on := _mean_diff(def_off, def_on)
+		var d_off_ref := _mean_diff(def_off, def_ref)
+		var d_on_ref := _mean_diff(def_on, def_ref)
+		print("  [diff] vue carte : OFF/ON %.4f | OFF↔référence claire %.4f | ON↔référence claire %.4f" % [
+			d_off_on, d_off_ref, d_on_ref])
+		_assert("tilt_default_changes_image", d_off_on > 0.004, "diff=%.4f" % d_off_on)
+		_assert("tilt_default_closer_to_clear",
+			d_on_ref < d_off_ref * 0.85,
+			"on_ref=%.4f off_ref=%.4f" % [d_on_ref, d_off_ref])
+		_assert("tilt_default_veil_removed",
+			_mean_luminance(def_on) < _mean_luminance(def_off),
+			"lum_on=%.4f lum_off=%.4f" % [
+				_mean_luminance(def_on), _mean_luminance(def_off)])
+	# --- 5b. Vue BASSE (rasante héroïque, pitch -18) -----------------------
+	engine._camera.position = Vector3(9.0, 3.0, 13.5)
+	engine._camera.rotation_degrees = Vector3(-18.0, 0.0, 0.0)
+	engine.zoom = 2.2
+	engine._update_ortho_size()
+	engine.sync_atmospheric_fog()
+	for _i in range(6):
+		await process_frame
+	_assert("tilt_low_factor_full",
+		engine.get_atmospheric_fog_height_factor() > 0.98,
+		"factor=%.3f" % engine.get_atmospheric_fog_height_factor())
+	var low_off: Image = await _shot_tilt_ab(engine, false, "fog_quality_tilt_low_off")
+	var low_on: Image = await _shot_tilt_ab(engine, true, "fog_quality_tilt_low_on")
+	if low_off != null and low_on != null:
+		_assert("tilt_low_not_blank", not _is_blank(low_on))
+		var d_low := _mean_diff(low_off, low_on)
+		print("  [diff] vue basse tilt-aware OFF/ON = %.4f (identique attendu)" % d_low)
+		_assert("tilt_low_unchanged", d_low < 0.002, "diff=%.4f" % d_low)
+	# --- 5c. Vue PLONGEANTE (pitch -85, carte cadrée de dessus) ------------
+	# La composante hauteur doit être totalement annulée : le rendu tilt-aware
+	# doit alors être PIXEL-IDENTIQUE à une référence sans brume de hauteur,
+	# tandis que l'ancien comportement (OFF) voilait la carte.
+	engine._camera.position = Vector3(float(W) * 0.5 * float(engine._cell_size), 24.0,
+		float(H) * 0.5 * float(engine._cell_size))
+	engine._camera.rotation_degrees = Vector3(-85.0, 0.0, 0.0)
+	engine.sync_atmospheric_fog()
+	for _i in range(6):
+		await process_frame
+	_assert("tilt_top_factor_zero",
+		engine.get_atmospheric_fog_height_factor() < 0.02,
+		"factor=%.3f" % engine.get_atmospheric_fog_height_factor())
+	var top_off: Image = await _shot_tilt_ab(engine, false, "fog_quality_tilt_top_off")
+	var top_on: Image = await _shot_tilt_ab(engine, true, "fog_quality_tilt_top_on")
+	var top_ref: Image = await _shot_height_ref(engine, "fog_quality_tilt_top_ref")
+	if top_off != null and top_on != null and top_ref != null:
+		var d_off_ref := _mean_diff(top_off, top_ref)
+		var d_on_ref := _mean_diff(top_on, top_ref)
+		print("  [diff] vue plongeante : OFF↔référence claire %.4f | ON↔référence claire %.4f" % [
+			d_off_ref, d_on_ref])
+		_assert("tilt_top_clear_reference", d_on_ref < 0.003,
+			"on_ref=%.4f" % d_on_ref)
+		_assert("tilt_top_old_behavior_hazed", d_off_ref > 0.02,
+			"off_ref=%.4f" % d_off_ref)
+		_assert("tilt_top_fix_removes_veil", d_off_ref > d_on_ref * 3.0,
+			"off_ref=%.4f on_ref=%.4f" % [d_off_ref, d_on_ref])
+	# --- 5d. Réversibilité globale : brume OFF = rendu d'origine -----------
+	engine.set_atmospheric_tilt_aware(true)
+	engine.set_atmospheric_fog_enabled(false)
+	for _i in range(3):
+		await process_frame
+	_assert("tilt_ab_off_exponential",
+		engine._world_env.environment.fog_mode == Environment.FOG_MODE_EXPONENTIAL)
+	engine.set_atmospheric_fog_enabled(true)
+	for _i in range(3):
+		await process_frame
+
 	if _failed:
 		print("fog_quality_shot_test:FAIL")
 		quit(1)
@@ -276,10 +375,95 @@ func _shot_ab(engine: Control, atmos_on: bool, shot_name: String) -> Image:
 		await process_frame
 	return await _shot(engine, shot_name)
 
+## Capture avec la pondération de hauteur dans l'état demandé, puis RESTAURE
+## le tilt-aware actif (les captures finissent en configuration normale).
+func _shot_tilt_ab(engine: Control, tilt_aware: bool, shot_name: String) -> Image:
+	engine.set_atmospheric_tilt_aware(tilt_aware)
+	for _i in range(4):
+		await process_frame
+	var env = engine._world_env.environment
+	print("  [tilt] aware=%s factor=%.3f heightDensity=%.3f fog_mode=%d fog_height=%.2f fog_density=%.3f cam=%s" % [
+		str(tilt_aware), engine.get_atmospheric_fog_height_factor(),
+		env.fog_height_density, env.fog_mode, env.fog_height, env.fog_density,
+		str(engine._camera.position)])
+	return await _shot(engine, shot_name)
+
+## Capture de RÉFÉRENCE : même carte/caméra mais composante hauteur forcée à
+## 0 (`atmosphericFog.heightDensity = 0`) — le rendu « clair » que la brume de
+## hauteur ne doit plus voiler. La carte est restaurée après la capture.
+func _shot_height_ref(engine: Control, shot_name: String) -> Image:
+	var saved = engine.map_data.get("atmosphericFog")
+	var ref_cfg: Dictionary = (saved as Dictionary).duplicate(true) \
+		if saved is Dictionary else {}
+	ref_cfg["enabled"] = true
+	ref_cfg["density"] = 0.06
+	ref_cfg["heightDensity"] = 0.0
+	engine.map_data["atmosphericFog"] = ref_cfg
+	engine._apply_lighting()
+	for _i in range(4):
+		await process_frame
+	var img: Image = await _shot(engine, shot_name)
+	if saved is Dictionary:
+		engine.map_data["atmosphericFog"] = saved
+	else:
+		engine.map_data.erase("atmosphericFog")
+	engine._apply_lighting()
+	engine.sync_atmospheric_fog()
+	for _i in range(3):
+		await process_frame
+	return img
+
+## Moyenne de luminance d'une image (le voile de brume éclaircit l'image).
+func _mean_luminance(img: Image) -> float:
+	if img == null:
+		return 0.0
+	var w := img.get_width()
+	var h := img.get_height()
+	var step := maxi(1, int(float(w) / 120.0))
+	var total := 0.0
+	var count := 0
+	for y in range(0, h, step):
+		for x in range(0, w, step):
+			var c := img.get_pixel(x, y)
+			total += (c.r + c.g + c.b) / 3.0
+			count += 1
+	return total / float(maxi(1, count))
+
+## Écart-type de la luminance d'une image (mesure de contraste : une carte
+## « lavée » par un voile de brume a un écart-type bas).
+func _luminance_std(img: Image) -> float:
+	if img == null:
+		return 0.0
+	var w := img.get_width()
+	var h := img.get_height()
+	var step := maxi(1, int(float(w) / 120.0))
+	var values: Array = []
+	var total := 0.0
+	for y in range(0, h, step):
+		for x in range(0, w, step):
+			var c := img.get_pixel(x, y)
+			var lum := (c.r + c.g + c.b) / 3.0
+			values.append(lum)
+			total += lum
+	var mean := total / float(maxi(1, values.size()))
+	var variance := 0.0
+	for v in values:
+		variance += (float(v) - mean) * (float(v) - mean)
+	return sqrt(variance / float(maxi(1, values.size())))
+
 func _shot(engine: Control, shot_name: String) -> Image:
 	for _i in range(4):
 		await process_frame
-	var img: Image = engine.get_viewport().get_texture().get_image()
+	# Capture DIRECTE du SubViewport du moteur (pas de la fenêtre hôte :
+	# l'image composée par la fenêtre peut être réutilisée d'une frame à
+	# l'autre et masquer un changement d'Environment).
+	var viewport = engine.get("_viewport")
+	if viewport == null:
+		viewport = engine.get_viewport()
+	var img: Image = viewport.get_texture().get_image()
+	if img == null:
+		await create_timer(5.0).timeout
+		img = viewport.get_texture().get_image()
 	if img == null:
 		_assert("capture_%s" % shot_name, false)
 		return null

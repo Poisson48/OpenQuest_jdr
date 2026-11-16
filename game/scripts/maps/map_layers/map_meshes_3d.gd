@@ -37,19 +37,31 @@ class_name MapMeshes3D
 ## XZ de l'objet. Sans elle, un objet posé sur une illustration 2.5D « flotte ».
 ##
 ## **Ambiance** : seul le volume de substitution est teinté par
-## `MapRenderStyleScript.atmosphere_color()` (facteur léger) — teinter les
-## matériaux importés des GLB demanderait de dupliquer chaque matériau de la
-## scène (risque de casser les shaders/ressources importés) : laissé en TODO
-## phase 2, voir `_build_fallback()`.
+## `MapRenderStyleScript.atmosphere_color()` (facteur léger) en preset classique.
 ##
-## Ombres coupées (rendu 2.5D léger) et aucune collision : ce calque est
-## purement décoratif.
+## **Preset qualité `cinema`** (`map_data["qualityPreset"] = "cinema"`, opt-in) :
+## le rendu CS2 s'active pour les objets **importés** (GLB) —
+##   • `cast_shadow = ON` sur les maillages (jamais la coque `*_outline`, jamais
+##     la cheminée/les lames plates procédurales) : les objets projettent une
+##     vraie ombre portée sur le sol/terrain, éclairée par le soleil doux ;
+##   • matériaux passés en **PBR éclairé** (`SHADING_MODE_PER_PIXEL`) en
+##     conservant albedo + vertex colors + textures, mats (roughness plancher),
+##     avec une légère **perspective aérienne** (`quality_aerial_tint`) qui
+##     désature/éclaircit les objets du fond de carte ;
+##   • **ombre de contact peinte atténuée** (le soleil projette la vraie) ;
+##   • **budget d'ombres par distance** (`shadowDistance`, défaut 70 cases) :
+##     seuls les objets proches du point visé projettent, réévaluation au
+##     mouvement caméra sur les nœuds vivants (aucune reconstruction), avec
+##     hystérésis anti-clignotement.
+## En preset `classique` (défaut, clé absente), le comportement est strictement
+## identique à l'historique : aucun cast shadow, matériaux non éclairés.
 
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
 ## Chargement des objets 3D : GLB livrés (importés par Godot, via ResourceLoader)
 ## ET GLB utilisateur déposés dans user:// (non importés, via GLTFDocument).
 const MapAssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const ProceduralWallMeshScript := preload("res://scripts/maps/construction/procedural_wall_mesh.gd")
+const ProceduralRockWallMeshScript := preload("res://scripts/maps/construction/procedural_rock_wall_mesh.gd")
 const ProceduralFlowerZoneScript := preload("res://scripts/maps/construction/procedural_flower_zone.gd")
 const ProceduralRoofMeshScript := preload("res://scripts/maps/construction/procedural_roof_mesh.gd")
 const ProceduralWallShader := preload("res://shaders/procedural_wall.gdshader")
@@ -76,6 +88,11 @@ const CONTACT_SHADOW_OPACITY := 0.25
 const SLOPE_INCLINE_THRESHOLD_DEG := 8.0
 ## Seuil sous lequel une case de relief est considérée comme plate.
 const TERRAIN_RELIEF_EPSILON := 0.001
+## Clés de matériau prises en charge par le passage PBR du preset qualité.
+const MIN_LIT_ROUGHNESS := 0.86
+## Hystérésis du budget d'ombres : un objet allumé reste allumé jusqu'à ce qu'il
+## dépasse `budget × ce facteur` (évite le clignotement au déplacement caméra).
+const SHADOW_BUDGET_HYSTERESIS := 1.15
 
 var _cell_size: float = 1.0
 ## id → nœud racine (Node3D) du mesh, pour le déplacement live.
@@ -107,8 +124,34 @@ var _has_atmosphere: bool = false
 ## matériaux importés (PBR) assombriraient l'objet par rapport au décor peint.
 ## Les couleurs/AO viennent des vertex colors exportés par Blender.
 var _unshaded: bool = true
+## Preset qualité actif (`classique` / `cinema`) — opt-in.
+var _quality_preset: String = MapRenderStyleScript.QUALITY_CLASSIQUE
+## Preset qualité « cinéma » : ombres portées réelles + matériaux PBR éclairés.
+var _cinema_quality: bool = false
+## Facteur d'ombre de contact (1.0 = historique, 0.45 en cinéma).
+var _contact_shadow_scale: float = 1.0
+## Roughness plancher des matériaux importés en cinéma (0 = aucun plancher).
+var _material_roughness_min: float = 0.0
+## Combinaison de matériaux du style (preset qualité inclus) pour la teinte de
+## profondeur des matériaux importés.
+var _style_cfg: Dictionary = {}
+## Hauteur de carte (cases) pour la perspective aérienne des objets.
+var _map_height: int = 1
 ## Texture radiale partagée par toutes les ombres de contact du calque.
 var _shadow_texture: GradientTexture2D = null
+## Opacité centrale de la texture d'ombre partagée (pour la régénérer quand le
+## preset qualité atténue l'ombre de contact).
+var _shadow_texture_opacity: float = -1.0
+## Budget d'ombres en cases (`shadowDistance`, -1 = illimité) : seuls les objets
+## proches du point visé projettent une ombre. Voir `update_shadow_budget()`.
+var _shadow_budget_cells: float = -1.0
+## Dernier point visé (monde, xz) connu pour le budget d'ombres.
+var _shadow_budget_focus: Vector2 = Vector2.INF
+## id → nœuds `GeometryInstance3D` qui projettent une ombre (mesh + aucun
+## contour), pour allumer/éteindre le cast sans reconstruire les objets.
+var _shadow_casters: Dictionary = {}
+## Nombre d'objets projetant actuellement une ombre (tests/perf).
+var _active_shadow_casters: int = 0
 
 ## Reconstruit le calque. `map_data` est accepté pour cohérence avec les autres
 ## calques (MapProps3D) ; il sert à la teinte d'ambiance du fallback et à savoir
@@ -117,7 +160,21 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 	_cell_size = cell_size if cell_size > 0.0 else 1.0
 	_has_atmosphere = not map_data.is_empty()
 	_atmosphere = MapRenderStyleScript.atmosphere_color(map_data) if _has_atmosphere else Color(0.10, 0.10, 0.14)
-	_unshaded = not bool(MapRenderStyleScript.config(map_data).get("litProps", false))
+	_style_cfg = MapRenderStyleScript.config(map_data) if _has_atmosphere else {}
+	_unshaded = not bool(_style_cfg.get("litProps", false))
+	_quality_preset = MapRenderStyleScript.quality_preset(map_data) if _has_atmosphere \
+		else MapRenderStyleScript.QUALITY_CLASSIQUE
+	_cinema_quality = _quality_preset == MapRenderStyleScript.QUALITY_CINEMA \
+		and bool(_style_cfg.get("cinemaQuality", false)) and not _unshaded
+	_contact_shadow_scale = clampf(float(_style_cfg.get("contactShadowScale", 1.0)), 0.0, 2.0)
+	_material_roughness_min = maxf(
+		MIN_LIT_ROUGHNESS if _cinema_quality else 0.0,
+		float(_style_cfg.get("materialRoughnessMin", 0.0)))
+	# Budget d'ombres : -1 (ou absent) = illimité, sinon distance en cases.
+	_shadow_budget_cells = float(_style_cfg.get("shadowDistance", -1.0))
+	_shadow_budget_focus = Vector2.INF
+	_active_shadow_casters = 0
+	_map_height = maxi(1, int(map_data.get("height", 1)))
 	_read_terrain(map_data)
 	for child in get_children():
 		remove_child(child)
@@ -126,6 +183,7 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 	_mesh_entries.clear()
 	_bridge_decks.clear()
 	_fire_lights.clear()
+	_shadow_casters.clear()
 	for mesh_variant in meshes:
 		if not mesh_variant is Dictionary:
 			continue
@@ -138,6 +196,91 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 		add_child(node)
 		_nodes[str(mesh.get("id", ""))] = node
 		_mesh_entries[str(mesh.get("id", ""))] = mesh.duplicate(true)
+	_active_shadow_casters = _shadow_casters.size()
+
+## ===========================================================================
+# Budget d'ombres par distance (preset cinéma)
+# ===========================================================================
+#
+# Sur une carte dense, `cast_shadow` sur tous les GLB double la passe de
+# géométrie (ombres + couleur). Seuls les objets **proches du point visé**
+# projettent donc une ombre : `shadowDistance` cases (défaut 70). La bascule se
+# fait sur les nœuds vivants (aucune reconstruction) quand la caméra bouge,
+# avec hystérésis pour éviter tout clignotement. En `classique`, aucun objet ne
+# projette et ce budget est inactif.
+
+## Allume/éteint les ombres des objets selon la distance au point visé (monde,
+## xz). `budget_cells` vient du preset (`shadowDistance`) ; -1 = illimité.
+## Renvoie le nombre d'objets projetant une ombre.
+func update_shadow_budget(focus_world: Vector2) -> int:
+	if not _cinema_quality or _shadow_budget_cells < 0.0:
+		return _active_shadow_casters
+	if not focus_world.is_finite():
+		return _active_shadow_casters
+	if _shadow_budget_focus.is_finite() and focus_world.distance_to(_shadow_budget_focus) < 0.01:
+		return _active_shadow_casters
+	_shadow_budget_focus = focus_world
+	var budget_world := _shadow_budget_cells * _cell_size
+	var hysteresis := budget_world * SHADOW_BUDGET_HYSTERESIS
+	var enabled := 0
+	for id_variant in _shadow_casters.keys():
+		var id := str(id_variant)
+		var root: Node3D = _nodes.get(id) as Node3D
+		var casters: Array = _shadow_casters[id]
+		if root == null or not is_instance_valid(root) or casters.is_empty():
+			_shadow_casters.erase(id)
+			continue
+		var distance := Vector2(root.position.x - focus_world.x,
+			root.position.z - focus_world.y).length()
+		var currently_on := (casters[0] as GeometryInstance3D).cast_shadow \
+			== GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		var want_on := currently_on
+		if currently_on and distance > hysteresis:
+			want_on = false
+		elif not currently_on and distance <= budget_world:
+			want_on = true
+		if want_on != currently_on:
+			for caster in casters:
+				(caster as GeometryInstance3D).cast_shadow = \
+					GeometryInstance3D.SHADOW_CASTING_SETTING_ON if want_on \
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if want_on:
+			enabled += 1
+	_active_shadow_casters = enabled
+	return enabled
+
+## Force le budget d'ombres (cases ; -1 = illimité) sans reconstruire la carte.
+## Utilisé par les tests, les captures et la mesure de perf (A/B budget serré).
+func set_shadow_budget_cells(cells: float) -> void:
+	var previous := _shadow_budget_focus
+	_shadow_budget_cells = cells
+	_shadow_budget_focus = Vector2.INF
+	if _shadow_budget_cells < 0.0:
+		for id_variant in _shadow_casters.keys():
+			for caster in _shadow_casters[id_variant]:
+				(caster as GeometryInstance3D).cast_shadow = \
+					GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		_active_shadow_casters = _shadow_casters.size()
+		_shadow_budget_focus = previous
+		return
+	# Budget serré : réapplique autour du dernier point visé connu (sinon on
+	# laisse tous les objets allumés jusqu'au premier mouvement caméra).
+	if previous.is_finite():
+		update_shadow_budget(previous)
+	else:
+		_shadow_budget_focus = previous
+
+## Budget d'ombres courant en cases (-1 = illimité).
+func get_shadow_budget_cells() -> float:
+	return _shadow_budget_cells
+
+## Nombre d'objets projetant actuellement une ombre (budget appliqué).
+func get_active_shadow_casters() -> int:
+	return _active_shadow_casters
+
+## Nombre d'objets capables de projeter une ombre (preset cinéma).
+func get_shadow_caster_count() -> int:
+	return _shadow_casters.size()
 
 ## Met à jour le relief **sans reconstruire les objets** (pinceau de relief de
 ## l'éditeur, appelé à chaque mouvement : les GLB ne sont pas réinstanciés).
@@ -329,8 +472,21 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 		light.omni_range = 3.2
 		light.shadow_enabled = false
 		root.add_child(light)
-	# Rendu 2.5D léger : aucune ombre portée, aucune collision.
-	_sanitize_visual(visual)
+	# Rendu 2.5D léger : aucune ombre portée, aucune collision — SAUF preset
+	# qualité `cinema` sur les assets réellement importés (GLB) : eux seuls
+	# projettent une vraie ombre de soleil (les visuels procéduraux du moteur et
+	# la coque d'encre `*_outline` restent sans ombre).
+	var imported_asset := not asset_path.begins_with("procedural://") and not _is_bridge(asset_path)
+	var cast_sun_shadow := _cinema_quality and imported_asset
+	var depth01 := clampf(float(mesh.get("y", 0.0)) / float(maxi(1, _map_height)), 0.0, 1.0)
+	_sanitize_visual(visual, cast_sun_shadow, depth01)
+	# Budget d'ombres : mémorise les nœuds capables de projeter pour pouvoir
+	# les allumer/éteindre selon la distance sans reconstruire l'objet.
+	if cast_sun_shadow:
+		var casters: Array = []
+		_collect_shadow_casters(visual, casters)
+		if not casters.is_empty():
+			_shadow_casters[str(mesh.get("id", ""))] = casters
 	# Ombre de contact peinte : ancre l'objet sur le décor (pas d'effet « flottant »).
 	# Les chemins texturés sont déjà posés au ras du terrain : pas d'ombre ajoutée.
 	if not (visual is Node and visual.has_meta("world_space")):
@@ -360,6 +516,18 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		material.albedo_color = Color("#7d7668")
 		material.roughness = 0.98
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	elif asset == "procedural://rock_wall":
+		mesh_instance.name = "ProceduralRockWall"
+		mesh_instance.mesh = ProceduralRockWallMeshScript.build_from_element(mesh)
+		material.vertex_color_use_as_albedo = true
+		material.albedo_color = Color.WHITE
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.roughness = 1.0
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mesh_instance.material_override = material
+		_conform_procedural_mesh(mesh_instance, mesh)
+		return mesh_instance
 	elif asset == "procedural://poly_roof":
 		mesh_instance.name = "ProceduralPolyRoof"
 		mesh_instance.mesh = ProceduralPolyRoofScript.build_from_element(mesh)
@@ -1009,9 +1177,9 @@ func _build_fallback() -> MeshInstance3D:
 
 ## Teinte du volume de substitution : couleur neutre légèrement fondue dans
 ## l'ambiance du style, pour que le fallback reste cohérent avec le décor peint.
-## TODO phase 2 : appliquer la même logique (`depth_tint`) aux matériaux
-## *importés* des GLB — cela exige de dupliquer chaque matériau de la scène et
-## donc de risquer de casser les shaders/ressources partagées importées.
+## Le preset qualité applique en plus, aux matériaux **importés** réels, la
+## perspective aérienne (`_apply_lit_materials`), sans modifier les ressources
+## partagées : seules des copies par surface sont touchées.
 func _fallback_color() -> Color:
 	if not _has_atmosphere:
 		return FALLBACK_COLOR
@@ -1065,13 +1233,16 @@ func _repose_contact_shadow(root: Node3D, shadow: Node3D, inclined: bool) -> voi
 		shadow.transform = Transform3D(flat_basis, shadow.position)
 
 ## Matériau de l'ombre de contact : dégradé radial noir doux, alpha, non éclairé.
+## L'opacité est atténuée par le preset qualité (`contactShadowScale` : en
+## cinéma le soleil projette la vraie ombre, l'ombre peinte n'est qu'un rappel).
 func _contact_shadow_material() -> StandardMaterial3D:
-	if _shadow_texture == null:
+	var opacity := CONTACT_SHADOW_OPACITY * _contact_shadow_scale
+	if _shadow_texture == null or not is_equal_approx(_shadow_texture_opacity, opacity):
 		var gradient := Gradient.new()
-		gradient.set_color(0, Color(0.0, 0.0, 0.0, CONTACT_SHADOW_OPACITY))
+		gradient.set_color(0, Color(0.0, 0.0, 0.0, opacity))
 		gradient.set_color(1, Color(0.0, 0.0, 0.0, 0.0))
 		if gradient.get_point_count() < 3:
-			gradient.add_point(0.55, Color(0.0, 0.0, 0.0, CONTACT_SHADOW_OPACITY * 0.55))
+			gradient.add_point(0.55, Color(0.0, 0.0, 0.0, opacity * 0.55))
 		var tex := GradientTexture2D.new()
 		tex.gradient = gradient
 		tex.fill = GradientTexture2D.FILL_RADIAL
@@ -1080,6 +1251,7 @@ func _contact_shadow_material() -> StandardMaterial3D:
 		tex.width = 64
 		tex.height = 64
 		_shadow_texture = tex
+		_shadow_texture_opacity = opacity
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _shadow_texture
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1111,19 +1283,44 @@ func _collect_mesh_aabbs(node: Node, xform: Transform3D, boxes: Array) -> void:
 		var child_xform := xform * (child as Node3D).transform if child is Node3D else xform
 		_collect_mesh_aabbs(child, child_xform, boxes)
 
-## Coupe les ombres, neutralise les collisions et, en 2.5D, passe les matériaux
-## importés en non éclairé : la palette et l'AO viennent de Blender (vertex
-## colors), l'illustration porte déjà la lumière. En VTT, on garde l'éclairage.
-func _sanitize_visual(node: Node) -> void:
+## Coupe les ombres, neutralise les collisions et règle le matériau des meshes.
+##
+## • Preset `classique` (historique) : tout `cast_shadow = OFF` ; en 2.5D les
+##   matériaux importés passent en non éclairé (palette et AO de Blender,
+##   l'illustration porte la lumière) ; en VTT on garde l'éclairage.
+## • Preset `cinema` : les meshes importés **projettent** leur ombre (le sol et
+##   le terrain la reçoivent), la coque d'encre `*_outline` jamais ; les
+##   matériaux passent en PBR éclairé avec teinte de profondeur.
+func _sanitize_visual(node: Node, cast_sun_shadow: bool = false, depth01: float = 1.0) -> void:
 	if node is GeometryInstance3D:
-		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var geometry := node as GeometryInstance3D
+		var allow := cast_sun_shadow and not _is_outline_node(node)
+		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if allow \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if node is CollisionObject3D:
 		(node as CollisionObject3D).collision_layer = 0
 		(node as CollisionObject3D).collision_mask = 0
-	if _unshaded and node is MeshInstance3D:
-		_apply_unshaded_materials(node as MeshInstance3D)
+	if node is MeshInstance3D:
+		if _cinema_quality:
+			_apply_lit_materials(node as MeshInstance3D, depth01)
+		elif _unshaded:
+			_apply_unshaded_materials(node as MeshInstance3D)
 	for child in node.get_children():
-		_sanitize_visual(child)
+		_sanitize_visual(child, cast_sun_shadow, depth01)
+
+## Collecte les `GeometryInstance3D` d'un objet qui projettent une ombre (le
+## mesh principal, jamais la coque `*_outline` ni l'ombre de contact peinte).
+func _collect_shadow_casters(node: Node, out: Array) -> void:
+	if node is GeometryInstance3D and not node.has_meta("contact_shadow"):
+		if (node as GeometryInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+			out.append(node)
+	for child in node.get_children():
+		_collect_shadow_casters(child, out)
+
+## Vrai pour la coque d'encre inversée du pipeline Blender (`<nom>_outline`) :
+## elle ne doit JAMAIS projeter d'ombre (elle assombrirait l'objet et le sol).
+func _is_outline_node(node: Node) -> bool:
+	return str(node.name).to_lower().contains("outline")
 
 ## Duplique les matériaux par surface et les passe en `UNSHADED`, en activant
 ## les vertex colors comme albédo (mottling + AO cuits par le pipeline Blender).
@@ -1143,6 +1340,52 @@ func _apply_unshaded_materials(mesh_instance: MeshInstance3D) -> void:
 		elif source != null:
 			# Matériau exotique : on le laisse tel quel plutôt que de le casser.
 			pass
+
+## Preset `cinema` : matériaux importés en **PBR éclairé** (méthode CS2), en
+## conservant l'albedo/texture et les vertex colors, mats (roughness plancher),
+## avec une **perspective aérienne** très légère selon la profondeur de l'objet
+## dans la carte (`depth01` = 1 au premier plan, 0 au fond).
+## La duplication est indispensable : les matériaux importés sont partagés
+## entre instances (et avec la ressource `.scn`), on ne les modifie pas en place.
+func _apply_lit_materials(mesh_instance: MeshInstance3D, depth01: float) -> void:
+	var haze := MapRenderStyleScript.quality_aerial_color(_style_cfg)
+	var haze_amount := MapRenderStyleScript.quality_aerial_amount(depth01, _style_cfg)
+	var override := mesh_instance.material_override
+	if override is StandardMaterial3D:
+		# Fallback (boîte neutre) : matériau porté par `material_override`.
+		mesh_instance.material_override = _lit_material(
+			override as StandardMaterial3D, haze, haze_amount)
+		return
+	if mesh_instance.mesh == null:
+		return
+	var surface_count := mesh_instance.mesh.get_surface_count()
+	for i in range(surface_count):
+		var source := mesh_instance.get_active_material(i)
+		if source is StandardMaterial3D:
+			mesh_instance.set_surface_override_material(
+				i, _lit_material(source as StandardMaterial3D, haze, haze_amount))
+
+## Copie éclairée d'un matériau importé : PBR (per-pixel), vertex colors en
+## albédo, métal nul, roughness plancher et perspective aérienne (l'albédo tend
+## vers la brume chaude pour les objets du fond). Les textures, l'émission et
+## les réglages exotiques sont conservés.
+func _lit_material(source: StandardMaterial3D, haze: Color, haze_amount: float) -> StandardMaterial3D:
+	var material: StandardMaterial3D = source.duplicate()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	material.vertex_color_use_as_albedo = true
+	material.metallic = 0.0
+	material.metallic_specular = minf(material.metallic_specular, 0.22)
+	material.roughness = maxf(material.roughness, _material_roughness_min)
+	material.cull_mode = BaseMaterial3D.CULL_BACK
+	var base: Color = material.albedo_color
+	# La coque d'encre reste sombre même avec la perspective aérienne : on
+	# n'éclaircit que très peu les matériaux très sombres (lisibilité du trait).
+	var weight := haze_amount * (0.55 if base.get_luminance() < 0.16 else 1.0)
+	if weight > 0.0001:
+		var faded := base.lerp(haze, clampf(weight, 0.0, 0.5))
+		faded.a = base.a
+		material.albedo_color = faded
+	return material
 
 ## Repositionne un mesh sans reconstruire la scène (glisser en cours).
 ## Sur relief, le pied est reposé sur la nouvelle hauteur et l'inclinaison

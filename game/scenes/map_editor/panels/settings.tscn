@@ -289,6 +289,11 @@ theme_type_variation = &"CaptionLabel"
 text = "Diorama + fond : vue dessus (props à plat). VTT : tactique 3D. Hybride DD2 : fond illustré + caméra inclinée + personnages dressés."
 autowrap_mode = 3
 
+[node name="QualityGroup" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
 [node name="LblPersp" type="Label" parent="."]
 layout_mode = 2
 theme_type_variation = &"SectionLabel"

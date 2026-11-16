@@ -93,8 +93,28 @@ const ATMOS_FOG_MIN_SPAN := 9.0
 ## Courbe de montée de la brume en profondeur (1.0 = linéaire).
 const ATMOS_FOG_DEPTH_CURVE := 1.0
 
+# --- Brume de hauteur adaptée à l'angle de caméra (vue de dessus) -----------
+#
+# La composante HAUTEUR (`fog_height_density`) est pensée pour les vues
+# rasantes/héroïques (la brume s'amasse dans les creux, sommets plus nets).
+# En vue de dessus (top-down, isométrique haute, diorama), elle voile toute la
+# carte d'un aplat et écrase le contraste : on la pondère donc par le tilt de
+# la caméra — nulle au-dessus de `ATMOS_TILT_TOP_DEG` (vue plongeante), pleine
+# en dessous de `ATMOS_TILT_LOW_DEG` (vue rasante). La composante PROFONDEUR
+# (`FOG_MODE_DEPTH` + bande relative) n'est jamais modifiée : la perspective
+# aérienne reste lisible dans toutes les vues.
+## Au-delà de ce pitch (degrés, |rotation.x|), la hauteur est annulée.
+const ATMOS_TILT_TOP_DEG := 72.0
+## En dessous de ce pitch, la hauteur est pleine.
+const ATMOS_TILT_LOW_DEG := 22.0
+## Facteur de hauteur en vue plongeante (0 = aucune brume de hauteur).
+const ATMOS_TILT_TOP_FACTOR := 0.0
+
 ## A/B principal de la brume atmosphérique (false = rendu d'origine strict).
 var atmospheric_fog_enabled: bool = true
+## A/B de la pondération par le tilt (false = ancien comportement exact,
+## composante hauteur pleine quelle que soit la caméra).
+var atmospheric_tilt_aware: bool = true
 ## Intensité max de la brume (0..1) — `fog_density` en mode profondeur.
 var atmospheric_fog_intensity: float = 0.30
 ## Teinte de la brume — palette « grimoire » (bleu-violet délavé, jamais
@@ -259,6 +279,12 @@ var _effect_nodes: Dictionary = {}
 var _zone_nodes: Dictionary = {}
 var _lighting_config: Dictionary = {}
 var _style_cfg: Dictionary = {}
+## Preset de qualité actif (`classique` par défaut, `cinema` opt-in) — voir
+## `MapRenderStyleScript.quality_preset()`. Orthogonal au style de rendu.
+var _quality_preset: String = MapRenderStyleScript.QUALITY_CLASSIQUE
+## Dernière vue connue du budget d'ombres (évite un recalcul à chaque frame).
+var _shadow_budget_cam_pos := Vector3.INF
+var _shadow_budget_cam_size := -1.0
 var _hovered_area_id: String = ""
 var _hovered_zone_id: String = ""
 var _move_hover_layer: Control
@@ -534,7 +560,9 @@ func configure(
 	_cell_size = float(_grid_config.get("size", 70)) * 0.01
 	_sync_terrain_from_map()
 	_lighting_config = MapData.get_lighting_config(p_map)
+	_quality_preset = MapRenderStyleScript.quality_preset(p_map)
 	_style_cfg = MapRenderStyleScript.config(p_map)
+	_read_atmospheric_fog_options()
 	_loaded_map_id = new_id
 	# Aimantation : libre en diorama, à la case en VTT (sauf override explicite).
 	if not p_tool.has("forceSnap"):
@@ -578,6 +606,7 @@ func configure(
 		_orbit_distance = saved_orbit_distance
 	trace_event("CONFIGURE_AFTER", "same=%s preserve=%s" % [same_map, preserve_camera])
 	_rebuild_layers()
+	_update_shadow_budget(true)
 
 ## Reconstruit UNIQUEMENT la couche des objets (meshes 3D, props, murs) sans
 ## toucher au terrain, à la végétation, à l'eau, à l'ambiance ni aux lumières.
@@ -587,6 +616,9 @@ func refresh_meshes_only() -> void:
 	if _meshes_layer and _meshes_layer.has_method("configure"):
 		var meshes = map_data.get("meshes", [])
 		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
+		# Le calque reconstruit repart tous casters allumés : réapplique le
+		# budget d'ombres sans attendre un mouvement caméra.
+		_update_shadow_budget(true)
 	if _props_layer and _props_layer.has_method("configure"):
 		var props = map_data.get("props", [])
 		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
@@ -793,13 +825,111 @@ func get_vignette_strength() -> float:
 		return 0.0
 	return float((_vignette.material as ShaderMaterial).get_shader_parameter("strength"))
 
+# ===========================================================================
+# Preset qualité (classique / cinéma CS2) — opt-in, A/B réversible
+# ===========================================================================
+
+## Preset qualité actif (`classique` par défaut).
+func get_quality_preset() -> String:
+	return _quality_preset
+
+## Vrai si le preset qualité « cinéma » (rendu CS2) est actif sur ce rendu.
+func is_cinema_quality() -> bool:
+	return bool(_style_cfg.get("cinemaQuality", false))
+
+## Bascule A/B du preset qualité **sans reconstruire la carte ni bouger la
+## caméra** : met à jour `map_data["qualityPreset"]`, reconstruit uniquement le
+## calque des objets 3D (ombres/matériaux) et réapplique éclairage + qualité.
+## `classique` restitue exactement le rendu historique (aucune clé modifiée
+## d'autre). Utilisé par le panneau Réglages, les tests et les captures.
+func set_quality_preset(preset: String) -> void:
+	var resolved := MapRenderStyleScript.QUALITY_CLASSIQUE
+	if preset.strip_edges().to_lower() in [
+			MapRenderStyleScript.QUALITY_CINEMA, "cinéma", "cinema_cs2", "cs2"]:
+		resolved = MapRenderStyleScript.QUALITY_CINEMA
+	_quality_preset = resolved
+	if map_data is Dictionary:
+		if resolved == MapRenderStyleScript.QUALITY_CLASSIQUE:
+			# Défaut historique : la clé absente = rendu d'origine. On la laisse
+			# absente pour que les cartes classiques restent bit-à-bit stables.
+			map_data.erase("qualityPreset")
+		else:
+			map_data["qualityPreset"] = resolved
+	_style_cfg = MapRenderStyleScript.config(map_data)
+	if _meshes_layer != null and _meshes_layer.has_method("configure"):
+		var meshes = map_data.get("meshes", []) if map_data is Dictionary else []
+		var meshes_arr: Array = meshes if meshes is Array else []
+		_meshes_layer.configure(meshes_arr, _cell_size, map_data)
+		# L'ancrage (AO de contact cuite) suit le preset sans reconstruire la carte.
+		_sync_object_occlusion_stamps(meshes_arr)
+	_apply_lighting()
+	_apply_render_quality()
+	_apply_atmosphere()
+	_update_shadow_budget(true)
+	if is_inside_tree():
+		_sync_atmospheric_fog_depth()
+
+# --- Budget d'ombres par distance (perf cartes denses) ---------------------
+
+## Réévalue le budget d'ombres des objets 3D autour du point visé. Appelé par
+## `_process` quand la caméra bouge, et aux bascules de preset. En `classique`
+## ou si le budget est illimité, c'est un no-op.
+func _update_shadow_budget(force: bool = false) -> void:
+	if _meshes_layer == null or not is_instance_valid(_meshes_layer):
+		return
+	if not _meshes_layer.has_method("update_shadow_budget"):
+		return
+	if not is_cinema_quality():
+		return
+	if not force and _camera != null:
+		if _camera.position.is_equal_approx(_shadow_budget_cam_pos) \
+				and is_equal_approx(_camera.size, _shadow_budget_cam_size):
+			return
+		_shadow_budget_cam_pos = _camera.position
+		_shadow_budget_cam_size = _camera.size
+	else:
+		if _camera != null:
+			_shadow_budget_cam_pos = _camera.position
+			_shadow_budget_cam_size = _camera.size
+	var focus := _ground_focus()
+	_meshes_layer.update_shadow_budget(focus)
+
+## Budget d'ombres courant en cases (-1 = illimité, tous les objets projettent).
+func get_shadow_budget_cells() -> float:
+	if _meshes_layer != null and _meshes_layer.has_method("get_shadow_budget_cells"):
+		return float(_meshes_layer.get_shadow_budget_cells())
+	return -1.0
+
+## Force le budget d'ombres (cases ; -1 = illimité) sans reconstruire la carte :
+## recalcule immédiatement quels objets projettent (tests, captures, perf).
+func set_shadow_budget_cells(cells: float) -> void:
+	if _meshes_layer != null and _meshes_layer.has_method("set_shadow_budget_cells"):
+		_meshes_layer.set_shadow_budget_cells(cells)
+	_update_shadow_budget(true)
+
+## Nombre d'objets 3D projetant actuellement une ombre (tests/perf).
+func get_active_shadow_casters() -> int:
+	if _meshes_layer != null and _meshes_layer.has_method("get_active_shadow_casters"):
+		return int(_meshes_layer.get_active_shadow_casters())
+	return 0
+
+## Nombre d'objets 3D capables de projeter une ombre en preset cinéma.
+func get_shadow_caster_count() -> int:
+	if _meshes_layer != null and _meshes_layer.has_method("get_shadow_caster_count"):
+		return int(_meshes_layer.get_shadow_caster_count())
+	return 0
+
 func _apply_render_quality() -> void:
 	if _world_env == null:
 		return
 	var env: Environment = _world_env.environment
 	if env == null:
 		return
+	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
 	var terrain := _ground_mode == "terrain3d" or MapRenderStyleScript.is_map_25d(map_data)
+	# Preset qualité « cinéma » : n'a de sens que sur un vrai terrain (ombres,
+	# AO de contact) et jamais en vue table (salle intérieure).
+	var cinema := bool(cfg.get("cinemaQuality", false)) and terrain and not table_view
 	env.ssao_enabled = terrain
 	if terrain:
 		env.ssao_radius = 1.35
@@ -809,6 +939,15 @@ func _apply_render_quality() -> void:
 		env.ssao_horizon = 0.08
 		env.ssao_sharpness = 0.98
 		env.ssao_light_affect = 0.12
+		if cinema:
+			# AO renforcée + détail fin : les bâtiments s'assoient sur le sol,
+			# les recoins des modules de toiture/façade se lisent (CS2).
+			env.ssao_radius = float(cfg.get("ssaoRadius", 1.7))
+			env.ssao_intensity = float(cfg.get("ssaoIntensity", 1.75))
+			env.ssao_power = float(cfg.get("ssaoPower", 1.2))
+			env.ssao_detail = float(cfg.get("ssaoDetail", 0.9))
+			env.ssao_horizon = float(cfg.get("ssaoHorizon", 0.06))
+			env.ssao_light_affect = float(cfg.get("ssaoLightAffect", 0.16))
 	var preset: Dictionary = MapData.get_lighting_preset(str(_lighting_config.get("preset", "jour")))
 	var preset_glow := float(preset.get("glow", 0.34))
 	env.glow_enabled = true
@@ -817,10 +956,30 @@ func _apply_render_quality() -> void:
 	env.glow_bloom = 0.025
 	env.glow_hdr_threshold = 1.05
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	if cinema:
+		# Glow maîtrisé : lanternes/fenêtres qui perlent, sans voile sur la carte.
+		env.glow_intensity *= float(cfg.get("glowIntensityScale", 0.82))
+		env.glow_strength = float(cfg.get("glowStrength", 0.85))
+		env.glow_bloom = float(cfg.get("glowBloom", 0.012))
+		env.glow_hdr_threshold = float(cfg.get("glowHdrThreshold", 1.12))
 	env.adjustment_enabled = true
 	env.adjustment_brightness = float(preset.get("brightness", 1.05))
 	env.adjustment_contrast = float(preset.get("contrast", 1.06))
 	env.adjustment_saturation = float(preset.get("saturation", 1.10)) if terrain else 1.0
+	if cinema:
+		# Étalonnage Valbois du preset : plancher ET plafond (jamais un
+		# remplacement complet), donc les presets déjà réglés (Tiny Glade…)
+		# gardent leur identité tout en gagnant le contraste cinéma sans
+		# « brûler » les toits rouges (saturation bornée, contraste borné).
+		env.adjustment_contrast = clampf(
+			maxf(env.adjustment_contrast, float(cfg.get("contrastFloor", 1.08))),
+			float(cfg.get("contrastFloor", 1.08)),
+			float(cfg.get("contrastCeil", 1.12)))
+		if terrain:
+			env.adjustment_saturation = clampf(
+				maxf(env.adjustment_saturation, float(cfg.get("saturationFloor", 1.04))),
+				float(cfg.get("saturationFloor", 1.04)),
+				float(cfg.get("saturationCeil", 1.08)))
 	# --- Éclairage indirect / réflexions (palliatif aux assets low-poly) ---
 	var gi_on := terrain and not table_view and bool(preset.get("gi", false))
 	env.sdfgi_enabled = gi_on
@@ -833,12 +992,22 @@ func _apply_render_quality() -> void:
 		env.sdfgi_read_sky_light = true
 		env.sdfgi_bounce_feedback = 0.45
 		env.sdfgi_max_distance = float(preset.get("giMaxDistance", 70.0))
-	var ssil_on := terrain and not table_view and bool(preset.get("ssil", false))
+	var ssil_on := terrain and not table_view \
+		and (bool(preset.get("ssil", false)) or cinema)
 	env.ssil_enabled = ssil_on
 	if ssil_on:
-		env.ssil_radius = 5.0
-		env.ssil_intensity = float(preset.get("ssilIntensity", 0.9))
-		env.ssil_sharpness = 0.9
+		if cinema:
+			# SSIL : la lumière chaude du soleil rebondit sur les murs et le
+			# sol (les objets ne « flottent » plus sur un décor plat).
+			env.ssil_radius = float(cfg.get("ssilRadius", 6.0))
+			env.ssil_intensity = maxf(
+				float(preset.get("ssilIntensity", 0.9)),
+				float(cfg.get("ssilIntensity", 1.0)))
+			env.ssil_sharpness = 0.92
+		else:
+			env.ssil_radius = 5.0
+			env.ssil_intensity = float(preset.get("ssilIntensity", 0.9))
+			env.ssil_sharpness = 0.9
 		env.ssil_normal_rejection = 1.0
 	var ssr_on := terrain and not table_view and bool(preset.get("ssr", false))
 	env.ssr_enabled = ssr_on
@@ -868,13 +1037,36 @@ func _apply_render_quality() -> void:
 		_sun.shadow_enabled = terrain and not table_view
 		_sun.shadow_blur = float(preset.get("shadowBlur", 1.35))
 		_sun.shadow_bias = 0.04
+		_sun.shadow_normal_bias = 1.0
 		_sun.directional_shadow_blend_splits = true
 		# Taille angulaire du soleil : ombres à pénombres douces (Tiny Glade).
 		_sun.light_angular_distance = float(preset.get("shadowAngular", 0.0))
 		_sun.directional_shadow_max_distance = 160.0
+		_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		_sun.directional_shadow_fade_start = 0.8
 		_sun.directional_shadow_split_1 = 0.12
 		_sun.directional_shadow_split_2 = 0.30
 		_sun.directional_shadow_split_3 = 0.55
+		if cinema:
+			# Ombres douces CS2 : PCF 4 splits + pénombres larges + portée
+			# étendue (les objets projettent leur ombre sur le terrain).
+			_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+			_sun.shadow_blur = maxf(_sun.shadow_blur, float(cfg.get("shadowBlur", 2.2)))
+			# Biais généreux : les objets low-poly à faces simples (contour encre
+			# inclus) font de l'acné d'ombre avec PCF 4 splits sinon.
+			_sun.shadow_bias = 0.06
+			_sun.shadow_normal_bias = 2.0
+			# Pénombre par le blur du filtre (directional_shadow_blend_splits +
+			# shadow_blur) : la taille angulaire du soleil est épinglée à la
+			# valeur du preset qualité (0 par défaut) pour éviter le dithering
+			# de la pénombre large sur les petits objets.
+			_sun.light_angular_distance = float(cfg.get("shadowAngular", 0.0))
+			_sun.directional_shadow_max_distance = float(
+				cfg.get("shadowMaxDistance", 190.0))
+			_sun.directional_shadow_fade_start = 0.85
+			_sun.directional_shadow_split_1 = float(cfg.get("shadowSplit1", 0.10))
+			_sun.directional_shadow_split_2 = float(cfg.get("shadowSplit2", 0.28))
+			_sun.directional_shadow_split_3 = float(cfg.get("shadowSplit3", 0.52))
 	# DOF très léger : donne de la profondeur au fond sans flouter la carte.
 	_apply_depth_of_field(env, terrain)
 
@@ -1620,7 +1812,11 @@ func _apply_lighting() -> void:
 		env.ambient_light_color = ambient_color
 		env.ambient_light_energy = ambient_energy
 		env.tonemap_mode = Environment.TONE_MAPPER_ACES
-		env.tonemap_exposure = exposure
+		env.tonemap_exposure = exposure * float(cfg.get("exposureScale", 1.0))
+		# Marge de hautes lumières du tonemap : > 1.0 en preset cinéma (le ciel,
+		# le soleil et les lanternes ne brûlent plus les façades claires).
+		# 1.0 = valeur par défaut du moteur, rendu classique strictement identique.
+		env.tonemap_white = float(cfg.get("tonemapWhite", 1.0))
 		# Brume : atmosphérique (distance + hauteur) si le preset l'opte,
 		# sinon brume exponentielle historique (rendu d'origine strict).
 		_apply_environment_fog(env, terrain3d, preset, fog_density)
@@ -1635,6 +1831,16 @@ func _apply_lighting() -> void:
 func _atmospheric_fog_config() -> Dictionary:
 	var cfg = map_data.get("atmosphericFog") if map_data is Dictionary else null
 	return cfg if cfg is Dictionary else {}
+
+## Lit les options de brume portées par les données de carte (au chargement /
+## `configure`). `tiltAware` : pondération de la hauteur par l'angle caméra
+## (défaut activé ; false = comportement historique exact, A/B réversible).
+func _read_atmospheric_fog_options() -> void:
+	var cfg := _atmospheric_fog_config()
+	atmospheric_tilt_aware = true
+	if cfg.has("tiltAware"):
+		atmospheric_tilt_aware = bool(cfg["tiltAware"])
+	_fog_tilt_cam_rot = Vector3.INF
 
 ## Vrai si la brume atmosphérique (profondeur + hauteur) s'applique à ce rendu.
 ## Terrain 3D uniquement, jamais la vue table (salle intérieure) ; l'opt-in
@@ -1673,8 +1879,14 @@ func _apply_environment_fog(env: Environment, terrain3d: bool, preset: Dictionar
 		env.fog_aerial_perspective = float(preset.get("aerial", 0.0))
 		env.fog_sun_scatter = float(preset.get("sunScatter", 0.0))
 		env.fog_height = float(cfg.get("height", atmospheric_fog_height))
-		env.fog_height_density = float(
-			cfg.get("heightDensity", atmospheric_fog_height_density))
+		# Hauteur PONDÉRÉE par le tilt (vue de dessus = ~0) : sans cela, un
+		# aplat de brume noie les cartes vues de haut. `atmospheric_tilt_aware`
+		# = false restitue exactement l'ancien comportement (A/B).
+		var base_height := float(cfg.get("heightDensity", atmospheric_fog_height_density))
+		env.fog_height_density = clampf(
+			base_height * get_atmospheric_fog_height_factor(), 0.0, 4.0)
+		if _camera != null:
+			_fog_tilt_cam_rot = _camera.rotation_degrees
 		_sync_atmospheric_fog_depth(env)
 	else:
 		# Rendu d'origine strictement identique : brume exponentielle du
@@ -1704,6 +1916,57 @@ func _camera_focus_distance() -> float:
 var _fog_band_cam_pos := Vector3.INF
 var _fog_band_cam_rot := Vector3.INF
 var _fog_band_cam_size := -1.0
+## Dernière rotation caméra connue pour la pondération de hauteur (évite un
+## recalcul par frame quand la vue ne tourne pas).
+var _fog_tilt_cam_rot := Vector3.INF
+
+## Facteur (0..1) appliqué à la brume de HAUTEUR selon le tilt caméra :
+## 1 en vue rasante (≤ ATMOS_TILT_LOW_DEG), 0 en vue plongeante
+## (≥ ATMOS_TILT_TOP_DEG). `atmospheric_tilt_aware = false` → 1.0 quelle que
+## soit la caméra (comportement historique exact, A/B réversible).
+func get_atmospheric_fog_height_factor() -> float:
+	if not atmospheric_tilt_aware or _camera == null:
+		return 1.0
+	var pitch := absf(_camera.rotation_degrees.x)
+	var span := maxf(0.001, ATMOS_TILT_TOP_DEG - ATMOS_TILT_LOW_DEG)
+	var t := clampf((pitch - ATMOS_TILT_LOW_DEG) / span, 0.0, 1.0)
+	return 1.0 - smoothstep(0.0, 1.0, t) * (1.0 - ATMOS_TILT_TOP_FACTOR)
+
+## Réapplique la densité de brume de hauteur (pondérée) sans reconstruire la
+## carte — appelé au mouvement de caméra (orbite/tilt) et après une bascule A/B.
+func _sync_atmospheric_fog_height(env: Environment = null) -> void:
+	if env == null:
+		if _world_env == null or _world_env.environment == null:
+			return
+		env = _world_env.environment
+	if env.fog_mode != Environment.FOG_MODE_DEPTH:
+		return
+	var cfg := _atmospheric_fog_config()
+	var base := float(cfg.get("heightDensity", atmospheric_fog_height_density))
+	env.fog_height_density = clampf(base * get_atmospheric_fog_height_factor(), 0.0, 4.0)
+	if _camera != null:
+		_fog_tilt_cam_rot = _camera.rotation_degrees
+
+## Recalage de la hauteur au mouvement de caméra (orbite, changement d'angle).
+func _sync_fog_height_if_camera_moved() -> void:
+	if _camera == null or _world_env == null or _world_env.environment == null:
+		return
+	if _world_env.environment.fog_mode != Environment.FOG_MODE_DEPTH:
+		return
+	if _camera.rotation_degrees.is_equal_approx(_fog_tilt_cam_rot):
+		return
+	_sync_atmospheric_fog_height()
+
+## Bascule A/B de la pondération de hauteur par le tilt.
+## false = ancien comportement (hauteur pleine en toute vue) ; true = défaut.
+func set_atmospheric_tilt_aware(on: bool) -> void:
+	atmospheric_tilt_aware = on
+	_fog_tilt_cam_rot = Vector3.INF
+	_apply_lighting()
+	_sync_atmospheric_fog_height()
+
+func is_atmospheric_tilt_aware() -> bool:
+	return atmospheric_tilt_aware
 
 ## Recale la bande de profondeur de la brume sur la distance caméra→sol :
 ## rien avant `ATMOS_FOG_NEAR_MIN` unités, plein effet au-delà de la fin de
@@ -1745,6 +2008,7 @@ func _sync_fog_band_if_camera_moved() -> void:
 ## bascule A/B, etc.) — sans effet si la brume atmosphérique est inactive.
 func sync_atmospheric_fog() -> void:
 	_sync_atmospheric_fog_depth()
+	_sync_atmospheric_fog_height()
 
 ## Bascule A/B de la brume atmosphérique : false = rendu d'origine strict.
 func set_atmospheric_fog_enabled(on: bool) -> void:
@@ -1765,6 +2029,9 @@ func get_atmospheric_fog_settings() -> Dictionary:
 		"color": atmospheric_fog_color,
 		"height": float(cfg.get("height", atmospheric_fog_height)),
 		"heightDensity": float(cfg.get("heightDensity", atmospheric_fog_height_density)),
+		"tiltAware": atmospheric_tilt_aware,
+		"heightFactor": get_atmospheric_fog_height_factor(),
+		"effectiveHeightDensity": env.fog_height_density if env != null else 0.0,
 		"depthBegin": env.fog_depth_begin if env != null else 0.0,
 		"depthEnd": env.fog_depth_end if env != null else 0.0,
 	}
@@ -1838,6 +2105,45 @@ func get_view_state() -> Dictionary:
 		"panY": _camera.position.z,
 	}
 
+## Ancrage CS2 des objets 3D : pousse les empreintes des `meshes` de la carte au
+## terrain, qui cuit une **AO de contact** dans son shader (une fois par rebuild,
+## pas par frame). Actif uniquement en preset `cinema` : le rendu `classique`
+## reste strictement identique (aucune AO d'objets, terrain nettoyé).
+func _sync_object_occlusion_stamps(meshes: Array) -> void:
+	if _ground == null or not _ground.has_method("set_object_occlusion_stamps"):
+		return
+	if not is_cinema_quality():
+		if _ground.has_method("clear_object_occlusion"):
+			_ground.clear_object_occlusion()
+		return
+	var stamps: Array = []
+	for mesh_variant in meshes:
+		if not mesh_variant is Dictionary:
+			continue
+		var mesh: Dictionary = mesh_variant
+		if bool(mesh.get("hidden", false)):
+			continue
+		var asset := str(mesh.get("asset", ""))
+		if asset.is_empty():
+			continue
+		# Force par famille : le bâti ancre fort, la végétation très peu (ses
+		# racines sont déjà suggérées par l'ombre de contact du calque objets).
+		var strength := 0.42
+		if asset.contains("/buildings/"):
+			strength = 0.55
+		elif asset.contains("/props/"):
+			strength = 0.40
+		elif asset.contains("/vegetation/"):
+			strength = 0.28
+		var footprint := maxf(float(mesh.get("w", 1.0)), float(mesh.get("h", 1.0)))
+		stamps.append({
+			"x": float(mesh.get("x", 0.0)),
+			"y": float(mesh.get("y", 0.0)),
+			"radius": clampf(footprint * 0.55, 0.35, 2.6),
+			"strength": strength,
+		})
+	_ground.set_object_occlusion_stamps(stamps)
+
 func _rebuild_layers() -> void:
 	var w: int = map_data.get("width", 16)
 	var h: int = map_data.get("height", 12)
@@ -1862,8 +2168,10 @@ func _rebuild_layers() -> void:
 		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
 
 	if _meshes_layer and _meshes_layer.has_method("configure"):
-		var meshes = map_data.get("meshes", [])
-		_meshes_layer.configure(meshes if meshes is Array else [], _cell_size, map_data)
+		var meshes_arr: Array = map_data.get("meshes", []) if map_data.get("meshes") is Array else []
+		_meshes_layer.configure(meshes_arr, _cell_size, map_data)
+		# Ancrage des objets (AO de contact cuite côté terrain, preset cinéma).
+		_sync_object_occlusion_stamps(meshes_arr)
 
 	if _walls_layer and _walls_layer.has_method("configure"):
 		var walls = map_data.get("walls", [])
@@ -2255,27 +2563,25 @@ func _clamp_camera() -> void:
 		return
 	var visible := _visible_ground_size()
 	var focus := _ground_focus()
-	# Si toute la carte tient à l'écran, on laisse l'utilisateur déplacer la vue
-	# librement (sinon un pan est annulé et on croit que la caméra est bloquée).
-	if visible.x >= _map_extent.x and visible.y >= _map_extent.y:
-		return
 	# L'écart caméra ↔ point visé est constant : on borne le point visé puis on
 	# reporte l'écart, ce qui reste juste même avec une caméra inclinée.
 	var offset := Vector2(_camera.position.x, _camera.position.z) - focus
 	var target := focus
-	# Marge d'un tiers d'écran au-delà des bords : laisse le zoom-vers-curseur
-	# s'achever près des bords (le fond de plateau habille l'extérieur) sans
-	# laisser la vue partir dans le vide.
-	var mx := visible.x * 0.35
-	var my := visible.y * 0.35
+	# À faible zoom, toute la carte tient à l'écran : autoriser un léger pan
+	# (sinon le clic droit paraît bloqué), mais jamais sortir le point visé de
+	# la zone centrale de la carte. À fort zoom, marge de 5 % aux rives.
 	if visible.x >= _map_extent.x:
-		target.x = _map_extent.x * 0.5
+		target.x = clampf(target.x, _map_extent.x * 0.3, _map_extent.x * 0.7)
 	else:
-		target.x = clampf(target.x, visible.x * 0.5 - mx, _map_extent.x - visible.x * 0.5 + mx)
+		var margin_x := visible.x * 0.05
+		target.x = clampf(target.x, visible.x * 0.5 - margin_x,
+			_map_extent.x - visible.x * 0.5 + margin_x)
 	if visible.y >= _map_extent.y:
-		target.y = _map_extent.y * 0.5
+		target.y = clampf(target.y, _map_extent.y * 0.3, _map_extent.y * 0.7)
 	else:
-		target.y = clampf(target.y, visible.y * 0.5 - my, _map_extent.y - visible.y * 0.5 + my)
+		var margin_y := visible.y * 0.05
+		target.y = clampf(target.y, visible.y * 0.5 - margin_y,
+			_map_extent.y - visible.y * 0.5 + margin_y)
 	_camera.position.x = target.x + offset.x
 	_camera.position.z = target.y + offset.y
 	view_changed.emit()
@@ -2657,6 +2963,11 @@ func _process(delta: float) -> void:
 	_update_camera_debug()
 	# Bande de brume suivant la caméra (zoom, cadrage, déplacements manuels).
 	_sync_fog_band_if_camera_moved()
+	# Hauteur de brume suivant l'angle de caméra (top-down ↔ rasante).
+	_sync_fog_height_if_camera_moved()
+	# Budget d'ombres : allume/éteint le cast des objets selon la distance au
+	# point visé (aucune reconstruction ; no-op en preset classique).
+	_update_shadow_budget()
 	_update_occlusion_fade()
 	_sync_token_overlay_positions()
 	if _token_drag:

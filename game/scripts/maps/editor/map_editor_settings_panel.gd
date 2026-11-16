@@ -14,6 +14,9 @@ signal los_changed
 signal fog_hide_all_pressed
 signal fog_reveal_all_pressed
 signal render_style_changed
+## Preset de qualité opt-in (`classique` / `cinema`) — écrit dans
+## `map_data["qualityPreset"]` (persisté, exporté/importé JSON).
+signal quality_preset_changed(preset: String)
 signal ground_mode_changed
 signal water_changed
 signal ambient_fx_changed
@@ -34,7 +37,16 @@ const SAVE_MANUAL := "manual"
 const SAVE_ON_CHANGE := "on_change"
 const SAVE_INTERVAL := "interval"
 
+## Preset qualité (styles/labels) — script pur, sans autoload.
+const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
+
 var widgets: Dictionary = {}
+## Hôte éditeur, découvert en remontant la scène (le panneau est instancié dans
+## `map_editor.tscn`) : c'est lui qui porte `doc` et l'API de synchronisation.
+var _editor_host: Node = null
+var _quality_option: OptionButton = null
+var _quality_hint: Label = null
+var _quality_syncing: bool = false
 
 func _ready() -> void:
 	widgets["bg_status"] = %LblBgStatus
@@ -60,6 +72,8 @@ func _ready() -> void:
 	widgets["light_preset"] = %OptLightPreset
 	widgets["night_mode"] = %ChkNight
 	widgets["night_ambient"] = %SpinNightAmbient
+
+	_build_quality_group()
 
 	_fill_option(%OptRenderStyle, [
 		["2.5d", "Carte 2.5D (défaut)"],
@@ -220,6 +234,115 @@ func _ready() -> void:
 	)
 	%BtnExportJson.pressed.connect(func(): export_json_pressed.emit())
 	%BtnImportJson.pressed.connect(func(): import_json_pressed.emit())
+	_bind_editor_host.call_deferred()
+
+# ===========================================================================
+# Preset de qualité (classique / cinéma CS2) — opt-in, persisté dans la carte
+# ===========================================================================
+
+## Construit la bascule « Qualité de rendu » (groupe `QualityGroup` du .tscn,
+## sinon inséré juste avant « Style de rendu »). Deux presets, un hint dynamique.
+func _build_quality_group() -> void:
+	var group := find_child("QualityGroup", true, false) as VBoxContainer
+	if group == null:
+		group = VBoxContainer.new()
+		group.name = "QualityGroup"
+		var style_node := find_child("LblStyle", true, false)
+		add_child(group)
+		if style_node is Node:
+			move_child(group, style_node.get_index())
+	group.add_theme_constant_override("separation", 4)
+	group.add_child(_heading("✨ Qualité de rendu (CS2)"))
+	group.add_child(_caption(
+		"Preset de qualité des objets 3D. « Cinéma » rapproche la carte de Cities: Skylines II : ombres portées douces, AO/SSIL, tonemap filmique et matériaux PBR éclairés. « Classique » = rendu historique (défaut)."))
+
+	_quality_option = OptionButton.new()
+	_quality_option.tooltip_text = "Qualité de rendu des objets 3D de la carte (preset opt-in, enregistré avec la carte)."
+	for entry in MapRenderStyleScript.QUALITY_PRESETS:
+		var preset_id := str(entry["id"])
+		_quality_option.add_item(str(entry["label"]))
+		_quality_option.set_item_metadata(_quality_option.item_count - 1, preset_id)
+	group.add_child(_quality_option)
+
+	_quality_hint = _caption("")
+	group.add_child(_quality_hint)
+	widgets["quality_preset"] = _quality_option
+	_quality_option.item_selected.connect(func(_i): _apply_quality_preset())
+	_update_quality_hint(MapRenderStyleScript.QUALITY_CLASSIQUE)
+
+## Hint du preset sélectionné (palette/impact) sous la bascule.
+func _update_quality_hint(preset_id: String) -> void:
+	if _quality_hint != null:
+		_quality_hint.text = MapRenderStyleScript.quality_hint(preset_id)
+
+## Écrit le preset dans le document (persisté + export JSON). L'éditeur hôte
+## écoute `doc.changed` et resynchronise le moteur : l'A/B est immédiat.
+func _apply_quality_preset() -> void:
+	if _quality_syncing or _quality_option == null or _quality_option.selected < 0:
+		return
+	var preset := str(_quality_option.get_item_metadata(_quality_option.selected))
+	_update_quality_hint(preset)
+	quality_preset_changed.emit(preset)
+	var host := _resolve_editor_host()
+	if host == null:
+		return
+	var doc = host.get("doc")
+	if doc == null:
+		return
+	doc.call("set_meta_values", {"qualityPreset": preset}, "Qualité de rendu")
+	var status := "Qualité de rendu : %s." % MapRenderStyleScript.quality_label(preset)
+	if preset == MapRenderStyleScript.QUALITY_CINEMA:
+		status += " (ombres portées réelles, AO, matériaux éclairés)"
+	if host.has_method("_set_status"):
+		host.call("_set_status", status)
+
+## Découvre l'hôte éditeur en remontant la scène (le panneau est instancié dans
+## `map_editor.tscn` ; `doc` existe dès l'initialisation du script hôte).
+func _bind_editor_host() -> void:
+	var host := _resolve_editor_host()
+	if host == null:
+		return
+	var doc = host.get("doc")
+	if doc != null and doc.has_signal("changed") and not doc.changed.is_connected(_on_document_changed):
+		doc.changed.connect(_on_document_changed)
+	sync_from_host()
+
+## Premier ancêtre portant un `doc` de document de carte (null hors éditeur).
+func _resolve_editor_host() -> Node:
+	if _editor_host != null and is_instance_valid(_editor_host):
+		return _editor_host
+	var node: Node = get_parent()
+	while node != null:
+		var doc = node.get("doc")
+		if doc != null and doc is Object:
+			_editor_host = node
+			return _editor_host
+		node = node.get_parent()
+	return null
+
+## Relit le preset depuis les données de carte (chargement, undo/redo, import
+## JSON…) et met la bascule à jour SANS ré-émettre de modification.
+func sync_from_host() -> void:
+	if _quality_option == null:
+		return
+	var preset := MapRenderStyleScript.QUALITY_CLASSIQUE
+	var host := _resolve_editor_host()
+	if host != null:
+		var doc = host.get("doc")
+		if doc != null:
+			var map_data = doc.get("map_data")
+			if map_data is Dictionary:
+				preset = MapRenderStyleScript.quality_preset(map_data)
+	_quality_syncing = true
+	for i in range(_quality_option.item_count):
+		if str(_quality_option.get_item_metadata(i)) == preset:
+			_quality_option.select(i)
+			break
+	_update_quality_hint(preset)
+	_quality_syncing = false
+
+func _on_document_changed(_reason: String) -> void:
+	sync_from_host()
 
 func _fill_option(opt: OptionButton, entries: Array) -> void:
 	# Si le .tscn et le catalogue divergent (ex. ajout du style « 2.5D »), on
