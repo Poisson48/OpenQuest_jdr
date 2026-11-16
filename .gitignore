@@ -37,3 +37,25 @@ aider.bat
 # Artefacts runtime du chantier qualite (verrou Godot, logs de capture)
 .godot.lock
 .terrain_shot_*.txt
+
+# Revue Tripo3D : les GLB bruts et rendus de travail restent locaux ; seuls
+# `renders_final/` et `build_report.json` sont versionnés (preuves du rapport).
+artifacts/tripo-review/rock-kit/*.glb
+artifacts/tripo-review/rock-kit/_render_*.png
+artifacts/tripo-review/rock-kit/recolored/
+artifacts/tripo-review/rock-kit/recolored_1024/
+artifacts/tripo-review/rock-kit/renders/
+artifacts/tripo-review/rock-kit/renders_1024/
+# Sondes/captures de diagnostic du chantier qualité (hors docs/screenshots)
+artifacts/cite_terrain_only.png
+artifacts/terrain_probe_*.png
+artifacts/crop_*.png
+artifacts/*.txt
+artifacts/*.ps1
+artifacts/tripo-review/falaise_tripo_prototype*
+artifacts/tripo-review/rock-kit/pebbles/
+artifacts/tripo-review/rock-kit/rocher_*_render.png
+
+# Renders de debug du pipeline d'assets (surfaces projetées + lueurs)
+game/assets/objects3d/*/*_surface.png
+game/assets/objects3d/*/*_lueur.png
