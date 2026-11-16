@@ -1833,10 +1833,10 @@ func _make_body_material(depth_texture: ImageTexture,
 		# Rivière claire et agitée : distorsion du lit un peu plus marquée
 		# (0.40) — le courant plisse nettement le fond du chenal.
 		refr_str = 0.40
-		# DÉRIVE CALME : le `flow_speed` des données est une vitesse de courant
-		# « donnée » ; la dérive VISIBLE du motif est tempérée par
-		# `RIVER_FLOW_VISUAL_SCALE` (sinon la texture défile à toute vitesse).
-		flow_speed *= RIVER_FLOW_VISUAL_SCALE
+		# DÉRIVE CALME : le `flow_speed` des données reste la vitesse de courant
+		# « donnée » (le test la lit telle quelle) ; c'est la dérive VISIBLE du
+		# motif qui est tempérée par `flow_visual_scale` (uniform du shader,
+		# posé plus bas pour les rubans de rivière).
 	mat.set_shader_parameter("shallow_color", shallow)
 	mat.set_shader_parameter("deep_color", deep)
 	mat.set_shader_parameter("foam_color", FOAM_COLOR)
@@ -1865,6 +1865,8 @@ func _make_body_material(depth_texture: ImageTexture,
 		mat.set_shader_parameter("flow_ribbon", 1.0)
 		mat.set_shader_parameter("flow_ribbon_u_scale", ribbon_flow.x)
 		mat.set_shader_parameter("flow_ribbon_v_scale", ribbon_flow.y)
+		# Dépendance VISUELLE calmée (le `flow_speed` des données est conservé).
+		mat.set_shader_parameter("flow_visual_scale", RIVER_FLOW_VISUAL_SCALE)
 	mat.set_shader_parameter("edge_softness", edge_softness)
 	# Liseré de mousse de contact (rayon de sonde en texels) et reflet de ciel.
 	mat.set_shader_parameter("shore_texels", shore_texels)

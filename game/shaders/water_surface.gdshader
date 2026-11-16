@@ -82,6 +82,10 @@ uniform float foam_width : hint_range(0.01, 0.5) = 0.12;
 // Flux directionnel : les vagues glissent le long de `flow_dir` (UV2).
 uniform vec2 flow_dir = vec2(1.0, 0.0);   // direction d'écoulement normalisée (UV2)
 uniform float flow_speed = 0.12;          // vitesse de dérive du motif (UV/s)
+// Échelle VISUELLE de la dérive (1 = vitesse du `flow_speed`). Les rivières
+// l'abaissent pour que le motif glisse calmement, sans changer la vitesse de
+// courant portée par les données de carte.
+uniform float flow_visual_scale : hint_range(0.0, 1.0) = 1.0;
 // 0 = animation isotrope historique (repère UV d'origine, sans dérive) ;
 // 1 = pleine dérive des vagues le long de `flow_dir`.
 uniform float flow_strength : hint_range(0.0, 1.0) = 1.0;
@@ -238,8 +242,9 @@ void fragment() {
 		flow /= flow_len;
 	}
 	vec2 across_dir = vec2(-flow.y, flow.x);
+	float flow_vis = TIME * flow_speed * flow_visual_scale;
 	vec2 flow_frame = vec2(
-		dot(flow_uv, flow) - TIME * flow_speed,
+		dot(flow_uv, flow) - flow_vis,
 		dot(flow_uv, across_dir)
 	);
 	// `flow_strength` : 0 = repère historique (uv, sans dérive), 1 = repère du
@@ -257,7 +262,7 @@ void fragment() {
 	// décalées d'une demi-période, fondues par une fonction triangle : la voie
 	// qui se raccorde est à poids nul, donc le motif défile en continu, sans
 	// saut ni couture (méthode classique des flow maps, utilisée par CS2).
-	float famp = TIME * flow_speed * 2.5;
+	float famp = flow_vis * 2.5;
 	float fa = fract(famp);
 	float fb = fract(famp + 0.5);
 	float w_a = 1.0 - abs(2.0 * fa - 1.0);        // 0 → 1 → 0 (poids voie A)
