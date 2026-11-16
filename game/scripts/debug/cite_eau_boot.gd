@@ -270,6 +270,9 @@ static func build_plan(width: int = MAP_WIDTH, height: int = MAP_HEIGHT,
 		{
 			"id": "canal", "kind": "lake", "level": WATER_LEVEL,
 			"area": canal_poly,
+			# Courant LE LONG du canal (axe nord-sud = +Z monde → UV2 (0, 1)),
+			# calme : la dérive visible est tempérée par le shader.
+			"flow_dir": [0.0, 1.0], "flow_speed": 0.20, "flow_strength": 0.85,
 		},
 		{
 			"id": "lac", "kind": "lake", "level": WATER_LEVEL,

@@ -16,6 +16,7 @@ func _run() -> void:
 	DocScript = load("res://scripts/maps/editor/map_edit_document.gd")
 	await _test_lake_fills_basin()
 	await _test_river_with_falls()
+	await _test_canal_flow_direction()
 	await _test_editor_lake_on_flat_ground()
 	_test_doc_water_bodies()
 	_test_legacy_plan_unchanged()
@@ -120,6 +121,49 @@ func _test_river_with_falls() -> void:
 	_assert("river_drapes_terrain", draped and mid_slope)
 	water.queue_free()
 	await process_frame
+
+## Canal : un lac polygonal peut porter une DIRECTION de courant (`flow_dir`,
+## coordonnées monde normalisées) et une dérive calmée. Sans ça, le motif
+## défilait en +X monde à vitesse de carte — perpendiculaire au canal.
+func _test_canal_flow_direction() -> void:
+	var heights: Array = []
+	heights.resize(20 * 14)
+	heights.fill(0.0)
+	var canal := {
+		"id": "canal", "kind": "lake", "level": 0.2,
+		"area": [[7, 4], [11, 4], [11, 10], [7, 10]],
+		"flow_dir": [0.0, 1.0], "flow_speed": 0.20, "flow_strength": 0.85,
+	}
+	var lake := {
+		"id": "lac", "kind": "lake", "level": 0.2,
+		"area": [[2, 2], [5, 2], [5, 5], [2, 5]],
+	}
+	var water = WaterScript.new()
+	get_root().add_child(water)
+	water.configure(20, 14, 1.0, -1.0, heights, false, 1, 1.0, [], {}, [canal, lake])
+	await process_frame
+	_assert("canal_two_bodies", water.get_body_count() == 2,
+		"n=%d" % water.get_body_count())
+	if water.get_body_count() == 2:
+		var canal_mat: ShaderMaterial = water._body_nodes[0].material_override
+		var dir = canal_mat.get_shader_parameter("flow_dir")
+		_assert("canal_flow_dir_along", dir is Vector2 and absf((dir as Vector2).x) < 0.01
+			and absf((dir as Vector2).y - 1.0) < 0.01, "flow_dir=%s" % str(dir))
+		_assert("canal_flow_speed_is_data",
+			absf(float(canal_mat.get_shader_parameter("flow_speed")) - 0.20) < 0.01)
+		_assert("canal_flow_strength", absf(float(
+			canal_mat.get_shader_parameter("flow_strength")) - 0.85) < 0.01)
+		var visual := float(canal_mat.get_shader_parameter("flow_visual_scale"))
+		_assert("canal_flow_calmed", visual > 0.0 and visual <= 0.30,
+			"visual_scale=%.2f" % visual)
+		var lake_mat: ShaderMaterial = water._body_nodes[1].material_override
+		_assert("lake_flow_dir_default", (lake_mat.get_shader_parameter("flow_dir") as Vector2)
+			.is_equal_approx(Vector2(1.0, 0.0)))
+		_assert("lake_flow_calmed",
+			float(lake_mat.get_shader_parameter("flow_visual_scale")) <= 0.30)
+	water.queue_free()
+	await process_frame
+
 
 func _test_editor_lake_on_flat_ground() -> void:
 	var md = get_root().get_node("MapData")

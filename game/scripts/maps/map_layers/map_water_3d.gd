@@ -48,6 +48,10 @@ const ALPHA_DEPTH := 0.10
 ## « défile à toute vitesse » (le bruit de détail est à haute fréquence).
 ## 0 = eau figée, 1 = vitesse brute (rapide). 0,10 = courant lisible et calme.
 const RIVER_FLOW_VISUAL_SCALE := 0.10
+## Lacs / plans d'eau polygonaux (canaux) : dérive du motif plus discrète
+## encore. Un canal peut préciser sa direction via `flow_dir` ([x, y] en
+## coordonnées monde normalisées) — sinon dérive historique (1, 0).
+const LAKE_FLOW_VISUAL_SCALE := 0.18
 
 ## Décor de surface (lentilles d'eau + nénuphars), posé sur le plan d'eau.
 ## Densités (probabilité par case immergée) et bornes de performance.
@@ -861,8 +865,15 @@ func _build_lake_body(body: Dictionary) -> Dictionary:
 		return {}
 	var depth_data := _make_body_depth(level, max_depth, poly)
 	var speed := float((body as Dictionary).get("flow_speed", 0.10))
+	# Direction de courant optionnelle (canaux) : coordonnées monde
+	# normalisées, comme l'UV2 du shader. Défaut historique (1, 0).
+	var flow_dir := Vector2(1.0, 0.0)
+	var raw_dir = (body as Dictionary).get("flow_dir", null)
+	if raw_dir is Array and (raw_dir as Array).size() >= 2:
+		flow_dir = Vector2(float((raw_dir as Array)[0]), float((raw_dir as Array)[1]))
+	var flow_strength := float((body as Dictionary).get("flow_strength", -1.0))
 	var mat := _make_body_material(depth_data["texture"],
-		Vector2(1.0, 0.0), speed)
+		flow_dir, speed, 0.0, Vector2.ZERO, flow_strength)
 	_add_body_node(mesh, mat)
 	return {
 		"mesh": mesh, "material": mat,
@@ -1757,7 +1768,8 @@ func _make_river_depth(dense: Array, width: float) -> Dictionary:
 func _make_body_material(depth_texture: ImageTexture,
 		flow_dir: Vector2, flow_speed: float,
 		edge_softness: float = 0.0,
-		ribbon_flow: Vector2 = Vector2.ZERO) -> ShaderMaterial:
+		ribbon_flow: Vector2 = Vector2.ZERO,
+		flow_strength_override: float = -1.0) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = WATER_SHADER
 	mat.set_shader_parameter("depth_map", depth_texture)
@@ -1810,6 +1822,10 @@ func _make_body_material(depth_texture: ImageTexture,
 		wave_strength = 0.18
 		wave_speed = 1.1
 		flow_strength = 1.0
+	# Un canal (lac polygonal) peut demander une dérive plus marquée dans SA
+	# direction, sans passer par les réglages du ruban de rivière.
+	if flow_strength_override >= 0.0:
+		flow_strength = clampf(flow_strength_override, 0.0, 1.0)
 		foam_scale = 2.4
 		glint = 1.0
 		caustic = 0.28
@@ -1867,6 +1883,10 @@ func _make_body_material(depth_texture: ImageTexture,
 		mat.set_shader_parameter("flow_ribbon_v_scale", ribbon_flow.y)
 		# Dépendance VISUELLE calmée (le `flow_speed` des données est conservé).
 		mat.set_shader_parameter("flow_visual_scale", RIVER_FLOW_VISUAL_SCALE)
+	else:
+		# Lac / canal : dérive discrète (le courant d'un canal se lit, mais la
+		# texture ne défile plus à toute vitesse sur toute la carte).
+		mat.set_shader_parameter("flow_visual_scale", LAKE_FLOW_VISUAL_SCALE)
 	mat.set_shader_parameter("edge_softness", edge_softness)
 	# Liseré de mousse de contact (rayon de sonde en texels) et reflet de ciel.
 	mat.set_shader_parameter("shore_texels", shore_texels)
