@@ -61,6 +61,18 @@ func _run() -> void:
 		engine._apply_zoom(1.0 / 1.6, anchor)
 		await process_frame
 
+	# Régression : à faible zoom, même une caméra déjà décalée hors carte doit
+	# revenir dans la zone centrale (ancien _clamp_camera quittait sans rien faire).
+	engine._apply_zoom(0.25, engine.size * 0.5)
+	engine._camera.position.x += 200.0
+	engine._camera.position.z += 200.0
+	engine._clamp_camera()
+	var centered: Vector2 = engine._ground_focus()
+	_assert("zoom_out_stays_on_map", centered.x >= engine._map_extent.x * 0.3 - 0.2
+		and centered.x <= engine._map_extent.x * 0.7 + 0.2
+		and centered.y >= engine._map_extent.y * 0.3 - 0.2
+		and centered.y <= engine._map_extent.y * 0.7 + 0.2,
+		"focus=%s taille=%s" % [str(centered), str(engine._map_extent)])
 	if _failed:
 		print("zoom_to_cursor_test:FAIL")
 		quit(1)

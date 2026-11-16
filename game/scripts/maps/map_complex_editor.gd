@@ -974,6 +974,11 @@ func _build_immersive_chrome() -> void:
 	subtitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	subtitle.clip_text = true
 	top.add_child(subtitle)
+	var recenter := _immersive_header_button(top, "⌖ Recentrer", "Recentrer et afficher toute la carte", func():
+		if _engine != null:
+			_engine.reset_editor_camera()
+	)
+	recenter.name = "RecenterMapButton"
 	_immersive_save = _immersive_header_button(top, "Enregistrer", "Enregistrer (Ctrl+S)", save_now)
 	var test := _immersive_header_button(top, "Tester", "Enregistrer puis ouvrir une session de test", _test_current_map)
 	test.add_theme_stylebox_override("normal", _immersive_surface(Color("#39301D"), Color("#DAAF56"), 6, 8))
@@ -4422,8 +4427,9 @@ func _run_quick_start(index: int) -> void:
 		_update_generation(94, "Rochers Marching Cubes…")
 		await get_tree().process_frame
 		var rocks: int = _construction.add_procedural_rocks(4)
-		_set_status("Démarrage rapide : %s généré avec %d plaque(s) WFC, %d rocher(s) MC." % [
-			ProceduralSceneGeneratorScript.style_label(_scene_style), wfc_patches, rocks])
+		_set_status("Démarrage rapide : %s généré avec %d plaque(s) WFC, %d rocher(s) sculpté(s), %d pierre(s) empilée(s)." % [
+			ProceduralSceneGeneratorScript.style_label(_scene_style), wfc_patches, rocks,
+			int(counts.get("rocks", 0))])
 	else:
 		_apply_quick_visuals("house")
 		_update_generation(30, "Maison rapide…")
@@ -4446,7 +4452,7 @@ func _run_quick_start(index: int) -> void:
 
 ## Applique un plan étape par étape avec une vraie barre de progression.
 func _apply_plan_progressive(plan: Dictionary) -> Dictionary:
-	var counts := {"paths": 0, "houses": 0, "fences": 0, "flowers": 0, "props": 0}
+	var counts := {"paths": 0, "houses": 0, "fences": 0, "flowers": 0, "rocks": 0, "props": 0}
 	_update_generation(24, "Chemins…")
 	await get_tree().process_frame
 	counts["paths"] = _construction._apply_scene_paths(plan)
@@ -4468,6 +4474,10 @@ func _apply_plan_progressive(plan: Dictionary) -> Dictionary:
 	_update_generation(78, "Zones fleuries…")
 	await get_tree().process_frame
 	counts["flowers"] = _construction._apply_scene_flower_zones(plan)
+
+	_update_generation(82, "Rochers empilés…")
+	await get_tree().process_frame
+	counts["rocks"] = _construction._apply_scene_rocks(plan)
 
 	_update_generation(86, "Décor…")
 	await get_tree().process_frame

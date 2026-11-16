@@ -56,6 +56,17 @@ func _run() -> void:
 	var sync_distance: float = engine._camera.position.distance_to(before_sync)
 	_assert("sync_stable", sync_distance < 2.0, "moved=%.2f before=%s after=%s" % [sync_distance, before_sync, engine._camera.position])
 
+	# Le bouton visible doit ramener la caméra sur la carte, même après un pan.
+	var recenter: Button = editor.find_child("RecenterMapButton", true, false)
+	_assert("recenter_button_visible", recenter != null and recenter.is_visible_in_tree())
+	if recenter != null:
+		engine._camera.position.x += 100.0
+		engine._camera.position.z += 100.0
+		recenter.pressed.emit()
+		await process_frame
+		_assert("recenter_returns_to_map", engine._ground_focus().distance_to(engine._map_extent * 0.5) < 1.0
+			and is_equal_approx(engine.zoom, 1.0), "focus=%s zoom=%.2f" % [str(engine._ground_focus()), engine.zoom])
+
 	# Une orbite doit survivre à une synchro (peinture juste après rotation).
 	engine._camera.rotation_degrees = Vector3(-38.0, 24.0, 0.0)
 	engine._orbit_enabled = true
