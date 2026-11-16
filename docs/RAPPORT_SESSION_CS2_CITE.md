@@ -133,6 +133,8 @@ Non-régression vérifiée (entre autres) : `map_editor_test`, `map_editor_snap_
 .\scripts\play-godot.ps1 res://scenes/debug/cite_eau_boot.tscn
 .\scripts\play-godot.ps1 res://scenes/debug/rochers_boot.tscn
 .\scripts\play-godot.ps1 res://scenes/debug/sol_plat_boot.tscn
+# démo eau : rivière sinueuse en S (lit creusé, berges, reflets, pont)
+.\scripts\play-godot.ps1 res://scenes/debug/riviere_s_boot.tscn
 ```
 
 - **Preset qualité** : éditeur → onglet *Carte* → **✨ Qualité de rendu (CS2)** →
