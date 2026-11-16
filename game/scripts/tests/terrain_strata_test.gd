@@ -113,7 +113,8 @@ func _test_defaults_and_ab() -> void:
 	_assert("control_macro_strength_default",
 		src.contains("uniform float macro_strength : hint_range(0.0, 0.4) = 0.07;"))
 	_assert("control_triplanar", is_equal_approx(_param(mat, "triplanar_lo"), 0.55))
-	_assert("control_tile_size", is_equal_approx(_param(mat, "tile_world_size"), 2.0))
+	# Passe netteté CS2 : tuile 1,75 case (au lieu de 2) + micro-détail 0,38.
+	_assert("control_tile_size", is_equal_approx(_param(mat, "tile_world_size"), 1.75))
 	# Géométrie du terrain inchangée (le heightfield n'est pas retouché).
 	var mesh: ArrayMesh = ground._mesh_instance.mesh
 	_assert("terrain_mesh_untouched", mesh != null and mesh.get_surface_count() == 1)
