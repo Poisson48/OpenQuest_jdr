@@ -18,6 +18,7 @@ const MAX_HISTORY := 120
 ## Creusements volumétriques (Voie B) — préchargement explicite (fiable en
 ## headless, indépendant du cache global `class_name`).
 const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
+const BridgeMesh := preload("res://scripts/maps/construction/procedural_bridge_mesh.gd")
 
 # --- Types de delta ---------------------------------------------------------
 const D_ELEM_ADD := "elem_add"
@@ -962,6 +963,10 @@ func modify_element(id: String, mutations: Dictionary, note: String = "Modificat
 		return
 	var before: Dictionary = _shadow_state(id)
 	var elem: Dictionary = _elements[id]
+	if str(elem.get("asset", "")) == BridgeMesh.ASSET and (mutations.has("x") or mutations.has("y")) \
+			and not mutations.has("start") and not mutations.has("end"):
+		BridgeMesh.move_entry(elem, float(mutations.get("x", elem.get("x", 0.0))),
+			float(mutations.get("y", elem.get("y", 0.0))))
 	for key in mutations.keys():
 		if key == "display" and mutations[key] is Dictionary:
 			var display: Dictionary = (elem.get("display", {}) as Dictionary).duplicate(true)
@@ -987,8 +992,7 @@ func set_live_position(id: String, gx: float, gy: float) -> void:
 	if not _elements.has(id):
 		return
 	var elem: Dictionary = _elements[id]
-	elem["x"] = gx
-	elem["y"] = gy
+	BridgeMesh.move_entry(elem, gx, gy)
 	_elements[id] = elem
 
 ## Mutations live (taille / rotation d'un décor pendant les poignées).
@@ -1182,6 +1186,25 @@ func set_terrain_height(cx: int, cy: int, value: float, note: String = "Relief")
 	})
 	heights[idx] = clamped
 	map_data["terrainHeights"] = heights
+	changed.emit("terrain")
+
+## Applique un profil de relief calculé avant la modification du terrain.
+func apply_terrain_heights(targets: Dictionary, note: String) -> void:
+	var heights := _terrain_buffer()
+	var before: Dictionary = {}
+	var after: Dictionary = {}
+	for key in targets:
+		var idx := int(key)
+		var current := float(heights[idx])
+		var next := clampf(float(targets[key]), -2.0, 12.0)
+		if absf(next - current) < 0.001:
+			continue
+		before[str(idx)] = current
+		after[str(idx)] = next
+		heights[idx] = next
+	if after.is_empty():
+		return
+	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
 	changed.emit("terrain")
 
 ## Pinceau de relief : monte, baisse, aplatit ou lisse les hauteurs autour d'un point.
@@ -2329,8 +2352,8 @@ func paste(gx: float = INF, gy: float = INF) -> Array:
 	for elem_variant in _clipboard:
 		var elem: Dictionary = (elem_variant as Dictionary).duplicate(true)
 		var old_id := str(elem.get("id", ""))
-		elem["x"] = float(elem.get("x", 0.0)) + offset.x
-		elem["y"] = float(elem.get("y", 0.0)) + offset.y
+		BridgeMesh.move_entry(elem, float(elem.get("x", 0.0)) + offset.x,
+			float(elem.get("y", 0.0)) + offset.y)
 		elem["id"] = MapData.generate_id(str(elem.get("kind", "elem")).substr(0, 3))
 		var group := str(elem.get("group", ""))
 		if not group.is_empty():

@@ -49,6 +49,17 @@ Onglet **Carte** :
 - **Type de sol** : *Terrain 3D* (heightfield) ou *Fond illustré* (plat).
 - **Eau (niveau)** : `-1` = aucune eau ; sinon hauteur du plan d'eau en cases.
   Creuse d'abord avec **⛰ Relief (U)**, puis règle le niveau.
+- **Eau → Lac** permet de tracer une emprise et de creuser une cuvette aux
+  berges irrégulières. Règle le niveau de l'eau sous le bord du terrain et
+  utilise **Profondeur du bassin** pour ajuster le creusement. À zéro, l'outil
+  remplit les creux existants. Une annulation retire le lac et restaure le sol.
+- **Eau → Rivière** creuse un lit suivant le tracé. La largeur, la profondeur
+  du lit et la hauteur d'eau se règlent séparément. Le courant suit les
+  méandres et les ruptures de pente peuvent former des cascades.
+- **Construction → Pont** relie deux points sur le relief. Règle la largeur
+  avant de tracer, puis déplace les poignées pour ajuster les extrémités.
+  En session, le clic de déplacement vise le tablier et les figurines
+  gardent les pieds sur les planches pendant la traversée.
 - **Ambiance** : lucioles, poussière, feuilles, pluie ou neige (particules animées).
 - **Style de rendu** : Carte 2.5D (défaut), Diorama, VTT 3D, Hybride DD2.
 

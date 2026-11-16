@@ -16,6 +16,7 @@ func _run() -> void:
 	DocScript = load("res://scripts/maps/editor/map_edit_document.gd")
 	await _test_lake_fills_basin()
 	await _test_river_with_falls()
+	await _test_editor_lake_on_flat_ground()
 	_test_doc_water_bodies()
 	_test_legacy_plan_unchanged()
 	if _failed:
@@ -44,7 +45,12 @@ func _test_lake_fills_basin() -> void:
 		"id": "lac_test", "kind": "lake", "level": 0.6,
 		"area": [[7, 5], [13, 5], [13, 10], [7, 10]],
 	}
-	water.configure(20, 14, 1.0, -1.0, _heights_with_basin(), false, 1, 1.0, [], {}, [lake])
+	var heights := _heights_with_basin()
+	# Une autre cuvette sous le même niveau ne fait pas partie du lac.
+	for y in range(3):
+		for x in range(3):
+			heights[y * 20 + x] = -0.4
+	water.configure(20, 14, 1.0, -1.0, heights, false, 1, 1.0, [], {}, [lake])
 	await process_frame
 	_assert("lake_active", water.is_active())
 	_assert("lake_body_count", water.get_body_count() == 1, "n=%d" % water.get_body_count())
@@ -53,9 +59,10 @@ func _test_lake_fills_basin() -> void:
 	# Le masque : eau dans le creux, à sec sur la hauteur (le lac remplit le
 	# creux, il ne déborde pas sur le terrain au-dessus de son niveau).
 	var img: Image = water.get_depth_image()
-	_assert("lake_mask_in_basin", img != null and img.get_pixel(10, 7).g > 0.9)
-	_assert("lake_mask_on_high", img != null and img.get_pixel(2, 2).g < 0.1)
-	_assert("lake_depth_deeper", img.get_pixel(10, 7).r > img.get_pixel(8, 6).r)
+	_assert("lake_mask_in_basin", img != null and img.get_pixel(42, 30).g > 0.9)
+	_assert("lake_mask_on_high", img != null and img.get_pixel(30, 22).g < 0.1)
+	_assert("lake_depth_deeper", img.get_pixel(42, 30).r > img.get_pixel(34, 26).r)
+	_assert("lake_does_not_wet_other_basin", water.get_shore_texture().get_image().get_pixel(1, 1).r == 0.0)
 	water.queue_free()
 	await process_frame
 
@@ -112,6 +119,35 @@ func _test_river_with_falls() -> void:
 			mid_slope = true
 	_assert("river_drapes_terrain", draped and mid_slope)
 	water.queue_free()
+	await process_frame
+
+func _test_editor_lake_on_flat_ground() -> void:
+	var md = get_root().get_node("MapData")
+	var map: Dictionary = md.create_complex_map("Lac généré", "general", "local", 24, 16)
+	var scene: PackedScene = load("res://scenes/map_editor/map_editor.tscn")
+	var editor = scene.instantiate()
+	get_root().add_child(editor)
+	await process_frame
+	editor.load_map(map)
+	editor.set_editable(true)
+	await process_frame
+	var heights: Array = editor.doc.terrain_heights()
+	editor._finish_water_lake(Vector2(5, 3), Vector2(18, 13))
+	var water = editor._engine._water_layer
+	_assert("editor_lake_visible", water != null and water.is_active())
+	var mask: Image = water.get_depth_image()
+	_assert("editor_lake_mask_fills_both_sides", mask != null
+		and mask.get_pixel(46, 25).g > 0.9 and mask.get_pixel(46, 42).g > 0.9)
+	_assert("editor_lake_organic_contour", editor.doc.water_bodies()[0]["area"].size() > 4)
+	_assert("editor_lake_carved", editor.doc.terrain_height(11, 7) < editor._water_lake_level - 0.3)
+	var ground: MeshInstance3D = editor._engine._ground._mesh_instance
+	_assert("editor_lake_ground_mesh_carved", ground.mesh.get_aabb().position.y < -0.25)
+	_assert("editor_lake_retains_bank", editor.doc.terrain_height(5, 3) == heights[3 * 24 + 5])
+	_assert("editor_lake_single_undo", editor.doc.undo()
+		and editor.doc.water_bodies().is_empty() and editor.doc.terrain_heights() == heights)
+	_assert("editor_lake_ground_mesh_restored", absf(ground.mesh.get_aabb().position.y) < 0.01)
+	_assert("editor_lake_redo", editor.doc.redo() and editor._engine._water_layer.is_active())
+	editor.queue_free()
 	await process_frame
 
 func _test_doc_water_bodies() -> void:

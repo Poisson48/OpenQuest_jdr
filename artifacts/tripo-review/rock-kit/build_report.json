@@ -1,0 +1,216 @@
+{
+  "generated_by": "tools/blender/build_tripo_rocks.py",
+  "blender_version": "4.5.10 LTS",
+  "source_root": "artifacts/tripo-review/rock-kit/recolored_1024",
+  "triangle_budget": 1500,
+  "texture_size": 512,
+  "jpeg_quality": 88,
+  "palette": {
+    "saturation": 0.92,
+    "value": 1.26,
+    "tint_srgb": [
+      1.08,
+      1.0,
+      0.88
+    ],
+    "ao_strength": 0.5,
+    "mottle_strength": 0.07,
+    "ao_min_value": 0.55,
+    "moss_strength": 0.52,
+    "moss_tint": [
+      0.72,
+      0.96,
+      0.56
+    ]
+  },
+  "assets": [
+    {
+      "name": "bloc_rocheux_socle",
+      "source": "artifacts/tripo-review/rock-kit/recolored_1024/rocher_socle.glb",
+      "role": "socle",
+      "description": "Affleurement bas à deux assises, large et stable : rocher décoratif posé au sol, bord de chemin ou socle d'un petit relief. Rocher Tripo3D retravaillé (non empilable).",
+      "tags": [
+        "rocher",
+        "affleurement",
+        "decor",
+        "tripo",
+        "bas"
+      ],
+      "glb": "game/assets/objects3d/terrain/bloc_rocheux_socle.glb",
+      "thumb": "game/assets/objects3d/terrain/bloc_rocheux_socle_thumb.png",
+      "glb_bytes": 167752,
+      "thumb_bytes": 168562,
+      "triangles": 1014,
+      "triangles_before_decimation": 1014,
+      "decimated": false,
+      "vertices": 743,
+      "dimensions_cells": [
+        1.857,
+        2.05,
+        1.111
+      ],
+      "height_above_floor": 1.111,
+      "scale_factor": 2.054,
+      "footprint_before_cells": 0.998,
+      "height_before_cells": 0.541,
+      "yaw_deg": 0.0,
+      "textures": {
+        "albedo": {
+          "size": 512,
+          "format": "JPEG",
+          "quality": 88
+        },
+        "normal": {
+          "size": 512
+        },
+        "orm": "abandonnee (materiau mat)"
+      },
+      "vertex_colors": "COLOR_0 : AO + mottling + teinte mousse (gris/vert)",
+      "material": "mat : metallic 0, roughness 0.92, specular 0.15",
+      "shading": "flat (facettes low-poly du kit)",
+      "moss": true,
+      "thumbnail_engine": "BLENDER_EEVEE_NEXT"
+    },
+    {
+      "name": "bloc_rocheux_bloc",
+      "source": "artifacts/tripo-review/rock-kit/recolored_1024/rocher_bloc.glb",
+      "role": "bloc",
+      "description": "Dalle rocheuse compacte et fissurée, affleurant du sol : décor minéral, obstacle bas, bord de sentier. Rocher Tripo3D retravaillé (non empilable).",
+      "tags": [
+        "rocher",
+        "affleurement",
+        "decor",
+        "tripo",
+        "dalle"
+      ],
+      "glb": "game/assets/objects3d/terrain/bloc_rocheux_bloc.glb",
+      "thumb": "game/assets/objects3d/terrain/bloc_rocheux_bloc_thumb.png",
+      "glb_bytes": 187764,
+      "thumb_bytes": 156035,
+      "triangles": 973,
+      "triangles_before_decimation": 973,
+      "decimated": false,
+      "vertices": 807,
+      "dimensions_cells": [
+        1.713,
+        1.95,
+        0.63
+      ],
+      "height_above_floor": 0.63,
+      "scale_factor": 1.9538,
+      "footprint_before_cells": 0.998,
+      "height_before_cells": 0.322,
+      "yaw_deg": 0.0,
+      "textures": {
+        "albedo": {
+          "size": 512,
+          "format": "JPEG",
+          "quality": 88
+        },
+        "normal": {
+          "size": 512
+        },
+        "orm": "abandonnee (materiau mat)"
+      },
+      "vertex_colors": "COLOR_0 : AO + mottling + teinte mousse (gris/vert)",
+      "material": "mat : metallic 0, roughness 0.92, specular 0.15",
+      "shading": "flat (facettes low-poly du kit)",
+      "moss": true,
+      "thumbnail_engine": "BLENDER_EEVEE_NEXT"
+    },
+    {
+      "name": "bloc_rocheux_coin",
+      "source": "artifacts/tripo-review/rock-kit/recolored_1024/rocher_coin.glb",
+      "role": "coin",
+      "description": "Rocher incliné en arête, haut sur un côté : décor d'affleurement vertical, entrée de grotte ou pierre levée. Rocher Tripo3D retravaillé (non empilable).",
+      "tags": [
+        "rocher",
+        "affleurement",
+        "decor",
+        "tripo",
+        "arete"
+      ],
+      "glb": "game/assets/objects3d/terrain/bloc_rocheux_coin.glb",
+      "thumb": "game/assets/objects3d/terrain/bloc_rocheux_coin_thumb.png",
+      "glb_bytes": 235024,
+      "thumb_bytes": 173886,
+      "triangles": 1028,
+      "triangles_before_decimation": 1028,
+      "decimated": false,
+      "vertices": 851,
+      "dimensions_cells": [
+        1.462,
+        1.75,
+        1.414
+      ],
+      "height_above_floor": 1.414,
+      "scale_factor": 1.7534,
+      "footprint_before_cells": 0.998,
+      "height_before_cells": 0.807,
+      "yaw_deg": 0.0,
+      "textures": {
+        "albedo": {
+          "size": 512,
+          "format": "JPEG",
+          "quality": 88
+        },
+        "normal": {
+          "size": 512
+        },
+        "orm": "abandonnee (materiau mat)"
+      },
+      "vertex_colors": "COLOR_0 : AO + mottling + teinte mousse (gris/vert)",
+      "material": "mat : metallic 0, roughness 0.92, specular 0.15",
+      "shading": "flat (facettes low-poly du kit)",
+      "moss": true,
+      "thumbnail_engine": "BLENDER_EEVEE_NEXT"
+    },
+    {
+      "name": "bloc_rocheux_couronne",
+      "source": "artifacts/tripo-review/rock-kit/recolored_1024/rocher_couronne.glb",
+      "role": "couronne",
+      "description": "Dalle plate basse, comme une pierre affleurante : dalle de sol, pas japonais, support de décor. Rocher Tripo3D retravaillé (non empilable).",
+      "tags": [
+        "rocher",
+        "affleurement",
+        "decor",
+        "tripo",
+        "dalle"
+      ],
+      "glb": "game/assets/objects3d/terrain/bloc_rocheux_couronne.glb",
+      "thumb": "game/assets/objects3d/terrain/bloc_rocheux_couronne_thumb.png",
+      "glb_bytes": 188344,
+      "thumb_bytes": 147542,
+      "triangles": 1036,
+      "triangles_before_decimation": 1036,
+      "decimated": false,
+      "vertices": 768,
+      "dimensions_cells": [
+        1.53,
+        2.0,
+        0.466
+      ],
+      "height_above_floor": 0.466,
+      "scale_factor": 2.0039,
+      "footprint_before_cells": 0.998,
+      "height_before_cells": 0.232,
+      "yaw_deg": 0.0,
+      "textures": {
+        "albedo": {
+          "size": 512,
+          "format": "JPEG",
+          "quality": 88
+        },
+        "normal": {
+          "size": 512
+        },
+        "orm": "abandonnee (materiau mat)"
+      },
+      "vertex_colors": "COLOR_0 : AO + mottling + teinte mousse (gris/vert)",
+      "material": "mat : metallic 0, roughness 0.92, specular 0.15",
+      "shading": "flat (facettes low-poly du kit)",
+      "moss": true,
+      "thumbnail_engine": "BLENDER_EEVEE_NEXT"
+    }
+  ]
+}

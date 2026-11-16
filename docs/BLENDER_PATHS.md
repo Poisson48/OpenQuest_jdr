@@ -1,5 +1,11 @@
 # Chemins Blender — pipeline procédural
 
+Les trois GLB livrés dans le catalogue sont reconstruits depuis leurs PNG
+transparents par `tools/blender/reference_hull.py` puis
+`tools/blender/build_reference_volumes.py`. Les exemples ci-dessous
+décrivent le générateur distinct qui exporte un tracé personnalisé à partir
+du fichier Geometry Nodes.
+
 ## Source
 
 Le générateur de chemin en pierre vient de l’asset « Geometry nodes — Path through grass »
@@ -33,7 +39,7 @@ Le script :
 6. fait un **Smart UV Project** ;
 7. exporte un GLB avec UVs, normales, matériau et texture.
 
-Résultat actuel : `path_stone_procedural.glb`, ~17 600 triangles après décimation.
+Cet ancien export de démonstration produisait environ 17 600 triangles après décimation.
 
 ## Patch complet chemin + herbe
 

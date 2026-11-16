@@ -47,8 +47,10 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import bpy  # noqa: E402
+from mathutils import Vector  # noqa: E402
 
 import oq_common as oq  # noqa: E402
+from reference_materials import ReferenceMaterials  # noqa: E402
 from oq_common import (  # noqa: E402
     DEFAULT_PALETTE,
     OUTLINE_THICKNESS,
@@ -239,37 +241,64 @@ def build_tour(mats: Mats) -> list[bpy.types.Object]:
 
 
 def build_pont(mats: Mats) -> list[bpy.types.Object]:
-    """Pont de pierre et bois, tablier sureleve, garde-corps, poutres."""
+    """Passerelle à onze lattes et culées maçonnées, d'après references/pont.png."""
     parts: list[bpy.types.Object] = []
-    # Culees en pierre elargies (pas de jupe : le pont enjambe l'eau).
-    for x in (-1.0, 1.0):
-        parts.append(add_box("pier", (0.42, 1.12, 0.52), (x, 0, 0.26), mats["stone"]))
-        parts.append(add_box("pier_base", (0.62, 1.28, 0.07), (x, 0, 0.035), mats["stone_dark"]))
-        parts.append(add_box("pier_cap", (0.50, 1.18, 0.09), (x, 0, 0.54), mats["stone_light"]))
-    # Tablier.
-    parts.append(add_box("deck", (2.30, 1.00, 0.14), (0, 0, 0.52), mats["wood_dark"]))
-    for i in range(7):
-        x = -0.99 + i * 0.33
-        material = mats["wood"] if i % 2 == 0 else mats["wood_light"]
-        parts.append(add_box("plank", (0.26, 1.02, 0.04), (x, 0, 0.61), material))
-    # Poutres de soutien (legerement inclinees).
-    for x in (-0.55, 0.55):
-        parts.append(
-            add_box(
-                "brace",
-                (0.14, 1.02, 0.14),
-                (x, 0, 0.43),
-                mats["wood_dark"],
-                rotation=(0.0, 0.5 if x > 0 else -0.5, 0.0),
-            )
-        )
-    # Garde-corps.
-    for y in (-0.46, 0.46):
-        for x in (-0.90, -0.45, 0.0, 0.45, 0.90):
-            parts.append(add_box("rail_post", (0.09, 0.09, 0.48), (x, y, 0.83), mats["wood_dark"]))
-        parts.append(add_box("rail_top", (1.94, 0.08, 0.10), (0, y, 1.02), mats["wood"]))
-        parts.append(add_box("rail_mid", (1.94, 0.06, 0.07), (0, y, 0.78), mats["wood_light"]))
+    for x in (-1.08, 1.08):
+        for course in range(2):
+            for i in range(3):
+                y = (i - 1) * 0.395 + (course - 0.5) * 0.04
+                stone = mats[("stone", "stone_light", "stone_dark")[(i + course) % 3]]
+                parts.append(add_box("abutment_stone", (0.38, 0.39, 0.145),
+                                     (x, y, 0.073 + course * 0.147), stone))
+    for y in (-0.48, 0.48):
+        parts.append(add_box("stringer", (2.50, 0.15, 0.105), (0, y, 0.34), mats["wood_dark"]))
+        for x in (-1.13, -0.38, 0.38, 1.13):
+            parts.append(add_box("post", (0.12, 0.12, 0.51), (x, y, 0.57), mats["wood_light"]))
+            for z in (0.354, 0.414):
+                parts.append(add_cylinder("peg", 0.021, 0.018,
+                    (x, y + math.copysign(0.064, y), z), mats["wood"], vertices=6,
+                    rotation=(math.pi * 0.5, 0.0, 0.0)))
+        parts.append(add_box("handrail", (2.35, 0.09, 0.075), (0, y, 0.759), mats["wood"]))
+    for i in range(11):
+        x = (i - 5) * 0.231
+        wood = mats["wood"] if i % 4 == 2 else mats["wood_light"]
+        parts.append(add_box("deck_board", (0.229, 1.15, 0.07), (x, 0, 0.426), wood))
     return parts
+
+
+def _build_stone_path(mats: Mats, *, bend: float, shoulders: bool) -> list[bpy.types.Object]:
+    """Traverse de dalles irrégulières, avec accotements optionnels."""
+    parts = []
+    for row in range(18):
+        x = (row - 8.5) * 0.58
+        center = bend * math.sin(x * 0.57)
+        for column in range(3):
+            y = center + (column - 1) * 0.49 + 0.065 * math.sin(row * 2.7 + column)
+            material = mats[("stone", "stone_light", "stone_dark")[(row + 2 * column) % 3]]
+            stone = add_ico_sphere("paver", 1.0, (x, y, 0.055), material,
+                                  scale=(0.34, 0.29, 0.11), jitter=0.065,
+                                  seed=140 + row * 3 + column)
+            stone.rotation_euler.z = 0.35 * math.sin(row * 1.7 + column)
+            parts.append(stone)
+        if shoulders:
+            for side in (-1, 1):
+                y = center + side * (0.89 + 0.10 * math.sin(row * 1.8))
+                parts.append(add_ico_sphere("verge", 1.0, (x, y, 0.0),
+                    mats["grass_dark" if row % 3 == 0 else "grass"], scale=(0.46, 0.43, 0.12),
+                    jitter=0.05, seed=330 + row * 2 + side))
+    return parts
+
+
+def build_path_generated_demo(mats: Mats) -> list[bpy.types.Object]:
+    return _build_stone_path(mats, bend=1.55, shoulders=True)
+
+
+def build_path_stone_procedural(mats: Mats) -> list[bpy.types.Object]:
+    return _build_stone_path(mats, bend=0.75, shoulders=False)
+
+
+def build_path_through_grass(mats: Mats) -> list[bpy.types.Object]:
+    return _build_stone_path(mats, bend=0.95, shoulders=True)
 
 
 def build_arbre(mats: Mats) -> list[bpy.types.Object]:
@@ -315,6 +344,101 @@ def build_arbre(mats: Mats) -> list[bpy.types.Object]:
         )
     )
     return parts
+
+
+def build_galets_de_rive(mats: Mats) -> list[bpy.types.Object]:
+    """Trois galets et une ligne d'eau, d'après references/galets_de_rive.png."""
+    shale = make_material("galets_ardoise", "#6b7067")
+    moss = make_material("galets_mousse", "#788144")
+    parts = []
+    for i, (center, scale) in enumerate([
+        ((0.27, 0.19, 0.35), (0.63, 0.47, 0.43)),
+        ((-0.48, -0.12, 0.19), (0.39, 0.34, 0.29)),
+        ((0.09, -0.40, 0.12), (0.34, 0.24, 0.22)),
+    ]):
+        rock = add_ico_sphere(f"galet_{i}", 1.0, center, shale,
+                              subdivisions=2, scale=scale, jitter=0.08, seed=48 + i)
+        rock.rotation_euler.z = (i - 1) * 0.28
+        for material in [mats["stone_dark"], moss, mats["dirt"]]:
+            rock.data.materials.append(material)
+        for face in rock.data.polygons:
+            x, y, z = face.center
+            if z < -0.52:
+                face.material_index = 3
+            elif z > 0.50 + 0.20 * math.sin(6.0 * x + 3.0 * y):
+                face.material_index = 2
+            elif face.index % 7 == 0:
+                face.material_index = 1
+        parts.append(rock)
+    return parts
+
+
+def _driftwood_limb(name, points, radii, materials, mossy=False):
+    """Sections irrégulières et cernes concentriques aux cassures."""
+    centers = [Vector(p) for p in points]
+    sides = 10
+    vertices = []
+    faces = []
+    slots = []
+    for i, (center, radius) in enumerate(zip(centers, radii)):
+        tangent = (centers[min(i + 1, len(centers) - 1)] - centers[max(i - 1, 0)]).normalized()
+        side = tangent.cross(Vector((0, 0, 1))).normalized()
+        up = side.cross(tangent)
+        for j in range(sides):
+            angle = math.tau * j / sides
+            groove = 1.0 + 0.09 * math.cos(j * 3.0) + 0.05 * math.sin(i + j)
+            radial = side * math.cos(angle) + up * math.sin(angle)
+            vertices.append(center + radial * (radius * groove))
+    for i in range(len(centers) - 1):
+        for j in range(sides):
+            k = (j + 1) % sides
+            start = i * sides
+            end = start + sides
+            faces.append((start + j, end + j, end + k, start + k))
+            slots.append(3 if mossy and i == 1 and 1 <= j <= 4 else int(j % 4 == 0))
+    for cap in (0, len(centers) - 1):
+        ring = list(range(cap * sides, (cap + 1) * sides))
+        if cap != 0:
+            ring.reverse()
+        rim = [vertices[j] for j in ring]
+        for fraction, slot in ((0.82, 2), (0.64, 1), (0.42, 2), (0.31, 1)):
+            inner = list(range(len(vertices), len(vertices) + sides))
+            vertices.extend(centers[cap].lerp(v, fraction) for v in rim)
+            for j in range(sides):
+                k = (j + 1) % sides
+                faces.append((ring[j], ring[k], inner[k], inner[j]))
+                slots.append(slot)
+            ring = inner
+        faces.append(tuple(ring))
+        slots.append(2)
+    limb = add_mesh(name, vertices, faces, materials[0])
+    for material in materials[1:]:
+        limb.data.materials.append(material)
+    for face, slot in zip(limb.data.polygons, slots):
+        face.material_index = slot
+    return limb
+
+
+def build_bois_flotte(mats: Mats) -> list[bpy.types.Object]:
+    """Branche fourchue d'après la silhouette de references/bois_flotte.png."""
+    materials = [
+        make_material("bois_flotte_fibre", "#ae9676"),
+        mats["wood"],
+        make_material("bois_flotte_cernes", "#b6946a"),
+        make_material("bois_flotte_mousse", "#6b713b"),
+    ]
+    return [
+        _driftwood_limb("tronc",
+                        [(-1.0, -0.21, 0.20), (-0.64, -0.08, 0.25),
+                         (-0.19, 0.03, 0.28), (0.18, -0.06, 0.22),
+                         (0.56, 0.04, 0.24), (0.99, -0.05, 0.19)],
+                        [0.19, 0.19, 0.16, 0.145, 0.135, 0.09], materials, mossy=True),
+        _driftwood_limb("fourche", [(0.37, 0.0, 0.24), (0.62, 0.17, 0.33),
+                                   (0.78, 0.34, 0.43), (0.99, 0.49, 0.54)],
+                        [0.14, 0.115, 0.095, 0.06], materials),
+        _driftwood_limb("noeud", [(-0.66, -0.09, 0.27), (-0.62, -0.01, 0.42),
+                                  (-0.57, 0.03, 0.52)], [0.105, 0.08, 0.055], materials),
+    ]
 
 
 def build_rocher(mats: Mats) -> list[bpy.types.Object]:
@@ -2959,6 +3083,28 @@ def iter_jobs(specs: list[AssetSpec]) -> list[tuple[AssetSpec, Variant, str]]:
 
 ASSETS: list[AssetSpec] = [
     AssetSpec(
+        "path_generated_demo", "terrain", build_path_generated_demo,
+        "Chemin de démonstration sinueux avec accotements herbeux.", ("chemin", "pierre"),
+    ),
+    AssetSpec(
+        "path_stone_procedural", "terrain", build_path_stone_procedural,
+        "Traversée de pavés, sans accotement.", ("chemin", "pierre"),
+    ),
+    AssetSpec(
+        "path_through_grass", "terrain", build_path_through_grass,
+        "Chemin de pierres irrégulières bordé d'herbe.", ("chemin", "pierre", "herbe"),
+    ),
+    AssetSpec(
+        "galets_de_rive", "terrain", build_galets_de_rive,
+        "Trois galets d'ardoise moussus avec ligne d'eau.",
+        ("rive", "eau", "roche"),
+    ),
+    AssetSpec(
+        "bois_flotte", "props", build_bois_flotte,
+        "Branche fourchue blanchie par l'eau, cernes visibles aux cassures.",
+        ("rive", "eau", "bois"),
+    ),
+    AssetSpec(
         "maison",
         "buildings",
         build_maison,
@@ -3617,6 +3763,7 @@ def main(argv: list[str]) -> int:
     manifest: list[dict[str, object]] = []
     failures: list[str] = []
     engine_used: str | None = None
+    reference = ReferenceMaterials(Path(__file__).resolve().parent / "references/matieres_valbois.png")
 
     for spec, variant, name in jobs:
         try:
@@ -3633,7 +3780,8 @@ def main(argv: list[str]) -> int:
 
             # Detail 2.5D : subdivision legere (place pour les vertex colors),
             # AO + mottling cuits, contour encre "inverted hull".
-            subdivide_long_edges(obj, max_length=0.5, max_passes=2)
+            max_edge = 0.72 if name.startswith("path_") else 0.5
+            subdivide_long_edges(obj, max_length=max_edge, max_passes=2)
             triangulate_mesh(obj)
             bake_vertex_colors(
                 obj,
@@ -3644,6 +3792,7 @@ def main(argv: list[str]) -> int:
                 mottle_strength=0.09,
                 min_value=0.55,
             )
+            reference.apply(obj, name, _detail_seed(name))
             objects: list[bpy.types.Object] = [obj]
             if not args.no_outline:
                 ink = make_material(
@@ -3704,7 +3853,7 @@ def main(argv: list[str]) -> int:
                     "triangles": triangles,
                     "triangles_base": triangles_base,
                     "vertices": vertices,
-                    "vertex_colors": "AO + mottling (COLOR_0)",
+                    "vertex_colors": "AO + projection de la planche Valbois (COLOR_0)",
                     "outline": not args.no_outline,
                 }
             )

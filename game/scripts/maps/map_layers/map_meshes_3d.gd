@@ -89,6 +89,7 @@ var _fire_lights: Array = []
 var _fire_time: float = 0.0
 ## id → donnée source du mesh (pour reposer au sol sur relief en drag live).
 var _mesh_entries: Dictionary = {}
+var _bridge_decks: Dictionary = {}
 ## Relief : hauteurs par case (tableau plat, convention grille centrée case).
 var _terrain_heights: Array = []
 ## Creusements volumétriques (Voie B) + champ terre/vide associé.
@@ -123,6 +124,7 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 		child.free()
 	_nodes.clear()
 	_mesh_entries.clear()
+	_bridge_decks.clear()
 	_fire_lights.clear()
 	for mesh_variant in meshes:
 		if not mesh_variant is Dictionary:
@@ -175,8 +177,11 @@ func _reseat_nodes() -> void:
 		if node == null or not is_instance_valid(node) or entry.is_empty():
 			continue
 		var visual: Node = node.get_meta("visual", null) if node.has_meta("visual") else null
-		if visual is MeshInstance3D and visual.has_meta("flat_mesh"):
-			_rebake_procedural_visual(visual as MeshInstance3D, entry)
+		if visual is MeshInstance3D:
+			if _is_bridge(str(entry.get("asset", ""))):
+				_rebuild_bridge(visual, entry)
+			elif visual.has_meta("flat_mesh"):
+				_rebake_procedural_visual(visual, entry)
 		_place_root(node, entry)
 		var shadow := _find_child_with_meta(node, "contact_shadow")
 		if shadow is Node3D:
@@ -301,7 +306,7 @@ func _build_mesh(mesh: Dictionary) -> Node3D:
 	root.name = str(mesh.get("id", "mesh")) if not str(mesh.get("id", "")).is_empty() else "Mesh"
 	var asset_path := str(mesh.get("asset", ""))
 	var visual: Node = null
-	if asset_path.begins_with("procedural://"):
+	if asset_path.begins_with("procedural://") or _is_bridge(asset_path):
 		var visual_mesh := _build_procedural_visual(mesh)
 		if visual_mesh != null:
 			visual = visual_mesh
@@ -399,15 +404,17 @@ func _build_procedural_visual(mesh: Dictionary) -> Node3D:
 		mesh_instance.material_override = path_mat
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return mesh_instance
-	elif asset == "procedural://bridge":
+	elif _is_bridge(asset):
 		mesh_instance.name = "ProceduralBridge"
-		mesh_instance.mesh = ProceduralBridgeMeshScript.build(_bridge_mesh_params(mesh))
+		_rebuild_bridge(mesh_instance, mesh)
 		mesh_instance.set_meta("terrain_baked", true)
 		mesh_instance.set_meta("world_space", true)
 		material.vertex_color_use_as_albedo = true
 		material.albedo_color = Color.WHITE
 		material.roughness = 0.9
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if _unshaded else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		mesh_instance.material_override = material
 		return mesh_instance
 	elif asset == "procedural://path":
 		mesh_instance.name = "ProceduralPath"
@@ -627,33 +634,91 @@ func _mesh_point_to_vector(value) -> Vector2:
 ## bords semi-transparents (COLOR.a) estompés par le shader `path_ribbon`.
 const PATH_ACROSS := 4
 
-## Paramètres du pont procédural : extrémités converties de la grille (cases,
-## hauteur en cases) vers le monde, plus le sol le plus bas sous le tablier
-## (pour que les piles descendent jusqu'au terrain).
+static func _is_bridge(asset: String) -> bool:
+	return asset in [ProceduralBridgeMeshScript.ASSET, ProceduralBridgeMeshScript.CATALOG_ASSET]
+
+func _rebuild_bridge(visual: MeshInstance3D, entry: Dictionary) -> void:
+	var deck := _bridge_mesh_params(entry)
+	visual.mesh = ProceduralBridgeMeshScript.build(deck)
+	_bridge_decks[str(entry.get("id", ""))] = deck
+
+func update_bridge(entry: Dictionary) -> void:
+	var id := str(entry.get("id", ""))
+	var root := _nodes.get(id) as Node3D
+	if root != null and _is_bridge(str(entry.get("asset", ""))):
+		var visual := root.get_meta("visual", null) as MeshInstance3D
+		if visual != null:
+			_mesh_entries[id] = entry.duplicate(true)
+			_rebuild_bridge(visual, entry)
+
+func bridge_height_at(x: float, z: float) -> float:
+	var height := -INF
+	for deck in _bridge_decks.values():
+		height = maxf(height, ProceduralBridgeMeshScript.deck_height_at(deck, Vector2(x, z)))
+	return height
+
+func bridge_endpoints(id: String) -> PackedVector3Array:
+	if not _bridge_decks.has(id):
+		return PackedVector3Array()
+	var deck: Dictionary = _bridge_decks[id]
+	return PackedVector3Array([deck["start"], deck["end"]])
+
+func raycast_bridges(origin: Vector3, direction: Vector3) -> Vector3:
+	var closest := Vector3.INF
+	var best := INF
+	for deck in _bridge_decks.values():
+		var hit := ProceduralBridgeMeshScript.raycast_deck(deck, origin, direction)
+		if hit != Vector3.INF:
+			var distance := origin.distance_squared_to(hit)
+			if distance < best:
+				closest = hit
+				best = distance
+	return closest
+
+## Les deux entrées (outil de construction et objet du catalogue) produisent
+## le même tablier, que le moteur utilise aussi pour placer les figurines.
 func _bridge_mesh_params(mesh: Dictionary) -> Dictionary:
 	var start: Dictionary = mesh.get("start", {}) if mesh.get("start") is Dictionary else {}
 	var end: Dictionary = mesh.get("end", {}) if mesh.get("end") is Dictionary else {}
-	var sx := float(start.get("x", 0.0))
-	var sy := float(start.get("y", 0.0))
-	var sh := float(start.get("h", 0.0))
-	var ex := float(end.get("x", 0.0))
-	var ey := float(end.get("y", 0.0))
-	var eh := float(end.get("h", 0.0))
-	var ground_y := 1.0e9
-	for i in range(9):
-		var t := float(i) / 8.0
-		var gx := lerpf(sx, ex, t)
-		var gy := lerpf(sy, ey, t)
-		ground_y = minf(ground_y, _terrain_surface_height_at(gx + 0.5, gy + 0.5) * _cell_size)
-	if ground_y > 1.0e8:
-		ground_y = 0.0
+	var a := Vector2(float(start.get("x", 0.0)), float(start.get("y", 0.0)))
+	var b := Vector2(float(end.get("x", 0.0)), float(end.get("y", 0.0)))
+	var width := float(mesh.get("width", 1.6))
+	var from_catalog := str(mesh.get("asset", "")) == ProceduralBridgeMeshScript.CATALOG_ASSET
+	if from_catalog:
+		var center := Vector2(float(mesh.get("x", 0.0)), float(mesh.get("y", 0.0)))
+		var display: Dictionary = mesh.get("display", {}) if mesh.get("display") is Dictionary else {}
+		var scale_factor := maxf(0.05, float(display.get("scale", 1.0)))
+		var axis := Vector2.from_angle(deg_to_rad(float(display.get("rotation", 0.0))))
+		var meta := MapAssetLibraryScript.get_object3d_meta(ProceduralBridgeMeshScript.CATALOG_ASSET)
+		var natural: Array = meta.get("dimensions_cells", [2.56, 1.24, 0.84])
+		var length := float(mesh.get("sizeX", 0.0))
+		if length <= 0.0:
+			length = float(natural[0]) * scale_factor
+		a = center - axis * length * 0.5
+		b = center + axis * length * 0.5
+		width = float(mesh.get("sizeZ", 0.0))
+		if width <= 0.0:
+			width = float(natural[1]) * scale_factor
+	var world_a := (a + Vector2(0.5, 0.5)) * _cell_size
+	var world_b := (b + Vector2(0.5, 0.5)) * _cell_size
+	var height_a := float(start.get("h", 0.0)) * _cell_size
+	var height_b := float(end.get("h", 0.0)) * _cell_size
+	if bool(mesh.get("followBanks", from_catalog and bool(mesh.get("followTerrain", true)))):
+		height_a = _bridge_ground_height(world_a.x, world_a.y)
+		height_b = _bridge_ground_height(world_b.x, world_b.y)
+	var clearance := (0.045 + float(mesh.get("elevation", 0.0))) * _cell_size
 	return {
-		"start": Vector3((sx + 0.5) * _cell_size, sh * _cell_size, (sy + 0.5) * _cell_size),
-		"end": Vector3((ex + 0.5) * _cell_size, eh * _cell_size, (ey + 0.5) * _cell_size),
-		"width": maxf(0.4, float(mesh.get("width", 1.6))) * _cell_size,
+		"start": Vector3(world_a.x, height_a + clearance, world_a.y),
+		"end": Vector3(world_b.x, height_b + clearance, world_b.y),
+		"width": maxf(0.4, width) * _cell_size,
 		"seed": int(mesh.get("seed", 1)),
-		"ground_y": ground_y,
+		"ground_height": _bridge_ground_height,
 	}
+
+func _bridge_ground_height(x: float, z: float) -> float:
+	if _terrain_field == null:
+		return 0.0
+	return _terrain_field.top_surface_at(x / _cell_size, z / _cell_size, true) * _cell_size
 
 func _build_textured_path_mesh(mesh: Dictionary) -> ArrayMesh:
 	var raw_points: Array = mesh.get("points", [])
@@ -1088,8 +1153,10 @@ func set_mesh_position(mesh_id: String, gx: float, gy: float) -> void:
 	var node: Node3D = _nodes[mesh_id]
 	var entry: Dictionary = _mesh_entries.get(mesh_id, {})
 	if not entry.is_empty():
-		entry["x"] = gx
-		entry["y"] = gy
+		ProceduralBridgeMeshScript.move_entry(entry, gx, gy)
+		if _is_bridge(str(entry.get("asset", ""))):
+			update_bridge(entry)
+			return
 		_mesh_entries[mesh_id] = entry
 		if _terrain_relief:
 			_place_root(node, entry)

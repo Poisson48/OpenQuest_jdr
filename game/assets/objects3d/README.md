@@ -4,7 +4,7 @@ Assets **procéduraux low‑poly** prêts à poser sur la grille de la carte 2.5
 (type League of Legends / Warhammer) : un mix de découpes 2D et de meshes 3D
 posés sur une grille, avec un décor peint en fond. Les objets sont pensés pour
 être **lisibles de dessus mais fondus dans l'illustration Valbois** : palette
-terre/bois/pierre chaude et désaturée, matériaux mats, AO + mottling cuits en
+terre/bois/pierre chaude et désaturée, matériaux mats, AO et détails projetés en
 vertex colors, contour encre et raccord au sol.
 
 Le kit est complété par les **textures de sol tuilables**
@@ -29,9 +29,28 @@ cheminée fumante ; panneau de colombage, porte à auvent, fenêtre à volets,
 balcon, escalier extérieur et auvent d'étal. Ancre `roof` pour les modules de
 toit, `wall` pour les éléments de façade.
 
-> Ces fichiers sont **générés** par `tools/blender/build_prototypes.py` et
-> `tools/blender/make_terrain_textures.py`. Ne pas les retoucher à la main :
-> modifier les scripts puis régénérer.
+Le kit v8 intègre **4 rochers Tripo3D retravaillés** (`bloc_rocheux_*`) comme
+**rochers décoratifs / affleurements**, pas comme kit empilable : voir la
+section « Rochers Tripo3D — usage décoratif » plus bas.
+
+Le thème **Lac** inclut deux objets de rive disponibles dans la bibliothèque
+3D, `terrain/galets_de_rive.glb` et `props/bois_flotte.glb`. Leurs volumes et
+leurs matériaux ont été modelés dans Blender à partir de [références générées
+sur fond transparent](../../../tools/blender/references/). Le pipeline
+Blender exporte ensuite les GLB et rend les vignettes des modèles.
+
+Chaque asset du catalogue possède une [référence PNG transparente](../../../tools/blender/references/).
+Le pont, les galets de rive, le bois flotté, la chaîne, la lanterne et
+le squelette sont modelés dans Blender d’après leur référence. Pour les
+79 autres, le volume provient de l’intersection des silhouettes de face,
+de droite et du dessus. Blender
+simplifie le maillage et mélange les vues pour cuire la texture UV dans le
+GLB. Le manifeste identifie l’image source de chaque modèle.
+
+> Régénérer un volume avec `tools/blender/reference_hull.py`, puis
+> `tools/blender/build_reference_volumes.py`. Ce dernier modélise aussi
+> les pièces fines définies dans `reference_detail_models.py`. Le pont
+> et les deux décors de rive sont exportés par `build_prototypes.py`.
 > Voir [docs/BLENDER_PIPELINE.md](../../docs/BLENDER_PIPELINE.md) pour le
 > workflow complet, la palette et les conventions.
 
@@ -45,9 +64,9 @@ toit, `wall` pour les éléments de façade.
 | Origine | **centre de la base**, posée sur le sol (`y = 0` en glTF/Godot) |
 | Axes glTF | `+Y` = haut, face avant de l'objet vers **`+Z`** |
 | Transforms | rotation/scale à 1, location à 0 (bake dans le mesh) |
-| Budget | **< 5 000 triangles** par asset (contour encre inclus ; max actuel : 3 036) |
+| Budget | **< 5 000 triangles** par asset (contour encre inclus) ; les 4 rochers Tripo3D `bloc_rocheux_*` respectent un budget renforcé **< 1 500 triangles** (sans contour) |
 | Matériaux | mats (roughness 0,92, metallic 0, specular 0,15), palette Valbois, **aucune transparence, aucune texture alpha**, faces simples (backface culling) |
-| Détail | AO + mottling en **vertex colors `COLOR_0`** (multiplicateur) |
+| Détail | Atlas UV opaque intégré au GLB et ombrage de contact en `COLOR_0` |
 | Contour | coque inversée `*_outline` en encre sombre (double le nombre de triangles) |
 | Sol extérieur | **jupe de raccord** herbe/terre très plate, débordant du bâti |
 | Sol intérieur | **dalle plate** bois (taverne) ou pierre (donjon) sous le meuble |
@@ -66,8 +85,9 @@ L'ombre de contact est gérée **côté moteur**, rien n'est cuit dans les asset
 
 ## Catalogue
 
-80 assets (75 modèles + 5 variantes de taille/teinte), **86 008 triangles** au
-total, 3 036 au maximum. Dimension = AABB réelle du GLB (contour inclus).
+89 assets. Les dimensions et les budgets actuels figurent dans
+`manifest.json`. Les tableaux ci-dessous donnent les dimensions
+des prototypes qui ont servi de gabarits de placement.
 Pour les objets muraux et les modules de toit, les dimensions listées sont
 celles de l'AABB ; `height_above_floor` (manifeste) donne la hauteur de pose
 depuis le pied du mur ou la base du toit.
@@ -89,12 +109,13 @@ depuis le pied du mur ou la base du toit.
 
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
 |---|---|---|---|
-| `pont` | 2.64 × 1.30 × 1.09 | 1 880 (940+940) | Franchissement de rivière (2 cases + culées) |
+| `pont` | 2.56 × 1.24 × 0.84 | 2 328 (1 164+1 164) | Passerelle en bois, culées de pierre et extrémités ouvertes |
 | `caisse` | 1.07 × 1.05 × 0.76 | 688 (344+344) | Marchandise, couverture, obstacle bas |
 | `caisse_grande` | 1.34 × 1.32 × 0.95 | 720 (360+360) | Cargaison, entrepôt, couvert |
 | `palissade` | 2.20 × 0.51 × 1.24 | 620 (310+310) | Clôture de camp, ligne défensive (module 2 cases) |
 | `puits` | 1.20 × 1.02 × 1.44 | 816 (408+408) | Point d'eau, place de village |
 | `barriere` | 2.10 × 0.44 × 0.94 | 496 (248+248) | Clôture basse de chemin ou pâture |
+| `bois_flotte` | 2.12 × 0.97 × 0.61 | 1 464 (732+732) | Branche fourchue échouée sur la rive |
 | `etal_marche` | 1.96 × 1.53 × 2.00 | 1 792 (896+896) | Étal de marché, auvent à rayures |
 | `tonneau` | 0.92 × 0.91 × 0.84 | 648 (324+324) | Tonneau cerclé de métal |
 | `lanterne` | 0.84 × 0.84 × 2.30 | 396 (198+198) | Lanterne sur poteau, fanal émissif |
@@ -212,6 +233,51 @@ du toit (z=0, centrée) ; `anchor="wall"` = origine au pied du mur (mur côté +
 | Asset | Dimensions (cases) | Tris (mesh+contour) | Usage |
 |---|---|---|---|
 | `rocher` | 1.45 × 1.18 × 0.87 | 352 (176+176) | Obstacle, relief, décor minéral |
+| `galets_de_rive` | 1.79 × 1.36 × 0.92 | 480 (240+240) | Trois galets moussus |
+| `bloc_rocheux_socle` | 1.86 × 2.05 × 1.11 | 1 014 | Affleurement bas à deux assises (Tripo3D, décor) |
+| `bloc_rocheux_bloc` | 1.71 × 1.95 × 0.63 | 973 | Dalle rocheuse compacte et fissurée (Tripo3D, décor) |
+| `bloc_rocheux_coin` | 1.46 × 1.75 × 1.41 | 1 028 | Rocher incliné en arête (Tripo3D, décor) |
+| `bloc_rocheux_couronne` | 1.53 × 2.00 × 0.47 | 1 036 | Dalle plate basse, pierre affleurante (Tripo3D, décor) |
+
+### Rochers Tripo3D — usage décoratif — `terrain/`
+
+Les quatre `bloc_rocheux_*` viennent de modèles **générés par le service
+Tripo3D** (`artifacts/tripo-review/rock-kit/`, modèle `P1-20260311`). Ils
+avaient été produits pour un kit de mur empilable, mais leur face supérieure
+est trop plate et leurs volumes ne s'emboîtent pas : ils ont donc été
+**laissés hors du kit empilable** et sont désormais livrés comme **rochers
+décoratifs / affleurements**. Le kit empilable reste celui du projet
+(`rocher`, `gros_rocher`, `falaise`) et le planificateur
+`procedural_rock_wall.gd`.
+
+| Asset | Tripo3D source | Dimensions (cases) | Tris | Rôle décoratif |
+|---|---|---|---|---|
+| `bloc_rocheux_socle` | `rocher_socle` | 1.86 × 2.05 × 1.11 | 1 014 | Massif bas à deux assises, décor de bord de chemin |
+| `bloc_rocheux_bloc` | `rocher_bloc` | 1.71 × 1.95 × 0.63 | 973 | Dalle fissurée affleurant du sol, obstacle bas |
+| `bloc_rocheux_coin` | `rocher_coin` | 1.46 × 1.75 × 1.41 | 1 028 | Rocher incliné en arête, pierre levée / entrée de grotte |
+| `bloc_rocheux_couronne` | `rocher_couronne` | 1.53 × 2.00 × 0.47 | 1 036 | Dalle plate, pierre affleurante / support de décor |
+
+Ce qui les distingue du kit Valbois :
+
+- **Pas de coque d'encre** (`*_outline`) : le budget renforcé de 1 500
+  triangles ne permet pas de doubler le maillage ; le contour encre est donc
+  absent, à réserver aux assets du kit historique.
+- **Textures embarquées** : albédo et normale 512 JPEG (pierre chaude
+  désaturée de la palette Valbois), matériau mat (`metallic 0`,
+  `roughness 0,92`), aucune transparence. Les textures sont dans le GLB :
+  l'asset est autonome.
+- **Vertex colors** : `COLOR_0` porte l'AO, un mottling léger et une teinte de
+  mousse sur les faces tournées vers le ciel ; c'est le même multiplie-color
+  que le reste du kit (voir « Chargement côté Godot »).
+- **Non empilables** : ce sont des décors posés au sol, pas des modules de mur.
+  L'éditeur les pose à l'échelle ~1 case (ils font 1,5 à 2 cases de large) ;
+  les tourner librement pour varier la silhouette. Ils se marient bien avec
+  les cailloux `caillou_*` posés au pied.
+
+Pour les régénérer : `tools/blender/build_tripo_rocks.py` (voir
+« Régénérer les assets »). La revue avant/après est documentée dans
+[`docs/RAPPORT_TRIPO_ROCKS.md`](../../../docs/RAPPORT_TRIPO_ROCKS.md).
+
 
 Chaque asset est accompagné de sa vignette : `props/lit_thumb.png`, etc.
 Le fichier `manifest.json` liste tout (nom, catégorie, dimensions, hauteur au
@@ -283,13 +349,30 @@ Points d'intégration importants :
   un `emissiveFactor` ; utilisables comme lumière douce côté moteur.
 - **Sol** : textures tuilables dans `game/assets/terrain/` (voir
   [`../terrain/README.md`](../terrain/README.md)).
-- Dimensions en cases : voir les tableaux (ex. `pont` = 2,64 cases).
+- Dimensions en cases : voir les tableaux (ex. `pont` = 2,56 cases).
 - La vignette `<nom>_thumb.png` est utilisable telle quelle dans la
   bibliothèque d'assets (fond transparent, même angle pour tous).
 
 ---
 
 ## Régénérer les assets
+
+Pour reconstruire un modèle à partir de son image, utiliser Python avec
+NumPy, Pillow, SciPy et scikit-image, puis Blender.
+
+```powershell
+$inputDir = Join-Path $env:TEMP 'openquest-volume-input'
+$stageDir = Join-Path $env:TEMP 'openquest-volume-models'
+$manifest = 'game/assets/objects3d/manifest.json'
+$refs = 'tools/blender/references'
+python tools/blender/reference_hull.py --manifest $manifest --references $refs --out $inputDir --only maison
+& 'C:\Program Files\Blender Foundation\Blender 5.0\blender.exe' --background --python-exit-code 1 `
+  --python tools/blender/build_reference_volumes.py -- --manifest $manifest `
+  --references $refs --input $inputDir --out $stageDir --only maison
+```
+
+La sortie de Blender contient le GLB, sa vignette et le manifeste mis à jour.
+Les commandes suivantes concernent le kit de prototypes d’origine.
 
 ```powershell
 # Tout : GLB + vignettes + contrôle + textures de sol + planche v3
@@ -325,6 +408,22 @@ Exporter un `.blend` d'artiste (contour encre optionnel) :
     --python tools/blender/export_blend.py -- `
     --input "D:\3d\maison.blend" --name maison --category buildings --outline
 ```
+
+Régénérer les 4 rochers Tripo3D (GLB + vignettes + manifeste + rapport de
+mesures) :
+
+```powershell
+& "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe" `
+    --background --python-exit-code 1 `
+    --python tools/blender/build_tripo_rocks.py
+# variantes : --only bloc_rocheux_socle, --no-thumbs, --smooth, --no-moss
+# reprise manifeste seule : --manifest-only
+python tools/blender/verify_glb.py --only bloc_rocheux_socle ...  # via Blender
+```
+
+Les sources Tripo recolées sont lues dans
+`artifacts/tripo-review/rock-kit/recolored_1024/` ; le rapport de build est
+écrit dans `artifacts/tripo-review/rock-kit/build_report.json`.
 
 ---
 

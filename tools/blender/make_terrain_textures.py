@@ -1,10 +1,11 @@
 """Genere les textures de sol tuilables de la carte 2.5D (offline).
 
-Cinq textures 512x512 **seamless** (bords raccord quand on les répète) :
+Six textures 512x512 **seamless** (bords raccord quand on les répète) :
 
 * ``grass.png``  : herbe Valbois, vert désaturé, touffes et brins peints ;
 * ``dirt.png``   : terre / chemin, brun chaud, cailloux, fissures et taches ;
 * ``stone.png``  : pavé de pierre (dallage irrégulier), joints sombres et mousse ;
+* ``cliff.png``  : roche de falaise, strates, fractures et veines minérales ;
 * ``snow.png``   : neige blanc bleuté, grain fin, congères et éclats de glace ;
 * ``sand.png``   : sable chaud, rides douces, quelques cailloux et coquilles.
 
@@ -22,7 +23,7 @@ Usage :
 
 Sorties (par défaut dans ``game/assets/terrain/``) :
 
-    grass.png, dirt.png, stone.png, snow.png, sand.png   # 512x512 RGB, tuilables
+    grass.png, dirt.png, stone.png, cliff.png, snow.png, sand.png  # 512x512 RGB, tuilables
     grass_thumb.png, ...                                 # 256x256, pour la bibliothèque
     _planche_terrain.png                                 # planche de contrôle (tuile 2x2)
 """
@@ -67,6 +68,15 @@ PALETTES: dict[str, dict[str, tuple[int, int, int]]] = {
         "light": (165, 160, 148),    # #a5a094
         "pale": (183, 177, 164),     # #b7b1a4
         "accent": (100, 96, 87),     # #646057
+    },
+    # Roche naturelle pour les falaises : plus terreuse et largement structurée
+    # que le pavage `stone`, qui reste réservé aux zones construites / chemins.
+    "cliff": {
+        "shadow": (50, 57, 58),      # #32393a
+        "base": (93, 100, 94),       # #5d645e
+        "light": (132, 132, 113),    # #848471
+        "pale": (163, 151, 122),     # #a3977a
+        "accent": (113, 87, 67),     # #715743 (veines ferrugineuses)
     },
     "snow": {
         "shadow": (168, 184, 202),   # #a8b8ca (ombre bleutée)
@@ -270,16 +280,18 @@ def build_grass(size: int, seed: int) -> np.ndarray:
     palette = PALETTES["grass"]
     rng = _rng(seed + 11)
 
-    large = fbm(size, seed + 101, octaves=5, base_period=3)
-    clumps = fbm(size, seed + 102, octaves=5, base_period=6)
-    medium = fbm(size, seed + 103, octaves=4, base_period=16)
+    large = fbm(size, seed + 101, octaves=4, base_period=5)
+    clumps = fbm(size, seed + 102, octaves=4, base_period=11)
+    medium = fbm(size, seed + 103, octaves=4, base_period=28)
     fine = fbm(size, seed + 104, octaves=3, base_period=56)
     dx = fbm(size, seed + 105, octaves=3, base_period=4)
     dy = fbm(size, seed + 106, octaves=3, base_period=6)
 
-    base_field = 0.40 * large + 0.30 * clumps + 0.20 * medium + 0.10 * fine
-    base_field = warp(base_field, dx, dy, strength=size * 0.05)
-    t = contrast(base_field, strength=1.55) * 0.9 + 0.05
+    base_field = 0.15 * large + 0.35 * clumps + 0.32 * medium + 0.18 * fine
+    base_field = warp(base_field, dx, dy, strength=size * 0.035)
+    # Les grandes variations sont ajoutées dans le shader en coordonnées
+    # terrain. La tuile ne porte pas de gros îlot clair répété.
+    t = contrast(base_field, strength=1.1) * 0.70 + 0.14
 
     image = mix_color(
         [
@@ -303,32 +315,37 @@ def build_grass(size: int, seed: int) -> np.ndarray:
     )
 
     grain = white_noise(size, seed + 107)
-    image *= (0.90 + 0.17 * grain)[..., None]
-    image = paint_tint(image, large, warm=0.06)
+    image *= (0.96 + 0.08 * grain)[..., None]
+    image = paint_tint(image, large, warm=0.035)
 
     # Touffes de brins peints : rayons groupés autour de centres de touffe.
     stroke_layer = Image.new("RGB", (size, size), (0, 0, 0))
     draw = ImageDraw.Draw(stroke_layer)
-    dark = tuple(int(c * 0.66) for c in palette["shadow"])
-    mid = tuple(int(c * 0.92) for c in palette["base"])
-    light = tuple(int(min(255, c * 1.22)) for c in palette["light"])
-    pale = tuple(min(255, int(c * 1.34)) for c in palette["pale"])
+    dark = palette["shadow"]
+    mid = palette["base"]
+    light = palette["light"]
+    pale = palette["pale"]
 
-    cluster_count = int(size * size / 620)
+    cluster_count = 760
+    pixel_scale = size / 512.0
     for _ in range(cluster_count):
         cx = rng.uniform(0, size)
         cy = rng.uniform(0, size)
-        blades = int(rng.integers(6, 13))
-        spread = rng.uniform(3.0, 9.0)
-        base_angle = rng.uniform(-0.55, 0.55)
+        ix, iy = int(cx) % size, int(cy) % size
+        density = clumps[iy, ix]
+        if rng.random() > 0.40 + density * 0.58:
+            continue
+        blades = int(rng.integers(5, 11))
+        spread = rng.uniform(1.2, 3.8) * pixel_scale
+        base_angle = rng.uniform(0.0, math.tau)
         for _blade in range(blades):
             x = cx + rng.normal(0, spread)
             y = cy + rng.normal(0, spread * 0.7)
-            length = rng.uniform(4.5, 12.0)
-            angle = base_angle + rng.uniform(-0.42, 0.42)
-            width = 1 if rng.random() < 0.82 else 2
+            length = rng.uniform(3.0, 9.0) * pixel_scale
+            angle = base_angle + rng.uniform(-0.85, 0.85)
+            width = max(1, round(pixel_scale * rng.uniform(0.8, 1.9)))
             roll = rng.random()
-            color = dark if roll < 0.30 else (mid if roll < 0.55 else (light if roll < 0.85 else pale))
+            color = dark if roll < 0.20 else (mid if roll < 0.53 else (light if roll < 0.96 else pale))
             end_x = x + math.sin(angle) * length
             end_y = y - math.cos(angle) * length
 
@@ -341,21 +358,23 @@ def build_grass(size: int, seed: int) -> np.ndarray:
                 c=color,
                 w=width,
             ):
-                d.line([(px, py), (px + (ex - x), py + (ey - y))], fill=c, width=w)
+                dx, dy = ex - x, ey - y
+                d.line([(px, py), (px + dx * 0.55 - dy * 0.14, py + dy * 0.55 + dx * 0.14),
+                        (px + dx, py + dy)], fill=c, width=w)
 
             _draw_shifted(draw, size, x, y, blade)
 
     strokes = np.asarray(stroke_layer).astype(np.float64) / 255.0
-    image = _composite_layer(image, strokes, strength=0.75)
+    image = _composite_layer(image, strokes, strength=0.57)
 
     # Quelques fleurs minuscules (touches claires).
     flower_layer = Image.new("RGB", (size, size), (0, 0, 0))
     flower_draw = ImageDraw.Draw(flower_layer)
     flower_color = palette["flower"]
-    for _ in range(int(size * size / 5200)):
+    for _ in range(22):
         x = rng.uniform(0, size)
         y = rng.uniform(0, size)
-        radius = rng.uniform(1.0, 2.1)
+        radius = rng.uniform(0.8, 1.5) * pixel_scale
 
         def flower(d, px, py, r=radius, c=flower_color):
             d.ellipse([px - r, py - r, px + r, py + r], fill=c)
@@ -364,10 +383,9 @@ def build_grass(size: int, seed: int) -> np.ndarray:
         _draw_shifted(flower_draw, size, x, y, flower)
 
     flowers = np.asarray(flower_layer).astype(np.float64) / 255.0
-    image = _composite_layer(image, flowers, strength=0.8)
+    image = _composite_layer(image, flowers, strength=0.56)
 
     image = wrap_filter(image, 0.45).copy()
-    image = wrap_filter(image, 1.1, unsharp=True)
     return np.clip(image, 0.0, 1.0)
 
 
@@ -596,6 +614,64 @@ def build_stone(size: int, seed: int) -> np.ndarray:
     return np.clip(image, 0.0, 1.0)
 
 
+def build_cliff(size: int, seed: int) -> np.ndarray:
+    """Roche de falaise naturelle : strates larges, fractures et veines chaudes.
+
+    Contrairement à `build_stone`, aucun joint régulier n'est dessiné : cette
+    matière est lue à distance sur les pentes et doit évoquer un affleurement de
+    bedrock, pas une chaussée. Tous les champs sont périodiques, donc la texture
+    reste tuilable sur les projections triplanaires.
+    """
+    palette = PALETTES["cliff"]
+    ys, xs = np.mgrid[0:size, 0:size].astype(np.float64)
+    u = xs / size
+    v = ys / size
+    # Un léger gauchissement rend les strates minérales irrégulières tout en
+    # gardant leurs extrémités raccordées.
+    warp = (fbm(size, seed + 351, octaves=4, base_period=3) - 0.5) * 0.34
+    strata = 0.5 + 0.5 * np.sin(math.tau * (v * 5.0 + warp))
+    strata = np.power(strata, 1.65)
+    broad = fbm(size, seed + 352, octaves=5, base_period=3)
+    facets = fbm(size, seed + 353, octaves=4, base_period=8)
+    grain = fbm(size, seed + 354, octaves=3, base_period=28)
+    # Les grandes fractures sont des rubans sombres, modulés par un bruit bas
+    # fréquence. Elles ne dessinent pas de réseau de pavés.
+    fracture_phase = u * 3.0 + v * 1.15 + (broad - 0.5) * 1.9
+    fracture = np.abs(np.sin(math.tau * fracture_phase))
+    fracture = 1.0 - np.clip((fracture - 0.035) / 0.12, 0.0, 1.0)
+    fracture *= np.clip((facets - 0.42) * 2.3, 0.0, 1.0)
+    t = (
+        0.25
+        + 0.32 * broad
+        + 0.17 * facets
+        + 0.16 * strata
+        + 0.10 * grain
+    )
+    image = mix_color(
+        [
+            (0.0, palette["shadow"]),
+            (0.30, palette["base"]),
+            (0.64, palette["light"]),
+            (0.91, palette["pale"]),
+        ],
+        np.clip(t, 0.0, 1.0),
+    )
+    # Fissures profondes puis veines minérales très ponctuelles.
+    image *= (1.0 - fracture[..., None] * 0.44)
+    iron = np.clip((broad - 0.67) * 3.0, 0.0, 1.0)
+    iron *= np.clip((strata - 0.55) * 2.0, 0.0, 1.0) * 0.38
+    accent = np.asarray(palette["accent"], dtype=np.float64) / 255.0
+    image = image * (1.0 - iron[..., None]) + accent * iron[..., None]
+    # Micro-grain discret : il soutient la lumière de biais sans faire bruiter
+    # la silhouette du relief.
+    fine = white_noise(size, seed + 355)
+    image *= (0.93 + 0.13 * fine)[..., None]
+    image = paint_tint(image, broad, warm=0.05)
+    image = wrap_filter(image, 0.45).copy()
+    image = wrap_filter(image, 0.85, unsharp=True)
+    return np.clip(image, 0.0, 1.0)
+
+
 def build_snow(size: int, seed: int) -> np.ndarray:
     """Neige blanc bleuté : grain fin, congères douces et éclats de glace."""
     palette = PALETTES["snow"]
@@ -737,14 +813,16 @@ def verify_texture(path: Path, expected_size: int) -> list[str]:
         issues.append(f"{path.name}: mode {image.mode} (attendu RGB)")
     array = np.asarray(image.convert("RGB")).astype(np.float64)
     seam_x = np.mean(np.abs(array[:, -1] - array[:, 0]))
+    columns = [int((array.shape[1] - 1) * fraction) for fraction in (0.2, 0.4, 0.6, 0.8)]
+    rows = [int((array.shape[0] - 1) * fraction) for fraction in (0.2, 0.4, 0.6, 0.8)]
     inside_x = np.mean([
         np.mean(np.abs(array[:, x] - array[:, x + 1]))
-        for x in (100, 200, 300, 400)
+        for x in columns
     ])
     seam_y = np.mean(np.abs(array[-1, :] - array[0, :]))
     inside_y = np.mean([
         np.mean(np.abs(array[y, :] - array[y + 1, :]))
-        for y in (100, 200, 300, 400)
+        for y in rows
     ])
     tolerance_x = max(inside_x * 3.0, 2.0)
     tolerance_y = max(inside_y * 3.0, 2.0)
@@ -765,6 +843,7 @@ def build_preview(out_root: Path) -> Path | None:
         ("grass", "herbe"),
         ("dirt", "terre / chemin"),
         ("stone", "pavé de pierre"),
+        ("cliff", "roche de falaise"),
         ("snow", "neige"),
         ("sand", "sable"),
     ]
@@ -817,6 +896,7 @@ def main() -> int:
     parser.add_argument("--out-root", default=str(TERRAIN_ROOT))
     parser.add_argument("--verify", action="store_true")
     parser.add_argument("--preview-only", action="store_true")
+    parser.add_argument("--only", nargs="+", choices=["grass", "dirt", "stone", "cliff", "snow", "sand"])
     args = parser.parse_args()
 
     size = max(128, min(2048, args.size))
@@ -828,10 +908,12 @@ def main() -> int:
             "grass": build_grass,
             "dirt": build_dirt,
             "stone": build_stone,
+            "cliff": build_cliff,
             "snow": build_snow,
             "sand": build_sand,
         }
-        for name, builder in builders.items():
+        for name in args.only or builders:
+            builder = builders[name]
             image = builder(size, args.seed)
             path = out_root / f"{name}.png"
             Image.fromarray(
@@ -842,7 +924,8 @@ def main() -> int:
             print(f"[OK] {path} ({path.stat().st_size / 1024.0:.1f} Ko) + thumb {THUMB_SIZE}px")
 
     issues: list[str] = []
-    for name in ("grass", "dirt", "stone", "snow", "sand"):
+    selected = args.only or ["grass", "dirt", "stone", "cliff", "snow", "sand"]
+    for name in selected:
         issues.extend(verify_texture(out_root / f"{name}.png", size))
 
     build_preview(out_root)
@@ -851,7 +934,7 @@ def main() -> int:
         for issue in issues:
             print(f"[ECHEC] {issue}")
         return 1
-    print(f"TERRAIN_RESULT ok=5 textures={size}x{size} seamless=oui")
+    print(f"TERRAIN_RESULT ok={len(selected)} textures={size}x{size} seamless=oui")
     return 0
 
 

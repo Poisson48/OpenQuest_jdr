@@ -248,6 +248,7 @@ var _token_render_key: String = ""
 var _arrival_pulse_active: bool = false
 var _arrival_tween: Tween = null
 var _focus_tween: Tween = null
+var show_camera_diagnostics := true
 var _camera_debug_lbl: Label = null
 var _trace_path: String = ""
 var _trace_tool: String = ""
@@ -593,6 +594,17 @@ func refresh_meshes_only() -> void:
 		var walls = map_data.get("walls", [])
 		var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
 		_walls_layer.configure(walls if walls is Array else [], _cell_size, bool(cfg.get("volumetricWalls", true)))
+
+func update_bridge(entry: Dictionary) -> void:
+	if _meshes_layer != null:
+		_meshes_layer.update_bridge(entry)
+
+func project_bridge_endpoints(id: String) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	if _meshes_layer != null and _camera != null:
+		for point in _meshes_layer.bridge_endpoints(id):
+			points.append(_viewport_to_control(_camera.unproject_position(point)))
+	return points
 
 func request_fit_to_view() -> void:
 	_fit_pending = true
@@ -1495,7 +1507,7 @@ func _update_camera_debug() -> void:
 	if _camera == null:
 		return
 	_trace_camera_changes()
-	if not editor_mode and not OS.is_debug_build():
+	if not show_camera_diagnostics or (not editor_mode and not OS.is_debug_build()):
 		return
 	if _camera_debug_lbl == null:
 		var layer := CanvasLayer.new()
@@ -1921,6 +1933,7 @@ func _rebuild_layers() -> void:
 ## Construit un nœud de token complet (visuel, relief, figurine, sélection).
 func _create_token_node(tok: Dictionary, w: int, h: int) -> Node:
 	var node = MapToken3DScript.new()
+	node.bridge_height = _bridge_height_at
 	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
 	# Portrait / silhouette en pied dès qu'une image est dispo.
 	# Billboard caméra : visible même en vue de dessus.
@@ -2370,8 +2383,22 @@ func _raycast_ground(viewport_pos: Vector2) -> Vector3:
 		world = origin + direction * t_surface
 	return world
 
-func _screen_to_grid(screen_pos: Vector2) -> Vector2:
-	var world := _raycast_ground(_control_to_viewport(screen_pos))
+func _bridge_height_at(x: float, z: float) -> float:
+	return _meshes_layer.bridge_height_at(x, z) if _meshes_layer != null else -INF
+
+func _raycast_walkable(viewport_pos: Vector2) -> Vector3:
+	var ground := _raycast_ground(viewport_pos)
+	if _meshes_layer == null:
+		return ground
+	var origin := _camera.project_ray_origin(viewport_pos)
+	var deck: Vector3 = _meshes_layer.raycast_bridges(origin, _camera.project_ray_normal(viewport_pos))
+	if deck != Vector3.INF and (ground == Vector3.INF or origin.distance_squared_to(deck) < origin.distance_squared_to(ground)):
+		return deck
+	return ground
+
+func _screen_to_grid(screen_pos: Vector2, include_bridges: bool = false) -> Vector2:
+	var viewport_pos := _control_to_viewport(screen_pos)
+	var world := _raycast_walkable(viewport_pos) if include_bridges else _raycast_ground(viewport_pos)
 	if world == Vector3.INF:
 		return Vector2(-1, -1)
 	return Vector2(
@@ -2902,7 +2929,7 @@ func _gui_input(event: InputEvent) -> void:
 				_token_press_candidate = null
 				mouse_default_cursor_shape = Control.CURSOR_DRAG
 		if _token_drag:
-			var world := _raycast_ground(_control_to_viewport(motion.position))
+			var world := _raycast_walkable(_control_to_viewport(motion.position))
 			if world != Vector3.INF:
 				_token_drag.update_drag_world(world)
 			accept_event()
@@ -3506,7 +3533,8 @@ func _table_pan_from_motion(screen_pos: Vector2) -> void:
 	_update_ortho_size()
 
 func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
-	var grid := _screen_to_grid(screen_pos)
+	var mode: String = session_tool.get("mode", "select")
+	var grid := _screen_to_grid(screen_pos, mode == "move" and not editor_mode)
 	var gx := grid.x
 	var gy := grid.y
 	# Navigation d'échelle : coords flottantes (le snap casserait le hit-test du lieu).
@@ -3519,8 +3547,11 @@ func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
 				area_clicked.emit(area)
 			return
 	if snap_to_grid:
-		gx = roundf(gx)
-		gy = roundf(gy)
+		var snapped := grid.round()
+		if mode != "move" or _bridge_height_at((gx + 0.5) * _cell_size, (gy + 0.5) * _cell_size) == -INF \
+				or _bridge_height_at((snapped.x + 0.5) * _cell_size, (snapped.y + 0.5) * _cell_size) > -INF:
+			gx = snapped.x
+			gy = snapped.y
 	var w: int = map_data.get("width", 16)
 	var h: int = map_data.get("height", 12)
 	if gx < 0 or gy < 0 or gx >= w or gy >= h:
@@ -3529,7 +3560,6 @@ func _handle_map_click(screen_pos: Vector2, double_click: bool = false) -> void:
 	if readonly and not is_gm:
 		return
 
-	var mode: String = session_tool.get("mode", "select")
 	if mode == "fog" and is_gm:
 		var brush: int = maxi(0, int(session_tool.get("fogRadius", 1)))
 		fog_revealed.emit(_fog_brush_cells(int(gx), int(gy), brush))

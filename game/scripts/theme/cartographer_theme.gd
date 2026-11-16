@@ -5,7 +5,7 @@ class_name CartographerTheme
 ## direction artistique. Construit un Theme Godot à appliquer sur la racine de
 ## l'éditeur pour obtenir la palette sombre + accent jade sans toucher au .tres.
 
-static func build() -> Theme:
+static func build(immersive: bool = false) -> Theme:
 	var t := Theme.new()
 	t.default_font_size = 13
 
@@ -23,6 +23,23 @@ static func build() -> Theme:
 	var selection := Color("#263C3A")
 	var icon_disabled := Color("#4A575D")
 	var tooltip_bg := Color("#0F1417")
+	if immersive:
+		var ui_font := SystemFont.new()
+		ui_font.font_names = PackedStringArray(["Segoe UI", "Noto Sans", "DejaVu Sans"])
+		t.default_font = ui_font
+		bg = Color("#1A160F")
+		panel = Color("#292218F5")
+		surface = Color("#32291D")
+		hover = Color("#473923")
+		border = Color("#6B573A")
+		field = Color("#201A12")
+		text = Color("#F1E3CC")
+		secondary = Color("#D2BD9E")
+		muted = Color("#A59173")
+		accent = Color("#F2C46C")
+		selection = Color("#4A381C")
+		icon_disabled = Color("#877758")
+		tooltip_bg = Color("#1A160F")
 
 	t.set_color("font_color", "Label", text)
 	t.set_color("font_color", "Button", text)
@@ -30,10 +47,10 @@ static func build() -> Theme:
 	t.set_color("font_pressed_color", "Button", accent)
 	t.set_color("font_disabled_color", "Button", muted)
 	t.set_color("icon_disabled_color", "Button", icon_disabled)
-	t.set_color("icon_normal_color", "Button", Color("#A1AFB2"))
-	t.set_color("icon_hover_color", "Button", Color("#E1E8E8"))
-	t.set_color("icon_pressed_color", "Button", Color("#55D6BE"))
-	t.set_color("icon_focus_color", "Button", Color("#55D6BE"))
+	t.set_color("icon_normal_color", "Button", secondary)
+	t.set_color("icon_hover_color", "Button", text)
+	t.set_color("icon_pressed_color", "Button", accent)
+	t.set_color("icon_focus_color", "Button", accent)
 
 	# Échelle typographique (§5) — tailles par usage.
 	t.set_font_size("font_size", "Label", 13)

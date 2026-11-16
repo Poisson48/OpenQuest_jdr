@@ -1,6 +1,6 @@
 # Terrain — textures de sol tuilables (carte 2.5D)
 
-Cinq textures **512×512 seamless** (elles se raccordent exactement quand on les
+Six textures **512×512 seamless** (elles se raccordent exactement quand on les
 répète) pour habiller le sol 3D simplifié de la carte 2.5D. Palette échantillonnée
 sur les fonds peints Valbois : terres chaudes, verts désaturés, pierre chaude,
 neige bleutée et sable doré, aucune couleur saturée.
@@ -10,11 +10,12 @@ neige bleutée et sable doré, aucune couleur saturée.
 | `grass.png` | herbe de prairie / sous-bois | `#3a4429` → `#64704a` → `#a3a870`, herbe sèche `#8d8852` |
 | `dirt.png` | terre, chemin, place battue | `#5c4b38` → `#8a755c` → `#b6a183`, cailloux gris chaud |
 | `stone.png` | pavé / dallage de pierre | `#545048` → `#8c887d` → `#b7b1a4`, joints et mousse |
+| `cliff.png` | roche de falaise (auto sur pentes raides) | `#32393a` → `#5d645e` → `#a3977a`, strates et veines minérales |
 | `snow.png` | neige (blanc bleuté, grain fin) | `#a8b8ca` → `#d2dde9` → `#f7fbfe`, congères et éclats de glace |
 | `sand.png` | sable chaud (plage, désert) | `#a3885e` → `#caae7c` → `#eedcb4`, rides douces et petits cailloux |
 
 Chaque texture est livrée avec `*_thumb.png` (256², pour la bibliothèque de
-l'éditeur). `_planche_terrain.png` montre les cinq tuiles répétées en 2×2 :
+l'éditeur). `_planche_terrain.png` montre les six tuiles répétées en 2×2 :
 c'est le contrôle visuel du raccord.
 
 > Fichiers **générés** par `tools/blender/make_terrain_textures.py`.
@@ -38,6 +39,9 @@ python tools/blender/make_terrain_textures.py --verify
 
 # Variante plus grande / autre graine
 python tools/blender/make_terrain_textures.py --size 1024 --seed 2026
+
+# Régénérer l’herbe et sa vignette uniquement
+python tools/blender/make_terrain_textures.py --only grass
 ```
 
 `.\tools\blender\run_build.ps1` exécute cette étape automatiquement s'il trouve
@@ -54,6 +58,10 @@ un Python avec Pillow (`-PythonExe`, `$env:OQ_PYTHON`, `python`, `python3`).
 * pavé : cellules de Voronoï **périodiques**, joints et mousse dérivés de la
   distance au bord de cellule ;
 * flou/netteté appliqués sur une tuile 3×3 puis recadrés au centre ;
+* pour l’herbe, le shader mélange trois décalages déterministes sur un
+  maillage triangulaire et ajoute des variations de teinte à l’échelle de
+  plusieurs cases. La texture reste lisible près du sol sans former de
+  damier dans les vues larges ;
 * `--verify` compare l'écart entre bords opposés à l'écart entre colonnes
   voisines intérieures et échoue si le raccord est visible.
 

@@ -195,7 +195,6 @@ def reset_scene() -> bpy.types.Scene:
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.scale_length = 1.0
     # Unites glTF = metres, 1 unite = 1 case : on garde un scale neutre.
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
     return scene
 
 
@@ -851,6 +850,17 @@ def enable_vertex_color_preview(
     touched = 0
     seen: set[str] = set()
     for obj in objects:
+        # Le nom du calque depend du chemin de creation : "Col" pour les assets
+        # procéduraux, "Color" pour un GLB réimporté (COLOR_0). On prend le
+        # calque actif si le nom demandé n'existe pas, sinon le preview
+        # multiplierait par du noir et l'aperçu sortirait noir.
+        resolved_layer = layer_name
+        mesh = getattr(obj, "data", None)
+        if mesh is not None and getattr(mesh, "color_attributes", None):
+            if layer_name not in mesh.color_attributes:
+                active = mesh.color_attributes.active_color
+                if active is not None:
+                    resolved_layer = active.name
         for slot in obj.material_slots:
             material = slot.material
             if material is None or material.name in seen or not material.use_nodes:
@@ -863,7 +873,7 @@ def enable_vertex_color_preview(
                 continue
             vertex_color = nodes.new("ShaderNodeVertexColor")
             vertex_color.name = "OQ_VertexColor"
-            vertex_color.layer_name = layer_name
+            vertex_color.layer_name = resolved_layer
             vertex_color.location = (-620.0, -260.0)
             mix = nodes.new("ShaderNodeMixRGB")
             mix.name = "OQ_VC_Mix"
@@ -892,6 +902,8 @@ def export_glb(
     *,
     apply_modifiers: bool = True,
     vertex_colors: str = "ACTIVE",
+    image_format: str | None = None,
+    image_quality: int = 90,
 ) -> Path:
     """Exporte les objets en GLB (Y-up, sans camera ni lumiere).
 
@@ -900,6 +912,12 @@ def export_glb(
     ``vertex_colors="ACTIVE"`` force l'export du COLOR_0 actif (AO/mottling)
     meme si le materiau n'utilise pas de noeud vertex color : le glTF le
     multiplie alors a ``baseColorFactor``, conformement au spec.
+
+    ``image_format`` (``"JPEG"``/``"PNG"``/``"AUTO"``) et ``image_quality``
+    pilotent la recompression des textures embarquees. ``None`` conserve le
+    comportement historique (format deduit par l'exporteur). Les images
+    generees par le pipeline (textures recadrees) sont re-encodees avec ces
+    reglages, ce qui permet de maitriser le poids des GLB a textures.
     """
     filepath = Path(filepath)
     filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -908,25 +926,29 @@ def export_glb(
         raise ValueError("export_glb: aucun mesh a exporter")
     select_only(meshes, meshes[0])
     bpy.context.view_layer.update()
-    bpy.ops.export_scene.gltf(
-        filepath=str(filepath),
-        export_format="GLB",
-        use_selection=True,
-        export_apply=apply_modifiers,
-        export_yup=True,
-        export_cameras=False,
-        export_lights=False,
-        export_animations=False,
-        export_skins=False,
-        export_extras=False,
-        export_materials="EXPORT",
-        export_normals=True,
-        export_texcoords=True,
-        export_tangents=False,
-        export_vertex_color=vertex_colors,
-        export_all_vertex_colors=False,
-        export_draco_mesh_compression_enable=False,
-    )
+    options: dict[str, object] = {
+        "filepath": str(filepath),
+        "export_format": "GLB",
+        "use_selection": True,
+        "export_apply": apply_modifiers,
+        "export_yup": True,
+        "export_cameras": False,
+        "export_lights": False,
+        "export_animations": False,
+        "export_skins": False,
+        "export_extras": False,
+        "export_materials": "EXPORT",
+        "export_normals": True,
+        "export_texcoords": True,
+        "export_tangents": False,
+        "export_vertex_color": vertex_colors,
+        "export_all_vertex_colors": False,
+        "export_draco_mesh_compression_enable": False,
+    }
+    if image_format is not None:
+        options["export_image_format"] = image_format
+        options["export_image_quality"] = image_quality
+    bpy.ops.export_scene.gltf(**options)
     if not filepath.is_file() or filepath.stat().st_size == 0:
         raise RuntimeError(f"export_glb: fichier absent ou vide: {filepath}")
     return filepath
@@ -997,7 +1019,7 @@ def configure_render(
             scene.cycles.use_adaptive_sampling = True
             return "CYCLES"
 
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    scene.render.engine = "BLENDER_EEVEE" if bpy.app.version >= (5, 0, 0) else "BLENDER_EEVEE_NEXT"
     scene.eevee.taa_render_samples = samples
     scene.eevee.use_shadows = True
     try:
@@ -1006,7 +1028,7 @@ def configure_render(
         scene.eevee.gtao_quality = 1.25
     except AttributeError:  # pragma: no cover - variante de version
         pass
-    return "BLENDER_EEVEE_NEXT"
+    return scene.render.engine
 
 
 def setup_world(

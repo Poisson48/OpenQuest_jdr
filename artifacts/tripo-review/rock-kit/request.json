@@ -1,0 +1,28 @@
+{
+  "purpose": "Review-only Tripo prototypes for a procedural stackable rock-wall kit. Not approved for the game asset library yet.",
+  "model": "P1-20260311",
+  "face_limit": 1100,
+  "texture_quality": "standard",
+  "roles": [
+    {
+      "name": "rocher_socle",
+      "task_id": "c2e47dfd-a4b8-408d-be04-c3ea1fef1bbd",
+      "role": "broad squat foundation; flat base and broad stable top"
+    },
+    {
+      "name": "rocher_coin",
+      "task_id": "b8c77d8a-d624-42d7-900c-381c0d63d34d",
+      "role": "wedge support; flat base, slope and angled support face"
+    },
+    {
+      "name": "rocher_bloc",
+      "task_id": "e27ce1b3-0ca8-4f14-8f53-efdd6907295d",
+      "role": "compact interlocking block; flat base and two planar sides"
+    },
+    {
+      "name": "rocher_couronne",
+      "task_id": "a2734366-0463-4c93-ba31-29fa8ef30700",
+      "role": "flat capstone; flat base and broad stable top"
+    }
+  ]
+}

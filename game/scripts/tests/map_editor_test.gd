@@ -504,7 +504,7 @@ func _test_editor_ui(base: Dictionary) -> void:
 	_assert("ui_ultrawide_left", editor._dock_left_w >= 40.0 and editor._dock_left_w <= 80.0)
 	_assert("ui_ultrawide_right", editor._dock_right_w >= 200.0 and editor._dock_right_w <= 380.0)
 	_assert("ui_ultrawide_sum", editor._dock_left_w + editor._dock_right_w < 2560.0 - 280.0)
-	_assert("ui_ultrawide_visible", editor._right_tabs.visible and editor._left_scroll.visible)
+	_assert("ui_ultrawide_visible", editor._right_tabs.visible and editor._immersive_dock.visible)
 
 	# 16:10 laptop.
 	editor.size = Vector2(1920, 1200)
@@ -747,10 +747,10 @@ func _test_editor_ui(base: Dictionary) -> void:
 	# Aperçu (lecture seule) : les panneaux d'édition disparaissent.
 	editor.set_editable(false)
 	await process_frame
-	_assert("ui_readonly_panels", not editor._left_scroll.visible)
+	_assert("ui_readonly_panels", not editor._left_scroll.visible and not editor._immersive_dock.visible)
 	editor.set_editable(true)
 	await process_frame
-	_assert("ui_editable_panels", editor._left_scroll.visible)
+	_assert("ui_editable_dock", editor._immersive_dock.visible and not editor._left_scroll.visible)
 
 	# Token PNJ avec dialogue (outil Token → type PNJ).
 	var npc_tokens_before: int = editor.doc.count_of_kind(K_TOKEN)
