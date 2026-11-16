@@ -52,6 +52,9 @@ render_mode cull_disabled, diffuse_burley;
 uniform sampler2D grass_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D stone_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+// Roche naturelle réservée aux pentes générées automatiquement. `stone_tex`
+// reste le pavage utilisable pour les zones de pierre peintes à la main.
+uniform sampler2D cliff_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D snow_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D sand_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D splat_tex : source_color, filter_linear, repeat_disable;
@@ -82,6 +85,13 @@ uniform sampler2D water_map : filter_linear, repeat_disable;
 uniform float water_map_enabled : hint_range(0.0, 1.0) = 0.0;
 uniform float caustics_strength : hint_range(0.0, 2.0) = 0.70;
 uniform float absorption_strength : hint_range(0.0, 2.0) = 1.0;
+// ÉCLAIRAGE DOUBLE DU LIT (approximation CS2) : au terme d'ABSORPTION
+// ci-dessus s'ajoute une AMBIANCE/DIFFUSION d'eau — la lumière du ciel
+// diffusée par la lame d'eau éclaire le lit, d'autant plus que l'eau est
+// mince. C'est ce qui donne du volume au fond des hauts-fonds au lieu d'un
+// aplat sombre. 1 = finition active (défaut) ; 0 = rendu EXACTEMENT
+// précédent (A/B réversible).
+uniform float bed_ambient_lift : hint_range(0.0, 2.0) = 1.0;
 
 // Taille en unités monde d'une répétition de texture (cell_size × 2 cases).
 // Sert à reconstruire les coordonnées de projection depuis la position monde,
@@ -128,12 +138,50 @@ uniform float splat_edge_noise : hint_range(0.0, 1.0) = 0.6;
 // `auto_material_strength` = 0 → rendu précédent exactement (A/B et
 // réversibilité).
 uniform float auto_material_strength : hint_range(0.0, 1.0) = 1.0;
+// AMPLITUDE ABSOLUE de relief (unités monde) à partir de laquelle l'auto-
+// matériau s'active. L'altitude de l'auto est normalisée par le relief RELATIF
+// de la carte : sur une carte de ville quasi plate (quelques buttes de bord de
+// 0,2–0,4), les bosses atteignaient h≈1 et déclenchaient neige/terre — des
+// taches blanches sur un terrain plat. La porte ci-dessous exige un relief
+// ABSOLU : rien ne s'active sous `auto_min_relief`, tout est actif à
+// `auto_min_relief × 2.25` (une vraie montagne, span ≥ ~4, reste strictement
+// identique). `auto_min_relief = 0` → comportement historique exact (aucune
+// porte, A/B réversible).
+uniform float auto_min_relief : hint_range(0.0, 4.0) = 0.8;
 // Altitude basse (unités monde) : origine de la normalisation de l'altitude.
 uniform float terrain_min_height = 0.0;
 // Altitude haute (unités monde) : sommet de la normalisation.
 uniform float terrain_max_height = 0.0;
 // Force du relief de normale procédural (0 = normales de la géométrie seule).
 uniform float normal_detail_strength : hint_range(0.0, 4.0) = 1.0;
+// Valeur 1 : roche de falaise utilisée sur les pentes auto. 0 permet de
+// revenir instantanément au pavage historique pour une comparaison visuelle.
+uniform float cliff_material_strength : hint_range(0.0, 1.0) = 1.0;
+// --- STRATES DE FALAISE (méthode CS2, finition) ---------------------------
+// Couches géologiques OBLIQUES et ondulées sur les pentes fortes : altitude
+// monde + décalage le long de l'azimut de la pente, déformées par du bruit 3D
+// (jamais un motif régulier), teintes sable/argile/roche empruntées aux
+// textures déjà échantillonnées. Cohérent avec les strates du socle de diorama
+// (`slab_base.gdshader`). `cliff_strata = 0` → rendu EXACTEMENT précédent.
+uniform float cliff_strata : hint_range(0.0, 1.0) = 1.0;
+// --- VARIATION MACRO 3D (finition) ----------------------------------------
+// Grande échelle de teinte NON répétitive par bruit 3D monde (varie avec
+// l'altitude → aucune bande verticale) : taches de sol plus sèches (chaud) ou
+// plus vertes/humides, patches de mousse. `macro_variation = 0` → inchangé.
+uniform float macro_variation : hint_range(0.0, 1.0) = 1.0;
+// --- TRANSITION NEIGE/ROCHE/HERBE (finition) ------------------------------
+// Frontière plus douce et neige plus présente dans les CREUX (occlusion cuite)
+// et sur les pentes faibles ; roche à nu sur les pentes fortes.
+// `snow_transition = 0` → rendu EXACTEMENT précédent.
+uniform float snow_transition : hint_range(0.0, 1.0) = 1.0;
+// --- ANCRAGE DES OBJETS (finition) ----------------------------------------
+// `object_ao_tex` (UV2, résolution carte) : occlusion de contact cuite par
+// `MapGround3D` d'après les empreintes des objets 3D posés sur le sol.
+// `terrain_object_ao` dose l'assombrissement (0 = inchangé) ;
+// `object_ao_enabled` vaut 0 tant qu'aucune donnée n'est fournie.
+uniform sampler2D object_ao_tex : filter_linear, repeat_disable;
+uniform float object_ao_enabled : hint_range(0.0, 1.0) = 0.0;
+uniform float terrain_object_ao : hint_range(0.0, 1.0) = 1.0;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -277,7 +325,7 @@ float caustic_pattern(vec2 xz, float t) {
 // Renvoie (herbe, terre, pierre) et la neige par `snow_out`, normalisés à 1.
 // Les frontières sont déformées par du bruit 3D monde (varie aussi avec
 // l'altitude) : irrégulières et organiques, sans bande horizontale régulière.
-vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
+vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out, float vertex_ao) {
 	snow_out = 0.0;
 	// Altitude normalisée 0..1 sur l'amplitude du relief de la carte (0 sur une
 	// carte plate : aucun effet neige/roche automatique).
@@ -318,6 +366,25 @@ vec3 auto_material_weights(vec3 p, vec3 n, out float snow_out) {
 	float snow_line = 0.64 + n_far * 0.24 * open;
 	float snow_alt = smoothstep(snow_line - 0.07, snow_line + 0.05, h);
 	float snow_auto = snow_alt * smoothstep(0.10, 0.42, flat_n);
+	// FINITION (snow_transition) : frontière ADOUCIE (fenêtres d'altitude et de
+	// pente élargies) et neige plus présente dans les CREUX (`vertex_ao` = AO
+	// cuite < 1 dans les creux, > 1 sur les crêtes) et sur les pentes faibles ;
+	// la roche reste à nu sur les pentes fortes (même porte de pente). La
+	// composante de bruit reste BASSE fréquence (n_far) : aucun moucheture.
+	float snow_t = clamp(snow_transition, 0.0, 1.0);
+	if (snow_t > 0.001) {
+		float alt_lo = mix(0.07, 0.13, snow_t);
+		float alt_hi = mix(0.05, 0.10, snow_t);
+		float flat_lo = mix(0.10, 0.05, snow_t);
+		float flat_hi = mix(0.42, 0.56, snow_t);
+		float alt_soft = smoothstep(snow_line - alt_lo, snow_line + alt_hi, h);
+		float slope_soft = smoothstep(flat_lo, flat_hi, flat_n);
+		// Creux (oscillation cuite < 1) : la neige TIENT ; crêtes : un peu moins.
+		float hollow = clamp(1.0 - vertex_ao, 0.0, 0.55);
+		float hold = clamp(1.0 + hollow * 1.6 - 0.22, 0.60, 1.90);
+		snow_auto = mix(snow_auto,
+			clamp(alt_soft * slope_soft * hold, 0.0, 1.0), snow_t);
+	}
 	// Dès que la neige se forme, la roche et la terre S'EFFACENT : c'est leur
 	// transparence en mélange partiel (matière sombre sous la neige naissante)
 	// qui mouchetait la frontière. Fonction plus raide que l'ancien cube.
@@ -430,11 +497,21 @@ void fragment() {
 	// autre que l'herbe (matière par défaut) n'est jamais remplacée. L'auto ne
 	// complète que les zones neutres.
 	float auto_strength = clamp(auto_material_strength, 0.0, 1.0);
+	// PORTE DE RELIEF ABSOLU : l'auto-matériau (roche/terre/neige selon la
+	// pente et l'altitude RELATIVE) ne s'active que si la carte a un vrai
+	// relief. Sur une ville plate (span ~0,4) les buttes de bord ne doivent
+	// pas se couvrir de neige ; sur une montagne (span ≥ 4) la porte vaut 1 et
+	// le rendu est strictement inchangé.
+	if (auto_min_relief > 0.001) {
+		float span_world = max(terrain_max_height - terrain_min_height, 0.0);
+		auto_strength *= smoothstep(auto_min_relief,
+			auto_min_relief * 2.25, span_world);
+	}
 	float painted_special = clamp(1.0 - weights.r, 0.0, 1.0);
 	float auto_gate = (1.0 - smoothstep(0.0, 0.18, painted_special)) * auto_strength;
 	if (auto_gate > 0.001) {
 		float auto_snow = 0.0;
-		vec3 auto_w = auto_material_weights(p, n, auto_snow);
+		vec3 auto_w = auto_material_weights(p, n, auto_snow, clamp(COLOR.a, 0.0, 1.2));
 		weights = mix(weights, auto_w, auto_gate);
 		extra = mix(extra, vec2(auto_snow, 0.0), auto_gate);
 	}
@@ -448,8 +525,46 @@ void fragment() {
 	vec3 grass = sample_triplanar(grass_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 dirt = sample_triplanar(dirt_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 stone = sample_triplanar(stone_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	vec3 cliff = sample_triplanar(cliff_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 snow = sample_triplanar(snow_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
 	vec3 sand = sample_triplanar(sand_tex, uv_sx, uv_top, uv_sz, tpw, anti_amt);
+	// Toute surface vraiment abrupte lit une roche naturelle, y compris si elle
+	// est peinte en pierre : une falaise ne doit jamais devenir un mur de pavés.
+	// Sur une surface praticable, `stone_tex` garde son rôle de dallage.
+	float cliff_mix = smoothstep(0.82, 0.32, abs(n.y))
+		* clamp(cliff_material_strength, 0.0, 1.0);
+	vec3 rock = mix(stone, cliff, cliff_mix);
+	// --- STRATES DE FALAISE (méthode CS2, finition) -----------------------
+	// Couches géologiques OBLIQUES sur les pentes fortes : coordonnée
+	// altitude + décalage horizontal le long de l'azimut de la pente, bandes
+	// déformées par du bruit 3D monde (aucun motif régulier). Les teintes
+	// empruntent les textures DÉJÀ échantillonnées (roche/sable/terre) : aucun
+	// échantillonnage supplémentaire. `cliff_strata = 0` → roche lisse actuelle.
+	float strata = clamp(cliff_strata, 0.0, 1.0);
+	if (strata > 0.001) {
+		float strata_freq = 13.6 / max(tile_world_size, 0.001);
+		vec2 strata_axis = normalize(vec2(n.x, n.z) + vec2(0.0001));
+		float strata_along = dot(world_pos.xz, strata_axis);
+		float strata_warp =
+			(noise3(world_pos * 0.35 + vec3(5.3, 1.7, 9.1)) - 0.5) * 2.0;
+		float strata_coord = (world_pos.y + strata_along * 0.30) * strata_freq
+			+ strata_warp * 1.8;
+		float strata_band = smoothstep(0.12, 0.86,
+			sin(strata_coord) * 0.5 + 0.5);
+		float strata_band2 = sin(strata_coord * 0.47 + 2.1 + strata_warp * 0.6)
+			* 0.5 + 0.5;
+		vec3 strata_col = mix(cliff, sand, strata_band * 0.60);
+		strata_col = mix(strata_col, dirt * 0.85,
+			smoothstep(0.55, 0.95, strata_band2) * 0.35);
+		// Pentes fortes uniquement (et là où la roche naturelle domine) : les
+		// strates ne repeignent ni l'herbe des plaines, ni la neige, ni le
+		// dallage peint quand `cliff_material_strength` le conserve à plat.
+		float strata_gate = clamp(weights.b, 0.0, 1.0)
+			* smoothstep(0.78, 0.42, abs(n.y)) * strata
+			* clamp(cliff_mix, 0.0, 1.0);
+		rock = mix(rock, strata_col * (0.86 + 0.28 * strata_band),
+			strata_gate * 0.85);
+	}
 	float snow_w = clamp(extra.r, 0.0, 1.0);
 	// NEIGE PROPRE : dès que la neige apparaît (peinte OU automatique), tous
 	// les effets sombres haute fréquence (grain de micro-détail, macro,
@@ -460,7 +575,7 @@ void fragment() {
 	vec3 albedo =
 		grass * weights.r
 		+ dirt * weights.g
-		+ stone * weights.b
+		+ rock * weights.b
 		+ snow * extra.r
 		+ sand * extra.g;
 	albedo *= mix(vec3(1.0), COLOR.rgb, vertex_color_strength);
@@ -495,6 +610,25 @@ void fragment() {
 	float macro = (value_noise(p.xz * 0.9) * 2.0 - 1.0) * 0.7
 		+ (value_noise(p.xz * 2.3 + vec2(31.7, 9.4)) * 2.0 - 1.0) * 0.3;
 	albedo *= 1.0 + macro_strength * macro * (1.0 - 0.9 * snow_clean);
+	// --- VARIATION MACRO 3D (finition) ------------------------------------
+	// Grande échelle NON répétitive : bruit 3D monde (varie aussi avec
+	// l'altitude → aucune bande verticale sur les parois), taches de sol plus
+	// sèches (chaud/clair) ou plus vertes/humides, patches de mousse. Réduite
+	// sur la neige (elle doit rester propre). `macro_variation = 0` → inchangé.
+	float macro_var = clamp(macro_variation, 0.0, 1.0);
+	if (macro_var > 0.001) {
+		float m1 = noise3(world_pos * 0.055 + vec3(3.7, 15.1, 7.3)) - 0.5;
+		float m2 = noise3(world_pos * 0.135 + vec3(43.7, 11.2, 27.9)) - 0.5;
+		float m = m1 * 0.72 + m2 * 0.28;
+		float dry = smoothstep(-0.16, 0.16, m);
+		vec3 tint = mix(vec3(0.92, 1.02, 0.96), vec3(1.08, 1.03, 0.90), dry);
+		float macro_w = macro_var * (1.0 - 0.88 * snow_clean);
+		albedo *= mix(vec3(1.0), tint, macro_w * 0.85);
+		// Mousse / herbe humide : taches plus sombres et vertes sur l'herbe.
+		float moss_patch = (1.0 - dry) * clamp(weights.r, 0.0, 1.0);
+		albedo = mix(albedo, albedo * vec3(0.86, 0.97, 0.90),
+			moss_patch * macro_var * 0.30);
+	}
 	// --- Neige propre -----------------------------------------------------
 	// Éclaircissement renforcé dès que la neige apparaît : les grains sombres
 	// de la pierre/terre qui transparaissent dans le mélange partiel sont
@@ -584,9 +718,46 @@ void fragment() {
 				* mix(0.24, 1.0, 1.0 - smoothstep(0.25, 0.65, wdepth));
 			albedo += vec3(0.70, 0.88, 0.82) * caus * max(caustics_strength, 0.0)
 				* caus_gate;
+			// (c) ÉCLAIRAGE DOUBLE DU LIT : la lumière DIRECTE (caustiques
+			// ci-dessus) est complétée par l'AMBIANCE/DIFFUSION de la colonne
+			// d'eau. La lumière du ciel diffusée par la lame éclaire le lit
+			// d'autant plus que l'eau est mince ; le relief du fond (normale)
+			// module la quantité reçue. Sans ce terme les hauts-fonds restent
+			// un aplat sombre (effet « fond plat »).
+			// `bed_ambient_lift = 0` → rendu EXACTEMENT précédent (A/B).
+			if (bed_ambient_lift > 0.001) {
+				float lift = clamp(bed_ambient_lift, 0.0, 2.0);
+				float shallow_bed = 1.0 - smoothstep(0.10, 0.55, wdepth);
+				vec3 water_ambient = mix(vec3(0.30, 0.46, 0.36),
+					vec3(0.18, 0.36, 0.44), clamp(wdepth, 0.0, 1.0));
+				// Dôme de ciel : une surface plate reçoit toute l'ambiance,
+				// un talus sous-marin un peu moins (fondus doux).
+				float sky_dome = mix(0.55, 1.0, abs(n.y));
+				albedo += water_ambient
+					* (0.10 + 0.16 * caus)
+					* shallow_bed * sky_dome * lift;
+			}
 		}
 	}
+	// --- ANCRAGE DES OBJETS : AO de contact du sol (finition) -------------
+	// `object_ao_tex` (UV2, résolution carte) est cuite par `MapGround3D` à
+	// partir des empreintes des objets 3D posés : elle assombrit légèrement le
+	// sol sous chaque objet pour l'« asseoir » (en complément de l'ombre de
+	// contact du calque objets, atténuée en preset cinéma). Sans donnée
+	// (`object_ao_enabled = 0`) ou à `terrain_object_ao = 0` : terrain
+	// STRICTEMENT inchangé (A/B réversible).
+	if (object_ao_enabled > 0.001) {
+		float object_ao = texture(object_ao_tex, UV2).r;
+		albedo *= 1.0 - clamp(
+			object_ao * terrain_object_ao * object_ao_enabled, 0.0, 0.55);
+	}
 	ALBEDO = albedo * albedo_tint.rgb;
-	ROUGHNESS = 1.0;
+	// Réponse PBR discrète mais matérielle : l'herbe/terre restent mates alors
+	// que la roche et la neige captent légèrement la lumière rasante. Cela donne
+	// du volume sans aspect plastique ni textures normales externes.
+	float roughness = 0.93 * weights.r + 0.97 * weights.g
+		+ mix(0.76, 0.84, cliff_mix) * weights.b
+		+ 0.68 * extra.r + 0.88 * extra.g;
+	ROUGHNESS = clamp(roughness, 0.55, 1.0);
 	METALLIC = 0.0;
 }

@@ -82,6 +82,22 @@ var _terrain_sculpt: Dictionary = {}
 var _water_bodies: Array = []
 ## Un MeshInstance3D par bassin (matériaux et niveaux indépendants).
 var _body_nodes: Array = []
+## Brume de pied de cascade (finition CS2) : un MeshInstance3D par bassin de
+## rivière qui porte des chutes (tous ses quads dans le MÊME maillage → un seul
+## draw call par bassin). Le matériau de brume est partagé ; `_mist_enabled`
+## pilote l'uniform `mist_enabled` (0 = aucune brume, rendu précédent exact).
+var _mist_nodes: Array = []
+var _mist_material: ShaderMaterial = null
+var _mist_quad_count: int = 0
+var _mist_enabled: bool = true
+## Nombre de rideaux de chute construits au dernier rebuild (diagnostic/tests).
+var _fall_count: int = 0
+## Éclairage double du lit réfracté (finition CS2) : force de l'ambiance
+## d'eau posée sur les matériaux de surface (0 = rendu précédent exact).
+var _bed_ambient_lift: float = BED_AMBIENT_LIFT
+## Adoucissement des nez de ruban vus de très haut (finition CS2), appliqué à
+## tous les matériaux de ruban (0 = rendu précédent exact).
+var _tip_soften_distance: float = TIP_SOFTEN_DISTANCE
 ## Champ « terre/vide » (hauteurs + creusements), construit paresseusement.
 ## Creusements volumétriques (Voie B) — préchargement explicite (fiable en
 ## headless, indépendant du cache global `class_name`).
@@ -159,7 +175,8 @@ func configure(
 	_map_h = next_h
 	_cell_size = next_cell
 	_water_level = next_level
-	_terrain_heights = next_heights
+	# Copie : le document édite ses tableaux en place (détection des changements).
+	_terrain_heights = next_heights.duplicate()
 	_terrain_carves = next_carves
 	_terrain_sculpt = next_sculpt
 	_water_bodies = next_bodies
@@ -182,6 +199,9 @@ func clear() -> void:
 	_terrain_carves = []
 	_terrain_field = null
 	_has_config = false
+	_clear_body_nodes()
+	_clear_mist_nodes()
+	_fall_count = 0
 	_clear_decor()
 	if _mesh_instance != null:
 		_mesh_instance.mesh = null
@@ -196,7 +216,7 @@ func set_water_level(level: float) -> void:
 
 ## Met à jour les hauteurs de terrain (relief peint) et recalcule l'immersion.
 func set_terrain_heights(terrain_heights: Array) -> void:
-	_terrain_heights = terrain_heights if terrain_heights is Array else []
+	_terrain_heights = terrain_heights.duplicate() if terrain_heights is Array else []
 	_terrain_field = null
 	if _has_config:
 		_rebuild()
@@ -242,6 +262,11 @@ func set_night_mode(on: bool) -> void:
 				else:
 					(m as ShaderMaterial).set_shader_parameter("night_tint",
 						NIGHT_TINT if _night_mode else Color.WHITE)
+	# Brume de pied de cascade (finition CS2) : même logique de nuit (le shader
+	# de brume attend un float 0..1, comme celui de chute).
+	if _mist_material != null:
+		_mist_material.set_shader_parameter("night_tint",
+			1.0 if _night_mode else 0.0)
 
 func get_water_level() -> float:
 	return _water_level
@@ -368,6 +393,8 @@ func _deactivate() -> void:
 	_water_map_texture = null
 	_clear_decor()
 	_clear_body_nodes()
+	_clear_mist_nodes()
+	_fall_count = 0
 	if _mesh_instance != null:
 		_mesh_instance.mesh = null
 		_mesh_instance.visible = false
@@ -454,6 +481,9 @@ func _build_material() -> void:
 	_material.set_shader_parameter("wave_speed", 0.9)
 	_material.set_shader_parameter("foam_strength", 1.0)
 	_material.set_shader_parameter("foam_width", 0.12)
+	# Éclairage double du lit réfracté (finition CS2) : uniform exposé même sur
+	# le plan historique (0 = rendu précédent exact, A/B réversible).
+	_material.set_shader_parameter("bed_ambient_lift", _bed_ambient_lift)
 	_mesh_instance.material_override = _material
 
 # ===========================================================================
@@ -484,6 +514,31 @@ const SIDE_SMOOTH_RADIUS := 0.7
 ## masque de profondeur est inchangé).
 const CURVE_STEP_MIN := 0.08
 const WATER_FALL_SHADER_PATH := "res://shaders/water_fall.gdshader"
+# --- Finitions CS2 (A/B réversible : valeur de repli = état exact précédent) --
+## Brume/écume volumétrique au pied des cascades (voile bas animé qui se
+## dissipe avec la hauteur) — uniform `mist_enabled` du shader de brume.
+const WATER_MIST_SHADER_PATH := "res://shaders/water_mist.gdshader"
+## Budget BORNÉ de quads de brume par carte (2 quads par chute) : garde-fou
+## de performance, aucun système de particules n'est alloué.
+const MIST_MAX_QUADS := 64
+## Hauteur du voile vertical, en cases : proportionnelle au ressaut mais
+## bornée pour que la brume reste basse (elle ne monte pas la falaise).
+const MIST_HEIGHT_MIN := 0.35
+const MIST_HEIGHT_MAX := 1.2
+## Élargissement du voile par rapport à la largeur du pied de chute : la brume
+## déborde de la nappe.
+const MIST_VEIL_WIDEN := 1.6
+## Longueur de la nappe de brume horizontale (vers l'aval), en largeurs de lit.
+const MIST_APRON_LEN := 1.2
+## Éclairage double du lit réfracté (ambiance/diffusion, uniform
+## `bed_ambient_lift` des shaders d'eau et de terrain). 1 = finition active.
+const BED_AMBIENT_LIFT := 1.0
+## Adoucissement des nez de ruban vus de très haut (uniform
+## `tip_soften_distance` du shader d'eau ; masque de pointe en COLOR.b).
+const TIP_SOFTEN_DISTANCE := 1.0
+## Distance (cases) sur laquelle le masque de pointe s'éteint le long du ruban :
+## au-delà, le chenal n'est plus considéré comme une pointe.
+const TIP_MASK_RANGE := 4.5
 
 ## Nombre de bassins rendus (0 si l'eau utilise le plan historique).
 func get_body_count() -> int:
@@ -492,6 +547,7 @@ func get_body_count() -> int:
 func _clear_body_nodes() -> void:
 	for node in _body_nodes:
 		if node != null and is_instance_valid(node):
+			node.hide()
 			node.queue_free()
 	_body_nodes = []
 
@@ -506,9 +562,122 @@ func _add_body_node(mesh: ArrayMesh, mat: Material) -> MeshInstance3D:
 	_body_nodes.append(node)
 	return node
 
+# ===========================================================================
+# Finitions CS2 — brume de pied de cascade (A/B `mist_enabled`)
+# ===========================================================================
+#
+# Chaque chute reçoit DEUX quads de brume (voile vertical + nappe horizontale
+# basse) accumulés dans UN maillage par bassin : un seul draw call, maillage
+# non éclairé sans écriture de profondeur, budget borné par `MIST_MAX_QUADS`.
+# `set_mist_enabled(0)` éteint l'uniform (discard) ET masque les nœuds : le
+# rendu est alors strictement l'état précédent de la finition.
+
+func _clear_mist_nodes() -> void:
+	for node in _mist_nodes:
+		if node != null and is_instance_valid(node):
+			node.hide()
+			node.queue_free()
+	_mist_nodes = []
+	_mist_quad_count = 0
+
+## Ajoute un maillage de brume comme enfant (hors `_body_nodes` : le nombre de
+## bassins et leurs surfaces restent inchangés).
+func _add_mist_node(mesh: ArrayMesh) -> void:
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	if _mist_material == null:
+		_mist_material = _make_mist_material()
+	if _mist_material == null:
+		# Shader de brume absent du projet : pas de brume plutôt qu'un
+		# matériau par défaut opaque au pied des chutes.
+		return
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	node.material_override = _mist_material
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.visible = _mist_enabled
+	add_child(node)
+	_mist_nodes.append(node)
+
+## Active / désactive la brume de pied de cascade (finition CS2, A/B) :
+## `false` = uniform `mist_enabled` à 0 (discard) et nœuds masqués — rendu
+## EXACTEMENT identique à l'état précédent.
+func set_mist_enabled(on: bool) -> void:
+	_mist_enabled = on
+	if _mist_material != null:
+		_mist_material.set_shader_parameter("mist_enabled", 1.0 if on else 0.0)
+	for node in _mist_nodes:
+		if node != null and is_instance_valid(node):
+			node.visible = on
+
+func is_mist_enabled() -> bool:
+	return _mist_enabled
+
+## Nombre de nœuds de brume (0 ou 1 par bassin de rivière avec chutes).
+func get_mist_count() -> int:
+	return _mist_nodes.size()
+
+## Nombre de quads de brume construits (2 par chute, borné par MIST_MAX_QUADS).
+func get_mist_quad_count() -> int:
+	return _mist_quad_count
+
+## Matériau de brume partagé (null tant qu'aucune chute n'a produit de brume).
+func get_mist_material() -> ShaderMaterial:
+	return _mist_material
+
+## Nombre de rideaux de chute du dernier rebuild (API de test/diagnostic).
+func get_fall_count() -> int:
+	return _fall_count
+
+# ===========================================================================
+# Finitions CS2 — éclairage double du lit et nez de ruban (A/B)
+# ===========================================================================
+
+## Éclairage double du lit réfracté (finition CS2) : règle `bed_ambient_lift`
+## sur tous les matériaux de surface d'eau (lacs + rivières). 0 = rendu
+## EXACTEMENT précédent (A/B réversible, prouvé par captures off/on).
+func set_bed_ambient_lift(amount: float) -> void:
+	_bed_ambient_lift = clampf(amount, 0.0, 2.0)
+	if _material != null:
+		_material.set_shader_parameter("bed_ambient_lift", _bed_ambient_lift)
+	for mat in _surface_materials():
+		mat.set_shader_parameter("bed_ambient_lift", _bed_ambient_lift)
+
+func get_bed_ambient_lift() -> float:
+	return _bed_ambient_lift
+
+## Adoucissement des nez de ruban vus de très haut (finition CS2) : règle
+## `tip_soften_distance` sur tous les matériaux de ruban. 0 = rendu
+## EXACTEMENT précédent (A/B réversible, prouvé par captures off/on).
+func set_tip_soften(amount: float) -> void:
+	_tip_soften_distance = clampf(amount, 0.0, 1.0)
+	for mat in _surface_materials():
+		mat.set_shader_parameter("tip_soften_distance", _tip_soften_distance)
+
+func get_tip_soften() -> float:
+	return _tip_soften_distance
+
+## Matériaux de SURFACE d'eau des bassins (les matériaux de chute et de brume
+## n'ont pas ces uniforms et sont ignorés).
+func _surface_materials() -> Array:
+	var mats: Array = []
+	for node in _body_nodes:
+		if node == null or not is_instance_valid(node):
+			continue
+		if node.material_override is ShaderMaterial:
+			mats.append(node.material_override)
+		if node.mesh is ArrayMesh:
+			for si in range((node.mesh as ArrayMesh).get_surface_count()):
+				var sm = (node.mesh as ArrayMesh).surface_get_material(si)
+				if sm is ShaderMaterial and not mats.has(sm):
+					mats.append(sm)
+	return mats
+
 ## Reconstruit tous les bassins (lacs polygonaux + rivières/cascades).
 func _rebuild_bodies() -> void:
 	_clear_body_nodes()
+	_clear_mist_nodes()
+	_fall_count = 0
 	_mesh_instance.mesh = null
 	_mesh_instance.visible = false
 	var submerged := 0
@@ -516,6 +685,7 @@ func _rebuild_bodies() -> void:
 	var first: Dictionary = {}
 	var depth_images: Array = []
 	var footprints: Array = []
+	var mist_meshes: Array = []
 	for body in _water_bodies:
 		if not (body is Dictionary):
 			continue
@@ -530,10 +700,17 @@ func _rebuild_bodies() -> void:
 		if dimg is Image:
 			depth_images.append(dimg)
 			footprints.append(built.get("footprint", null))
+		var mist_mesh = built.get("mist", null)
+		if mist_mesh is ArrayMesh:
+			mist_meshes.append(mist_mesh)
 		submerged += int(built.get("submerged", 0))
 		max_depth = maxf(max_depth, float(built.get("max_depth", 0.0)))
+		_fall_count += int(built.get("falls", 0))
+		_mist_quad_count += int(built.get("mist_quads", 0))
 		if first.is_empty():
 			first = built
+	for mesh in mist_meshes:
+		_add_mist_node(mesh)
 	_build_shore_texture(depth_images, footprints)
 	_submerged_count = submerged
 	_max_depth = max_depth
@@ -676,7 +853,7 @@ func _build_lake_body(body: Dictionary) -> Dictionary:
 				max_depth = maxf(max_depth, depth)
 	if submerged == 0:
 		return {}
-	var depth_data := _make_body_depth(level, max_depth)
+	var depth_data := _make_body_depth(level, max_depth, poly)
 	var speed := float((body as Dictionary).get("flow_speed", 0.10))
 	var mat := _make_body_material(depth_data["texture"],
 		Vector2(1.0, 0.0), speed)
@@ -922,6 +1099,15 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		tip_dist[i] = run_len
 	for i in range(dense.size()):
 		tip_dist[i] = minf(tip_dist[i], run_len - tip_dist[i])
+	# MASQUE DE POINTE (finition CS2, canal BLEU de la couleur de sommet) :
+	# 1 au nez effilé, décroissance douce sur `TIP_MASK_RANGE` cases, 0 au cœur
+	# du chenal. Le shader d'eau s'en sert pour éteindre l'alpha des pointes
+	# quand la caméra est très haute (vue d'ensemble) — le fond du ruban garde
+	# exactement son ancien fondu d'alpha (canal R), la continuité est intacte.
+	var tip_mask := PackedFloat32Array()
+	tip_mask.resize(dense.size())
+	for i in range(dense.size()):
+		tip_mask[i] = 1.0 - smoothstep(0.0, TIP_MASK_RANGE, tip_dist[i])
 	for i in range(dense.size() - 1):
 		var a: Vector3 = dense[i]
 		var b: Vector3 = dense[i + 1]
@@ -954,7 +1140,8 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 				[Vector2(0.0, v_run), Vector2(1.0, v_run),
 					Vector2(0.0, v_run + seg_len), Vector2(1.0, v_run + seg_len)],
 				Vector3.UP, cell, inv_w, inv_h, fades,
-				shore_gate.call(quad_centers, quad_sides))
+				shore_gate.call(quad_centers, quad_sides),
+				[tip_mask[i], tip_mask[i], tip_mask[i + 1], tip_mask[i + 1]])
 			v_run += seg_len
 		else:
 			if in_fall:
@@ -965,6 +1152,16 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 			# rideau et son bourrelet sont posés plus bas, sur le maillage.
 			v_run += seg_len
 			in_fall = true
+	# --- BRUME DE PIED DE CASCADE (finition CS2) ---------------------------
+	# Deux quads par chute, accumulés dans UNE surface (un seul draw call) :
+	#   • un voile VERTICAL du pied vers le haut, qui se dissipe avec la
+	#     hauteur (`UV.y`) — la colonne d'éclaboussure ;
+	#   • une nappe HORIZONTALE basse qui déborde vers l'aval — la brume
+	#     plaquée au sol, lisible même avec la caméra zénithale de la carte.
+	# Budget borné par `MIST_MAX_QUADS` ; `set_mist_enabled(false)` éteint
+	# l'uniform (discard) et masque le nœud → rendu précédent exact (A/B).
+	var mist := _empty_mist_surface()
+	var mist_quads := 0
 	# --- Rideaux de chute : UNE seule nappe par ressaut, accrochée à la paroi
 	# visible, du bord du plateau jusqu'au pied. Le pied s'écarte légèrement
 	# vers l'aval (la lame d'eau ressort) et s'évase : la silhouette n'est pas
@@ -1031,6 +1228,40 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 			shore_gate.call(apron_centers, apron_sides))
 		v_run += apron_len * cell
 		fall_faces += 1
+		# --- BRUME DE PIED : voile vertical + nappe horizontale basse -------
+		# Hauteur proportionnelle au ressaut, bornée (une brume basse ne monte
+		# pas la falaise) ; largeur un peu plus grande que le pied de chute.
+		if mist_quads < MIST_MAX_QUADS:
+			var mist_h := clampf((top_y - bot_y) * 0.55,
+				MIST_HEIGHT_MIN, MIST_HEIGHT_MAX)
+			var veil_side := bot_side * MIST_VEIL_WIDEN
+			var veil_top_side := bot_side * 1.05
+			var base_c := Vector3(bot_c.x, bot_y - 0.02, bot_c.z)
+			var head_c := Vector3(bot_c.x, bot_y + mist_h, bot_c.z)
+			_append_mist_quad(mist,
+				[base_c - Vector3(veil_side.x, 0.0, veil_side.y),
+					base_c + Vector3(veil_side.x, 0.0, veil_side.y),
+					head_c - Vector3(veil_top_side.x, 0.0, veil_top_side.y),
+					head_c + Vector3(veil_top_side.x, 0.0, veil_top_side.y)],
+				Vector3(fall_dir.x, 0.0, fall_dir.y), cell)
+			mist_quads += 1
+		if mist_quads < MIST_MAX_QUADS:
+			var ap_start := Vector2(bot_c.x, bot_c.z) + fall_dir * (width * 0.08)
+			var ap_end := ap_start + fall_dir * (width * MIST_APRON_LEN + 0.5)
+			var ap_y := bot_y + 0.03
+			var ap_start_side := bot_side * 1.7
+			var ap_end_side := bot_side * 0.55
+			_append_mist_quad(mist,
+				[Vector3(ap_start.x, ap_y, ap_start.y)
+						- Vector3(ap_start_side.x, 0.0, ap_start_side.y),
+					Vector3(ap_start.x, ap_y, ap_start.y)
+						+ Vector3(ap_start_side.x, 0.0, ap_start_side.y),
+					Vector3(ap_end.x, ap_y, ap_end.y)
+						- Vector3(ap_end_side.x, 0.0, ap_end_side.y),
+					Vector3(ap_end.x, ap_y, ap_end.y)
+						+ Vector3(ap_end_side.x, 0.0, ap_end_side.y)],
+				Vector3.UP, cell)
+			mist_quads += 1
 	var arrays0 := _finish_surface_arrays(s0)
 	var arrays1 := _finish_surface_arrays(s1)
 	# NB : `_finish_surface_arrays` renvoie un tableau VIDE (pas null) sans
@@ -1065,6 +1296,7 @@ func _build_river_body(body: Dictionary) -> Dictionary:
 		"footprint": _make_river_footprint(dense, widths),
 		"submerged": 1, "max_depth": maxf(level - _lowest_point(dense), WATER_EPSILON),
 		"level": level, "falls": fall_faces,
+		"mist": _finish_mist_surface(mist), "mist_quads": mist_quads,
 	}
 
 ## Sol visible (en cases) sous une position du tracé — la rivière le drape.
@@ -1221,12 +1453,16 @@ func _empty_surface_arrays() -> Dictionary:
 ## `foam_fades` porte la MOUSSE DE RIVE par sommet (canal VERT) : 1.0 là où
 ## le terrain referme la nappe (berge, tranchée), atténué sur les bords
 ## libres (bandes pâles échelonnées sinon) — vide = 1.0 partout.
+## `tip_fades` porte le MASQUE DE POINTE par sommet (canal BLEU, finition CS2) :
+## 1.0 au nez effilé du ruban, 0.0 au cœur du chenal — le shader d'eau s'en
+## sert pour éteindre l'alpha des pointes vues de très haut. Vide = 0 partout.
 ## NOTE Godot : un PackedArray sorti d'un Dictionary est **copié** par `as` ou
 ## par un `var` typé — on mutte donc toujours via `s["..."]` directement.
 func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
 		normal: Vector3, cell: float, inv_w: float, inv_h: float,
 		fades: Array = [1.0, 1.0, 1.0, 1.0],
-		foam_fades: Array = []) -> void:
+		foam_fades: Array = [],
+		tip_fades: Array = []) -> void:
 	var base: int = s["verts"].size()
 	for k in range(4):
 		var c: Vector3 = centers[k]
@@ -1240,7 +1476,10 @@ func _append_quad(s: Dictionary, centers: Array, sides: Array, uvs: Array,
 		var foam_gate := 1.0
 		if k < foam_fades.size():
 			foam_gate = clampf(float(foam_fades[k]), 0.0, 1.0)
-		s["colors"].append(Color(fade, foam_gate, fade, 1.0))
+		var tip := 0.0
+		if k < tip_fades.size():
+			tip = clampf(float(tip_fades[k]), 0.0, 1.0)
+		s["colors"].append(Color(fade, foam_gate, tip, 1.0))
 	s["indices"].append_array(PackedInt32Array([
 		base, base + 2, base + 1, base + 1, base + 2, base + 3]))
 
@@ -1270,6 +1509,66 @@ func _make_fall_material() -> ShaderMaterial:
 	mat.set_shader_parameter("foam_color", Color(0.82, 0.92, 0.95))
 	mat.set_shader_parameter("night_tint", 1.0 if _night_mode else 0.0)
 	return mat
+
+## Matériau de BRUME de pied de cascade (finition CS2) : voile bas animé,
+## non éclairé, transparent, sans écriture de profondeur. `mist_enabled = 0`
+## (discard) → rendu strictement identique à l'état précédent (A/B).
+## Si le shader est absent du projet, aucune brume n'est construite : on ne
+## retombe jamais sur le shader d'eau (qui exigerait une texture de profondeur).
+func _make_mist_material() -> ShaderMaterial:
+	if not ResourceLoader.exists(WATER_MIST_SHADER_PATH):
+		return null
+	var mat := ShaderMaterial.new()
+	mat.shader = load(WATER_MIST_SHADER_PATH)
+	mat.set_shader_parameter("mist_color", Color(0.82, 0.89, 0.92))
+	mat.set_shader_parameter("mist_density", 0.48)
+	mat.set_shader_parameter("mist_speed", 0.35)
+	mat.set_shader_parameter("mist_scale", 2.4)
+	mat.set_shader_parameter("night_tint", 1.0 if _night_mode else 0.0)
+	mat.set_shader_parameter("mist_enabled", 1.0 if _mist_enabled else 0.0)
+	return mat
+
+## Accumulateur d'une surface de brume (quads indépendants, unshaded).
+func _empty_mist_surface() -> Dictionary:
+	return {
+		"verts": PackedVector3Array(), "normals": PackedVector3Array(),
+		"uvs": PackedVector2Array(), "indices": PackedInt32Array(),
+	}
+
+## Ajoute un quad de BRUME (coins en CASES, multipliés par `cell`). L'ordre des
+## coins suit celui des surfaces d'eau : [bas-gauche, bas-droite, haut-gauche,
+## haut-droite] ; UV.v = 0 au contact (pied), 1 au sommet / au loin — c'est `v`
+## qui porte la dissipation avec la hauteur dans le shader.
+func _append_mist_quad(s: Dictionary, corners: Array, normal: Vector3,
+		cell: float) -> void:
+	if corners.size() < 4:
+		return
+	var uvs: Array = [
+		Vector2(0.0, 0.0), Vector2(1.0, 0.0),
+		Vector2(0.0, 1.0), Vector2(1.0, 1.0),
+	]
+	var base: int = s["verts"].size()
+	for k in range(4):
+		var c: Vector3 = corners[k]
+		s["verts"].append(Vector3(c.x * cell, c.y * cell, c.z * cell))
+		s["normals"].append(normal)
+		s["uvs"].append(uvs[k])
+	s["indices"].append_array(PackedInt32Array([
+		base, base + 2, base + 1, base + 1, base + 2, base + 3]))
+
+## Finalise un maillage de brume (null si aucune chute/quad).
+func _finish_mist_surface(s: Dictionary) -> ArrayMesh:
+	if s["indices"].is_empty():
+		return null
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = s["verts"]
+	arrays[Mesh.ARRAY_NORMAL] = s["normals"]
+	arrays[Mesh.ARRAY_TEX_UV] = s["uvs"]
+	arrays[Mesh.ARRAY_INDEX] = s["indices"]
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 func _lowest_point(pts: Array) -> float:
 	var low := INF
@@ -1343,12 +1642,18 @@ func _make_river_footprint(dense: Array, widths: PackedFloat32Array) -> Image:
 ## Texture de profondeur **par bassin** (R = profondeur normalisée depuis le
 ## niveau du bassin, G = masque : 1 uniquement là où le sol visible est sous ce
 ## niveau — c'est ce qui fait « remplir les creux » et évite l'eau dans les
-## grottes sèches).
-func _make_body_depth(level: float, max_depth: float) -> Dictionary:
+## grottes sèches). `poly` confine le bassin à son emprise : une cuvette
+## étrangère au même niveau (autre mare, terrain creusé plus loin) reste à sec.
+func _make_body_depth(level: float, max_depth: float,
+		poly: PackedVector2Array = PackedVector2Array()) -> Dictionary:
 	var img := Image.create(_map_w, _map_h, false, Image.FORMAT_RGBA8)
 	var inv_depth := 1.0 / maxf(max_depth, WATER_EPSILON)
+	var confined := poly.size() >= 3
 	for y in range(_map_h):
 		for x in range(_map_w):
+			if confined and not _point_in_poly(Vector2(float(x) + 0.5, float(y) + 0.5), poly):
+				img.set_pixel(x, y, Color(0.0, 0.0, 0.0, 1.0))
+				continue
 			var depth := level - get_cell_top_surface(x, y)
 			var value := 0.0
 			var mask := 0.0
@@ -1550,6 +1855,17 @@ func _make_body_material(depth_texture: ImageTexture,
 	# distorsion du lit réfracté dans les hauts-fonds.
 	mat.set_shader_parameter("refraction_enabled", refr_on)
 	mat.set_shader_parameter("refraction_strength", refr_str)
+	# FINITIONS CS2 (A/B réversible : 0 = état exact précédent).
+	# — Éclairage double du lit réfracté : ambiance/diffusion d'eau déposée
+	#   sur le lit des hauts-fonds, à côté des caustiques directes.
+	mat.set_shader_parameter("bed_ambient_lift", _bed_ambient_lift)
+	# — Adoucissement des nez de ruban vus de très haut : l'alpha s'éteint sur
+	#   la pointe (masque COLOR.b) quand l'empreinte écran grandit (caméra
+	#   haute / carte dézoomée). Les lacs n'ont pas de pointe (edge_softness
+	#   nul) : l'effet ne les touche pas.
+	mat.set_shader_parameter("tip_soften_distance", _tip_soften_distance)
+	mat.set_shader_parameter("tip_soften_lo", 0.025)
+	mat.set_shader_parameter("tip_soften_hi", 0.075)
 	# Taille d'un texel de profondeur (UV) : le shader sonde le masque d'eau
 	# voisin pour placer la mousse de contact au VRAI bord terre/eau.
 	var tex_size := depth_texture.get_size()
@@ -1657,18 +1973,14 @@ func _is_ear(poly: PackedVector2Array, idx: PackedInt32Array,
 			return false
 	return true
 
-## Point dans un polygone (ray-casting) — sélection des cases du bassin.
+## Point dans un polygone — sélection des cases du bassin. Délégué à
+## `Geometry2D` : la version « ray-casting » maison divisait par
+## `max(pj.y - pi.y, eps)`, ce qui faussait le test dès que l'arête descendait
+## (bassin à moitié à sec, masque d'eau incomplet).
 func _point_in_poly(point: Vector2, poly: PackedVector2Array) -> bool:
-	var inside := false
-	var j := poly.size() - 1
-	for i in range(poly.size()):
-		var pi := poly[i]
-		var pj := poly[j]
-		if ((pi.y > point.y) != (pj.y > point.y)) \
-				and (point.x < (pj.x - pi.x) * (point.y - pi.y) / maxf(pj.y - pi.y, 0.00001) + pi.x):
-			inside = not inside
-		j = i
-	return inside
+	if poly.size() < 3:
+		return false
+	return Geometry2D.is_point_in_polygon(point, poly)
 
 # ===========================================================================
 # Décor de surface : lentilles d'eau + nénuphars (MultiMesh, déterministe)

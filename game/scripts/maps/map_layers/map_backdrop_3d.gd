@@ -31,6 +31,15 @@ const NIGHT_TINT := Color(0.30, 0.34, 0.46)
 ## Grain et bandes très douces (désactivés : le fond doit rester lisse).
 const GRAIN_STRENGTH := 0.0
 const BAND_STRENGTH := 0.0
+## --- FINITION SOCLE (qualité CS2) -----------------------------------------
+## 1 = dégradé élargi (sans anneau de vignettage dur) + halo de CONTACT sous
+## l'emprise du socle, pour que le plateau « repose » sur le fond ; 0 = rendu
+## EXACT précédent (A/B réversible).
+const SLAB_SOFTEN := 1.0
+## Couleur du halo de contact (ombre douce sous/autour du socle).
+const CONTACT_COLOR := Color(0.020, 0.026, 0.040)
+## Force du halo de contact.
+const CONTACT_STRENGTH := 0.45
 
 ## Shader procédural inline (aucun fichier shader externe demandé).
 const SHADER_CODE := """
@@ -41,8 +50,16 @@ uniform vec4 center_color : source_color = vec4(0.145, 0.125, 0.110, 1.0);
 uniform vec4 mid_color : source_color = vec4(0.085, 0.100, 0.130, 1.0);
 uniform vec4 edge_color : source_color = vec4(0.012, 0.013, 0.020, 1.0);
 uniform vec4 night_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 contact_color : source_color = vec4(0.020, 0.026, 0.040, 1.0);
 uniform float grain_strength : hint_range(0.0, 0.2) = 0.035;
 uniform float band_strength : hint_range(0.0, 0.2) = 0.02;
+// FINITION SOCLE : dégradé élargi + halo de contact sous l'emprise du plateau.
+// 0 = rendu EXACT précédent (A/B réversible).
+uniform float slab_soften : hint_range(0.0, 1.0) = 1.0;
+// Demi-largeur de l'emprise de la carte dans l'UV du fond (0..0.5) et force
+// du halo de contact : le socle doit « reposer » au lieu de flotter.
+uniform vec2 map_half_frac = vec2(0.125, 0.125);
+uniform float contact_strength : hint_range(0.0, 1.5) = 0.55;
 
 float backdrop_hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -51,14 +68,31 @@ float backdrop_hash(vec2 p) {
 void fragment() {
 	vec2 uv = UV;
 	vec2 d = uv - vec2(0.5);
-	float radius = clamp(length(d) * 2.0, 0.0, 1.0);
-	vec3 col = mix(center_color.rgb, mid_color.rgb, smoothstep(0.0, 0.42, radius));
-	col = mix(col, edge_color.rgb, smoothstep(0.42, 1.0, radius));
-	// Grain doux (pas de texture externe) + bandes très douces.
+	float radius = length(d) * 2.0;
+	// --- Dégradé historique (repli A/B EXACT quand slab_soften = 0) --------
+	vec3 old_col = mix(center_color.rgb, mid_color.rgb,
+		smoothstep(0.0, 0.42, clamp(radius, 0.0, 1.0)));
+	old_col = mix(old_col, edge_color.rgb,
+		smoothstep(0.42, 1.0, clamp(radius, 0.0, 1.0)));
 	float grain = backdrop_hash(floor(uv * 512.0)) - 0.5;
-	col += grain * grain_strength * (1.0 - radius * 0.6);
+	old_col += grain * grain_strength * (1.0 - radius * 0.6);
 	float bands = sin((uv.x + uv.y) * 18.0 + sin(uv.x * 7.0) * 2.0) * 0.5 + 0.5;
-	col += (bands - 0.5) * band_strength;
+	old_col += (bands - 0.5) * band_strength;
+	// --- Nouveau dégradé : transitions élargies, aucun anneau dur ----------
+	vec3 soft_col = mix(center_color.rgb, mid_color.rgb,
+		smoothstep(-0.10, 0.62, radius));
+	soft_col = mix(soft_col, edge_color.rgb,
+		smoothstep(0.58, 1.42, radius));
+	// Grain très fin : casse les bandes de quantification, aucun motif lisible.
+	soft_col += grain * 0.010;
+	// --- CONTACT : halo sombre sous l'emprise du socle ---------------------
+	// Forme arrondie (mélange carré/distance) et portée courte : une ombre
+	// douce qui « pose » le plateau, jamais un grand rectangle noir.
+	vec2 q = abs(d) / max(map_half_frac, vec2(0.001));
+	float contact = 1.0 - smoothstep(0.95, 1.55,
+		mix(max(q.x, q.y), length(q), 0.65));
+	soft_col = mix(soft_col, contact_color.rgb, contact * contact_strength);
+	vec3 col = mix(old_col, soft_col, clamp(slab_soften, 0.0, 1.0));
 	ALBEDO = max(col, vec3(0.0)) * night_tint.rgb;
 }
 """
@@ -75,6 +109,8 @@ var _has_config: bool = false
 var _size_world: float = 0.0
 ## Palette optionnelle (preset lumineux type Tiny Glade) : centre/milieu/bord.
 var _palette: Dictionary = {}
+## Finition socle : dégradé doux + halo de contact (0 = rendu précédent exact).
+var _slab_soften: float = SLAB_SOFTEN
 
 func _ready() -> void:
 	_ensure_mesh_instance()
@@ -160,6 +196,16 @@ func get_backdrop_size() -> float:
 func get_material() -> ShaderMaterial:
 	return _material
 
+## FINITION SOCLE (qualité CS2) : règle `slab_soften` (dégradé élargi + halo de
+## contact sous l'emprise du plateau). 0 = rendu EXACTEMENT précédent (A/B).
+func set_slab_soften(amount: float) -> void:
+	_slab_soften = clampf(amount, 0.0, 1.0)
+	if _material != null:
+		_material.set_shader_parameter("slab_soften", _slab_soften)
+
+func get_slab_soften() -> float:
+	return _slab_soften
+
 func get_mesh_instance() -> MeshInstance3D:
 	return _mesh_instance
 
@@ -207,9 +253,23 @@ func _build_material() -> ShaderMaterial:
 	_material.set_shader_parameter("night_tint", NIGHT_TINT if _night_mode else Color.WHITE)
 	_material.set_shader_parameter("grain_strength", GRAIN_STRENGTH)
 	_material.set_shader_parameter("band_strength", BAND_STRENGTH)
+	# FINITION SOCLE : dégradé élargi + halo de contact sous l'emprise du socle.
+	_material.set_shader_parameter("slab_soften", _slab_soften)
+	_material.set_shader_parameter("map_half_frac", _map_half_frac())
+	_material.set_shader_parameter("contact_color", CONTACT_COLOR)
+	_material.set_shader_parameter("contact_strength", CONTACT_STRENGTH)
 	# Très bas : le fond passe avant tout le reste de la carte.
 	_material.render_priority = -120
 	return _material
+
+## Demi-largeur de l'emprise de la carte dans l'UV du fond carré (0..0.5) :
+## sert au halo de contact du shader (le socle repose au centre du fond).
+func _map_half_frac() -> Vector2:
+	if _size_world <= 0.0:
+		return Vector2(0.125, 0.125)
+	return Vector2(
+		float(_map_w) * _cell_size / (2.0 * _size_world),
+		float(_map_h) * _cell_size / (2.0 * _size_world))
 
 func _palette_color(key: String, fallback: Color) -> Color:
 	var value = _palette.get(key, null)

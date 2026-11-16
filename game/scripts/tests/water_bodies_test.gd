@@ -59,9 +59,9 @@ func _test_lake_fills_basin() -> void:
 	# Le masque : eau dans le creux, à sec sur la hauteur (le lac remplit le
 	# creux, il ne déborde pas sur le terrain au-dessus de son niveau).
 	var img: Image = water.get_depth_image()
-	_assert("lake_mask_in_basin", img != null and img.get_pixel(42, 30).g > 0.9)
-	_assert("lake_mask_on_high", img != null and img.get_pixel(30, 22).g < 0.1)
-	_assert("lake_depth_deeper", img.get_pixel(42, 30).r > img.get_pixel(34, 26).r)
+	_assert("lake_mask_in_basin", img != null and img.get_pixel(10, 7).g > 0.9)
+	_assert("lake_mask_on_high", img != null and img.get_pixel(8, 5).g < 0.1)
+	_assert("lake_depth_deeper", img.get_pixel(10, 7).r > img.get_pixel(8, 6).r)
 	_assert("lake_does_not_wet_other_basin", water.get_shore_texture().get_image().get_pixel(1, 1).r == 0.0)
 	water.queue_free()
 	await process_frame
@@ -137,7 +137,7 @@ func _test_editor_lake_on_flat_ground() -> void:
 	_assert("editor_lake_visible", water != null and water.is_active())
 	var mask: Image = water.get_depth_image()
 	_assert("editor_lake_mask_fills_both_sides", mask != null
-		and mask.get_pixel(46, 25).g > 0.9 and mask.get_pixel(46, 42).g > 0.9)
+		and mask.get_pixel(11, 6).g > 0.9 and mask.get_pixel(11, 10).g > 0.9)
 	_assert("editor_lake_organic_contour", editor.doc.water_bodies()[0]["area"].size() > 4)
 	_assert("editor_lake_carved", editor.doc.terrain_height(11, 7) < editor._water_lake_level - 0.3)
 	var ground: MeshInstance3D = editor._engine._ground._mesh_instance

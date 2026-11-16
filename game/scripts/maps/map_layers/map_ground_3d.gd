@@ -56,6 +56,9 @@ class_name MapGround3D
 
 const NIGHT_SHADER := preload("res://shaders/map_night_reveal.gdshader")
 const TERRAIN_SPLAT_SHADER := preload("res://shaders/terrain_splat.gdshader")
+## Matériau du SOCLE DE DIORAMA (finitions CS2) : strates, arête herbeuse et
+## raccord sol/paroi de la dalle qui remplace le rendu de la jupe.
+const SLAB_BASE_SHADER := preload("res://shaders/slab_base.gdshader")
 ## Creusements volumétriques (Voie B) — préchargements explicites : fiables en
 ## headless, indépendantes du cache global `class_name`.
 const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
@@ -80,10 +83,36 @@ const TERRAIN_RELIEF_EPSILON := 0.001
 ## Force de l'auto-matériau par pente/altitude (méthode CS2) : 1 = actif,
 ## 0 = rendu historique (réversibilité). Les splats peints restent prioritaires.
 const TERRAIN_AUTO_MATERIAL_STRENGTH := 1.0
+## AMPLITUDE ABSOLUE de relief (unités monde) exigée pour que l'auto-matériau
+## s'active (uniform `auto_min_relief`) : une carte de ville quasi plate
+## (quelques buttes de bord < 0,5) ne doit pas voir de neige/terre automatiques.
+## 0 = comportement historique exact (aucune porte). Plein effet à ×2,25.
+const TERRAIN_AUTO_MIN_RELIEF := 0.8
 ## AO DE CUVETTES Cuite (méthode CS2) : 1 = occlusion par sommet active dans
 ## les vertex colors (canal alpha), 0 = rendu historique (réversibilité via le
 ## uniform `cavity_bake` du shader). Ne concerne que le chemin splat.
 const TERRAIN_CAVITY_BAKE := 1.0
+## ÉCLAIRAGE DOUBLE DU LIT (finition CS2) : au terme d'absorption s'ajoute une
+## ambiance/diffusion d'eau qui éclaire le lit des hauts-fonds (uniform
+## `bed_ambient_lift` du shader). 1 = finition active ; 0 = rendu exactement
+## précédent (A/B réversible, captures off/on).
+const TERRAIN_BED_AMBIENT_LIFT := 1.0
+## --- FINITIONS TERRAIN CS2 (strates / macro / neige / ancrage objets) ------
+## Strates géologiques obliques sur les pentes fortes (uniform `cliff_strata`).
+## 1 = finition active ; 0 = roche lisse précédente (A/B réversible).
+const TERRAIN_CLIFF_STRATA := 1.0
+## Variation macro 3D non répétitive de la teinte (uniform `macro_variation`).
+const TERRAIN_MACRO_VARIATION := 1.0
+## Transition neige/roche/herbe adoucie + neige des creux (uniform
+## `snow_transition`).
+const TERRAIN_SNOW_TRANSITION := 1.0
+## Ancrage des objets : AO de contact cuite sous les objets posés (uniform
+## `terrain_object_ao`, 0 = terrain inchangé ; aucune donnée = aucun effet).
+const TERRAIN_OBJECT_AO := 1.0
+## Rayon par défaut (cases) d'une empreinte d'objet pour l'AO de contact.
+const OBJECT_AO_RADIUS_CELLS := 0.85
+## Force par défaut (0..1) d'une empreinte d'objet.
+const OBJECT_AO_STRENGTH := 0.42
 ## Rayons d'exploration de la cavité, en cases (deux anneaux : 1 puis 2 cases).
 const CAVITY_RING_RADII := [1, 2]
 ## Dénivelé de voisinage (en cases) qui sature l'effet de cavité.
@@ -118,11 +147,38 @@ const CLIFF_LIP_CELLS := 0.45
 const CLIFF_LIP := Color(0.46, 0.41, 0.34)
 ## Variation douce de couleur du rebord (±).
 const CLIFF_LIP_VARIATION := 0.04
+## --- SOCLE DE DIORAMA (finitions « qualité CS2 ») --------------------------
+## Flag MAÎTRE A/B : 1 = nouveau socle (strates, arête herbeuse adoucie,
+## raccord terre/AO en pied) ; 0 = rendu EXACT de la jupe historique (le
+## maillage et le matériau legacy restent construits et sont réaffichés).
+const SLAB_FINITIONS := 1.0
+## Option STRATES du shader de socle (0 = roche unie, A/B de l'option).
+const SLAB_STRATA := 1.0
+## Débord de l'arête herbeuse au-delà du bord de la carte, en cases.
+const SLAB_LIP_CELLS := 0.55
+## Descente du nez herbeux (arrondi/chamfrein visuel de l'arête), en cases.
+const SLAB_EDGE_DROOP_CELLS := 0.24
+## Nombre de subdivisions verticales de la paroi du socle.
+const SLAB_WALL_ROWS := 4
+## Extension horizontale du pied de paroi vers le fond, en cases (contact).
+const SLAB_BASE_FLARE_CELLS := 0.85
+## Descente du pied sous le bas de la paroi, en cases (rejoint le fond).
+const SLAB_BASE_DROP_CELLS := 0.55
+## Couleur de mousse des strates du socle.
+const SLAB_MOSS := Color(0.28, 0.36, 0.20)
 
 var _mesh_instance: MeshInstance3D
 ## Jupe de falaise : mesh séparé (matériau roche) construit en terrain3d.
 var _cliff_instance: MeshInstance3D
 var _cliff_active: bool = false
+## Socle de diorama (finitions CS2) : mesh séparé + shader de socle. Il
+## REMPLACE le rendu de la jupe quand `_slab_finitions` est vrai ; la jupe
+## legacy reste construite (API/tests + repli A/B exact).
+var _slab_instance: MeshInstance3D
+var _slab_material: ShaderMaterial = null
+var _slab_active: bool = false
+var _slab_finitions: bool = true
+var _slab_strata: float = SLAB_STRATA
 var _extent: Vector2 = Vector2.ZERO
 var _light_mask_tex: ImageTexture
 ## Shader jour/nuit actif (mode `illustrated` uniquement).
@@ -158,6 +214,21 @@ var _shore_texture: Texture2D = null
 ## G = masque d'eau) : porte les caustiques animées et l'absorption par
 ## profondeur du lit sous l'eau dans le shader de matières.
 var _water_map_texture: Texture2D = null
+## Éclairage double du lit (finition CS2) : force de l'ambiance/diffusion d'eau
+## ajoutée au lit sous l'eau (`bed_ambient_lift`, 0 = rendu précédent).
+var _bed_ambient_lift: float = TERRAIN_BED_AMBIENT_LIFT
+## Finitions terrain CS2 (A/B : 0 = rendu exactement précédent).
+var _cliff_strata: float = TERRAIN_CLIFF_STRATA
+var _macro_variation: float = TERRAIN_MACRO_VARIATION
+var _snow_transition: float = TERRAIN_SNOW_TRANSITION
+var _terrain_object_ao: float = TERRAIN_OBJECT_AO
+## Porte de relief absolu de l'auto-matériau (`auto_min_relief`, unités monde).
+var _auto_min_relief: float = TERRAIN_AUTO_MIN_RELIEF
+## Empreintes d'objets 3D (AO de contact), en cases :
+## `[{"x": case, "y": case, "radius": cases, "strength": 0..1}, ...]`.
+var _object_ao_stamps: Array = []
+var _object_ao_image: Image = null
+var _object_ao_texture: ImageTexture = null
 ## Textures de matières (chargées à la demande) :
 ## "grass" / "dirt" / "stone" / "snow" / "sand".
 var _terrain_textures: Dictionary = {}
@@ -192,6 +263,7 @@ func _ensure_mesh_instance() -> void:
 	_mesh_instance = MeshInstance3D.new()
 	add_child(_mesh_instance)
 	_ensure_cliff_instance()
+	_ensure_slab_instance()
 
 func _ensure_cliff_instance() -> void:
 	if _cliff_instance != null and is_instance_valid(_cliff_instance):
@@ -201,6 +273,18 @@ func _ensure_cliff_instance() -> void:
 	_cliff_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_cliff_instance.visible = false
 	add_child(_cliff_instance)
+
+## Nœud du SOCLE DE DIORAMA (finitions CS2). Cast shadow OFF : la dalle ne
+## projette pas d'ombre dure (elle RECOIT en revanche l'éclairage et l'AO) ;
+## l'ombre du débord est simulée par l'AO de sommet dans le shader.
+func _ensure_slab_instance() -> void:
+	if _slab_instance != null and is_instance_valid(_slab_instance):
+		return
+	_slab_instance = MeshInstance3D.new()
+	_slab_instance.name = "SlabBase"
+	_slab_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_slab_instance.visible = false
+	add_child(_slab_instance)
 
 func configure(
 	texture: Texture2D,
@@ -570,6 +654,10 @@ func _apply_config() -> void:
 		if _splat_active:
 			_update_splat_texture()
 		_apply_terrain_material(night_mode)
+		# Ancrage des objets : si des empreintes ont déjà été fournies pour une
+		# autre config, on les recuit à la taille courante.
+		if not _object_ao_stamps.is_empty():
+			_rebuild_object_occlusion()
 		_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if not _splat_active:
 			_splat_texture = null
@@ -680,6 +768,153 @@ func set_water_map_texture(tex: Texture2D) -> void:
 		(mat as ShaderMaterial).set_shader_parameter(
 			"water_map_enabled", 1.0 if tex != null else 0.0)
 
+## ÉCLAIRAGE DOUBLE DU LIT (finition CS2) : règle `bed_ambient_lift` sur le
+## matériau de terrain (ambiance/diffusion d'eau sur le lit des hauts-fonds).
+## 0 = rendu EXACTEMENT précédent (A/B réversible, prouvé par captures).
+func set_bed_ambient_lift(amount: float) -> void:
+	_bed_ambient_lift = clampf(amount, 0.0, 2.0)
+	if _mesh_instance == null:
+		return
+	var mat := _mesh_instance.material_override
+	if mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter(
+			"bed_ambient_lift", _bed_ambient_lift)
+
+func get_bed_ambient_lift() -> float:
+	return _bed_ambient_lift
+
+# ===========================================================================
+# Finitions terrain CS2 (strates / macro / neige / ancrage des objets)
+# ===========================================================================
+#
+# Toutes A/B réversibles : la valeur 0 ramène EXACTEMENT le rendu précédent de
+# la finition (bloc court-circuité dans `terrain_splat.gdshader`). Réglage à
+# chaud par uniform, sans reconstruction du maillage.
+
+## Strates géologiques obliques sur les pentes fortes (0 = roche lisse).
+func set_cliff_strata(amount: float) -> void:
+	_cliff_strata = clampf(amount, 0.0, 1.0)
+	_set_terrain_uniform("cliff_strata", _cliff_strata)
+
+func get_cliff_strata() -> float:
+	return _cliff_strata
+
+## Variation macro 3D non répétitive de la teinte (0 = inchangé).
+func set_macro_variation(amount: float) -> void:
+	_macro_variation = clampf(amount, 0.0, 1.0)
+	_set_terrain_uniform("macro_variation", _macro_variation)
+
+func get_macro_variation() -> float:
+	return _macro_variation
+
+## Transition neige/roche/herbe adoucie + neige des creux (0 = précédent).
+func set_snow_transition(amount: float) -> void:
+	_snow_transition = clampf(amount, 0.0, 1.0)
+	_set_terrain_uniform("snow_transition", _snow_transition)
+
+func get_snow_transition() -> float:
+	return _snow_transition
+
+## Ancrage des objets : force de l'AO de contact cuite (0 = terrain inchangé).
+func set_terrain_object_ao(amount: float) -> void:
+	_terrain_object_ao = clampf(amount, 0.0, 1.0)
+	_set_terrain_uniform("terrain_object_ao", _terrain_object_ao)
+	_set_terrain_uniform("object_ao_enabled",
+		1.0 if _object_ao_texture != null else 0.0)
+
+func get_terrain_object_ao() -> float:
+	return _terrain_object_ao
+
+## Porte de relief ABSOLU de l'auto-matériau (unités monde) : sous cette
+## amplitude, roche/terre/neige automatiques ne s'appliquent pas (cartes de
+## ville quasi plates). `0` = comportement historique exact (A/B réversible).
+func set_auto_min_relief(amount: float) -> void:
+	_auto_min_relief = clampf(amount, 0.0, 4.0)
+	_set_terrain_uniform("auto_min_relief", _auto_min_relief)
+
+func get_auto_min_relief() -> float:
+	return _auto_min_relief
+
+## Fournit les empreintes des objets 3D posés sur le sol pour l'AO de contact :
+## chaque entrée `{"x": case, "y": case, "radius": cases, "strength": 0..1}`
+## (rayon et force facultatifs). La texture carte est recuite UNE fois par mise
+## à jour (pas par frame) ; le shader assombrit alors légèrement le sol sous
+## chaque objet. Peu coûteux et indépendant de la scène 3D (le calque objets
+## reste la source autoritaire de sa propre ombre de contact).
+func set_object_occlusion_stamps(stamps: Array) -> void:
+	_object_ao_stamps = []
+	for entry in stamps:
+		if entry is Dictionary:
+			_object_ao_stamps.append((entry as Dictionary).duplicate())
+	_rebuild_object_occlusion()
+
+## Retire l'AO de contact des objets (terrain strictement inchangé).
+func clear_object_occlusion() -> void:
+	_object_ao_stamps = []
+	_object_ao_image = null
+	_object_ao_texture = null
+	_set_terrain_uniform("object_ao_enabled", 0.0)
+
+func has_object_occlusion() -> bool:
+	return _object_ao_texture != null
+
+## Image CPU de l'AO de contact (fiable pour les tests), null si aucune.
+func get_object_occlusion_image() -> Image:
+	return _object_ao_image
+
+func get_object_occlusion_texture() -> ImageTexture:
+	return _object_ao_texture
+
+## Recuit la texture d'AO de contact (résolution carte, R = assombrissement).
+func _rebuild_object_occlusion() -> void:
+	_object_ao_image = null
+	_object_ao_texture = null
+	if _terrain_w <= 0 or _terrain_h <= 0 or _object_ao_stamps.is_empty():
+		_set_terrain_uniform("object_ao_enabled", 0.0)
+		return
+	var acc := PackedFloat32Array()
+	acc.resize(_terrain_w * _terrain_h)
+	acc.fill(0.0)
+	for entry in _object_ao_stamps:
+		if not (entry is Dictionary):
+			continue
+		var cx := float((entry as Dictionary).get("x", 0.0))
+		var cy := float((entry as Dictionary).get("y", 0.0))
+		var radius := maxf(0.15, float((entry as Dictionary).get(
+			"radius", OBJECT_AO_RADIUS_CELLS)))
+		var strength := clampf(float((entry as Dictionary).get(
+			"strength", OBJECT_AO_STRENGTH)), 0.0, 1.0)
+		var x0 := maxi(0, int(floorf(cx - radius)))
+		var x1 := mini(_terrain_w - 1, int(ceili(cx + radius)))
+		var y0 := maxi(0, int(floorf(cy - radius)))
+		var y1 := mini(_terrain_h - 1, int(ceili(cy + radius)))
+		for y in range(y0, y1 + 1):
+			for x in range(x0, x1 + 1):
+				var d := Vector2(float(x) + 0.5 - cx, float(y) + 0.5 - cy).length()
+				if d >= radius:
+					continue
+				# Dégradé doux (contact plus sombre au centre de l'empreinte).
+				var falloff := pow(1.0 - d / radius, 1.6)
+				var idx := y * _terrain_w + x
+				acc[idx] = maxf(acc[idx], falloff * strength)
+	var img := Image.create(_terrain_w, _terrain_h, false, Image.FORMAT_RGBA8)
+	for y in range(_terrain_h):
+		for x in range(_terrain_w):
+			var a := clampf(acc[y * _terrain_w + x], 0.0, 1.0)
+			img.set_pixel(x, y, Color(a, a, a, 1.0))
+	_object_ao_image = img
+	_object_ao_texture = ImageTexture.create_from_image(img)
+	_set_terrain_uniform("object_ao_tex", _object_ao_texture)
+	_set_terrain_uniform("object_ao_enabled", 1.0)
+
+## Pousse un uniform sur le matériau de terrain (no-op sans matériau shader).
+func _set_terrain_uniform(param: String, value) -> void:
+	if _mesh_instance == null:
+		return
+	var mat := _mesh_instance.material_override
+	if mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter(param, value)
+
 ## Si les matières sont actives : `ShaderMaterial` `terrain_splat.gdshader` qui
 ## mélange les cinq textures tuilées (UV) via les deux splats (UV2) et multiplie
 ## par les vertex colors d'ombrage ; il reste éclairé (spatial). `albedo_tint`
@@ -695,6 +930,7 @@ func _apply_terrain_material(night_mode: bool) -> void:
 		shader_mat.set_shader_parameter("grass_tex", _terrain_textures.get("grass"))
 		shader_mat.set_shader_parameter("dirt_tex", _terrain_textures.get("dirt"))
 		shader_mat.set_shader_parameter("stone_tex", _terrain_textures.get("stone"))
+		shader_mat.set_shader_parameter("cliff_tex", _terrain_textures.get("cliff", _terrain_textures.get("stone")))
 		shader_mat.set_shader_parameter("snow_tex", _terrain_textures.get("snow"))
 		shader_mat.set_shader_parameter("sand_tex", _terrain_textures.get("sand"))
 		shader_mat.set_shader_parameter("splat_tex", _splat_texture)
@@ -730,11 +966,32 @@ func _apply_terrain_material(night_mode: bool) -> void:
 			"terrain_max_height", _terrain_max * cell_size)
 		shader_mat.set_shader_parameter(
 			"auto_material_strength", TERRAIN_AUTO_MATERIAL_STRENGTH)
+		# PORTE DE RELIEF ABSOLU de l'auto-matériau : une carte de ville quasi
+		# plate (buttes de bord) ne reçoit ni neige ni terre automatiques.
+		# `_auto_min_relief = 0` → comportement historique exact (A/B).
+		shader_mat.set_shader_parameter("auto_min_relief", _auto_min_relief)
 		# AO DE CUVETTES Cuite (méthode CS2) : les vertex colors portent
 		# l'occlusion par sommet dans leur canal alpha (cuite depuis le
 		# heightfield, rayon 1-2 cases) ; `cavity_bake` = 0 restitue le rendu
 		# historique exact (A/B réversible).
 		shader_mat.set_shader_parameter("cavity_bake", TERRAIN_CAVITY_BAKE)
+		# ÉCLAIRAGE DOUBLE DU LIT (finition CS2) : ambiance/diffusion d'eau
+		# ajoutée au lit des hauts-fonds (`bed_ambient_lift = 0` → rendu
+		# exactement précédent, A/B réversible).
+		shader_mat.set_shader_parameter("bed_ambient_lift", _bed_ambient_lift)
+		# FINITIONS TERRAIN CS2 (A/B : 0 = rendu exactement précédent).
+		# — strates géologiques obliques sur les pentes fortes ;
+		# — variation macro 3D non répétitive de la teinte ;
+		# — transition neige/roche/herbe adoucie + neige des creux ;
+		# — ancrage des objets par AO de contact (texture cuite, si fournie).
+		shader_mat.set_shader_parameter("cliff_strata", _cliff_strata)
+		shader_mat.set_shader_parameter("macro_variation", _macro_variation)
+		shader_mat.set_shader_parameter("snow_transition", _snow_transition)
+		shader_mat.set_shader_parameter("terrain_object_ao", _terrain_object_ao)
+		shader_mat.set_shader_parameter("object_ao_enabled",
+			1.0 if _object_ao_texture != null else 0.0)
+		if _object_ao_texture != null:
+			shader_mat.set_shader_parameter("object_ao_tex", _object_ao_texture)
 		if _shore_texture != null:
 			shader_mat.set_shader_parameter("shore_tex", _shore_texture)
 			shader_mat.set_shader_parameter("shore_enabled", 1.0)
@@ -810,6 +1067,12 @@ func _ensure_terrain_textures() -> bool:
 		_terrain_textures["dirt_ai"] = _load_terrain_texture("dirt_ai")
 	if _terrain_textures["dirt_ai"] != null:
 		_terrain_textures["dirt"] = _terrain_textures["dirt_ai"]
+	# La roche de falaise est un enrichissement visuel, pas une dépendance : en
+	# cas de projet ancien ou d'asset absent, on garde la pierre existante.
+	if not _terrain_textures.has("cliff"):
+		_terrain_textures["cliff"] = _load_terrain_texture("cliff")
+	if _terrain_textures["cliff"] == null:
+		_terrain_textures["cliff"] = _terrain_textures.get("stone")
 	return true
 
 ## Charge une texture de matière : PNG source (mipmaps générées pour le
@@ -1467,6 +1730,9 @@ func get_cliff_material() -> StandardMaterial3D:
 	return _cliff_instance.material_override as StandardMaterial3D
 
 ## Reconstruit la jupe de falaise (appelé à chaque reconstruction du sol).
+## La jupe legacy est TOUJOURS construite (API/tests + repli A/B exact) ; elle
+## n'est VISIBLE que si la finition socle est coupée. Inversement le socle
+## n'est construit/visible que si la finition est active.
 func _rebuild_cliff(cell_size: float, night_mode: bool) -> void:
 	if _cliff_instance == null or not is_instance_valid(_cliff_instance):
 		return
@@ -1481,14 +1747,112 @@ func _rebuild_cliff(cell_size: float, night_mode: bool) -> void:
 	_cliff_instance.position = Vector3.ZERO
 	_cliff_instance.rotation_degrees = Vector3.ZERO
 	_cliff_instance.material_override = _make_cliff_material(night_mode)
-	_cliff_instance.visible = true
 	_cliff_active = true
+	if _slab_finitions:
+		_cliff_instance.visible = false
+		_rebuild_slab(cell_size, night_mode)
+	else:
+		_clear_slab()
+		_cliff_instance.visible = true
 
 func _clear_cliff() -> void:
 	_cliff_active = false
+	_clear_slab()
 	if _cliff_instance != null and is_instance_valid(_cliff_instance):
 		_cliff_instance.mesh = null
 		_cliff_instance.visible = false
+
+# ===========================================================================
+# Socle de diorama (finitions « qualité CS2 »)
+# ===========================================================================
+#
+# Le socle REMPLACE le rendu de la jupe (jupe legacy masquée) : silhouette
+# enrichie construite par `_make_slab_mesh` (arête herbeuse arrondie, paroi
+# subdivisée, pied évasé vers le fond) et matériau `slab_base.gdshader`
+# (strates procédurales, AO simulée, terre en pied). `slab_finitions = false`
+# réaffiche EXACTEMENT la jupe historique (A/B réversible par reconstruction).
+
+## Vrai si le socle de diorama est rendu à la place de la jupe legacy.
+func is_slab_active() -> bool:
+	return _slab_active
+
+## Flag maître A/B de la finition socle (1 = nouveau socle, 0 = jupe legacy).
+func is_slab_finitions() -> bool:
+	return _slab_finitions
+
+func get_slab_finitions() -> float:
+	return 1.0 if _slab_finitions else 0.0
+
+## Active / coupe la finition socle (reconstruit le rendu visible). Le maillage
+## legacy n'est jamais détruit : `get_cliff_mesh()` reste stable et le retour à
+## 0 réaffiche la jupe historique à l'identique.
+func set_slab_finitions(on: bool) -> void:
+	if _slab_finitions == on:
+		return
+	_slab_finitions = on
+	if not _cliff_active:
+		return
+	var cell := float(_cfg.get("cell_size", 1.0))
+	var night := bool(_cfg.get("night_mode", false))
+	if on:
+		_cliff_instance.visible = false
+		_rebuild_slab(cell, night)
+	else:
+		_clear_slab()
+		_cliff_instance.visible = true
+
+## Option strates du socle (1 = bandes géologiques, 0 = roche unie).
+func set_slab_strata(amount: float) -> void:
+	_slab_strata = clampf(amount, 0.0, 1.0)
+	if _slab_material != null:
+		_slab_material.set_shader_parameter("slab_strata", _slab_strata)
+
+func get_slab_strata() -> float:
+	return _slab_strata
+
+func get_slab_instance() -> MeshInstance3D:
+	return _slab_instance
+
+func get_slab_material() -> ShaderMaterial:
+	return _slab_material
+
+func get_slab_mesh() -> ArrayMesh:
+	if _slab_instance == null:
+		return null
+	return _slab_instance.mesh as ArrayMesh
+
+## Nombre de sommets du socle (0 si absent).
+func get_slab_vertex_count() -> int:
+	var mesh := get_slab_mesh()
+	if mesh == null or mesh.get_surface_count() == 0:
+		return 0
+	var arrays: Array = mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	return verts.size()
+
+## Nombre de lignes du profil du socle (haut → pied), utile aux tests.
+func get_slab_row_count() -> int:
+	return 4 + SLAB_WALL_ROWS + 2
+
+func _rebuild_slab(cell_size: float, night_mode: bool) -> void:
+	if _slab_instance == null or not is_instance_valid(_slab_instance):
+		return
+	var mesh := _make_slab_mesh(cell_size)
+	if mesh == null:
+		_clear_slab()
+		return
+	_slab_instance.mesh = mesh
+	_slab_instance.position = Vector3.ZERO
+	_slab_instance.rotation_degrees = Vector3.ZERO
+	_slab_instance.material_override = _make_slab_material(cell_size, night_mode)
+	_slab_instance.visible = true
+	_slab_active = true
+
+func _clear_slab() -> void:
+	_slab_active = false
+	if _slab_instance != null and is_instance_valid(_slab_instance):
+		_slab_instance.mesh = null
+		_slab_instance.visible = false
 
 ## Anneau de falaises : 4 bandes verticales le long des bords de la grille, plus
 ## un rebord horizontal (« lip ») au sommet de chaque bande pour rester lisible
@@ -1730,6 +2094,202 @@ func _make_cliff_material(night_mode: bool) -> StandardMaterial3D:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return mat
+
+# ---------------------------------------------------------------------------
+# Socle de diorama — géométrie et matériau (finitions CS2)
+# ---------------------------------------------------------------------------
+
+## Matériau du socle : shader `slab_base.gdshader` ÉCLAIRÉ (le soleil, les
+## ombres et l'AO du preset qualité CS2 modulent la dalle), palette alignée sur
+## le terrain/la jupe, option strates A/B et teinte de nuit.
+func _make_slab_material(cell_size: float, night_mode: bool) -> ShaderMaterial:
+	if _slab_material == null:
+		_slab_material = ShaderMaterial.new()
+		_slab_material.shader = SLAB_BASE_SHADER
+	_slab_material.set_shader_parameter("rock_dark", CLIFF_ROCK)
+	_slab_material.set_shader_parameter("rock_light", CLIFF_ROCK_LIGHT)
+	_slab_material.set_shader_parameter("moss_color", SLAB_MOSS)
+	_slab_material.set_shader_parameter("grass_color", TERRAIN_GRASS)
+	_slab_material.set_shader_parameter("earth_color", TERRAIN_EARTH)
+	_slab_material.set_shader_parameter(
+		"night_tint", TERRAIN_NIGHT_TINT if night_mode else Color.WHITE)
+	_slab_material.set_shader_parameter("slab_strata", _slab_strata)
+	_slab_material.set_shader_parameter("slab_ao_strength", 1.0)
+	_slab_material.set_shader_parameter("slab_contact_strength", 1.0)
+	_slab_material.set_shader_parameter("slab_grass_cover", 1.0)
+	_slab_material.set_shader_parameter("slab_cell_size", maxf(cell_size, 0.001))
+	return _slab_material
+
+## Maillage du SOCLE DE DIORAMA : quatre côtés identiques, chacun un profil de
+## `get_slab_row_count()` lignes du haut vers le pied :
+##   0..3  arête adoucie (dessus herbeux, nez qui déborde, chamfrein, paroi),
+##   4..   paroi subdivisée (SLAB_WALL_ROWS),
+##   fin    pied évasé vers le fond (raccord / salissure, contact visuel).
+## Le sommet suit exactement les hauteurs de bord du terrain (continuité), le
+## débord herbeux est irrégulier (bruit déterministe), et les coins sont
+## miterés — aucun trou ni recouvrement coplanaire. Nombre de sommets BORNÉ
+## (~`(2w+2h+12) × lignes`), une seule surface, un seul draw call.
+func _make_slab_mesh(cell_size: float) -> ArrayMesh:
+	if _terrain_w <= 0 or _terrain_h <= 0:
+		return null
+	var depth := CLIFF_DEPTH_CELLS * cell_size
+	var outset := CLIFF_OUTSET_CELLS * cell_size
+	var lip := SLAB_LIP_CELLS * cell_size
+	var droop := SLAB_EDGE_DROOP_CELLS * cell_size
+	# Profil : distance horizontale vers l'extérieur + delta Y par rapport au
+	# sommet de bord + masques de sommet (herbe, AO, terre/contact).
+	var rows: Array = [
+		{"out": 0.0, "dy": 0.0, "grass": 1.0, "ao": 1.0, "dirt": 0.0},
+		{"out": lip, "dy": -0.02 * cell_size,
+			"grass": 1.0, "ao": 1.0, "dirt": 0.0},
+		{"out": lip + 0.10 * cell_size, "dy": -0.46 * droop,
+			"grass": 0.45, "ao": 0.70, "dirt": 0.0},
+		{"out": outset, "dy": -droop, "grass": 0.04, "ao": 0.42, "dirt": 0.0},
+	]
+	for r in range(SLAB_WALL_ROWS):
+		var t := float(r + 1) / float(SLAB_WALL_ROWS + 1)
+		rows.append({
+			"out": outset,
+			"dy": lerpf(-droop, -depth, t),
+			"grass": 0.0,
+			"ao": lerpf(0.68, 0.46, t),
+			"dirt": 0.0,
+		})
+	rows.append({
+		"out": outset + 0.35 * cell_size,
+		"dy": -depth - 0.34 * SLAB_BASE_DROP_CELLS * cell_size,
+		"grass": 0.0, "ao": 0.40, "dirt": 0.55,
+	})
+	rows.append({
+		"out": outset + SLAB_BASE_FLARE_CELLS * cell_size,
+		"dy": -depth - SLAB_BASE_DROP_CELLS * cell_size,
+		"grass": 0.0, "ao": 0.30, "dirt": 1.0,
+	})
+	var verts: Array = []
+	var colors: Array = []
+	var indices: Array = []
+	for side in ["north", "south", "west", "east"]:
+		_append_slab_side(verts, colors, indices, side, cell_size, rows)
+	if verts.is_empty():
+		return null
+	var normals := _slab_normals(verts, indices)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array(verts)
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array(normals)
+	arrays[Mesh.ARRAY_COLOR] = PackedColorArray(colors)
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array(indices)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+## Semence de bruit par côté : l'arête herbeuse ondule différemment sur chaque
+## bord (jamais un cadre régulier).
+func _slab_side_seed(side: String) -> int:
+	match side:
+		"north":
+			return 3
+		"south":
+			return 17
+		"west":
+			return 31
+		"east":
+			return 47
+	return 5
+
+## Ajoute un côté du socle (grille échantillons × lignes) aux tableaux.
+func _append_slab_side(
+	verts: Array,
+	colors: Array,
+	indices: Array,
+	side: String,
+	cell_size: float,
+	rows: Array
+) -> void:
+	var horizontal := side == "north" or side == "south"
+	var segment_count := _terrain_w if horizontal else _terrain_h
+	var along_max := float(segment_count) * cell_size
+	var outset := CLIFF_OUTSET_CELLS * cell_size
+	# Un échantillon de débord à chaque extrémité pour couvrir les coins (la
+	# paroi s'y prolonge ; l'arête est miterée plus bas).
+	var sample_count := segment_count + 3
+	var row_count := rows.size()
+	var first := verts.size()
+	var seed := _slab_side_seed(side)
+	var flip := side == "south" or side == "west"
+	for s in range(sample_count):
+		var along := s - 1
+		var along_pos := 0.0
+		if along < 0:
+			along_pos = -outset
+		elif along > segment_count:
+			along_pos = along_max + outset
+		else:
+			along_pos = float(along) * cell_size
+		var top_y := 0.0
+		if horizontal:
+			var edge_j := 0 if side == "north" else _terrain_h
+			top_y = _vertex_height(clampi(along, 0, _terrain_w), edge_j) * cell_size
+		else:
+			var edge_i := 0 if side == "west" else _terrain_w
+			top_y = _vertex_height(edge_i, clampi(along, 0, _terrain_h)) * cell_size
+		# Irrégularité de l'arête : deux bruits déterministes par échantillon
+		# (débord et descente du nez) → un contour organique, jamais un trait.
+		var wob := _terrain_variation(along, seed)
+		var wob2 := _terrain_variation(along + 57, seed + 11)
+		var along_inner := clampf(along_pos, 0.0, along_max)
+		for r in range(row_count):
+			var row: Dictionary = rows[r]
+			var out_distance := float(row["out"])
+			var dy := float(row["dy"])
+			# Les lignes 1 et 2 forment le débord herbeux : on les fait onduler.
+			# La descente est toujours NÉGATIVE (l'arête ne dépasse jamais le
+			# sommet du terrain : aucune marche visible au raccord).
+			if r == 1 or r == 2:
+				out_distance += wob * 0.20 * cell_size
+				dy -= absf(wob2) * 0.035 * cell_size
+			# Miter : hors carte, les lignes extérieures reculent le long du
+			# bord de leur distance de sortie (coins partagés, pas de trou).
+			var along_eff := along_inner
+			if out_distance > 0.0001 and not is_equal_approx(along_pos, along_inner):
+				along_eff += signf(along_pos - along_inner) * out_distance
+			verts.append(_cliff_side_position(
+				side, along_eff, top_y + dy, out_distance, cell_size))
+			colors.append(Color(
+				float(row["grass"]), 1.0, float(row["ao"]), float(row["dirt"])))
+	for s in range(sample_count - 1):
+		for r in range(row_count - 1):
+			var a := first + s * row_count + r
+			var b := a + row_count
+			var c := a + 1
+			var d := b + 1
+			if flip:
+				indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+			else:
+				indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
+
+## Normales lissées par sommet (moyenne des normales de faces) — le socle n'a
+## pas de normales analytiques simples (profil courbe + miter).
+func _slab_normals(verts: Array, indices: Array) -> Array:
+	var normals: Array = []
+	normals.resize(verts.size())
+	for i in range(normals.size()):
+		normals[i] = Vector3.ZERO
+	for t in range(0, indices.size(), 3):
+		var ia := int(indices[t])
+		var ib := int(indices[t + 1])
+		var ic := int(indices[t + 2])
+		var va: Vector3 = verts[ia]
+		var vb: Vector3 = verts[ib]
+		var vc: Vector3 = verts[ic]
+		var n := (vb - va).cross(vc - va)
+		normals[ia] = (normals[ia] as Vector3) + n
+		normals[ib] = (normals[ib] as Vector3) + n
+		normals[ic] = (normals[ic] as Vector3) + n
+	for i in range(normals.size()):
+		var n: Vector3 = normals[i]
+		normals[i] = n.normalized() if n.length() > 0.000001 else Vector3.UP
+	return normals
 
 func get_map_extent() -> Vector2:
 	return _extent

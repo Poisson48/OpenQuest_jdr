@@ -126,6 +126,26 @@ uniform float refraction_enabled : hint_range(0.0, 1.0) = 1.0;
 // Force de la distorsion du lit réfracté (défaut doux : 0.35 — la déformation
 // reste naturelle, jamais une loupe qui tord le fond).
 uniform float refraction_strength : hint_range(0.0, 1.0) = 0.35;
+// --- ÉCLAIRAGE DOUBLE DU LIT RÉFRACTÉ (approximation CS2) ------------------
+// Le lit vu à travers la lame d'eau reçoit (1) la lumière DIRECTE (réseau de
+// caustiques projeté sur le fond) et (2) une AMBIANCE/DIFFUSION d'eau (lumière
+// du ciel diffusée par la colonne d'eau, d'autant plus forte que l'eau est
+// mince). Sans ce second terme, les hauts-fonds restent un aplat sombre.
+// 1 = finition active (défaut) ; 0 = rendu EXACTEMENT précédent (A/B).
+uniform float bed_ambient_lift : hint_range(0.0, 2.0) = 1.0;
+// --- ADOUCISSEMENT DES NEZ DE RUBAN VUS DE TRÈS HAUT ----------------------
+// `COLOR.b` (rivières) porte le masque de pointe posé par MapWater3D. Quand la
+// caméra est très haute / la carte vue entière, l'empreinte écran d'un pixel
+// devient grande en unités monde (`fwidth` de la position) : l'alpha s'éteint
+// alors sur la pointe, le nez effilé ne se dessine plus en aiguille. Vrai en
+// perspective comme en orthographique (aucun uniform caméra nécessaire).
+// 1 = finition active (défaut) ; 0 = rendu EXACTEMENT précédent (A/B).
+uniform float tip_soften_distance : hint_range(0.0, 1.0) = 1.0;
+// Empreinte écran (unités monde par pixel) où commence / s'achève l'extinction
+// des pointes : en deçà la carte est vue de près (aucun effet), au-delà elle
+// est vue de très haut (pointe pleinement adoucie).
+uniform float tip_soften_lo : hint_range(0.0, 1.0) = 0.025;
+uniform float tip_soften_hi : hint_range(0.0, 1.0) = 0.075;
 
 // ===========================================================================
 // Bruits procéduraux (aucune texture, aucun asset)
@@ -165,6 +185,14 @@ float wave_field(vec2 q, float t) {
 	float mid = value_noise(q * 21.0 + vec2(-t * 0.085, t * 0.060));
 	float micro = value_noise(q * 64.0 + vec2(t * 0.160, -t * 0.120));
 	return big * 0.50 + mid * 0.30 + micro * 0.20;
+}
+
+// Position MONDE interpolée : sert à mesurer l'empreinte écran d'un pixel
+// (`fwidth`) pour l'adoucissement des nez de ruban vus de très haut.
+varying vec3 world_pos;
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
@@ -274,6 +302,30 @@ void fragment() {
 		// LOD 0 : on veut le lit NET (les réflexions, elles, restent floues).
 		refr_bed = textureLod(screen_tex, refr_safe, 0.0).rgb;
 		refr_act = refr_depth * refr_inside * edge_fade;
+		// --- ÉCLAIRAGE DOUBLE DU LIT RÉFRACTÉ (approximation CS2) ----------
+		// Le lit arrive déjà éclairé par le terrain (caustiques directes +
+		// absorption cuites dans la carte d'eau). Côté eau, on complète :
+		//  (1) la lumière DIRECTE est rendue STRUCTURÉE par un réseau de
+		//      caustiques projeté sur le lit — le fond n'est plus un aplat ;
+		//  (2) l'AMBIANCE/DIFFUSION de la colonne d'eau (lumière du ciel
+		//      diffusée par la lame) se dépose sur le lit, d'autant plus que
+		//      l'eau est mince : c'est ce terme qui « décolle » le fond.
+		// `bed_ambient_lift = 0` → aucun de ces termes, rendu EXACTEMENT
+		// précédent (A/B réversible).
+		if (bed_ambient_lift > 0.001) {
+			float lift = clamp(bed_ambient_lift, 0.0, 2.0);
+			float shallow_bed = 1.0 - smoothstep(0.08, 0.46, depth01);
+			// (1) DIRECT : mailles de caustiques (produit de deux bruits →
+			// cellules irrégulières, jamais des rayures), animées lentement.
+			float bed_caustic = value_noise(wuv * 46.0 + vec2(t * 0.05, -t * 0.04))
+				* value_noise(wuv * 79.0 + vec2(-t * 0.06, t * 0.03));
+			bed_caustic = smoothstep(0.32, 0.74, bed_caustic);
+			refr_bed *= 1.0 + bed_caustic * 0.60 * lift * shallow_bed;
+			// (2) AMBIANCE : lumière du ciel diffusée dans la lame d'eau.
+			vec3 bed_ambient = mix(sky_color.rgb, shallow_color.rgb, 0.45);
+			refr_bed = mix(refr_bed, refr_bed + bed_ambient * 0.15,
+				clamp(lift * shallow_bed * refr_depth * 0.9, 0.0, 1.0));
+		}
 	}
 
 	// --- Scintillement solaire STRUCTURÉ (rare et filigrané) -----------------
@@ -553,6 +605,25 @@ void fragment() {
 			ALPHA = a1;
 		}
 	}
+	// --- ADOUCISSEMENT DES NEZ DE RUBAN VUS DE TRÈS HAUT -------------------
+	// `COLOR.b` (rivières uniquement, posé par MapWater3D) porte le masque de
+	// pointe : 1 au nez effilé, 0 au cœur du chenal. La vue de très haut est
+	// détectée SANS uniform caméra : `fwidth` de la position monde donne
+	// l'empreinte écran d'un pixel en unités monde — elle grandit quand la
+	// caméra monte ou que la carte est dézoomée, en perspective comme en
+	// orthographique. L'alpha s'éteint alors progressivement sur la pointe :
+	// le nez ne se dessine plus en aiguille, sans toucher au centre du chenal
+	// (continuité de la rivière intacte). `tip_soften_distance = 0` → rendu
+	// EXACTEMENT précédent (A/B réversible).
+	if (tip_soften_distance > 0.001 && edge_softness > 0.001) {
+		float footprint = max(fwidth(world_pos.x), fwidth(world_pos.z));
+		float far_view = smoothstep(clamp(tip_soften_lo, 0.0, 2.0),
+			max(tip_soften_hi, tip_soften_lo + 0.001), footprint);
+		float tip = clamp(COLOR.b, 0.0, 1.0);
+		ALPHA *= 1.0 - tip * far_view
+			* clamp(tip_soften_distance, 0.0, 1.0) * 0.95;
+	}
+
 	ROUGHNESS = 0.12;
 	METALLIC = 0.15;
 }

@@ -55,6 +55,9 @@ const HILL_SLOPE := 0.95
 ## Vue d'ensemble : la falaise n'occupe qu'une partie de l'image.
 const DIFF_MIN_OVERVIEW := 0.003
 const DIFF_MIN_CLIFF := 0.010
+## La roche de falaise doit différer nettement du dallage historique dans la
+## bande abrupte, sans toucher aux zones plates.
+const DIFF_MIN_CLIFF_MATERIAL := 0.008
 ## Montagne : mesurée sur la zone utile de l'image (hors fond noir), la
 ## montagne elle-même ne couvrant qu'une partie de la carte. Seuil tenu bas
 ## volontairement : le nettoyage anti-bandes de l'auto-matériau (frontières
@@ -84,6 +87,17 @@ const CAVITY_DIFF_MIN := 0.002
 ## « mouchetures sombres » (très plus sombres que leur voisinage local) toléré
 ## sur le gros plan de la frontière neige/roche.
 const SNOW_SPECKLE_MAX := 0.012
+## FINITIONS EAU/TERRAIN (task-4) — éclairage double du lit (`bed_ambient_lift`)
+## vu du terrain : le lit des hauts-fonds s'éclaircit par diffusion d'eau.
+const BED_TERRAIN_DIFF_MIN := 0.0015
+## FINITIONS TERRAIN CS2 (task-9) — strates de falaise (couches obliques).
+const STRATA_DIFF_MIN := 0.0020
+## Variation macro 3D (taches sèches/vertes à grande échelle).
+const MACRO_DIFF_MIN := 0.0008
+## Transition neige adoucie (+ neige des creux), à mouchetures constantes.
+const SNOW_DIFF_MIN := 0.0005
+## Ancrage des objets : AO de contact sous les objets posés.
+const OBJECT_AO_DIFF_MIN := 0.0008
 
 var _failed: bool = false
 
@@ -158,7 +172,18 @@ func _run() -> void:
 
 	_set_triplanar(mat, 1.0)
 	_set_auto(mat, 1.0)
+	# ISOLATION : les captures historiques de la falaise mesurent la PROJECTION
+	# (triplanar) et la PRIORITÉ des splats peints, pas la finition strates.
+	# On coupe donc `cliff_strata` pour ces captures (l'A/B dédié aux strates
+	# suit plus bas) : les seuils d'origine restent mesurés sur leur objet.
+	mat.set_shader_parameter("cliff_strata", 0.0)
+	mat.set_shader_parameter("cliff_material_strength", 1.0)
 	var cliff: Image = await _shot(engine, "terrain_quality_cliff")
+	# A/B de la matière : la falaise naturelle remplace explicitement le pavage
+	# uniquement là où la pente l'exige ; les zones praticables restent stables.
+	mat.set_shader_parameter("cliff_material_strength", 0.0)
+	var cliff_paving: Image = await _shot(engine, "terrain_quality_cliff_paving")
+	mat.set_shader_parameter("cliff_material_strength", 1.0)
 	_set_triplanar(mat, 0.0)
 	var cliff_uv: Image = await _shot(engine, "terrain_quality_cliff_uv")
 	_set_triplanar(mat, 1.0)
@@ -175,6 +200,35 @@ func _run() -> void:
 		var flat_d := _mean_diff(_band(cliff, 0.82, 1.0), _band(cliff_uv, 0.82, 1.0))
 		print("  [diff] plaine triplanar on/off = %.5f" % flat_d)
 		_assert("flat_terrain_unchanged", flat_d < SAME_MAX, "diff=%.5f" % flat_d)
+	if cliff != null and cliff_paving != null:
+		var cliff_material_d := _mean_diff(_band(cliff, 0.28, 0.72), _band(cliff_paving, 0.28, 0.72))
+		print("  [diff] roche falaise/pavage = %.4f" % cliff_material_d)
+		_assert("cliff_material_visible", cliff_material_d > DIFF_MIN_CLIFF_MATERIAL,
+			"diff=%.4f" % cliff_material_d)
+		var flat_material_d := _mean_diff(_band(cliff, 0.84, 1.0), _band(cliff_paving, 0.84, 1.0))
+		_assert("cliff_material_keeps_flats", flat_material_d < SAME_MAX,
+			"diff=%.4f" % flat_material_d)
+
+	# --- STRATES DE FALAISE (task-9) : A/B `cliff_strata` (0 = roche lisse) --
+	# Même caméra que le gros plan falaise : les couches obliques doivent se
+	# lire sur la paroi et ne PAS repeindre la plaine (règle d'or).
+	_set_strata(mat, 0.0)
+	var strata_off: Image = await _shot(engine, "terrain_strata_off")
+	_set_strata(mat, 1.0)
+	var strata_on: Image = await _shot(engine, "terrain_strata_on")
+	if strata_off != null and strata_on != null:
+		_assert("strata_off_not_blank", not _is_blank(strata_off))
+		_assert("strata_on_not_blank", not _is_blank(strata_on))
+		var strata_d := _mean_diff(
+			_band(strata_off, 0.26, 0.72), _band(strata_on, 0.26, 0.72))
+		print("  [diff] strates falaise off/on = %.4f" % strata_d)
+		_assert("strata_visible", strata_d > STRATA_DIFF_MIN,
+			"diff=%.4f" % strata_d)
+		var strata_flat := _mean_diff(
+			_band(strata_off, 0.84, 1.0), _band(strata_on, 0.84, 1.0))
+		print("  [diff] strates plaine off/on = %.5f" % strata_flat)
+		_assert("strata_keeps_flats", strata_flat < SAME_MAX,
+			"diff=%.5f" % strata_flat)
 	if cliff != null and cliff_auto0 != null:
 		# PRIORITÉ DES SPLATS PEINTS : la paroi peinte en pierre (bande
 		# centrale de l'image) ne bouge pas quand l'auto-matériau s'active.
@@ -221,6 +275,14 @@ func _run() -> void:
 		print("terrain_quality_shot_test:FAIL")
 		quit(1)
 		return
+	# Non-régression du CORRECTIF « neige sur carte plate » : une vraie
+	# montagne est au-dessus du plein effet de la porte `auto_min_relief`
+	# (×2,25) → l'auto-matériau y reste strictement identique.
+	var mountain_span := absf(float(mat_b.get_shader_parameter("terrain_max_height"))
+		- float(mat_b.get_shader_parameter("terrain_min_height")))
+	print("  [auto] montagne : relief absolu = %.2f u" % mountain_span)
+	_assert("auto_mountain_above_gate", mountain_span >= 1.8,
+		"span=%.2f" % mountain_span)
 	# Cadrage : la montagne au centre-bas, la plaine lointaine au-dessus.
 	# La caméra est positionnée géométriquement (ortho, on connaît son angle) :
 	# après un 2e `configure`, les helpers de cadrage différés du moteur peuvent
@@ -256,6 +318,37 @@ func _run() -> void:
 			_crop(mountain_auto0, 0.10, 0.15, 0.90, 0.92))
 		print("  [diff] mountain auto on/off = %.4f" % d)
 		_assert("mountain_auto_differs", d > DIFF_MIN_MOUNTAIN, "diff=%.4f" % d)
+
+	# --- VARIATION MACRO 3D (task-9) : A/B `macro_variation` ----------------
+	# Même caméra montagne : taches de sol plus sèches/vertes à grande échelle,
+	# non répétitives, sans repeindre la neige (elle doit rester propre).
+	_set_macro_variation(mat_b, 0.0)
+	var macro_off: Image = await _shot(engine, "terrain_strata_macro_off")
+	_set_macro_variation(mat_b, 1.0)
+	var macro_on: Image = await _shot(engine, "terrain_strata_macro_on")
+	if macro_off != null and macro_on != null:
+		_assert("macro_off_not_blank", not _is_blank(macro_off))
+		var macro_d := _mean_diff(
+			_crop(macro_off, 0.10, 0.15, 0.90, 0.92),
+			_crop(macro_on, 0.10, 0.15, 0.90, 0.92))
+		print("  [diff] variation macro off/on = %.5f" % macro_d)
+		_assert("macro_variation_visible", macro_d > MACRO_DIFF_MIN,
+			"diff=%.5f" % macro_d)
+	# Coût indicatif (fenêtre cachée) : strates + variation macro (ALU shader).
+	_set_strata(mat_b, 0.0)
+	_set_macro_variation(mat_b, 0.0)
+	var t_off := Time.get_ticks_usec()
+	for _i in range(24):
+		await process_frame
+	var ms_off := float(Time.get_ticks_usec() - t_off) / 24000.0
+	_set_strata(mat_b, 1.0)
+	_set_macro_variation(mat_b, 1.0)
+	var t_on := Time.get_ticks_usec()
+	for _i in range(24):
+		await process_frame
+	var ms_on := float(Time.get_ticks_usec() - t_on) / 24000.0
+	print("  [perf] temps de frame finitions off=%.2f ms on=%.2f ms (indicatif)"
+		% [ms_off, ms_on])
 
 	# =====================================================================
 	# BERGE MOUILLÉE : lac de plaine (carte B) — la terre doit s'assombrir
@@ -306,6 +399,39 @@ func _run() -> void:
 			"doux=%.0f raide=%.0f" % [bands.x, bands.y])
 
 	# =====================================================================
+	# ÉCLAIRAGE DOUBLE DU LIT (finition CS2 task-4) — A/B `bed_ambient_lift`
+	# VU DU TERRAIN : le lit sous l'eau reçoit l'ambiance/diffusion de la lame
+	# en plus des caustiques directes (fin de l'effet « fond plat »). L'eau est
+	# masquée pour ne mesurer QUE le lit ; la caméra est celle du lac (même
+	# cadrage que la berge mouillée).
+	# =====================================================================
+	if water != null:
+		water.visible = false
+	for _i in range(3):
+		await process_frame
+	_assert("bed_terrain_water_map_on",
+		is_equal_approx(float(mat_b.get_shader_parameter("water_map_enabled")), 1.0))
+	_set_bed_terrain(mat_b, 0.0)
+	var bed_terrain_off: Image = await _shot(engine, "cs2_finitions_terrain_bed_off")
+	_set_bed_terrain(mat_b, 1.0)
+	var bed_terrain_on: Image = await _shot(engine, "cs2_finitions_terrain_bed_on")
+	if water != null:
+		water.visible = true
+	for _i in range(3):
+		await process_frame
+	if bed_terrain_off != null and bed_terrain_on != null:
+		_assert("bed_terrain_off_not_blank", not _is_blank(bed_terrain_off))
+		# Centre de l'image = le lit du lac (hauts-fonds).
+		var bed_d := _mean_diff(
+			_crop(bed_terrain_off, 0.20, 0.20, 0.80, 0.80),
+			_crop(bed_terrain_on, 0.20, 0.20, 0.80, 0.80))
+		print("  [diff] éclairage double du lit (terrain) off/on = %.5f" % bed_d)
+		_assert("bed_terrain_visible", bed_d > BED_TERRAIN_DIFF_MIN,
+			"diff=%.5f" % bed_d)
+	_assert("bed_terrain_restored",
+		is_equal_approx(float(mat_b.get_shader_parameter("bed_ambient_lift")), 1.0))
+
+	# =====================================================================
 	# FINITIONS TERRAIN (carte B) — AO de cuvettes sur relief bruité,
 	# ligne de neige propre, pentes intermédiaires sans dédoublement.
 	# =====================================================================
@@ -346,6 +472,132 @@ func _run() -> void:
 		5.5, "terrain_quality_slope")
 	_assert("slope_capture_ok", slope != null and not _is_blank(slope))
 
+	# --- TRANSITION NEIGE/ROCHE (task-9) : A/B `snow_transition` -------------
+	# Même cadrage que la ligne de neige : la frontière doit rester PROPRE (le
+	# test de mouchetures reste vert) tout en devenant plus douce et en tenant
+	# mieux dans les creux. On mesure le gain ET l'absence de mouchetures.
+	_set_snow_transition(mat_b, 0.0)
+	var snow_off: Image = await _frame_and_shoot(
+		engine, snow_cam, 6.0, "terrain_strata_snow_off")
+	_set_snow_transition(mat_b, 1.0)
+	var snow_on: Image = await _frame_and_shoot(
+		engine, snow_cam, 6.0, "terrain_strata_snow_on")
+	if snow_off != null and snow_on != null:
+		_assert("snow_transition_off_not_blank", not _is_blank(snow_off))
+		var snow_d := _mean_diff(snow_off, snow_on)
+		print("  [diff] transition neige off/on = %.5f" % snow_d)
+		_assert("snow_transition_visible", snow_d > SNOW_DIFF_MIN,
+			"diff=%.5f" % snow_d)
+		var snow_speck := _dark_speckle_ratio(snow_on, 0.15, 0.15, 0.85, 0.85)
+		print("  [neige] mouchetures (transition active) = %.4f" % snow_speck)
+		_assert("snow_transition_keeps_clean", snow_speck < SNOW_SPECKLE_MAX,
+			"ratio=%.4f" % snow_speck)
+
+	# =====================================================================
+	# CORRECTIF « NEIGE SUR CARTE PLATE » : porte de relief ABSOLU de
+	# l'auto-matériau (`auto_min_relief`). Sur une carte de ville quasi plate
+	# (buttes de bord seulement), l'auto-matériau (roche/terre/neige) ne doit
+	# plus rien changer ; la même capture avec la porte à 0 (comportement
+	# historique) montre les taches blanches d'origine.
+	# =====================================================================
+	var flat_map: Dictionary = _make_flat_city_map(md)
+	engine.configure(flat_map, [], [], [], [], [], false, true,
+		{"mode": "select"}, {}, "")
+	for _i in range(14):
+		await process_frame
+	var ground_flat = engine._ground
+	var mat_flat = ground_flat._mesh_instance.material_override
+	_assert("auto_flat_material", mat_flat is ShaderMaterial)
+	if mat_flat is ShaderMaterial:
+		var flat_span := absf(float(mat_flat.get_shader_parameter("terrain_max_height"))
+			- float(mat_flat.get_shader_parameter("terrain_min_height")))
+		print("  [auto] carte ville : relief absolu = %.3f u" % flat_span)
+		_assert("auto_flat_below_gate", flat_span < 0.8, "span=%.3f" % flat_span)
+		_assert("auto_flat_gate_default",
+			is_equal_approx(float(mat_flat.get_shader_parameter("auto_min_relief")),
+				0.8))
+		# Caméra rasant les buttes de bord (là où les taches apparaissaient).
+		var ext_flat: Vector2 = engine._map_extent
+		engine._camera.position = Vector3(ext_flat.x * 0.5, 3.2,
+			ext_flat.y * 0.5 + 7.5)
+		engine._camera.rotation_degrees = Vector3(-24.0, 0.0, 0.0)
+		for _i in range(8):
+			await process_frame
+		var flat_on: Image = await _shot(engine, "terrain_auto_flat_on")
+		# Comportement HISTORIQUE : porte coupée → neige/terre automatiques.
+		ground_flat.set_auto_min_relief(0.0)
+		var flat_legacy: Image = await _shot(engine, "terrain_auto_flat_off")
+		# Référence : auto-matériau totalement coupé (rendu peint pur).
+		ground_flat.set_auto_min_relief(0.8)
+		mat_flat.set_shader_parameter("auto_material_strength", 0.0)
+		var flat_none: Image = await _shot(engine, "terrain_auto_flat_none")
+		mat_flat.set_shader_parameter("auto_material_strength", 1.0)
+		if flat_on != null and flat_none != null and flat_legacy != null:
+			_assert("auto_flat_on_not_blank", not _is_blank(flat_on))
+			var neutral := _mean_diff(
+				_crop(flat_on, 0.05, 0.10, 0.95, 0.98),
+				_crop(flat_none, 0.05, 0.10, 0.95, 0.98))
+			print("  [diff] carte plate : porte ON vs auto coupé = %.5f" % neutral)
+			_assert("auto_flat_neutral", neutral < SAME_MAX,
+				"diff=%.5f" % neutral)
+			var legacy := _mean_diff(
+				_crop(flat_legacy, 0.05, 0.10, 0.95, 0.98),
+				_crop(flat_none, 0.05, 0.10, 0.95, 0.98))
+			print("  [diff] carte plate : porte OFF (historique) vs auto coupé = %.4f"
+				% legacy)
+			_assert("auto_flat_legacy_artifacts", legacy > 0.002,
+				"diff=%.4f" % legacy)
+
+	# --- ANCRAGE DES OBJETS (task-9) : A/B `terrain_object_ao` --------------
+	# Sur la carte de DÉMONSTRATION (village réel) : les empreintes des objets
+	# posés au sol cuisent une AO de contact qui « assoit » le terrain sous les
+	# bâtiments/props. Preuve : diff mesuré avec/sans les empreintes.
+	var boot: GDScript = load("res://scripts/debug/carte_25d_boot.gd")
+	if boot != null:
+		var demo: Dictionary = boot.build_demo(md)
+		var village: Dictionary = demo.get("map", {})
+		engine.configure(village, [], [], [], [], [], false, true,
+			{"mode": "select"}, {}, "")
+		for _i in range(14):
+			await process_frame
+		var ground_b = engine._ground
+		var ext: Vector2 = engine._map_extent
+		engine._camera.position = Vector3(ext.x * 0.5, 7.5, ext.y * 0.5 + 9.0)
+		engine._camera.rotation_degrees = Vector3(-42.0, 0.0, 0.0)
+		for _i in range(10):
+			await process_frame
+		ground_b.clear_object_occlusion()
+		var obj_off: Image = await _shot(engine, "terrain_strata_object_ao_off")
+		var stamps := _object_stamps(village)
+		print("  [ancrage] %d empreintes d'objets" % stamps.size())
+		ground_b.set_object_occlusion_stamps(stamps)
+		_assert("object_ao_texture", ground_b.has_object_occlusion())
+		var obj_on: Image = await _shot(engine, "terrain_strata_object_ao_on")
+		_assert("object_ao_default_on",
+			is_equal_approx(ground_b.get_terrain_object_ao(), 1.0))
+		# A/B : 0 = terrain strictement inchangé.
+		ground_b.set_terrain_object_ao(0.0)
+		var obj_zero: Image = await _shot(engine, "terrain_strata_object_ao_zero")
+		ground_b.clear_object_occlusion()
+		ground_b.set_terrain_object_ao(1.0)
+		if obj_off != null and obj_on != null:
+			_assert("object_ao_off_not_blank", not _is_blank(obj_off))
+			var oa_d := _mean_diff(
+				_crop(obj_off, 0.05, 0.15, 0.95, 0.95),
+				_crop(obj_on, 0.05, 0.15, 0.95, 0.95))
+			print("  [diff] ancrage objets off/on = %.5f" % oa_d)
+			_assert("object_ao_visible", oa_d > OBJECT_AO_DIFF_MIN,
+				"diff=%.5f" % oa_d)
+			if obj_zero != null:
+				var zero_d := _mean_diff(
+					_crop(obj_off, 0.05, 0.15, 0.95, 0.95),
+					_crop(obj_zero, 0.05, 0.15, 0.95, 0.95))
+				print("  [diff] ancrage objets force=0 vs off = %.5f" % zero_d)
+				_assert("object_ao_zero_neutral", zero_d < SAME_MAX,
+					"diff=%.5f" % zero_d)
+	_assert("strata_restored",
+		is_equal_approx(float(mat_b.get_shader_parameter("cliff_strata")), 1.0))
+
 	if _failed:
 		print("terrain_quality_shot_test:FAIL")
 		quit(1)
@@ -364,6 +616,43 @@ func _set_auto(mat: ShaderMaterial, amount: float) -> void:
 ## Activation A/B de la berge mouillée (0 = aucun effet sur le terrain).
 func _set_shore(mat: ShaderMaterial, amount: float) -> void:
 	mat.set_shader_parameter("shore_enabled", amount)
+
+## Activation A/B de l'éclairage double du lit sous l'eau (0 = état précédent).
+func _set_bed_terrain(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("bed_ambient_lift", amount)
+
+## Activation A/B des strates de falaise (0 = roche lisse précédente).
+func _set_strata(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("cliff_strata", amount)
+
+## Activation A/B de la variation macro 3D (0 = inchangé).
+func _set_macro_variation(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("macro_variation", amount)
+
+## Activation A/B de la transition neige adoucie (0 = état précédent).
+func _set_snow_transition(mat: ShaderMaterial, amount: float) -> void:
+	mat.set_shader_parameter("snow_transition", amount)
+
+## Empreintes d'objets au sol pour l'AO de contact du terrain : dérivées des
+## `meshes` de la carte de démonstration (chaque empreinte = rayon selon
+## l'emprise de l'objet).
+func _object_stamps(map: Dictionary) -> Array:
+	var stamps: Array = []
+	var meshes = map.get("meshes", [])
+	if not (meshes is Array):
+		return stamps
+	for entry in (meshes as Array):
+		if not (entry is Dictionary):
+			continue
+		var span := maxf(float((entry as Dictionary).get("w", 1.0)),
+			float((entry as Dictionary).get("h", 1.0)))
+		stamps.append({
+			"x": float((entry as Dictionary).get("x", 0.0)),
+			"y": float((entry as Dictionary).get("y", 0.0)),
+			"radius": clampf(span * 0.55, 0.45, 1.4),
+			"strength": 0.50,
+		})
+	return stamps
 
 ## Fondu A/B de l'AO de cuvettes cuite (0 = rendu historique, 1 = AO cuite).
 func _set_cavity_bake(mat: ShaderMaterial, amount: float) -> void:
@@ -464,6 +753,38 @@ func _pixel_diff(a: Color, b: Color) -> float:
 # ===========================================================================
 # Carte A — falaise
 # ===========================================================================
+
+## Carte type VILLE : quasi plate (relief absolu ~0,35 u), seules les cases de
+## bord portent de petites buttes ondulées — le cas exact où l'auto-matériau
+## par altitude relative déclenchait neige/terre sur des bosses de quelques
+## centimètres (correctif `auto_min_relief`).
+func _make_flat_city_map(md) -> Dictionary:
+	var cw := 24
+	var ch := 18
+	var map: Dictionary = md.create_complex_map("Terrain ville plate", "general",
+		"local", cw, ch)
+	map["vegetationDensity"] = 0.0
+	map["waterBodies"] = []
+	map["fogEnabled"] = false
+	var heights: Array = []
+	heights.resize(cw * ch)
+	var mats: Array = []
+	mats.resize(cw * ch)
+	mats.fill(0)
+	for y in range(ch):
+		for x in range(cw):
+			var border := x < 2 or y < 2 or x > cw - 3 or y > ch - 3
+			var value := 0.0
+			if border:
+				value = 0.16 * sin(float(x) * 0.52) * cos(float(y) * 0.44) \
+					+ 0.06 * sin(float(x + y) * 0.85) + 0.04
+			heights[y * cw + x] = value
+			# Une bande de terre peinte pour juger le rendu « ville ».
+			if y >= ch / 2 - 1 and y <= ch / 2:
+				mats[y * cw + x] = 1
+	map["terrainHeights"] = heights
+	map["terrainMaterials"] = mats
+	return map
 
 ## Carte avec falaise : plateau, paroi ≈ 75° (UV écrasés) et plaine.
 func _make_cliff_map(md) -> Dictionary:
