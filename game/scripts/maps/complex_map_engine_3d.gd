@@ -3042,6 +3042,15 @@ func set_element_position(element_id: String, gx: float, gy: float) -> void:
 		node.token_data["x"] = gx
 		node.token_data["y"] = gy
 
+## Met à jour x/y/rotation/échelle d'un élément 3D **sans reconstruire** la
+## scène (poignées de rotation/redimensionnement en drag live).
+func set_element_live_fields(element_id: String, fields: Dictionary) -> void:
+	if _meshes_layer and _meshes_layer.has_method("set_mesh_fields"):
+		_meshes_layer.set_mesh_fields(element_id, fields)
+	if _props_layer and _props_layer.has_method("set_prop_fields"):
+		_props_layer.set_prop_fields(element_id, fields)
+
+
 func set_element_light_radius(element_id: String, radius_cells: float) -> void:
 	if _lights_layer and _lights_layer.has_method("set_light_radius"):
 		_lights_layer.set_light_radius(element_id, radius_cells)

@@ -158,6 +158,20 @@ Preuves : `hd_assets_test` (HD, UV, texture de projection, encre, budget),
 Validation : `map_objects3d_import_test`, `city_scene_test`,
 `object_grounding_test`, `cite_demo_catalog_test`, `map_editor_test`,
 `map_quality_cs2_test`, `rock_kit_library_test`, `cite_eau_test` — tous PASS.
+### 1.9 Édition fluide & outils Eau
+
+- **Freeze du drag supprimé** : chaque mouvement appelait `_sync_engine()`
+  (rebuild complet des couches). Passage en mise à jour incrémentale des nœuds
+  3D (position / rotation / échelle) : **2,3 s → 0,1 ms** par mouvement
+  (carte cité HD), sans recréation de nœud. Test `editor_drag_perf_test`.
+- **Rivière et Lac visibles** : ces modes étaient cachés dans le menu « Mode »
+  de « Peindre l'eau » ; ils sont maintenant des outils de la palette, groupe
+  **Eau** (`water_river`, `water_lake`), avec le mode synchronisé.
+  Test `water_tools_ui_test`.
+- Les contrôles ont été exécutés **en rendu réel (GPU, fenêtre cachée)** comme
+  demandé, pas en headless.
+
+
 ---
 
 ## 2. Preuves

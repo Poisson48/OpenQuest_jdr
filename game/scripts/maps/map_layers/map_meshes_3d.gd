@@ -1460,6 +1460,36 @@ func set_mesh_position(mesh_id: String, gx: float, gy: float) -> void:
 	node.position.x = gx * _cell_size + _cell_size * 0.5
 	node.position.z = gy * _cell_size + _cell_size * 0.5
 
+## Met à jour la transform d'un objet 3D **sans reconstruire la scène**
+## (drag live : déplacement, rotation, redimensionnement). `fields` reprend les
+## clés du document (x, y, w, h, sizeX/Y/Z, display…). Évite le rebuild complet
+## des couches à chaque mouvement de souris (freeze d'environ 1 s avec le kit HD).
+func set_mesh_fields(mesh_id: String, fields: Dictionary) -> void:
+	if not _nodes.has(mesh_id):
+		return
+	var node: Node3D = _nodes[mesh_id]
+	var entry: Dictionary = _mesh_entries.get(mesh_id, {})
+	if entry.is_empty():
+		return
+	entry = entry.duplicate()
+	for key in fields:
+		if key == "display" and fields[key] is Dictionary:
+			var display: Dictionary = (entry.get("display", {}) as Dictionary).duplicate()
+			for dkey in (fields[key] as Dictionary):
+				display[dkey] = (fields[key] as Dictionary)[dkey]
+			entry["display"] = display
+		else:
+			entry[key] = fields[key]
+	_mesh_entries[mesh_id] = entry
+	if _is_bridge(str(entry.get("asset", ""))):
+		update_bridge(entry)
+		return
+	_place_root(node, entry)
+	var shadow := _find_child_with_meta(node, "contact_shadow")
+	if shadow is Node3D:
+		_repose_contact_shadow(node, shadow as Node3D, _is_inclined(entry))
+
+
 ## Premier descendant portant le meta demandé (null si absent).
 func _find_child_with_meta(node: Node, meta_name: String) -> Node:
 	if node == null:

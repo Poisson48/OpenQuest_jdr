@@ -17,6 +17,7 @@ func setup(editor) -> void:
 	_ed = editor
 
 func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dictionary) -> void:
+	_ed._live_incremental = false
 	if not _ed._editable:
 		return
 	if button == MOUSE_BUTTON_RIGHT:
@@ -111,6 +112,7 @@ func _on_pointer_pressed(grid: Vector2, screen: Vector2, button: int, mods: Dict
 	if ToolsScript.is_pose_tool(_ed._tool):
 		_ed._place_pose_element(_ed._snap(grid))
 		_ed._press_mode = "none"
+		_ed._live_incremental = false
 		return
 	if ToolsScript.is_drag_tool(_ed._tool):
 		_ed._press_mode = "draw"
@@ -277,6 +279,9 @@ func _begin_select_or_move(grid: Vector2, screen: Vector2, mods: Dictionary) -> 
 
 func _start_move_drag(ids: Array) -> void:
 	_ed._press_mode = "move"
+	# Le déplacement met à jour les nœuds 3D de façon incrémentale : aucun
+	# rebuild de couche pendant le drag (plus de freeze d'une seconde).
+	_ed._live_incremental = true
 	_ed._drag_ids = ids.duplicate()
 	_ed._drag_origins.clear()
 	for id_variant in _ed._drag_ids:
@@ -573,7 +578,11 @@ func _apply_handle_resize(grid: Vector2) -> void:
 			"sizeX": new_dims.x, "sizeY": new_dims.y, "sizeZ": new_dims.z,
 			"display": {"scale": 1.0},
 		}
+		# Flag posé AVANT le changement du document : le premier mouvement de la
+		# poignée ne déclenche pas non plus le rebuild complet des couches.
+		_ed._live_incremental = true
 		_ed.doc.set_live_fields(id, fields)
+		_ed._engine.set_element_live_fields(id, fields)
 		return
 	if str(resized_elem.get("kind", "")) == DocumentScript.KIND_LIGHT:
 		var radius := maxf(0.5, maxf(w, h) * 0.5)
@@ -631,7 +640,13 @@ func _apply_handle_rotate(grid: Vector2) -> void:
 	var start_angle := (start - center).angle()
 	var cur_angle := (grid - center).angle()
 	var rot = float(_ed._handle_state.get("rotation", 0.0)) + rad_to_deg(cur_angle - start_angle)
-	_ed.doc.set_live_fields(id, {"display": {"rotation": rot}})
+	var fields := {"display": {"rotation": rot}}
+	var elem: Dictionary = _ed.doc.get_element(id)
+	var is_mesh := str(elem.get("kind", "")) == DocumentScript.KIND_MESH
+	_ed._live_incremental = is_mesh
+	_ed.doc.set_live_fields(id, fields)
+	if is_mesh:
+		_ed._engine.set_element_live_fields(id, fields)
 
 func _constrain_axis(from: Vector2, to: Vector2) -> Vector2:
 	if absf(to.x - from.x) >= absf(to.y - from.y):

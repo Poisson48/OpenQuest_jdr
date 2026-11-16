@@ -1,5 +1,7 @@
 extends RefCounted
 
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+
 ## Options d'outils de l'éditeur de carte — extrait de `map_complex_editor.gd`.
 ##
 ## Reconstruit la barre d'options contextuelle HORIZONTALE (_rebuild_tool_options)
@@ -53,7 +55,7 @@ func _field_hbox(parent: Control, label_text: String, control: Control) -> HBoxC
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color("#A1AFB2"))
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("secondary"))
 	row.add_child(lbl)
 	control.custom_minimum_size.y = 28.0
 	row.add_child(control)
@@ -109,7 +111,7 @@ func _sep(parent: Control) -> void:
 		sep.custom_minimum_size = Vector2(1, 20)
 		sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var sep_bg := StyleBoxFlat.new()
-		sep_bg.bg_color = Color("#414E54")
+		sep_bg.bg_color = CartographerThemeScript.color("border")
 		sep.add_theme_stylebox_override("separator", sep_bg)
 		parent.add_child(sep)
 		return
@@ -612,7 +614,8 @@ func _rebuild_tool_options() -> void:
 				water_opt.select(i)
 		water_opt.item_selected.connect(func(index):
 			_ed._water_mode = str(water_opt.get_item_metadata(index))
-			_ed._rebuild_tool_options()
+			# Le bouton actif de la palette suit le mode (Rivière / Lac / Peindre).
+			_ed.refresh_water_tool_active()
 		)
 		_sep(_ed._tool_options)
 		_field_hbox(_ed._tool_options, "Mode", water_opt)

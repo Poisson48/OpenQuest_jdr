@@ -37,6 +37,7 @@ const HistoryPanelScript := preload("res://scripts/maps/editor/map_editor_histor
 const SettingsPanelScript := preload("res://scripts/maps/editor/map_editor_settings_panel.gd")
 const LibraryPanelScript := preload("res://scripts/maps/editor/map_editor_library_panel.gd")
 const EscMenuScript := preload("res://scripts/maps/editor/map_editor_esc_menu.gd")
+const ParametresScript := preload("res://scripts/maps/editor/map_editor_parametres.gd")
 const AssetLibraryScript := preload("res://scripts/maps/map_asset_library.gd")
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapRenderStyleScript := preload("res://scripts/maps/map_render_style.gd")
@@ -56,6 +57,8 @@ const BUILD_TOOLS := [ToolsScript.MESH_WALL, ToolsScript.ROOM_3D, ToolsScript.RO
 # Types via preload (pas class_name global) : clone sans .godot compile (AUDIT UI P0-1).
 var doc = DocumentScript.new()
 var _editable: bool = true
+## Variante de thème active (`or` / `jade`) — voir CartographerTheme.
+var _theme_variant: String = "or"
 var _tool: String = ToolsScript.SELECT
 var _snap_mode: String = "cell"
 var _save_policy: String = SAVE_MANUAL
@@ -416,6 +419,10 @@ var _press_start_grid: Vector2 = Vector2.ZERO
 var _press_start_screen: Vector2 = Vector2.ZERO
 var _press_moved: bool = false
 var _drag_ids: Array = []
+## Vrai quand le drag live met à jour les nœuds 3D de façon incrémentale
+## (déplacement/rotation/redimensionnement d'objets) : on saute alors le rebuild
+## complet des couches dans `_on_doc_changed`.
+var _live_incremental: bool = false
 var _drag_origins: Dictionary = {}
 var _handle_state: Dictionary = {}
 var _link_source: String = ""
@@ -460,6 +467,9 @@ var _export_dialog: FileDialog
 var _export_image_dialog: FileDialog
 var _import_dialog: FileDialog
 var _esc_menu
+var _parametres: Control = null
+var _fps_overlay: Label = null
+var _delete_confirm_dialog: ConfirmationDialog = null
 var _settings_panel
 var _library_panel
 var _template_name_dialog: AcceptDialog
@@ -488,21 +498,40 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(0, 0)
 	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
-	theme = CartographerThemeScript.build(true)
+	# Variante de thème choisie dans les préférences (« or » historique, « jade »).
+	_theme_variant = str(AppSettings.get_interface("theme"))
+	CartographerThemeScript.set_active_variant(_theme_variant)
+	theme = CartographerThemeScript.build(true, _theme_variant)
 	doc.changed.connect(_on_doc_changed)
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
 	doc.dirty_changed.connect(_on_dirty_changed)
 	_bind_ui()
 	_build_generation_overlay()
+	_create_parametres_menu()
+	if not AppSettings.settings_changed.is_connected(_on_app_settings_changed):
+		AppSettings.settings_changed.connect(_on_app_settings_changed)
+	_apply_display_preferences()
 	resized.connect(_on_editor_resized)
 	var vp := get_viewport()
 	if vp and not vp.size_changed.is_connected(_on_viewport_size_changed):
 		vp.size_changed.connect(_on_viewport_size_changed)
 
 func _process(_delta: float) -> void:
-	if _fps_lbl != null:
-		_fps_lbl.text = "FPS %d" % Engine.get_frames_per_second()
+	# Compteur de performance : visibilité, position et niveau de détail sont
+	# des préférences (menu Paramètres), le Label existait déjà en barre d'état.
+	if _fps_lbl != null and _fps_lbl.visible:
+		_fps_lbl.text = _fps_text()
+	if _fps_overlay != null and _fps_overlay.visible:
+		_fps_overlay.text = _fps_text()
+
+## Texte du compteur FPS selon les préférences (« FPS 60 » ou « FPS 60 · 16.6 ms · 412 dc »).
+func _fps_text() -> String:
+	var fps := Engine.get_frames_per_second()
+	if not bool(AppSettings.get_display("fps_details")):
+		return "FPS %d" % fps
+	var draw_calls := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	return "FPS %d · %.1f ms · %d dc" % [fps, 1000.0 / maxf(1.0, float(fps)), draw_calls]
 
 # ===========================================================================
 # API publique (consommée par map_viewer.gd)
@@ -611,7 +640,7 @@ func _float_right_palette() -> void:
 	_fps_lbl = Label.new()
 	_fps_lbl.text = "FPS —"
 	_fps_lbl.add_theme_font_size_override("font_size", 11)
-	_fps_lbl.add_theme_color_override("font_color", Color("#718087"))
+	_fps_lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	if _status_lbl != null and _status_lbl.get_parent() is Container:
 		_status_lbl.get_parent().add_child(_fps_lbl)
 	# Échelle typographique (§5) : statut et aide à 12 px.
@@ -619,7 +648,7 @@ func _float_right_palette() -> void:
 		_status_lbl.add_theme_font_size_override("font_size", 12)
 	if _hint_lbl != null:
 		_hint_lbl.add_theme_font_size_override("font_size", 12)
-		_hint_lbl.add_theme_color_override("font_color", Color("#A1AFB2"))
+		_hint_lbl.add_theme_color_override("font_color", CartographerThemeScript.color("secondary"))
 
 	_populate_tools(%ToolHost)
 	_populate_snap(%SnapOption)
@@ -693,7 +722,7 @@ func _populate_tools(host: VBoxContainer) -> void:
 		var focus_title := Label.new()
 		focus_title.text = "MODE CHEMINS"
 		focus_title.add_theme_font_size_override("font_size", 11)
-		focus_title.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		focus_title.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 		focus_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		host.add_child(focus_title)
 	for group in ToolsScript.GROUP_ORDER:
@@ -779,7 +808,7 @@ func _build_generation_overlay() -> void:
 	_gen_label = Label.new()
 	_gen_label.text = "Génération…"
 	_gen_label.add_theme_font_size_override("font_size", 13)
-	_gen_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72))
+	_gen_label.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	box.add_child(_gen_label)
 	_gen_bar = ProgressBar.new()
 	_gen_bar.min_value = 0
@@ -901,7 +930,7 @@ func _build_action_bar() -> void:
 	_zoom_lbl.text = "100%"
 	_zoom_lbl.custom_minimum_size = Vector2(46, 0)
 	_zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_zoom_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	_zoom_lbl.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	bar.add_child(_zoom_lbl)
 	_icon_button(bar, "+", "Zoomer", func(): _engine.zoom_in())
 	_icon_button(bar, "⟲", "Recadrer sur la carte", func():
@@ -963,13 +992,13 @@ func _build_immersive_chrome() -> void:
 	brand.text = "OpenQuest"
 	brand.add_theme_font_override("font", preload("res://assets/fonts/ringbearer_medium.ttf"))
 	brand.add_theme_font_size_override("font_size", 22)
-	brand.add_theme_color_override("font_color", Color("#F2C46C"))
-	brand.add_theme_color_override("font_shadow_color", Color("#17130E"))
+	brand.add_theme_color_override("font_color", CartographerThemeScript.color("accent"))
+	brand.add_theme_color_override("font_shadow_color", CartographerThemeScript.color("brand_shadow"))
 	brand.add_theme_constant_override("shadow_offset_y", 2)
 	top.add_child(brand)
 	var subtitle := Label.new()
 	subtitle.text = "   Éditeur de cartes 3D"
-	subtitle.add_theme_color_override("font_shadow_color", Color("#17130E"))
+	subtitle.add_theme_color_override("font_shadow_color", CartographerThemeScript.color("brand_shadow"))
 	subtitle.add_theme_constant_override("shadow_offset_y", 2)
 	subtitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	subtitle.clip_text = true
@@ -981,15 +1010,16 @@ func _build_immersive_chrome() -> void:
 	recenter.name = "RecenterMapButton"
 	_immersive_save = _immersive_header_button(top, "Enregistrer", "Enregistrer (Ctrl+S)", save_now)
 	var test := _immersive_header_button(top, "Tester", "Enregistrer puis ouvrir une session de test", _test_current_map)
-	test.add_theme_stylebox_override("normal", _immersive_surface(Color("#39301D"), Color("#DAAF56"), 6, 8))
+	test.add_theme_stylebox_override("normal", _immersive_surface(CartographerThemeScript.color("button_accent_bg"), CartographerThemeScript.color("button_accent_border"), 6, 8))
 	_immersive_header_button(top, "Commandes", "Commandes avancées, panneaux et aide", func():
 		_commands_open = not _commands_open
 		_apply_palette_visibility()
 	)
+	_immersive_header_button(top, "⚙ Paramètres", "Graphismes, compteur FPS, touches et langue (F10)", _open_parametres)
 
 	var location := PanelContainer.new()
 	location.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	location.add_theme_stylebox_override("panel", _immersive_surface(Color("#241F17EF"), Color("#68563B"), 8, 6))
+	location.add_theme_stylebox_override("panel", _immersive_surface(CartographerThemeScript.color("header_alpha"), CartographerThemeScript.color("border"), 8, 6))
 	_immersive_header.add_child(location)
 	_breadcrumb.reparent(location)
 
@@ -997,7 +1027,7 @@ func _build_immersive_chrome() -> void:
 	_commands.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_immersive_header.add_child(_commands)
 	var advanced := PanelContainer.new()
-	advanced.add_theme_stylebox_override("panel", _immersive_surface(Color("#231D15F5"), Color("#68563B"), 8, 5))
+	advanced.add_theme_stylebox_override("panel", _immersive_surface(CartographerThemeScript.color("advanced_alpha"), CartographerThemeScript.color("border"), 8, 5))
 	_commands.add_child(advanced)
 	var command_rows := VBoxContainer.new()
 	advanced.add_child(command_rows)
@@ -1016,7 +1046,7 @@ func _build_immersive_chrome() -> void:
 	)
 
 	_immersive_dock = PanelContainer.new()
-	_immersive_dock.add_theme_stylebox_override("panel", _immersive_surface(Color("#262016F5"), Color("#68563B"), 14, 6))
+	_immersive_dock.add_theme_stylebox_override("panel", _immersive_surface(CartographerThemeScript.color("dock_alpha"), CartographerThemeScript.color("border"), 14, 6))
 	add_child(_immersive_dock)
 	_immersive_dock.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_immersive_dock.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -1646,6 +1676,7 @@ func _build_dialogs() -> void:
 			_engine.reset_zoom()
 	)
 	_esc_menu.clear_selection_pressed.connect(func(): doc.clear_selection())
+	_esc_menu.settings_pressed.connect(_open_parametres)
 	_esc_menu.import_json_pressed.connect(func(): _import_dialog.popup_centered(Vector2i(760, 500)))
 	_esc_menu.export_json_pressed.connect(func(): _export_dialog.popup_centered(Vector2i(760, 500)))
 	_esc_menu.save_policy_selected.connect(func(policy, label):
@@ -1782,12 +1813,13 @@ func _rebuild_palette_v2() -> void:
 			groups.append(_group_def("Épinglés", _pinned_tool_ids))
 		groups.append(_group_def("Navigation", [ToolsScript.SELECT, ToolsScript.PAN, ToolsScript.ERASE, ToolsScript.MEASURE]))
 		groups.append(_group_def("Construction", [ToolsScript.PROC_PATH, ToolsScript.WALL, ToolsScript.ZONE, ToolsScript.ZONE_RECT, ToolsScript.ZONE_POLY, ToolsScript.PLATFORM, ToolsScript.BRIDGE, ToolsScript.AREA]))
-		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT, ToolsScript.WATER_PAINT]))
+		groups.append(_group_def("Terrain", [ToolsScript.PAINT, ToolsScript.GROUND_MATERIAL, ToolsScript.TERRAIN_HEIGHT]))
+		groups.append(_group_def("Eau", [ToolsScript.WATER_RIVER, ToolsScript.WATER_LAKE, ToolsScript.WATER_PAINT]))
 		groups.append(_group_def("Objets", [ToolsScript.MESH, ToolsScript.SCATTER, ToolsScript.FLOWER_ZONE]))
 		# Le groupe « Avancé » n'est plus dans la colonne : il vit dans le volant
 		# « Plus d'outils » (MapEditorToolFlyout) + les 3 récents épinglés.
 	_palette_v2.setup(groups)
-	_palette_v2.set_active(_tool)
+	_palette_v2.set_active(_active_water_tool_id())
 
 func _load_icon_manifest() -> Dictionary:
 	var path := "res://assets/icons/lucide/manifest.json"
@@ -1924,12 +1956,24 @@ func _refresh_recent_buttons() -> void:
 		_recent_buttons.append(b)
 
 func _set_tool(tool_id: String) -> void:
-	var changed := tool_id != _tool
+	# Rivière / Lac sont des variantes explicites de l'outil Eau : elles restent
+	# des outils de la palette (découvrables), mais partagent le même outil
+	# moteur `water_paint` avec le mode correspondant.
+	var previous_active := _active_tool_id()
+	if tool_id == ToolsScript.WATER_RIVER:
+		_water_mode = "river"
+		tool_id = ToolsScript.WATER_PAINT
+	elif tool_id == ToolsScript.WATER_LAKE:
+		_water_mode = "lake"
+		tool_id = ToolsScript.WATER_PAINT
+	elif tool_id == ToolsScript.WATER_PAINT:
+		_water_mode = "paint"
+	var changed := tool_id != _tool or previous_active != _active_water_tool_id()
 	_tool = tool_id
 	if changed:
 		_palette_opts = tool_id not in [ToolsScript.SELECT, ToolsScript.PAN]
 	if _palette_v2 != null:
-		_palette_v2.set_active(tool_id)
+		_palette_v2.set_active(_active_water_tool_id())
 	if _path_panel != null:
 		_path_panel.set_active_tool(tool_id)
 		if _path_focus:
@@ -1954,6 +1998,29 @@ func _set_tool(tool_id: String) -> void:
 		_fade_options_bar()
 	_update_hint()
 	_refresh_overlay()
+
+## Identifiant de l'outil « réel » (Rivière/Lac sont des variantes de l'eau).
+func _active_water_tool_id() -> String:
+	if _tool != ToolsScript.WATER_PAINT:
+		return _tool
+	match _water_mode:
+		"river":
+			return ToolsScript.WATER_RIVER
+		"lake":
+			return ToolsScript.WATER_LAKE
+	return ToolsScript.WATER_PAINT
+
+## Identifiant actif affiché (préfixe pour les comparaisons de changement).
+func _active_tool_id() -> String:
+	return _active_water_tool_id()
+
+## Le menu « Mode » de l'outil eau a changé : rafraîchit le bouton actif de la
+## palette (Rivière/Lac/Peindre) en plus des options.
+func refresh_water_tool_active() -> void:
+	if _palette_v2 != null:
+		_palette_v2.set_active(_active_water_tool_id())
+	_rebuild_tool_options()
+
 
 ## Fondu enchaîné de la barre d'options au changement d'outil (100 ms).
 func _fade_options_bar() -> void:
@@ -3285,7 +3352,7 @@ func _refresh_templates() -> void:
 		empty.text = "Aucun template. Sélectionnez des éléments puis « ＋ Depuis la sélection »."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_font_size_override("font_size", 11)
-		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		empty.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 		_template_list.add_child(empty)
 		return
 	for entry_variant in templates:
@@ -3355,12 +3422,23 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventKey):
 		return
+	# Menu Paramètres ouvert : il capte ses propres touches (Échap / F10).
+	if _parametres != null and _parametres.visible:
+		return
 	var key := event as InputEventKey
 	if key.keycode == KEY_SPACE:
 		_space_held = key.pressed
 		return
 	if not key.pressed or key.echo:
 		return
+	# Remap des raccourcis (menu Paramètres) : la touche personnalisée est
+	# traduite vers la touche d'origine AVANT les tests de keycode ci-dessous,
+	# et l'ancienne touche d'une action remappée est neutralisée (null).
+	var translated := AppSettings.translate_key_event(key) as InputEventKey
+	if translated == null:
+		get_viewport().set_input_as_handled()
+		return
+	key = translated
 
 	# Pendant un drag / tracé : Échap annule, le reste des raccourcis outils est ignoré.
 	var gesturing := _press_mode != "none"
@@ -3430,8 +3508,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 	match key.keycode:
 		KEY_DELETE, KEY_BACKSPACE:
-			doc.remove_elements(doc.selection())
-			_sync_engine()
+			_delete_selection()
 		KEY_ESCAPE:
 			if _overlay and _overlay.measure_active:
 				_overlay.measure_active = false
@@ -3465,6 +3542,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_sync_engine()
 		KEY_TAB:
 			_toggle_ui(key.shift_pressed)
+		KEY_F10:
+			_open_parametres()
 		KEY_F11:
 			_toggle_fullscreen()
 		KEY_HOME:
@@ -3533,6 +3612,183 @@ func _toggle_fullscreen() -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	# Le réglage persiste (menu Paramètres → Fenêtre & boucle de rendu).
+	AppSettings.sync_window_mode_from_display()
+
+# ===========================================================================
+# Menu Paramètres (atelier plein écran) & préférences d'application
+# ===========================================================================
+
+## Construit l'atelier de paramètres (caché au démarrage) et enregistre le
+## moteur 3D auprès d'`AppSettings` pour que les surcharges suivent la carte.
+func _create_parametres_menu() -> void:
+	if _parametres != null:
+		return
+	if _engine != null:
+		AppSettings.register_engine(_engine)
+	_parametres = ParametresScript.new()
+	_parametres.setup(self)
+	_parametres.closed.connect(func(): _set_status("Paramètres fermés."))
+	add_child(_parametres)
+
+func _open_parametres() -> void:
+	if _parametres == null:
+		return
+	if _esc_menu != null and _esc_menu.visible:
+		_esc_menu.hide()
+	_parametres.call("open")
+
+## Applique les préférences d'affichage de l'éditeur : compteur FPS, mini-carte,
+## barre d'aide et délai des infobulles.
+func _apply_display_preferences() -> void:
+	var fps_visible := bool(AppSettings.get_display("fps_visible"))
+	var position := str(AppSettings.get_display("fps_position"))
+	if _fps_lbl != null:
+		_fps_lbl.visible = fps_visible and position == "status"
+		_fps_lbl.text = _fps_text()
+	if _fps_overlay == null:
+		_build_fps_overlay()
+	if _fps_overlay != null:
+		_fps_overlay.visible = fps_visible and position == "top_right"
+	var show_minimap := bool(AppSettings.get_interface("show_minimap"))
+	for path in ["%MinimapHost", "%LblMinimap"]:
+		var node := get_node_or_null(path)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = show_minimap
+	if _hint_lbl != null:
+		_hint_lbl.visible = bool(AppSettings.get_interface("show_hint_bar"))
+	AppSettings.apply_tooltip_delay()
+
+## Compteur FPS en surimpression (préférence « coin supérieur droit »).
+func _build_fps_overlay() -> void:
+	_fps_overlay = Label.new()
+	_fps_overlay.text = "FPS —"
+	_fps_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fps_overlay.z_index = 320
+	_fps_overlay.add_theme_font_size_override("font_size", 12)
+	_fps_overlay.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
+	_fps_overlay.add_theme_color_override("font_shadow_color", CartographerThemeScript.color("brand_shadow"))
+	_fps_overlay.add_theme_constant_override("shadow_offset_y", 2)
+	_fps_overlay.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_fps_overlay.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_fps_overlay.offset_right = -14.0
+	_fps_overlay.offset_top = 12.0
+	_fps_overlay.visible = false
+	add_child(_fps_overlay)
+
+func _on_app_settings_changed(section: String) -> void:
+	match section:
+		AppSettings.SECTION_DISPLAY:
+			_apply_display_preferences()
+		AppSettings.SECTION_INTERFACE:
+			_apply_display_preferences()
+			_apply_theme_preferences()
+			# La taille de l'interface passe par le facteur du canvas racine :
+			# les docks doivent recalculer leurs largeurs.
+			_layout_force = true
+			call_deferred("_apply_responsive_layout")
+		AppSettings.SECTION_RENDERING:
+			AppSettings.apply_to_engine(_engine)
+		AppSettings.SECTION_KEYS:
+			_rebuild_palette_v2()
+
+# --- Thème : variante de palette ------------------------------------------
+
+## Propriétés de couleur et de style que les composants posent en local
+## (`add_theme_*_override`) : on les re-colore à chaud en changeant de variante.
+const THEME_COLOR_OVERRIDES := [
+	"font_color", "font_hover_color", "font_pressed_color", "font_focus_color",
+	"font_disabled_color", "font_shadow_color", "font_outline_color",
+	"font_color_disabled", "font_selected_color", "font_unselected_color",
+	"font_accelerator_color", "caret_color", "selection_color",
+	"icon_normal_color", "icon_hover_color", "icon_pressed_color",
+	"icon_focus_color", "icon_disabled_color",
+]
+const THEME_STYLEBOX_OVERRIDES := [
+	"panel", "normal", "hover", "pressed", "disabled", "focus",
+	"tab_selected", "tab_unselected", "tab_hovered",
+	"scroll", "grabber", "slider", "grabber_area", "separator",
+	"background", "content", "frame", "fill",
+]
+
+## Applique la variante de thème : reconstruit le `Theme` Godot, re-colore les
+## surcharges locales déjà posées dans tout l'éditeur (chrome immersive,
+## palettes, inspecteur, docks, menu Paramètres…) puis rafraîchit les rares
+## composants qui dessinent leurs propres couleurs.
+func _apply_theme_preferences() -> void:
+	var variant := str(AppSettings.get_interface("theme"))
+	if variant == _theme_variant:
+		return
+	var previous := _theme_variant
+	_theme_variant = variant
+	CartographerThemeScript.set_active_variant(variant)
+	theme = CartographerThemeScript.build(true, variant)
+	_retheme_subtree(self, CartographerThemeScript.retheme_colors(previous, variant))
+	# Palettes reconstruites avec les nouvelles couleurs (elles lisent la
+	# palette active au moment de la construction).
+	_rebuild_palette_v2()
+	if _flyout != null and is_instance_valid(_flyout):
+		_flyout.queue_free()
+		_flyout = null
+	_build_more_tools()
+	_rebuild_tool_options()
+	if _parametres != null and _parametres.has_method("refresh_theme_palette"):
+		_parametres.call("refresh_theme_palette")
+	_set_status("Thème : %s." % CartographerThemeScript.variant_label(variant))
+
+## Re-colore récursivement les surcharges locales qui portent une couleur de
+## l'ancienne palette. Les couleurs fonctionnelles (matières du terrain, poignées
+## de sélection, aperçus d'objets) ne sont pas dans la table : elles ne bougent pas.
+func _retheme_subtree(node: Node, mapping: Dictionary) -> void:
+	if mapping.is_empty():
+		return
+	if node is Control:
+		var control: Control = node
+		for item in THEME_COLOR_OVERRIDES:
+			if not control.has_theme_color_override(item):
+				continue
+			var current := control.get_theme_color(item)
+			if mapping.has(current):
+				control.add_theme_color_override(item, mapping[current])
+		for item in THEME_STYLEBOX_OVERRIDES:
+			if not control.has_theme_stylebox_override(item):
+				continue
+			var style := control.get_theme_stylebox(item)
+			if not (style is StyleBoxFlat):
+				continue
+			var flat := style as StyleBoxFlat
+			var recolored := flat.duplicate() as StyleBoxFlat
+			if mapping.has(flat.bg_color):
+				recolored.bg_color = mapping[flat.bg_color]
+			if mapping.has(flat.border_color):
+				recolored.border_color = mapping[flat.border_color]
+			control.add_theme_stylebox_override(item, recolored)
+	for child in node.get_children():
+		_retheme_subtree(child, mapping)
+
+## Suppression de la sélection, avec confirmation optionnelle (menu Paramètres).
+func _delete_selection() -> void:
+	if doc.selection().is_empty():
+		return
+	if not bool(AppSettings.get_interface("confirm_delete")):
+		doc.remove_elements(doc.selection())
+		_sync_engine()
+		return
+	if _delete_confirm_dialog == null:
+		_delete_confirm_dialog = ConfirmationDialog.new()
+		_delete_confirm_dialog.title = "Supprimer la sélection"
+		_delete_confirm_dialog.dialog_text = "Supprimer définitivement les éléments sélectionnés ?"
+		_delete_confirm_dialog.ok_button_text = "Supprimer"
+		_delete_confirm_dialog.cancel_button_text = "Annuler"
+		_delete_confirm_dialog.confirmed.connect(func():
+			if doc.selection().is_empty():
+				return
+			doc.remove_elements(doc.selection())
+			_sync_engine()
+			_set_status("Sélection supprimée.")
+		)
+		add_child(_delete_confirm_dialog)
+	_delete_confirm_dialog.popup_centered()
 
 ## Cadre toute la carte (Home).
 func _focus_map() -> void:
@@ -3856,6 +4112,9 @@ func _sync_engine(reset_view: bool = false) -> void:
 		{"mode": "select"},
 		view_state,
 	)
+	# Préférences de confort machine (menu Paramètres) : `configure()` vient de
+	# remettre le rendu aux valeurs de la carte, on réapplique les surcharges.
+	AppSettings.apply_to_engine(_engine)
 	if _engine.has_method("trace_event"):
 		_engine.call("trace_event", "SYNC_AFTER", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
 	if reset_view and view_state.is_empty():
@@ -4114,7 +4373,7 @@ func _refresh_breadcrumb() -> void:
 		if i > 0:
 			var sep := Label.new()
 			sep.text = "›"
-			sep.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+			sep.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 			_breadcrumb.add_child(sep)
 		var is_current := i == chain.size() - 1
 		var btn := Button.new()
@@ -4128,7 +4387,7 @@ func _refresh_breadcrumb() -> void:
 		btn.add_theme_font_size_override("font_size", 13)
 		btn.tooltip_text = btn.text
 		if is_current:
-			btn.add_theme_color_override("font_color_disabled", ThemeColors.GOLD_LIGHT)
+			btn.add_theme_color_override("font_color_disabled", CartographerThemeScript.color("accent_light"))
 		var target := str(step.get("id", ""))
 		btn.pressed.connect(func(): _on_open_map_requested(target))
 		_breadcrumb.add_child(btn)
@@ -4155,14 +4414,14 @@ func _refresh_history() -> void:
 		var empty := Label.new()
 		empty.text = "Aucune action enregistrée."
 		empty.add_theme_font_size_override("font_size", 11)
-		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		empty.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 		_history_list.add_child(empty)
 		return
 	for i in range(labels.size() - 1, -1, -1):
 		var lbl := Label.new()
 		lbl.text = "%d. %s" % [i + 1, labels[i]]
 		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", ThemeColors.TEXT if i == labels.size() - 1 else ThemeColors.TEXT_MUTED)
+		lbl.add_theme_color_override("font_color", CartographerThemeScript.color("text") if i == labels.size() - 1 else CartographerThemeScript.color("muted"))
 		_history_list.add_child(lbl)
 
 func _on_doc_changed(reason: String) -> void:
@@ -4172,10 +4431,16 @@ func _on_doc_changed(reason: String) -> void:
 		# Pas de rebuild panneaux pendant un drag live (positions changeantes).
 		if _press_mode not in ["move", "resize", "rotate"]:
 			_refresh_panels()
+	# Drag live incrémental (move/resize/rotate) : les nœuds 3D sont déjà mis à
+	# jour par le moteur, on ne reconstruit PAS les couches à chaque mouvement
+	# (c'était le freeze d'environ 1 s sur une carte remplie d'assets HD).
+	var live_incremental := _press_mode in ["move", "resize", "rotate"] and _live_incremental
 	if reason in ["undo", "redo", "meta", "fog", "tiles", "order", "light_reveal", "modify", "commit", "add", "remove"]:
-		_sync_engine()
+		if not (live_incremental and reason == "modify"):
+			_sync_engine()
 	_refresh_overlay()
-	if _save_policy == SAVE_ON_CHANGE and doc.is_dirty() and reason != "load":
+	if _save_policy == SAVE_ON_CHANGE and doc.is_dirty() and reason != "load" \
+			and not live_incremental:
 		save_now()
 	layout_changed.emit()
 
@@ -4206,7 +4471,7 @@ func _on_dirty_changed(is_dirty: bool) -> void:
 	if _dirty_lbl:
 		_dirty_lbl.text = "● non enregistré" if is_dirty else "✓ enregistré"
 		_dirty_lbl.add_theme_color_override("font_color",
-			ThemeColors.GOLD_LIGHT if is_dirty else ThemeColors.TEXT_MUTED)
+			CartographerThemeScript.color("accent_light") if is_dirty else CartographerThemeScript.color("muted"))
 
 var _pending_action: Callable = Callable()
 
@@ -4760,7 +5025,7 @@ func _refresh_effect_list() -> void:
 		var empty := Label.new()
 		empty.text = "Aucun effet sur la carte."
 		empty.add_theme_font_size_override("font_size", 11)
-		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		empty.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 		_effect_list.add_child(empty)
 		return
 	for elem_variant in effects:
@@ -4797,7 +5062,7 @@ func _make_status_chip(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	return lbl
 
 func _save_policy_label() -> String:
@@ -4955,7 +5220,7 @@ func _first_marker_type() -> String:
 func _section(parent: Control, text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	lbl.add_theme_font_size_override("font_size", 12)
 	parent.add_child(lbl)
 
@@ -4991,7 +5256,7 @@ func _spin(parent: Control, label_text: String, min_v: float, max_v: float, valu
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	col.add_child(lbl)
 	var spin := SpinBox.new()
 	spin.min_value = min_v
@@ -5020,7 +5285,7 @@ func _line_row(parent: Control, label_text: String, value: String, on_change: Ca
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	col.add_child(lbl)
 	var edit := LineEdit.new()
 	edit.text = value
@@ -5036,7 +5301,7 @@ func _color_row(parent: Control, label_text: String, value: String, on_change: C
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(70, 0)
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	row.add_child(lbl)
 	var picker := ColorPickerButton.new()
 	picker.custom_minimum_size = Vector2(64, 26)

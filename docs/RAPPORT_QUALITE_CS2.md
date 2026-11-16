@@ -138,6 +138,19 @@ LOD : l'import glTF Godot génère les niveaux de détail (`meshes/generate_lods
 à partir du maillage HD ; les objets lointains sont simplifiés automatiquement.
 Le kit complet reste sous ~1 M de triangles : largement dans le budget GPU.
 
+## Édition fluide & outils eau visibles
+
+- **Drag live incrémental** : déplacer / rotationner / redimensionner un objet
+  ne reconstruit plus les couches 3D à chaque mouvement de souris (l'ancien
+  `_sync_engine()` complet coûtait **2,3 s** sur la carte « Cité au fil de
+  l'eau »). Les nœuds sont mis à jour sur place (`set_mesh_fields` →
+  `_place_root`) : mesuré à **0,1 ms par mouvement**, sans rebuild
+  (`editor_drag_perf_test`, y compris `move/rotate/resize_no_rebuild`).
+- **Outils Eau explicites** : en plus de « Peindre l'eau », la palette expose
+  désormais un groupe **Eau** avec **Rivière (tracé)** et **Lac / mare** ; le
+  menu « Mode » reste synchronisé avec le bouton actif
+  (`water_tools_ui_test`).
+
 ## Reste (pistes)
 - Réflexions ray-marchées (SSR profond) — coût, non retenu dans le budget actuel.
 - Brume de pied de cascade **non éclairée** (choix) : éclairage de la brume par le soleil/les torches.

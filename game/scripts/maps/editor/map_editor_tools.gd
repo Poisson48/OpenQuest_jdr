@@ -49,6 +49,11 @@ const TERRAIN_HEIGHT := "terrain_height"
 const TERRAIN_SPLINE := "terrain_spline"
 const GROUND_MATERIAL := "ground_material"
 const WATER_PAINT := "water_paint"
+## Variantes explicites de l'outil eau (la palette les expose comme des
+## outils distincts : l'eau était introuvable pour beaucoup d'utilisateurs
+## car rivière/lac n'étaient que des entrées du menu « Mode »).
+const WATER_RIVER := "water_river"
+const WATER_LAKE := "water_lake"
 const FOG_REVEAL := "fog"
 const FOG_HIDE := "fog_hide"
 const ERASE := "erase"
@@ -252,7 +257,15 @@ const DEFS := [
 		"hint": "Clic ou glisser : peindre la matière du sol (herbe, terre/chemin, pierre). Choix de matière et taille de pinceau dans les options. Seulement en mode sol 3D.",
 	},
 	{
-		"id": WATER_PAINT, "icon": "💧", "label": "Peindre l'eau", "shortcut": "", "group": "terrain",
+		"id": WATER_RIVER, "icon": "🌊", "label": "Rivière (tracé)", "shortcut": "", "group": "water",
+		"hint": "Clic-glisser : tracez la rivière ; les dénivelés deviennent des cascades. Le lit est creusé, le sens du tracé = sens du courant.",
+	},
+	{
+		"id": WATER_LAKE, "icon": "🏞", "label": "Lac / mare", "shortcut": "", "group": "water",
+		"hint": "Cliquez-glissez un rectangle : le bassin est creusé et rempli jusqu'à son niveau. Molette : niveau d'eau.",
+	},
+	{
+		"id": WATER_PAINT, "icon": "💧", "label": "Peindre l'eau", "shortcut": "", "group": "water",
 		"hint": "Clic-glisser : peint de l'eau en creusant le sol sous le niveau d'eau. Maj : effacer l'eau (remonte le sol).",
 	},
 	{
