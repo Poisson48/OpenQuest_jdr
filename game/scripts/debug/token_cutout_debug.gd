@@ -1,6 +1,10 @@
 extends SceneTree
 
-## Dump cutout Kael pour vérifier alpha opaque.
+## Sonde de debug (hors suite de tests) : dump du cutout Kael pour vérifier l'alpha.
+##
+## Lancement manuel :
+##   godot --headless --path game --script res://scripts/debug/token_cutout_debug.gd
+## La capture est écrite dans user://kael_cutout_debug.png (portable).
 
 func _init() -> void:
 	call_deferred("_run")
@@ -15,7 +19,7 @@ func _run() -> void:
 		quit(1)
 		return
 	var img := tex.get_image()
-	var out := "/home/leo/Documents/GitHub/OpenQuest_jdr/docs/screenshots/kael_cutout_debug.png"
+	var out := "user://kael_cutout_debug.png"
 	img.save_png(out)
 	var semi := 0
 	var opaque := 0

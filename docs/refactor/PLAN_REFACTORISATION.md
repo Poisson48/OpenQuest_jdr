@@ -29,10 +29,10 @@ Le projet a grossi par accumulation de fonctionnalités : **20 fichiers dépasse
 ```
 Phase 0  Filets & vert                    ✅ 2026-11-17
 Phase 1  Purge du code mort               ✅ 2026-11-17  (−3 276 lignes, 27 scripts supprimés)
-Phase 2  Contrats & cœur client           🔄 2.0-2.4 livrés (contrats, session_model) ; lots 2.5-2.8 à suivre
-Phase 3  Éditeur de scénario              ⏳  (routeur de liens → core, découpage scenario_editor.gd)
+Phase 2  Contrats & cœur client           ✅ 2.0-2.7 livrés (+ 2.8 image) ; reste 2.8 schéma/démos
+Phase 3  Éditeur de scénario              🔄 3.1 livrée (routeur → core/graph) ; découpage scenario_editor.gd à suivre
 Phase 4  Éditeur de cartes 2.5D (5 vagues)⏳  (document → terrain → construction → moteur → contrôleur)
-Phase 5  Serveur & contrat de données     ⏳  (dés : une seule implémentation, schémas validés)
+Phase 5  Serveur & contrat de données     🔄 5.2 livrée (une seule implémentation de dés) ; schémas/CI à suivre
 Phase 6  Industrialisation & docs         ⏳  (CI, docs consolidées, métriques finales)
 ```
 
@@ -144,10 +144,10 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | 2.2 | `game_data_contract_test.gd` (30-40 assertions sur l'API publique de l'autoload) — ✅ 40 assertions, PASS | ~200 l. | Faible |
 | 2.3 | `CONTRAT_EDITEUR.md` généré + test de contrat listant les membres atteints par les tests (ADR-006) — ✅ 536 l. générées, 169 membres éditeur + 99 document + 128 moteur, outil `editor_contract.ps1` rejouable | ~120 l. | Faible |
 | 2.4 | `game_data.gd` lot 1 : `session_model` (~390 l. → `core/session/session_model.gd`), protégé par `session_model_test` — ✅ fait (commit 76e76a6) : god file 4 586 → 4 348 l. | M | Moyen |
-| 2.5 | `game_data.gd` lots suivants : `game_storage` → `turn_flow` → `inventory_rules` → `roster` | XL (4-6 PR) | Élevé |
+| 2.5-2.7 | `game_data.gd` : `game_storage` (162 l.), `turn_flow` (91 l.), `roster` (133 l.) extraits — ✅ GameData 4 348 → 4 199 l., 291 fonctions inchangées | L (3 PR) | Élevé |
 | 2.6 | `game_data.gd` : sortir le déplacement sémantique (533 l.) et la navigation d'échelle, une fois le modèle `mapPlayState` figé | L | Élevé |
 | 2.7 | `session/panels/map_workspace.gd` (1 321 l.) : sortir le contrôleur de déplacement, respecter le contrat SessionViewModel | M | Moyen |
-| 2.8 | `map_data.gd` (2 287 l.) : sortir l'image (`portrait_cutout`, `night_texture`, `thumbnail`), le schéma (`map_schema`), les cartes de démo (`game/data/demo_maps/`) | L | Moyen |
+| 2.8 | `map_data.gd` (2 287 l.) : sortir l'image (`cutout`, `night_texture`, `thumbnail`) — ✅ 2 088 l., parité pixel prouvée (39 SHA-256) ; reste le schéma (`map_schema`) et les cartes de démo (`game/data/demo_maps/`) | L | Moyen |
 
 **Critère d'acceptation** : `game_data.gd` ≤ 1 800 l. après 2.4-2.6, façade documentée ; tests de contrat ajoutés et verts ; suite complète sans nouvelle régression.
 
@@ -155,7 +155,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 
 | Lot | Contenu | Estimation | Risque |
 |---|---|---|---|
-| 3.1 | Extraire le routeur de liens de `scenario_editor/panels/graph_link_overlay.gd` (1 849 l.) vers `core/graph/link_router.gd` (~450 l.) — déjà protégé par `scenario_graph_routing_test` | L | Faible-Moyen |
+| 3.1 | Routeur de liens extrait de `graph_link_overlay.gd` (1 849 l.) vers `core/graph/{link_router,cable_geometry}.gd` — ✅ 7 captures byte-identiques, overlay −36 % | L | Faible-Moyen |
 | 3.2 | `scenario_editor.gd` (3 205 l.) : sortir le style (~399 l., patron `session_style.gd`) | M | Faible |
 | 3.3 | Sortir `graph_controller.gd` (~700 l. : nœuds, liens, zoom, positions) | L | Moyen |
 | 3.4 | Sortir `transitions_panel.gd` (~350 l.), `scene_inspector.gd` (~330 l.), `dock_history.gd` (~350 l.) | L | Moyen |
@@ -187,7 +187,7 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 | Lot | Contenu | Statut |
 |---|---|---|
 | 5.1 | Archiver la chaîne de jeu TS + MCP (ADR-001) | ✅ phase 0 |
-| 5.2 | Dés : archiver `server/src/dice.ts` + `server/src/rules/dice_engine.ts`, migrer `test_dice_engine.ts` en test de conformité de la spec (`dice_cases.json` exécuté côté GDScript uniquement, ADR-005) | ⏳ |
+| 5.2 | Dés : chaîne TS archivée (`server/legacy/`), `dice_cases.json` seul exécuté côté GDScript — ✅ (commits serveur, 0 import de dés actif) | ✅ |
 | 5.3 | `data/schemas/` : validateur générique + script `tools/refactor/validate_data.ps1` branché dans `verify.ps1` ; réaligner ou archiver les 3 schémas en dérive (`save_game`, `scenario`, `map`) | ⏳ |
 | 5.4 | Protocole pooling : figer `lobby/types.ts` + `protocol.ts` comme contrat v2 et ajouter un test de sérialisation (déjà 18 vérifications d'intégration) | ⏳ |
 | 5.5 | Documentation serveur : `STACK.md` (ADRs), `MULTIPLAYER.md`, `MOTEUR_DES.md` alignés sur l'état réel | ⏳ |
@@ -271,15 +271,15 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 
 | Métrique | Avant (2026-11-17) | Cible après chantier |
 |---|---:|---:|
-| Fichiers `.gd` > 1 000 lignes | 20 (19 après phase 1) | 0 |
-| Fichiers `.gd` > 500 lignes | 51 (50 après phase 1) | 0 |
-| Lignes client | 116 299 (**113 024 après phase 1**) | ≈ 105 000 (après extractions) |
+| Fichiers `.gd` > 1 000 lignes | 20 → **19** (round 3) | 0 |
+| Fichiers `.gd` > 500 lignes | 51 → **54** (round 3 : modules extraits > 500 l.) | 0 |
+| Lignes client | 116 299 (113 024 phase 1 ; **116 757 round 3** — l'extraction ajoute des façades) | stabiliser puis décroître |
 | `core/` vivant | 28 % | 100 % (modules conservés = modules exécutés) |
-| `game_data.gd` | 4 587 l. | ≤ 400 l. (façade) |
+| `game_data.gd` | 4 587 l. → **4 199** (round 3) | ≤ 400 l. (façade) |
 | `map_complex_editor.gd` | 5 360 l. | ≤ 1 000 l. |
 | `complex_map_engine_3d.gd` | 4 231 l. | ≤ 700 l. |
 | `scenario_editor.gd` | 3 205 l. | ≤ 800 l. |
-| Moteurs de dés exécutables | 2 (+2 façades) | 1 |
+| Moteurs de dés exécutables | 2 (+2 façades) | **1** ✅ (phase 5.2) |
 | Build serveur | ❌ rouge depuis 2 mois | ✅ vert |
 | `verify.ps1` | n'existait pas | < 3 min, vert |
 | CI | aucune | typecheck + tests rapides |
@@ -290,8 +290,10 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 
 > **État au 2026-11-17 (fin de round 2)** : phases 0, 1 et 2.0-2.4 livrées et poussées ; `verify.ps1` vert (compilation 369 fichiers, socle rapide 25 tests).
 
-1. **Round 3 — phase 2.5-2.8** : extraire `game_storage` (save/load + normalisations), `turn_flow`, `roster` de `game_data.gd` (les lots restants de l'audit) puis `map_data` image/schéma/démos ; chaque lot protégé par `game_data_contract_test`/`session_model_test` + `verify.ps1`.
-2. **Phase 3.1** : extraire le routeur de liens de `graph_link_overlay.gd` vers `core/graph/link_router.gd` (protégé par `scenario_graph_routing_test`), puis découper `scenario_editor.gd` par slices.
-3. **Phase 4 / perf** : la synchro incrémentale (`map_complex_editor.gd:_on_doc_changed` → `MapMeshes3D.configure`) est prioritaire — ≈1,7 s par mutation mesurés, cause du gel éditeur.
-4. **Round 3 — vérification** : rejouer la suite complète après les corrections de la phase 2.0 et consigner le nouveau profil (attendu : 1 seul échec connu, WebRTC sans serveur).
-5. **Phase 5-6** : un seul moteur de dés (archiver la chaîne TS), validation `data/schemas`, CI GitHub Actions.
+> **État au 2026-11-17 (fin de round 3)** : phases 0-2 (2.0-2.8 image), 3.1 et 5.2 livrées et poussées ; `verify.ps1` vert ; 3 échecs de test corrigés + 4 tests récupérés par le runner (baseline → 1 échec connu WebRTC) ; `game_data.gd` 4 586 → 4 199 l., `map_data.gd` 2 287 → 2 088 l., overlay de liens −36 %.
+
+1. **Round 4 — phase 3.2-3.5** : découper `scenario_editor.gd` (3 204 l.) par slices (style → graph controller → panneaux), puis `map_workspace.gd` (1 321 l.).
+2. **Round 4 — phase 4 / perf** : synchro incrémentale (`map_complex_editor.gd:_on_doc_changed` → `MapMeshes3D.configure`, ≈1,7 s par mutation mesurés) : c'est la priorité « gel éditeur » ; puis vagues V1 (map_edit_document, terrain_carve_field, tool_options).
+3. **Round 4 — phase 2.8 fin + 5.3** : `map_schema`/démos hors de MapData ; validateur `data/schemas` branché dans verify.ps1.
+4. **Vérification** : suite complète sur l'état final (124 tests attendus, 1 échec connu WebRTC) + `metrics.ps1` avant/après.
+5. **Phase 6** : CI GitHub Actions (typecheck + compile gate + socle rapide).
