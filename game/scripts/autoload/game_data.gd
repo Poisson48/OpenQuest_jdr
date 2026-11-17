@@ -21,6 +21,7 @@ const EXTRA_SCENARIO_IDS := ["demo-kharak"]
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
 const DiceEngineScript = preload("res://scripts/core/rules/dice_engine.gd")
+const SessionModel = preload("res://scripts/core/session/session_model.gd")
 
 var characters: Array = []
 var scenarios: Array = []
@@ -2563,23 +2564,20 @@ func apply_complex_map_click_local(map_id: String, gx: float, gy: float, tool: D
 # - ordre de tour à valeur **optionnel** (le tour narratif reste le défaut) ;
 # - quickbar de 10 emplacements par personnage.
 # Tout vit dans `active_game` et suit la sauvegarde / la diffusion d'état.
+#
+# Depuis la phase 2.4 du refactor, la logique pure vit dans
+# `core/session/session_model.gd` (`SessionModel`) ; ce bloc ne garde que des
+# façades d'une ligne, pour conserver le contrat public des écrans et des tests.
 
+## Miroirs de compatibilité des constantes de `SessionModel`.
 const SESSION_BAR_MAX_COUNT := 3
 const SESSION_QUICKBAR_SLOTS := 10
-const SESSION_QUICKBAR_ACTIONS := ["roll", "action", "note"]
-const SESSION_VISIBILITIES := ["table", "gm"]
+const SESSION_QUICKBAR_ACTIONS: Array = ["roll", "action", "note"]
+const SESSION_VISIBILITIES: Array = ["table", "gm"]
 
 ## Initialise paresseusement les sous-structures de session.
 func session_model() -> Dictionary:
-	if active_game.is_empty():
-		return {}
-	if not active_game.get("journal") is Dictionary:
-		active_game["journal"] = { "folders": [] }
-	if not active_game.get("turnOrder") is Dictionary:
-		active_game["turnOrder"] = { "open": true, "direction": 1, "items": [], "index": 0 }
-	if not active_game.get("quickbars") is Dictionary:
-		active_game["quickbars"] = {}
-	return active_game
+	return SessionModel.ensure(active_game)
 
 func _find_play_token(map_id: String, token_id: String) -> Dictionary:
 	if map_id.is_empty() or token_id.is_empty() or active_game.is_empty():
@@ -2595,19 +2593,10 @@ func _find_play_token(map_id: String, token_id: String) -> Dictionary:
 # --- Barres et aura de token ------------------------------------------------
 
 func get_token_bars(map_id: String, token_id: String) -> Array:
-	var token := _find_play_token(map_id, token_id)
-	var bars_variant: Variant = token.get("bars", [])
-	var bars: Array = bars_variant if bars_variant is Array else []
-	return bars
+	return SessionModel.get_token_bars(_find_play_token(map_id, token_id))
 
 func get_token_bar(map_id: String, token_id: String, bar_id: String) -> Dictionary:
-	for bar_variant in get_token_bars(map_id, token_id):
-		if not bar_variant is Dictionary:
-			continue
-		var bar: Dictionary = bar_variant
-		if str(bar.get("id", "")) == bar_id:
-			return bar
-	return {}
+	return SessionModel.get_token_bar(_find_play_token(map_id, token_id), bar_id)
 
 ## Fixe la valeur d'une barre (créée si absente). `max_value` < 0 conserve le max.
 func set_token_bar(
@@ -2617,114 +2606,31 @@ func set_token_bar(
 	value: int,
 	max_value: int = -1
 ) -> bool:
-	var token := _find_play_token(map_id, token_id)
-	if token.is_empty() or bar_id.is_empty():
-		return false
-	if not token.has("bars") or not token["bars"] is Array:
-		token["bars"] = []
-	var bars: Array = token["bars"]
-	var existing: Dictionary = {}
-	for bar_variant in bars:
-		if bar_variant is Dictionary and str((bar_variant as Dictionary).get("id", "")) == bar_id:
-			existing = bar_variant
-			break
-	if existing.is_empty():
-		if bars.size() >= SESSION_BAR_MAX_COUNT:
-			return false
-		existing = {
-			"id": bar_id,
-			"label": bar_id,
-			"value": 0,
-			"max": maxi(value, 1),
-			"color": "#c0392b",
-			"link": "",
-		}
-		bars.append(existing)
-	var limit := max_value if max_value >= 0 else int(existing.get("max", 0))
-	if limit > 0:
-		existing["max"] = limit
-		existing["value"] = clampi(value, 0, limit)
-	else:
-		existing["value"] = maxi(value, 0)
-	return true
+	return SessionModel.set_token_bar(_find_play_token(map_id, token_id), bar_id, value, max_value)
 
 func get_token_aura(map_id: String, token_id: String) -> Dictionary:
-	var token := _find_play_token(map_id, token_id)
-	var aura_variant: Variant = token.get("aura", {})
-	return aura_variant if aura_variant is Dictionary else {}
+	return SessionModel.get_token_aura(_find_play_token(map_id, token_id))
 
 ## Pose une aura (halo d'effet) sur un token ; `{}` ou vide l'efface.
 func set_token_aura(map_id: String, token_id: String, aura: Dictionary) -> bool:
-	var token := _find_play_token(map_id, token_id)
-	if token.is_empty():
-		return false
-	var color := str(aura.get("color", "#66ccff"))
-	var radius := clampf(float(aura.get("radius", 1.5)), 0.25, 8.0)
-	token["aura"] = {
-		"color": color,
-		"radius": radius,
-		"pulse": bool(aura.get("pulse", true)),
-		"label": str(aura.get("label", "")),
-	}
-	return true
+	return SessionModel.set_token_aura(_find_play_token(map_id, token_id), aura)
 
 func clear_token_aura(map_id: String, token_id: String) -> bool:
-	var token := _find_play_token(map_id, token_id)
-	if token.is_empty():
-		return false
-	token.erase("aura")
-	return true
+	return SessionModel.clear_token_aura(_find_play_token(map_id, token_id))
 
 ## Crée les barres PV des tokens rattachés à un membre du groupe (si absentes).
 func sync_token_bars_from_party(map_id: String) -> int:
 	if active_game.is_empty() or not active_game.get("mapPlayState") is Dictionary:
 		return 0
-	var entry := get_map_play_entry(map_id)
-	var party: Array = active_game.get("party", []) if active_game.get("party") is Array else []
-	var synced := 0
-	for token_variant in entry.get("tokens", []):
-		if not token_variant is Dictionary:
-			continue
-		var token: Dictionary = token_variant
-		var member_id := str(token.get("memberId", ""))
-		if member_id.is_empty():
-			continue
-		if not get_token_bars(map_id, str(token.get("id", ""))).is_empty():
-			continue
-		for member_variant in party:
-			if not member_variant is Dictionary:
-				continue
-			var member: Dictionary = member_variant
-			if str(member.get("id", "")) != member_id:
-				continue
-			var hp := int(member.get("hp", 0))
-			var max_hp := int(member.get("maxHp", member.get("hp", 10)))
-			var token_id := str(token.get("id", ""))
-			if set_token_bar(map_id, token_id, "hp", hp, maxi(max_hp, 1)):
-				var bar := get_token_bar(map_id, token_id, "hp")
-				bar["label"] = "PV"
-				bar["link"] = "member:%s:hp" % member_id
-				synced += 1
-			break
-	return synced
+	return SessionModel.sync_token_bars_from_party(active_game, get_map_play_entry(map_id))
 
 # --- Journal de campagne (dossiers / pages) --------------------------------
 
 func get_campaign_journal() -> Dictionary:
-	var model := session_model()
-	if model.is_empty():
-		return { "folders": [] }
-	return model.get("journal", { "folders": [] })
+	return SessionModel.get_journal(session_model())
 
 func create_journal_folder(title: String) -> String:
-	var journal := get_campaign_journal()
-	var folder_id := generate_id("folder")
-	journal["folders"].append({
-		"id": folder_id,
-		"title": title.strip_edges() if not title.strip_edges().is_empty() else "Dossier",
-		"pages": [],
-	})
-	return folder_id
+	return SessionModel.create_journal_folder(session_model(), title, generate_id("folder"))
 
 func create_journal_page(
 	folder_id: String,
@@ -2732,86 +2638,29 @@ func create_journal_page(
 	body: String = "",
 	visibility: String = "table"
 ) -> String:
-	var journal := get_campaign_journal()
-	for folder_variant in journal.get("folders", []):
-		var folder: Dictionary = folder_variant
-		if str(folder.get("id", "")) != folder_id:
-			continue
-		var page_id := generate_id("page")
-		folder["pages"].append({
-			"id": page_id,
-			"title": title.strip_edges() if not title.strip_edges().is_empty() else "Page",
-			"body": body,
-			"visibility": visibility if SESSION_VISIBILITIES.has(visibility) else "table",
-			"updatedAt": int(Time.get_unix_time_from_system()),
-		})
-		return page_id
-	return ""
+	return SessionModel.create_journal_page(
+		session_model(), folder_id, title, body, visibility, generate_id("page"))
 
 func find_journal_page(page_id: String) -> Dictionary:
-	for folder_variant in get_campaign_journal().get("folders", []):
-		var folder: Dictionary = folder_variant
-		for page_variant in folder.get("pages", []):
-			var page: Dictionary = page_variant
-			if str(page.get("id", "")) == page_id:
-				return page
-	return {}
+	return SessionModel.find_journal_page(session_model(), page_id)
 
 func update_journal_page(page_id: String, patch: Dictionary) -> bool:
-	var page := find_journal_page(page_id)
-	if page.is_empty():
-		return false
-	if patch.has("title"):
-		page["title"] = str(patch["title"]).strip_edges()
-	if patch.has("body"):
-		page["body"] = str(patch["body"])
-	if patch.has("visibility") and SESSION_VISIBILITIES.has(str(patch["visibility"])):
-		page["visibility"] = str(patch["visibility"])
-	page["updatedAt"] = int(Time.get_unix_time_from_system())
-	return true
+	return SessionModel.update_journal_page(session_model(), page_id, patch)
 
 func delete_journal_page(page_id: String) -> bool:
-	for folder_variant in get_campaign_journal().get("folders", []):
-		var folder: Dictionary = folder_variant
-		var pages: Array = folder.get("pages", [])
-		for i in range(pages.size() - 1, -1, -1):
-			if str((pages[i] as Dictionary).get("id", "")) == page_id:
-				pages.remove_at(i)
-				return true
-	return false
+	return SessionModel.delete_journal_page(session_model(), page_id)
 
 ## Journal tel que le voit un joueur : les pages `gm` disparaissent.
 func filter_journal_for_player(viewer_is_gm: bool) -> Dictionary:
-	var journal: Dictionary = get_campaign_journal().duplicate(true)
-	if viewer_is_gm:
-		return journal
-	for folder_variant in journal.get("folders", []):
-		var folder: Dictionary = folder_variant
-		var visible_pages: Array = []
-		for page_variant in folder.get("pages", []):
-			var page: Dictionary = page_variant
-			if str(page.get("visibility", "table")) != "gm":
-				visible_pages.append(page)
-		folder["pages"] = visible_pages
-	return journal
+	return SessionModel.filter_journal_for_player(session_model(), viewer_is_gm)
 
 # --- Ordre de tour (initiative optionnelle) --------------------------------
 
 func get_turn_order() -> Dictionary:
-	var model := session_model()
-	if model.is_empty():
-		return { "open": true, "direction": 1, "items": [], "index": 0 }
-	return model.get("turnOrder", {})
+	return SessionModel.get_turn_order(session_model())
 
 func set_turn_order_patch(patch: Dictionary) -> void:
-	var order := get_turn_order()
-	if patch.has("open"):
-		order["open"] = bool(patch["open"])
-	if patch.has("direction"):
-		order["direction"] = 1 if int(patch["direction"]) >= 0 else -1
-	if patch.has("items") and patch["items"] is Array:
-		order["items"] = patch["items"]
-		order["index"] = 0
+	SessionModel.set_turn_order_patch(session_model(), patch)
 
 func add_turn_order_item(
 	name: String,
@@ -2819,129 +2668,42 @@ func add_turn_order_item(
 	member_id: String = "",
 	color: String = ""
 ) -> String:
-	var order := get_turn_order()
-	var item_id := generate_id("turn")
-	var items: Array = order.get("items", [])
-	items.append({
-		"id": item_id,
-		"name": name.strip_edges() if not name.strip_edges().is_empty() else "Combattant",
-		"value": value,
-		"memberId": member_id,
-		"color": color,
-	})
-	order["items"] = items
-	sort_turn_order()
-	return item_id
+	return SessionModel.add_turn_order_item(
+		session_model(), name, value, member_id, color, generate_id("turn"))
 
 func remove_turn_order_item(item_id: String) -> bool:
-	var order := get_turn_order()
-	var items: Array = order.get("items", [])
-	for i in range(items.size() - 1, -1, -1):
-		if str((items[i] as Dictionary).get("id", "")) == item_id:
-			items.remove_at(i)
-			order["index"] = 0
-			return true
-	return false
+	return SessionModel.remove_turn_order_item(session_model(), item_id)
 
 ## Trie les items dans le sens courant (direction 1 = décroissant).
 func sort_turn_order() -> Array:
-	var order := get_turn_order()
-	var items: Array = order.get("items", [])
-	var descending := int(order.get("direction", 1)) >= 0
-	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var va := int(a.get("value", 0))
-		var vb := int(b.get("value", 0))
-		if va == vb:
-			return str(a.get("name", "")) < str(b.get("name", ""))
-		return va > vb if descending else va < vb
-	)
-	order["items"] = items
-	return items
+	return SessionModel.sort_turn_order(session_model())
 
 func current_turn_order_item() -> Dictionary:
-	var order := get_turn_order()
-	var items: Array = order.get("items", [])
-	if items.is_empty():
-		return {}
-	var index := clampi(int(order.get("index", 0)), 0, items.size() - 1)
-	order["index"] = index
-	return items[index]
+	return SessionModel.current_turn_order_item(session_model())
 
 func next_turn_order_item() -> Dictionary:
-	var order := get_turn_order()
-	var items: Array = order.get("items", [])
-	if items.is_empty():
-		return {}
-	order["index"] = (int(order.get("index", 0)) + 1) % items.size()
-	return items[int(order["index"])]
+	return SessionModel.next_turn_order_item(session_model())
 
 # --- Quickbar par personnage ----------------------------------------------
 
 func get_character_quickbar(character_id: String) -> Array:
-	var model := session_model()
-	if model.is_empty() or character_id.is_empty():
-		return []
-	var quickbars: Dictionary = model.get("quickbars", {})
-	var slots_variant: Variant = quickbars.get(character_id, [])
-	var slots: Array = slots_variant if slots_variant is Array else []
-	return slots.duplicate(true)
+	return SessionModel.get_character_quickbar(session_model(), character_id)
 
 func _sanitize_quickbar_slot(slot: Dictionary) -> Dictionary:
-	var action := str(slot.get("action", "action"))
-	if not SESSION_QUICKBAR_ACTIONS.has(action):
-		action = "action"
-	var visibility := str(slot.get("visibility", "table"))
-	if not SESSION_VISIBILITIES.has(visibility):
-		visibility = "table"
-	return {
-		"label": str(slot.get("label", "")).strip_edges().left(40),
-		"action": action,
-		"formula": str(slot.get("formula", "")).strip_edges().left(120),
-		"visibility": visibility,
-		"icon": str(slot.get("icon", "")).left(8),
-	}
+	return SessionModel.sanitize_quickbar_slot(slot)
 
 func set_character_quickbar(character_id: String, slots: Array) -> void:
-	if character_id.is_empty():
-		return
-	var model := session_model()
-	if model.is_empty():
-		return
-	var quickbars: Dictionary = model["quickbars"]
-	var clean: Array = []
-	for slot_variant in slots:
-		if clean.size() >= SESSION_QUICKBAR_SLOTS:
-			break
-		if slot_variant is Dictionary:
-			clean.append(_sanitize_quickbar_slot(slot_variant))
-	quickbars[character_id] = clean
+	SessionModel.set_character_quickbar(session_model(), character_id, slots)
 
 func set_quickbar_slot(character_id: String, index: int, slot: Dictionary) -> bool:
-	if index < 0 or index >= SESSION_QUICKBAR_SLOTS:
-		return false
-	var slots := get_character_quickbar(character_id)
-	while slots.size() <= index:
-		slots.append({})
-	slots[index] = _sanitize_quickbar_slot(slot)
-	set_character_quickbar(character_id, slots)
-	return true
+	return SessionModel.set_quickbar_slot(session_model(), character_id, index, slot)
 
 func clear_quickbar_slot(character_id: String, index: int) -> bool:
-	var slots := get_character_quickbar(character_id)
-	if index < 0 or index >= slots.size():
-		return false
-	slots.remove_at(index)
-	set_character_quickbar(character_id, slots)
-	return true
+	return SessionModel.clear_quickbar_slot(session_model(), character_id, index)
 
 ## Quickbar telle que la voit un joueur : les emplacements `gm` disparaissent.
 func filter_quickbar_for_player(character_id: String, viewer_is_gm: bool) -> Array:
-	var out: Array = []
-	for slot_variant in get_character_quickbar(character_id):
-		var slot: Dictionary = slot_variant
-		if viewer_is_gm or str(slot.get("visibility", "table")) != "gm":
-			out.append(slot)
-	return out
+	return SessionModel.filter_quickbar_for_player(session_model(), character_id, viewer_is_gm)
 
 # ===========================================================================
 # Vue filtrée pour les joueurs
