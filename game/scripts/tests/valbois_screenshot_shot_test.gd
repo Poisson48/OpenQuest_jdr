@@ -5,7 +5,7 @@ extends SceneTree
 
 const StyleScript := preload("res://scripts/maps/map_render_style.gd")
 const OUT_DIR := "user://valbois_screenshots"
-const COPY_DIR := "/home/leo/Documents/GitHub/OpenQuest_jdr/docs/screenshots"
+const COPY_DIR := "user://docs_screenshots"
 
 var _failed := false
 

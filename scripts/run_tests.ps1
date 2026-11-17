@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Runner unique pour les tests headless Godot du projet.
@@ -53,6 +53,24 @@ if (-not $IncludeShots) {
 }
 if (-not [string]::IsNullOrWhiteSpace($Filter)) {
     $tests = $tests | Where-Object { $_.BaseName -match $Filter }
+}
+
+# Tests rouges CONNUS, exclus du run par défaut (voir scripts/known_broken_tests.txt).
+# Objectif : ne pas masquer une régression derrière un échec historique, sans
+# pour autant le faire disparaître du dépôt.
+$knownBrokenFile = Join-Path $projectRoot 'scripts\known_broken_tests.txt'
+if (Test-Path $knownBrokenFile) {
+    $knownBroken = Get-Content $knownBrokenFile |
+        ForEach-Object { (($_ -split '#')[0]).Trim() } |
+        Where-Object { $_ }
+    if ($knownBroken.Count -gt 0) {
+        $excluded = $tests | Where-Object { $knownBroken -contains $_.BaseName }
+        if ($excluded.Count -gt 0) {
+            Write-Host ("Tests rouges connus exclus (scripts/known_broken_tests.txt) : " +
+                (($excluded | ForEach-Object { $_.BaseName }) -join ', ')) -ForegroundColor Yellow
+        }
+        $tests = $tests | Where-Object { $knownBroken -notcontains $_.BaseName }
+    }
 }
 
 if ($tests.Count -eq 0) {

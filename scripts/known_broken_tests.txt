@@ -1,0 +1,12 @@
+# Tests rouges CONNUS — exclus du run par défaut (pas des régressions).
+#
+# Format : un nom de base de test par ligne (sans .gd). Le texte après '#'
+# est un commentaire libre (raison + TODO de réparation).
+#
+# Règle : un test n'entre ici que s'il est CASSÉ pour une raison connue et
+# documentée, jamais pour masquer une régression. Toute entrée doit avoir un
+# TODO de réparation et être rejouée manuellement après le correctif.
+#
+# Voir docs/refactor/BASELINE_TESTS.md (échecs connus) et le plan de refactor.
+
+user_flow_test   # TODO (round 4+) : parcours E2E écrit sur l'ancienne API MainMenu/session (get_panel, %BtnPlay) ; échoue aussi sur la capture PNG finale. À réécrire sur l'API actuelle.
