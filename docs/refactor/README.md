@@ -24,6 +24,7 @@ Non-objectifs : aucun changement de gameplay, d'UI ou de protocole réseau ; auc
 
 | Fichier | Contenu | Rôle |
 |---|---|---|
+| [HANDOVER.md](HANDOVER.md) | État exact du chantier, gains mesurés, reste à faire, pièges et reprise rapide | **point d'entrée d'une nouvelle session** |
 | [PLAN_REFACTORISATION.md](PLAN_REFACTORISATION.md) | Plan consolidé : synthèse, ADR-001 à ADR-009, phases 0-6, portes, règles, métriques cibles | **source de vérité** |
 | [ADR-004-schemas.md](ADR-004-schemas.md) | Décision sur `data/schemas/` : état 4/8, options, recommandation (gate `bot`/`ruleset`, dérive informative, réalignement P1), critères de sortie | décision |
 | [AUDIT_GODOT.md](AUDIT_GODOT.md) | Audit du client Godot (`core/`, autoloads, scénario, session) : violations des principes, duplications, code mort, top 10 des cibles | preuve |
