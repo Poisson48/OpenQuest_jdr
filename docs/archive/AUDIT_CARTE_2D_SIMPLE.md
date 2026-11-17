@@ -7,10 +7,10 @@
 > atteint du niveau graphique type RPG Maker ou Pokémon sur DS, on est bon. »
 >
 > **Documents liés** :
-> - [CARTE_2D_CONTRAT_ATLAS.md](./CARTE_2D_CONTRAT_ATLAS.md) — contrat technique assets ↔ moteur
-> - [CARTE_2D_FONCTIONNEL.md](./CARTE_2D_FONCTIONNEL.md) — inventaire fonctionnel vérifié
-> - [INTERACTIVE_MAPS.md](./INTERACTIVE_MAPS.md) — architecture dual-mode simple/complexe
-> - [MAP_EDITOR.md](./MAP_EDITOR.md) — éditeur de cartes
+> - [CARTE_2D_CONTRAT_ATLAS.md](../CARTE_2D_CONTRAT_ATLAS.md) — contrat technique assets ↔ moteur
+> - CARTE_2D_FONCTIONNEL.md — inventaire fonctionnel vérifié *(document supprimé depuis)*
+> - [INTERACTIVE_MAPS.md](../INTERACTIVE_MAPS.md) — architecture dual-mode simple/complexe
+> - [MAP_EDITOR.md](../MAP_EDITOR.md) — éditeur de cartes
 
 ---
 
@@ -20,7 +20,7 @@ La carte simple **existe déjà et elle est fonctionnellement riche** : éditeur
 complet (peinture de terrain, décors, marqueurs, lieux, notes, brouillard,
 mesure, undo/redo, biblio d'assets), session MJ/joueur, navigation monde ↔
 local, brouillard par cases, sauvegarde. Le détail vérifié est dans
-[CARTE_2D_FONCTIONNEL.md](./CARTE_2D_FONCTIONNEL.md).
+CARTE_2D_FONCTIONNEL.md *(document supprimé depuis)*.
 
 **Le problème n'est donc pas la fonctionnalité, c'est le rendu.** Aujourd'hui :
 
@@ -66,9 +66,9 @@ Une capture de référence est produite à chaque étape par le harnais
 
 État « avant » (30/10/2026) :
 
-![Carte 2D simple — rendu historique](../docs/screenshots/carte_2d_avant_render.png)
+![Carte 2D simple — rendu historique](../screenshots/carte_2d_avant_render.png)
 
-![Carte 2D simple — éditeur historique](../docs/screenshots/carte_2d_avant_editeur.png)
+![Carte 2D simple — éditeur historique](../screenshots/carte_2d_avant_editeur.png)
 
 ---
 

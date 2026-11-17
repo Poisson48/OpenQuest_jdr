@@ -35,7 +35,7 @@ C'est une carte 44 × 32 générée à graine fixe (37 bâtiments GLB, toits, fa
 place de marché, tours d'angle), avec le preset qualité « cinéma ». Tout y est
 retouchable : un seul `Ctrl+Z` annule la génération complète. Pour la relancer
 depuis l'éditeur : outil **🏘 Générer scène**, style **Cité**, graine 20261112.
-Détail technique et captures : [RAPPORT_CITE_SKYLINE.md](./RAPPORT_CITE_SKYLINE.md).
+Détail technique et captures : [RAPPORT_CITE_SKYLINE.md](archive/RAPPORT_CITE_SKYLINE.md).
 
 ```powershell
 # Scène de debug équivalente (même graine, même cité)
@@ -157,7 +157,7 @@ Outils terrain :
   herbe automatique.
 - **Outil 🪄 Mur procédural** : clic-glisser libre ; génère un **unique mesh
   continu à mitres** depuis la courbe. Première brique du plan procédural
-  ([PLAN_PROCEDURAL.md](PLAN_PROCEDURAL.md)).
+  ([PLAN_PROCEDURAL.md](archive/PLAN_PROCEDURAL.md)).
 - **Outil 🪵 Clôture procédurale** : clic-glisser libre ; poteaux et lisses en un
   seul mesh, hauteur et espacement réglables.
 - **Outil 🛤 Chemin procédural** : clic-glisser libre ; ruban de chemin continu

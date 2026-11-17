@@ -138,7 +138,7 @@ l'étape suivante, et une capture archivée dans `docs/screenshots/`.
 - Critère : scène complète avec assets générés, sans import manuel.
 - Audit : `python tools/blender/audit_pipeline.py` → **80 assets, 5 variantes,
   toutes catégories couvertes**.
-- Voir [BLENDER_PROCEDURAL.md](BLENDER_PROCEDURAL.md).
+- Voir [BLENDER_PROCEDURAL.md](../BLENDER_PROCEDURAL.md).
 
 ## Étape 5 — Décor facile et contextuel (zones fleuries livrées)
 - Pinceau végétation.

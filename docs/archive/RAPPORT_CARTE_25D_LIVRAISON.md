@@ -150,26 +150,26 @@ Tests dédiés 2.5D : `map_terrain_test`, `map_terrain_materials_test`,
 
 ## 7. Captures
 
-[`carte_25d_editeur.png`](./screenshots/carte_25d_editeur.png) ·
-[`carte_25d_monde_plein_ecran.png`](./screenshots/carte_25d_monde_plein_ecran.png) ·
-[`carte_25d_mesh_zoom.png`](./screenshots/carte_25d_mesh_zoom.png) ·
-[`carte_25d_sols.png`](./screenshots/carte_25d_sols.png) ·
-[`carte_25d_camp.png`](./screenshots/carte_25d_camp.png) ·
-[`carte_25d_foret.png`](./screenshots/carte_25d_foret.png) ·
-[`carte_25d_etang.png`](./screenshots/carte_25d_etang.png) ·
-[`carte_25d_ruines.png`](./screenshots/carte_25d_ruines.png) ·
-[`session_monde_25d.png`](./screenshots/session_monde_25d.png) ·
-[`session_carte_monde.png`](./screenshots/session_carte_monde.png) ·
-[`session_pas.png`](./screenshots/session_pas.png) ·
-[`session_npc.png`](./screenshots/session_npc.png) ·
-[`session_aide.png`](./screenshots/session_aide.png) ·
-[`carte_25d_monde_iles.png`](./screenshots/carte_25d_monde_iles.png) ·
-[`construction_demo.png`](./screenshots/construction_demo.png) ·
-[`construction_complete.png`](./screenshots/construction_complete.png) ·
-[`construction_door_3d.png`](./screenshots/construction_door_3d.png) ·
-[`interior_linked_demo.png`](./screenshots/interior_linked_demo.png) ·
-[`auvent_demo.png`](./screenshots/auvent_demo.png)
+[`carte_25d_editeur.png`](../screenshots/carte_25d_editeur.png) ·
+[`carte_25d_monde_plein_ecran.png`](../screenshots/carte_25d_monde_plein_ecran.png) ·
+[`carte_25d_mesh_zoom.png`](../screenshots/carte_25d_mesh_zoom.png) ·
+[`carte_25d_sols.png`](../screenshots/carte_25d_sols.png) ·
+[`carte_25d_camp.png`](../screenshots/carte_25d_camp.png) ·
+[`carte_25d_foret.png`](../screenshots/carte_25d_foret.png) ·
+[`carte_25d_etang.png`](../screenshots/carte_25d_etang.png) ·
+[`carte_25d_ruines.png`](../screenshots/carte_25d_ruines.png) ·
+[`session_monde_25d.png`](../screenshots/session_monde_25d.png) ·
+[`session_carte_monde.png`](../screenshots/session_carte_monde.png) ·
+[`session_pas.png`](../screenshots/session_pas.png) ·
+[`session_npc.png`](../screenshots/session_npc.png) ·
+[`session_aide.png`](../screenshots/session_aide.png) ·
+[`carte_25d_monde_iles.png`](../screenshots/carte_25d_monde_iles.png) ·
+[`construction_demo.png`](../screenshots/construction_demo.png) ·
+[`construction_complete.png`](../screenshots/construction_complete.png) ·
+[`construction_door_3d.png`](../screenshots/construction_door_3d.png) ·
+[`interior_linked_demo.png`](../screenshots/interior_linked_demo.png) ·
+[`auvent_demo.png`](../screenshots/auvent_demo.png)
 
-Guides : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) ·
-[CARTE_25D.md](./CARTE_25D.md) · [MONDE_ZONES.md](./MONDE_ZONES.md) ·
-[MAP_EDITOR.md](./MAP_EDITOR.md) · [BLENDER_PIPELINE.md](./BLENDER_PIPELINE.md).
+Guides : [GUIDE_CARTE_25D.md](../GUIDE_CARTE_25D.md) ·
+[CARTE_25D.md](../CARTE_25D.md) · [MONDE_ZONES.md](../MONDE_ZONES.md) ·
+[MAP_EDITOR.md](../MAP_EDITOR.md) · [BLENDER_PIPELINE.md](../BLENDER_PIPELINE.md).

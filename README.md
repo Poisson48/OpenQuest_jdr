@@ -9,7 +9,7 @@ Création de personnages, scénarios et cartes, puis session solo ou à plusieur
 | **Client Godot** | Jouable (démos Valbois + Crypte) | `.\scripts\play-godot.ps1` |
 | **Serveur Node (pooling)** | Opérationnel (LAN) | `.\scripts\dev-server.sh` ou `cd server && npm run dev` |
 
-> **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Audits détaillés dans `docs/`.
+> **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Index et statuts de la documentation : [docs/README.md](docs/README.md).
 > **Chantier de refactorisation en cours** (lancé le 2026-11-17) : phase 0 livrée, phase 1 en cours — index, plan, audits, baseline et outillage dans [docs/refactor/README.md](docs/refactor/README.md).
 
 ---
@@ -207,11 +207,12 @@ Suivi détaillé : [docs/refactor/README.md](docs/refactor/README.md) · plan et
 
 | Fichier | Contenu |
 |---------|---------|
+| [docs/README.md](docs/README.md) | **Index complet de la documentation** — catégories et statuts (à jour / historique / obsolète) |
 | [docs/refactor/README.md](docs/refactor/README.md) | **Chantier de refactorisation** — index, plan, audits, baseline, outillage |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture réelle + cible (runtime hôte Godot autoritaire + pooling) |
 | [docs/archive/AUDIT_CARTES.md](docs/archive/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 *(archivé)* |
 | [docs/archive/AUDIT_UI_CLARTE.md](docs/archive/AUDIT_UI_CLARTE.md) | Audit clarté UI *(archivé, disponible)* |
-| [docs/MAP_DIORAMA_PLAN.md](docs/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D (appliqué) |
+| [docs/archive/MAP_DIORAMA_PLAN.md](docs/archive/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D *(archivé — appliqué)* |
 | [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md) | Dual-mode simple / complexe |
 | [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur battlemap 3D |
 | [docs/QUEST_NAVIGATION.md](docs/QUEST_NAVIGATION.md) | Scénarios non linéaires |

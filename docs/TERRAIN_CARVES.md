@@ -1,7 +1,7 @@
 # Creusements volumétriques — trous, grottes, tunnels, remblais (Voie B)
 
 > **Date** : 5 novembre 2026 · Implémentation de la **Voie B** du
-> [RAPPORT_TERRAIN_DEFORMABLE.md](./RAPPORT_TERRAIN_DEFORMABLE.md) :
+> [RAPPORT_TERRAIN_DEFORMABLE.md](archive/RAPPORT_TERRAIN_DEFORMABLE.md) :
 > heightfield de base + **primitives SDF** creusées/remblayées, polygonisées en
 > **Marching Cubes** par cluster. Déformer le terrain ajoute et retire de la
 > **vraie terre** (trou avec fond, grotte avec voûte, tunnel, talus de remblai).

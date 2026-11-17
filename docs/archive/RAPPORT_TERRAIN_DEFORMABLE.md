@@ -10,7 +10,7 @@
 > creusements volumétriques (trous, grottes, tunnels, remblais) par primitives
 > SDF + Marching Cubes par cluster, outils « Creuser/Remblayer (3D) » dans
 > l'outil Relief, eau/végétation/objets/picking conscients du sol visible.
-> Détails d'implémentation : [TERRAIN_CARVES.md](./TERRAIN_CARVES.md).
+> Détails d'implémentation : [TERRAIN_CARVES.md](../TERRAIN_CARVES.md).
 > Phase 0 (subdivisions/perf) et Phase 3 (volumétrie complète) restent des
 > chantiers ouverts.
 

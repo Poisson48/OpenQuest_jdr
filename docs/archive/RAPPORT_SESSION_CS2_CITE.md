@@ -71,7 +71,7 @@ Opt-in `map_data["qualityPreset"] = "classique" | "cinema"`, orthogonal au
   44×32, terrain3d, preset cinéma, lumière *jour*) → Hub → Cartes → *Modifier /
   Aperçu / Tester*. Génération du catalogue : **17 ms**.
 
-### 1.4 Assets Tripo3D — [`RAPPORT_TRIPO_ROCKS.md`](RAPPORT_TRIPO_ROCKS.md), [`RAPPORT_ROCK_FORMATION.md`](RAPPORT_ROCK_FORMATION.md)
+### 1.4 Assets Tripo3D — [`RAPPORT_TRIPO_ROCKS.md`](../RAPPORT_TRIPO_ROCKS.md), [`RAPPORT_ROCK_FORMATION.md`](RAPPORT_ROCK_FORMATION.md)
 
 - Les 4 rochers Tripo3D (revue précédente) sont **livrés et utilisables** :
   `terrain/bloc_rocheux_{socle,bloc,coin,couronne}.glb`, 973–1 036 tris,

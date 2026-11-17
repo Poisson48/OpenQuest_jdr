@@ -75,12 +75,12 @@ Rendre l’éditeur de cartes 2.5D utilisable par un **MJ non graphiste** :
 
 ## Captures
 
-- [generated_village_hero.png](screenshots/generated_village_hero.png)
-- [generated_camp_demo.png](screenshots/generated_camp_demo.png)
-- [generated_forest_demo.png](screenshots/generated_forest_demo.png)
-- [poly_roof_demo.png](screenshots/poly_roof_demo.png)
-- [procedural_wall_demo.png](screenshots/procedural_wall_demo.png)
-- [procedural_roof_demo.png](screenshots/procedural_roof_demo.png)
+- [generated_village_hero.png](../screenshots/generated_village_hero.png)
+- [generated_camp_demo.png](../screenshots/generated_camp_demo.png)
+- [generated_forest_demo.png](../screenshots/generated_forest_demo.png)
+- [poly_roof_demo.png](../screenshots/poly_roof_demo.png)
+- [procedural_wall_demo.png](../screenshots/procedural_wall_demo.png)
+- [procedural_roof_demo.png](../screenshots/procedural_roof_demo.png)
 
 ## Tests ciblés de référence
 

@@ -8,7 +8,7 @@
 >
 > **Guide utilisateur** : [GUIDE_CARTE_25D.md](./GUIDE_CARTE_25D.md) — créer un monde, peindre, poser des bâtiments, tester en session.
 >
-> **Rapport de livraison** : [RAPPORT_CARTE_25D_LIVRAISON.md](./RAPPORT_CARTE_25D_LIVRAISON.md) — périmètre, architecture, tests, limites.
+> **Rapport de livraison** : [RAPPORT_CARTE_25D_LIVRAISON.md](archive/RAPPORT_CARTE_25D_LIVRAISON.md) — périmètre, architecture, tests, limites.
 
 ---
 
@@ -130,4 +130,4 @@ Exigence : comme dans Rust ou Fallout 76, **une construction posée sur un terra
 - `main` @ `bf6daa1`, éditeur battlemap complet et testé (`map_editor_test` PASS).
 - Le worktree de `main` est **propre** sur cette branche : `map_editor.tscn` est la version HEAD (avec barre d'action scrollable, thème, `autowrap`), pas la version régressée du 3 octobre.
 - Chantier table 3D/dés parqué sur `wip/table-3d-dice-2026-10-30` (`e0905a7`).
-- Rapport d'état complet : [RAPPORT_ETAT_CARTE_3D.md](./RAPPORT_ETAT_CARTE_3D.md) — il documente aussi les bugs à éviter de réintroduire.
+- Rapport d'état complet : [RAPPORT_ETAT_CARTE_3D.md](archive/RAPPORT_ETAT_CARTE_3D.md) — il documente aussi les bugs à éviter de réintroduire.

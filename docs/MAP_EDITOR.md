@@ -146,7 +146,7 @@ section `meshes` de la carte (schéma 5), rendu par `MapMeshes3D`.
   filmique (rendu proche de *Cities: Skylines II*) ; **Classique** conserve le
   rendu historique (défaut). Le preset est enregistré dans la carte, exporté en
   JSON, et se bascule à chaud sans reconstruire la scène. Voir
-  [`RAPPORT_QUALITE_CS2_PRESET.md`](./RAPPORT_QUALITE_CS2_PRESET.md).
+  [`RAPPORT_QUALITE_CS2_PRESET.md`](archive/RAPPORT_QUALITE_CS2_PRESET.md).
 - Convention d'auteur : **1 unité Blender = 1 case**, origine au centre de la
   base, avant de l'objet vers `+Z`, transforms appliquées.
 - Pipeline de fabrication et vignettes : [`BLENDER_PIPELINE.md`](./BLENDER_PIPELINE.md).
@@ -181,7 +181,7 @@ Indépendant du style, un **preset de qualité** règle le cran de rendu 3D
 
 Le socle de la carte (jupe de falaise) est lui aussi traité : strates
 géologiques, arête herbeuse adoucie et pied évasé
-([`RAPPORT_SOCLE_DIORAMA.md`](./RAPPORT_SOCLE_DIORAMA.md)).
+([`RAPPORT_SOCLE_DIORAMA.md`](archive/RAPPORT_SOCLE_DIORAMA.md)).
 
 ## 1 quinquies. Onglet Monde : les cartes comme zones (façon Dofus)
 

@@ -8,7 +8,7 @@ sans refonte d'assets ni modification de la logique d'édition.
 
 | Avant | Après |
 |---|---|
-| ![avant](screenshots/tiny_glade_avant.png) | ![après](screenshots/tiny_glade_apres.png) |
+| ![avant](../screenshots/tiny_glade_avant.png) | ![après](../screenshots/tiny_glade_apres.png) |
 | Fond noir/bleu nuit, herbe olive terne, lumière matin froide, végétation discrète, backdrop brun sombre masquant le ciel. | Ciel/horizon pastel ivoire, soleil chaud, ombres douces, herbe plus verte et fleurie, buissons, brume de profondeur, vignettage radial, backdrop « prairie pastel ». |
 
 Les deux captures proviennent du **même script fenêtré existant**

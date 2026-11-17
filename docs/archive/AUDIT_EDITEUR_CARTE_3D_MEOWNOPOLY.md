@@ -6,7 +6,7 @@
 > **Date :** 2026-09-06  
 > **But :** mesurer ce qui existe et marche réellement, puis lister les écarts pour viser un **niveau quasi équivalent** — pas une copie feature-à-feature (domaines différents).
 
-Complète : [`MAP_EDITOR.md`](./MAP_EDITOR.md), [`AUDIT_UI_CLARTE.md`](./AUDIT_UI_CLARTE.md) §3.1,  
+Complète : [`MAP_EDITOR.md`](../MAP_EDITOR.md), [`AUDIT_UI_CLARTE.md`](AUDIT_UI_CLARTE.md) §3.1,  
 Meownopoly `Meownopoly/doc/guides/MAP_EDITOR_GUIDE.md`, `…/architecture/COLLABORATIVE_EDITOR.md`, `MAP_LIFECYCLE.md`.
 
 ---

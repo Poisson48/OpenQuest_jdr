@@ -355,14 +355,14 @@ Captures : `fog_quality_tilt_default_{off,on,ref}.png`,
 `fog_quality_tilt_low_{off,on}.png`, `fog_quality_tilt_top_{off,on,ref}.png`,
 `quality_cs2_atmo_{off,on,ref}.png`, `quality_cs2_atmo_low_{off,on}.png`.
 
-![Vue d'ensemble — classique](screenshots/quality_cs2_off_overview.png)
-![Vue d'ensemble — cinéma](screenshots/quality_cs2_on_overview.png)
-![Gros plan — classique](screenshots/quality_cs2_off_close.png)
-![Gros plan — cinéma](screenshots/quality_cs2_on_close.png)
-![Session — classique](screenshots/quality_cs2_session_off.png)
-![Session — cinéma](screenshots/quality_cs2_session_on.png)
-![Étalonnage — avant](screenshots/quality_cs2_etalonnage_avant.png)
-![Étalonnage — après](screenshots/quality_cs2_etalonnage_apres.png)
+![Vue d'ensemble — classique](../screenshots/quality_cs2_off_overview.png)
+![Vue d'ensemble — cinéma](../screenshots/quality_cs2_on_overview.png)
+![Gros plan — classique](../screenshots/quality_cs2_off_close.png)
+![Gros plan — cinéma](../screenshots/quality_cs2_on_close.png)
+![Session — classique](../screenshots/quality_cs2_session_off.png)
+![Session — cinéma](../screenshots/quality_cs2_session_on.png)
+![Étalonnage — avant](../screenshots/quality_cs2_etalonnage_avant.png)
+![Étalonnage — après](../screenshots/quality_cs2_etalonnage_apres.png)
 
 ### 4.3 Performance (mesurée par le test de capture)
 

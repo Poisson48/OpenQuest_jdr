@@ -14,14 +14,14 @@ assets 3D du catalogue dans une trame urbaine déterministe, une carte de démo
 
 | Élément | Fichier |
 |---|---|
-| Planificateur de cité (allocation pure, déterministe) | [`game/scripts/maps/construction/procedural_city.gd`](../game/scripts/maps/construction/procedural_city.gd) |
-| **Convertisseur pur plan → éléments** (partagé éditeur / catalogue Hub) | [`procedural_city.gd`](../game/scripts/maps/construction/procedural_city.gd) : `build_city_elements`, `build_building_elements`, `build_terrain_paint`, `build_prop_elements`, `build_rock_elements`… |
-| Style déclaré + décalage de plan (`buildings`, routes rectangulaires) | [`game/scripts/maps/construction/procedural_scene_generator.gd`](../game/scripts/maps/construction/procedural_scene_generator.gd) |
-| Application en éléments du document (bâtiments, toits, façades, rues) | [`game/scripts/maps/editor/map_editor_construction.gd`](../game/scripts/maps/editor/map_editor_construction.gd) (`_apply_scene_plan`, `_apply_city_plan`, `_apply_scene_*`) |
-| Carte de démo dans le catalogue du jeu (Hub → Cartes) | [`game/scripts/autoload/map_data.gd`](../game/scripts/autoload/map_data.gd) : `_build_demo_catalog`, `_cite_skyline_map` |
-| Carte de démonstration par scène de debug 44 × 32 | [`game/scripts/debug/cite_boot.gd`](../game/scripts/debug/cite_boot.gd), [`game/scenes/debug/cite_boot.tscn`](../game/scenes/debug/cite_boot.tscn) |
-| Tests headless | [`game/scripts/tests/city_scene_test.gd`](../game/scripts/tests/city_scene_test.gd), [`game/scripts/tests/cite_demo_catalog_test.gd`](../game/scripts/tests/cite_demo_catalog_test.gd) |
-| Test de captures | [`game/scripts/tests/cite_showcase_shot_test.gd`](../game/scripts/tests/cite_showcase_shot_test.gd) |
+| Planificateur de cité (allocation pure, déterministe) | [`game/scripts/maps/construction/procedural_city.gd`](../../game/scripts/maps/construction/procedural_city.gd) |
+| **Convertisseur pur plan → éléments** (partagé éditeur / catalogue Hub) | [`procedural_city.gd`](../../game/scripts/maps/construction/procedural_city.gd) : `build_city_elements`, `build_building_elements`, `build_terrain_paint`, `build_prop_elements`, `build_rock_elements`… |
+| Style déclaré + décalage de plan (`buildings`, routes rectangulaires) | [`game/scripts/maps/construction/procedural_scene_generator.gd`](../../game/scripts/maps/construction/procedural_scene_generator.gd) |
+| Application en éléments du document (bâtiments, toits, façades, rues) | [`game/scripts/maps/editor/map_editor_construction.gd`](../../game/scripts/maps/editor/map_editor_construction.gd) (`_apply_scene_plan`, `_apply_city_plan`, `_apply_scene_*`) |
+| Carte de démo dans le catalogue du jeu (Hub → Cartes) | [`game/scripts/autoload/map_data.gd`](../../game/scripts/autoload/map_data.gd) : `_build_demo_catalog`, `_cite_skyline_map` |
+| Carte de démonstration par scène de debug 44 × 32 | [`game/scripts/debug/cite_boot.gd`](../../game/scripts/debug/cite_boot.gd), [`game/scenes/debug/cite_boot.tscn`](../../game/scenes/debug/cite_boot.tscn) |
+| Tests headless | [`game/scripts/tests/city_scene_test.gd`](../../game/scripts/tests/city_scene_test.gd), [`game/scripts/tests/cite_demo_catalog_test.gd`](../../game/scripts/tests/cite_demo_catalog_test.gd) |
+| Test de captures | [`game/scripts/tests/cite_showcase_shot_test.gd`](../../game/scripts/tests/cite_showcase_shot_test.gd) |
 | Captures | `docs/screenshots/cite_*.png` (dont `cite_hub_demo.png`) |
 
 Le style est **sélectionnable dans l'UI** sans code supplémentaire : le
@@ -217,7 +217,7 @@ jeu**, exactement comme les cartes Valbois.
 | Format | 44 × 32, `renderStyle: "2.5d"`, `groundMode: "terrain3d"`, `qualityPreset: "cinema"`, `lighting: {enabled:true, preset:"jour", direction:"nw", intensity:0.35}`, `atmosphericFog: {enabled:true, density:0.04, heightDensity:0.0}` |
 | Construction | `MapData._build_demo_catalog()` → `ProceduralCity.generate(DEMO_SEED)` → `ProceduralCity.build_city_elements` (même graine **20261112** que `cite_boot.gd`), sols de rue via `terrainMaterials`, relief doux des marges, **133 éléments 3D** dont 37 bâtiments, 13 accents de toit et 13 façades |
 | Statut | `published` (catalogue) — les 3 cartes démo historiques restent intactes |
-| Capture | [`cite_hub_demo.png`](./screenshots/cite_hub_demo.png) : la carte du catalogue ouverte dans l'éditeur (titre « Cité des Saules », bandeau et palettes visibles) |
+| Capture | [`cite_hub_demo.png`](../screenshots/cite_hub_demo.png) : la carte du catalogue ouverte dans l'éditeur (titre « Cité des Saules », bandeau et palettes visibles) |
 
 **Aucune duplication** : la carte du Hub et la génération via l'éditeur passent
 par le **même** `ProceduralCity.build_city_elements`, donc même contenu, mêmes
