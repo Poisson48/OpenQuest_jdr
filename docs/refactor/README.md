@@ -1,6 +1,6 @@
 # Chantier de refactorisation — index et mode d'emploi
 
-> **Statut au 2026-11-17** : lancé le 2026-11-17 (HEAD de départ `4514c61`). **phases 0-2 (2.0-2.8 image) livrées, ainsi que 3.1 (routeur) et 5.2 (dés uniques)** (2026-11-17) ; restent 2.8 schéma/démos, 3.2-3.5, phase 4, 5.3-5.5, 6.
+> **Statut au 2026-11-17** : lancé le 2026-11-17 (HEAD de départ `4514c61`). **phases 0-2 livrées (2.8 : image + schéma), 3.1-3.2 (routeur, style), 4a (couches sales), 5.2-5.3 (dés uniques, validateur schemas) et 6.1 (CI)** ; restent 2.8 démos, 3.3-3.5, phase 4 (b-f), 5.4-5.5, 6.2-6.4.
 > **Le document qui fait foi** est le [plan de refactorisation](PLAN_REFACTORISATION.md) : ADR, feuille de route, portes de qualité, règles d'exécution, métriques cibles.
 > **Convention de comptage** : lignes physiques (`(Get-Content <fichier>).Count`), comme les audits ; `metrics.ps1` compte la ligne finale (+1 par fichier). Ne pas mélanger les deux unités.
 

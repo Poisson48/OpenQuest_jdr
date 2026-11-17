@@ -30,10 +30,10 @@ Le projet a grossi par accumulation de fonctionnalités : **20 fichiers dépasse
 Phase 0  Filets & vert                    ✅ 2026-11-17
 Phase 1  Purge du code mort               ✅ 2026-11-17  (−3 276 lignes, 27 scripts supprimés)
 Phase 2  Contrats & cœur client           ✅ 2.0-2.7 livrés (+ 2.8 image) ; reste 2.8 schéma/démos
-Phase 3  Éditeur de scénario              🔄 3.1 livrée (routeur → core/graph) ; découpage scenario_editor.gd à suivre
-Phase 4  Éditeur de cartes 2.5D (5 vagues)⏳  (document → terrain → construction → moteur → contrôleur)
-Phase 5  Serveur & contrat de données     🔄 5.2 livrée (une seule implémentation de dés) ; schémas/CI à suivre
-Phase 6  Industrialisation & docs         ⏳  (CI, docs consolidées, métriques finales)
+Phase 3  Éditeur de scénario              🔄 3.1-3.2 livrées (routeur, style) ; slices graph/panneaux à suivre
+Phase 4  Éditeur de cartes 2.5D (5 vagues)🔄 étape (a) livrée (couches sales + instrumentation) ; (b) sync diff-based à suivre
+Phase 5  Serveur & contrat de données     🔄 5.2-5.3 livrées (dés uniques, validateur schemas) ; 5.4-5.5 à suivre
+Phase 6  Industrialisation & docs         🔄 6.1 livrée (CI GitHub Actions) ; docs/métriques finales à suivre
 ```
 
 ---
@@ -156,7 +156,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | Lot | Contenu | Estimation | Risque |
 |---|---|---|---|
 | 3.1 | Routeur de liens extrait de `graph_link_overlay.gd` (1 849 l.) vers `core/graph/{link_router,cable_geometry}.gd` — ✅ 7 captures byte-identiques, overlay −36 % | L | Faible-Moyen |
-| 3.2 | `scenario_editor.gd` (3 205 l.) : sortir le style (~399 l., patron `session_style.gd`) | M | Faible |
+| 3.2 | `scenario_editor.gd` (3 205 l.) : style sorti (~446 l., 13 fonctions statiques + 6 constantes) — ✅ 3 204 → 2 823 l. (−11,9 %), 7/9 captures byte-identiques (2 = horodatages non déterministes) | M | Faible |
 | 3.3 | Sortir `graph_controller.gd` (~700 l. : nœuds, liens, zoom, positions) | L | Moyen |
 | 3.4 | Sortir `transitions_panel.gd` (~350 l.), `scene_inspector.gd` (~330 l.), `dock_history.gd` (~350 l.) | L | Moyen |
 | 3.5 | `command_palette` / `editor_views` / `editor_minimap` : consolider l'API | S | Faible |
@@ -176,6 +176,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | V3 | `editor/map_editor_construction.gd` (façade `setup(editor)`) | 2 679 | ~150 | Faible-Moyen |
 | V3 | `complex_map_engine_3d.gd` (3 sous-vagues : rendu → caméra → tokens) | 4 230 | 500-700 | **Élevé** |
 | V4 | `map_complex_editor.gd` par slices (builders UI → layout → settings → commandes → terrain/eau → placement) | 5 359 | ~900 | **Très élevé** |
+| V0 | **Étape (a)** : couches sales (`DirtyLayers`, signal `layers_changed`, 173 vérifs) + instrumentation par couche — ✅ comportement inchangé, `_last_sync_layers` prêt pour (b) | — | — | Faible |
 | V5 | Nettoyage : grille outils v1 masquée, palette environnement masquée, docs périmées | — | — | Faible |
 
 Règles : **jamais deux god files dans le même commit** ; conserver les wrappers et les noms de membres atteints par les tests ; parité de hauteurs vérifiée par tests de référence avant remplacement ; captures avant/après obligatoires pour les vagues 2-4.
