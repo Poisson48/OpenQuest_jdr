@@ -285,6 +285,9 @@ var _trace_path: String = ""
 # Durees par couche du dernier rebuild, en ms. Aucune logique de rendu n'en
 # depend : objectif = preuve chiffree avant/apres (etape b/c du plan).
 var _layer_times_ms: Dictionary = {}
+# Couches qu'une synchro CIBLÉE sait reconstruire sans `configure()` complet
+# (étapes c/d de la synchro incrémentale). Toute autre couche ⇒ fallback complet.
+const TARGETED_LAYERS: Array = ["fog", "props", "meshes", "walls", "lights"]
 # Stats du dernier `update_meshes_layer()` (diff : reused/updated/added/removed).
 var _last_mesh_sync_stats: Dictionary = {}
 var _configure_ms: float = 0.0
@@ -684,6 +687,84 @@ func update_meshes_layer(p_map: Dictionary = {}) -> void:
 	_sync_object_occlusion_stamps(meshes_arr)
 	# Le calque mis à jour peut avoir rallumé des casters : réapplique le budget.
 	_update_shadow_budget(true)
+
+## Reconstruit la couche des décors 2D posés sur la carte (props).
+func _rebuild_props_layer() -> void:
+	if _props_layer == null or not _props_layer.has_method("configure"):
+		return
+	var props = map_data.get("props", [])
+	_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+
+## Reconstruit la couche des murs volumétriques.
+func _rebuild_walls_layer() -> void:
+	if _walls_layer == null or not _walls_layer.has_method("configure"):
+		return
+	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
+	var walls = map_data.get("walls", [])
+	_walls_layer.configure(walls if walls is Array else [], _cell_size, bool(cfg.get("volumetricWalls", true)))
+
+## Reconstruit la couche des lumières (sources du réglage de carte).
+func _rebuild_lights_layer() -> void:
+	if _lights_layer == null or not _lights_layer.has_method("configure"):
+		return
+	var sources = _lighting_config.get("sources", [])
+	_lights_layer.configure(sources if sources is Array else [], _cell_size)
+	# En diorama : lumières douces sans ombres.
+	if MapRenderStyleScript.is_diorama(map_data) and _lights_layer.has_method("set_shadows_enabled"):
+		_lights_layer.set_shadows_enabled(false)
+
+## Reconstruit la couche de brouillard (cellules révélées / visibilité courante).
+func _rebuild_fog_layer() -> void:
+	if _fog_layer == null or not _fog_layer.has_method("configure"):
+		return
+	_fog_layer.configure(
+		int(map_data.get("width", 16)), int(map_data.get("height", 12)), _cell_size,
+		_fog_revealed, is_gm, bool(map_data.get("fogEnabled", true)),
+		MapRenderStyleScript.is_diorama(map_data))
+
+## Mise à jour CIBLÉE d'un sous-ensemble de couches (étapes c/d de la synchro
+## incrémentale) : ne touche QUE les couches demandées, sans `configure()`
+## complet. Renvoie `false` si une couche demandée n'est pas gérée (terrain,
+## eau, végétation, style, tokens…) : l'appelant doit alors faire un rebuild
+## complet (repli sûr).
+func update_layers(layers: PackedStringArray, p_map: Dictionary = {}) -> bool:
+	if layers.is_empty():
+		return false
+	for layer_variant in layers:
+		if not str(layer_variant) in TARGETED_LAYERS:
+			return false
+	var snapshot: Dictionary = p_map if not p_map.is_empty() else map_data
+	map_data = snapshot
+	# Le brouillard dépend des cellules révélées portées par le snapshot
+	# (`playDefaults.fogRevealed`) : les rafraîchir, sinon un rebuild ciblé
+	# « fog » (révélation des lumières) resterait sur l'état précédent.
+	if layers.has("fog"):
+		var defaults: Dictionary = snapshot.get("playDefaults", {}) \
+			if snapshot.get("playDefaults") is Dictionary else {}
+		var fog_cells = defaults.get("fogRevealed", [])
+		_fog_revealed = fog_cells if fog_cells is Array else []
+	# Ordre canonique de reconstruction (indépendant de l'ordre d'arrivée).
+	for layer_variant in TARGETED_LAYERS:
+		var layer := str(layer_variant)
+		if not layers.has(layer):
+			continue
+		if layer == "meshes":
+			# `update_meshes_layer` gère ses propres stats + AO + budget d'ombres.
+			update_meshes_layer(snapshot)
+			continue
+		_layer_times_ms.erase(layer)
+		var t0 := Time.get_ticks_usec()
+		match layer:
+			"fog":
+				_rebuild_fog_layer()
+			"props":
+				_rebuild_props_layer()
+			"walls":
+				_rebuild_walls_layer()
+			"lights":
+				_rebuild_lights_layer()
+		_record_layer_ms(layer, t0)
+	return true
 
 ## Reconstruit UNIQUEMENT la couche des objets (meshes 3D, props, murs) sans
 ## toucher au terrain, à la végétation, à l'eau, à l'ambiance ni aux lumières.
@@ -2438,9 +2519,7 @@ func _rebuild_layers() -> void:
 	var rebuild_t0 := Time.get_ticks_usec()
 	for _key in _REBUILD_LAYER_KEYS:
 		_layer_times_ms.erase(_key)
-	var fog_on := bool(map_data.get("fogEnabled", true))
 	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
-	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
 
 	var t_grid := Time.get_ticks_usec()
 	if _grid_layer.has_method("configure"):
@@ -2454,14 +2533,11 @@ func _rebuild_layers() -> void:
 	_record_layer_ms("grid", t_grid)
 
 	var t_fog := Time.get_ticks_usec()
-	if _fog_layer.has_method("configure"):
-		_fog_layer.configure(w, h, _cell_size, _fog_revealed, is_gm, fog_on, is_diorama)
+	_rebuild_fog_layer()
 	_record_layer_ms("fog", t_fog)
 
 	var t_props := Time.get_ticks_usec()
-	if _props_layer and _props_layer.has_method("configure"):
-		var props = map_data.get("props", [])
-		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+	_rebuild_props_layer()
 	_record_layer_ms("props", t_props)
 
 	var t_meshes := Time.get_ticks_usec()
@@ -2469,19 +2545,11 @@ func _rebuild_layers() -> void:
 	_record_layer_ms("meshes", t_meshes)
 
 	var t_walls := Time.get_ticks_usec()
-	if _walls_layer and _walls_layer.has_method("configure"):
-		var walls = map_data.get("walls", [])
-		var show_walls := bool(cfg.get("volumetricWalls", true))
-		_walls_layer.configure(walls if walls is Array else [], _cell_size, show_walls)
+	_rebuild_walls_layer()
 	_record_layer_ms("walls", t_walls)
 
 	var t_lights := Time.get_ticks_usec()
-	if _lights_layer and _lights_layer.has_method("configure"):
-		var sources = _lighting_config.get("sources", [])
-		_lights_layer.configure(sources if sources is Array else [], _cell_size)
-		# En diorama : lumières douces sans ombres.
-		if is_diorama and _lights_layer.has_method("set_shadows_enabled"):
-			_lights_layer.set_shadows_enabled(false)
+	_rebuild_lights_layer()
 	_record_layer_ms("lights", t_lights)
 
 	var elevations_ok := not is_diorama

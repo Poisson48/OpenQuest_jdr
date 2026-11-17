@@ -4152,6 +4152,7 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 	if layers.is_empty():
 		layers = DirtyLayersScript.all()
 	var meshes_only := _is_meshes_only(layers)
+	var targeted := _targeted_sync_layers(layers)
 	_last_sync_layers = layers
 	if _engine.has_method("start_camera_trace") and str(_engine.get("_trace_path")).is_empty():
 		_engine.call("start_camera_trace")
@@ -4163,12 +4164,16 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 	_engine.set_snap_to_grid(_snap_mode == "cell")
 	if _engine.has_method("trace_event"):
 		_engine.call("trace_event", "SYNC_BEFORE", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
-	if meshes_only and _engine.has_method("update_meshes_layer"):
-		# Diff ciblé : ni caméra, ni style/qualité, ni mode joueur ne bougent.
-		_engine.call("update_meshes_layer", snapshot)
+	var targeted_done := false
+	if not targeted.is_empty() and _engine.has_method("update_layers"):
+		# Synchro CIBLÉE (meshes/props/walls/lights/fog) : ni caméra, ni
+		# style/qualité, ni mode joueur, ni autres couches ne bougent.
+		targeted_done = bool(_engine.call("update_layers", targeted, snapshot))
+	if targeted_done:
 		if _engine.has_method("trace_event"):
-			_engine.call("trace_event", "SYNC_MESHES",
-				"meshes=%d" % (snapshot.get("meshes", []) as Array).size())
+			_engine.call("trace_event", "SYNC_LAYERS",
+				"layers=%s meshes=%d" % [DirtyLayersScript.describe(targeted),
+					(snapshot.get("meshes", []) as Array).size()])
 	else:
 		# Vue joueur : is_gm=false → brouillard joueur + présentation contrainte.
 		var as_gm := not _player_view
@@ -4207,6 +4212,7 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 		"sync_layers": Array(layers),
 		"sync_layers_text": DirtyLayersScript.describe(layers),
 		"sync_targeted_meshes": meshes_only,
+		"sync_targeted_layers": Array(targeted) if targeted_done else [],
 		"sync_batch_depth": _sync_batch_depth,
 		"engine": engine_stats,
 	}
@@ -4216,6 +4222,24 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 ## autre couche (terrain, eau, style, reliquat « all »…) impose le configure complet.
 func _is_meshes_only(layers: PackedStringArray) -> bool:
 	return layers.size() == 1 and layers[0] == DirtyLayersScript.MESHES
+
+
+## Couches qu'une synchro CIBLÉE peut traiter (miroir de `ComplexMapEngine3D.
+## TARGETED_LAYERS`) : aucune caméra/style/mode joueur n'est touché. Une seule
+## couche hors liste (terrain, eau, végétation, « all »…) ⇒ liste vide, donc
+## `configure()` complet (repli sûr).
+const TARGETED_SYNC_LAYERS: Array = ["fog", "props", "meshes", "walls", "lights"]
+
+
+func _targeted_sync_layers(layers: PackedStringArray) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for layer_variant in layers:
+		var layer := str(layer_variant)
+		if not layer in TARGETED_SYNC_LAYERS:
+			return PackedStringArray()
+		if not out.has(layer):
+			out.append(layer)
+	return out
 
 
 func _ensure_token_portraits(tokens: Array) -> void:

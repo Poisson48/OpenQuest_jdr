@@ -426,18 +426,26 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._band_base_selection.clear()
 		"move":
 			if _ed._press_moved:
+				# Phase 4d : plus de `_sync_engine()` complet ici. Les trois étapes
+				# ci-dessous émettent leurs changements de couches (`layers_changed`) :
+				#  - `commit_live_edit` → meshes/props/walls selon le kind déplacé ;
+				#  - décor contextuel des murs → props ;
+				#  - illumination des lumières → fog (révélation).
+				# La synchro CIBLÉE de `_on_doc_changed` les traite ; le rebuild
+				# complet qui suivait coûtait ≈1,45 s par release.
 				_ed.doc.commit_live_edit(_ed._drag_ids, "Déplacement")
 				_ed._construction._refresh_context_decor_for_walls(_ed._drag_ids)
 				_ed._rebuild_lights_illumination(_ed._drag_ids)
-				_ed._sync_engine()
 			_ed._drag_ids.clear()
 			_ed._drag_origins.clear()
 		"resize":
 			if _ed._press_moved:
+				# Phase 4d : idem branche « move » — les couches touchées (meshes,
+				# props, walls, fog) sont resynchronisées de façon ciblée par le
+				# signal `layers_changed` ; plus de rebuild complet au release.
 				_ed.doc.commit_live_edit(_ed._drag_ids, "Redimensionnement")
 				_ed._construction._refresh_context_decor_for_walls(_ed._drag_ids)
 				_ed._rebuild_lights_illumination(_ed._drag_ids)
-				_ed._sync_engine()
 			_ed._drag_ids.clear()
 			_ed._handle_state.clear()
 		"rotate":
