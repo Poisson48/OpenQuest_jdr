@@ -481,3 +481,30 @@ Variante « ultra-rapide » (~20 s) si le temps presse : `dice_engine_test|rules
 4. Typecheck : baseline = **5 erreurs**. Objectif raisonnable : ne pas augmenter ; idéalement 0 après correction.
 5. Surveiller les **durées** : un écart > 50 % sur `map_quick_start_test` ou les tests ~20 s signale une régression de
    performance (mais la charge machine fausse la comparaison — rejouer à charge équivalente, Godot headless seul).
+
+---
+
+## 14. Reprise post-phase 1 (contrôle de non-régression)
+
+> Mesure du **2026-11-17 20:06-20:25**, sur les commits `ac98a98` (phase 0) + `b231995` (phase 1).
+> Commande : `./scripts/run_tests.ps1` (runner corrigé : temporaires uniques + fin forcée) ; log brut conservé
+> `docs/refactor/logs/godot_suite_post_phase1.log`.
+
+| Mesure | Baseline `4514c61` | Post-phase 1 |
+|---|---|---|
+| Tests lancés | 121 | **120** (−1 : `zz_probe_grid` supprimé, ADR-007) |
+| PASS | 116 | **115** |
+| FAIL | 5 | **5** (dont 1 flake de concurrence, voir ci-dessous) |
+| Durée | 24 min 35 s | 18 min 46 s |
+
+Échecs post-phase 1 et statut :
+
+| Test | Statut | Commentaire |
+|---|---|---|
+| `map_editor_snap_test` | connu (inchangé) | hang déterministe dans la chaîne de murs « coin L » (~180 s) — bug à traiter en phase 4 (construction/coins) |
+| `map_editor_v2_palette_test` | connu (inchangé) | ne compile pas en mode `--script` : `palette.gd:78` référence `AppSettings` dans un `const preload` (autoload non résolu au chargement) — à corriger en phase 2 |
+| `map_quality_cs2_test` | connu (inchangé) | non hermétique : MSAA 4× imposé par `user://app_settings.cfg` — à corriger en phase 2 |
+| `webrtc_pooling_e2e_test` | connu (inchangé) | nécessite un serveur pooling local (PASS en 3,7 s avec serveur, cf. §5) |
+| `city_scene_test` | **flake de concurrence** | échoue (`no_ground_overlap`) uniquement parce qu'une instance du jeu a été relancée pendant le run ; **PASS en isolation** (`./scripts/run_tests.ps1 -Filter '^city_scene_test$'`). Ne pas lancer la suite et l'éditeur/jeu en même temps. |
+
+**Conclusion** : aucune régression attribuable aux suppressions de la phase 1. `verify.ps1` est vert, la compilation des 452 fichiers (scripts + scènes) est verte, les tests du domaine sont verts (17/17) et la suite complète retrouve le profil de la baseline moins le test-sonde supprimé.

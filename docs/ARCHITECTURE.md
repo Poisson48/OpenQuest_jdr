@@ -1,6 +1,6 @@
 # Architecture OpenQuest JDR
 
-> **État décrit : 2026-11-17** (HEAD de départ `4514c61`, chantier de refactorisation en cours — phase 0 livrée, phase 1 en cours).
+> **État décrit : 2026-11-17** (HEAD de départ `4514c61`, chantier de refactorisation — phases 0 et 1 livrées, phases 2-6 planifiées).
 > Ce document décrit **le code réellement exécuté**, puis **la cible** du chantier. Il remplace la version précédente, qui décrivait l'architecture cible d'une branche de refactor (`refactor/st-refacto`) jamais atteinte : ses principes étaient présentés comme acquis, alors qu'ils sont des objectifs avec **écart mesuré** (§6).
 >
 > Preuves et feuille de route : [plan de refactorisation](refactor/PLAN_REFACTORISATION.md) · [audit client Godot](refactor/AUDIT_GODOT.md) · [audit éditeur de cartes](refactor/AUDIT_EDITEUR_CARTE.md) · [audit serveur](refactor/AUDIT_SERVEUR.md) · [inventaire technique](refactor/INVENTAIRE_TECHNIQUE.md).

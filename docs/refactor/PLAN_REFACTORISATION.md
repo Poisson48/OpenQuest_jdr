@@ -100,7 +100,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | Typecheck serveur au commit de baseline | **rouge** (5 erreurs TS) — **corrigé en phase 0** | — |
 | Socle rapide (adopté par `fast-tests.txt`) | 23 tests ≈ 102 s (voir `BASELINE_TESTS.md` §11) | — |
 
-**Règle de non-régression** : après chaque phase, la suite complète doit rester **≤ 5 échecs connus** ; un sixième échec est une régression. Une suppression de code mort ne doit **jamais** changer cette liste, à l'exception de `zz_probe_grid`, supprimé en phase 1 (le total passe donc légitimement à 4 échecs connus).
+**Règle de non-régression** : après chaque phase, la suite complète doit rester **≤ 5 échecs connus** ; un sixième échec est une régression. Une suppression de code mort ne doit **jamais** changer cette liste, à l'exception de `zz_probe_grid`, supprimé en phase 1 (le total passe donc légitimement à 4 échecs connus). **Contrôle post-phase 1 effectué le 2026-11-17** : 120 tests, 115 PASS, 4 échecs connus + 1 flake de concurrence (`city_scene_test`, PASS en isolation) — voir [BASELINE_TESTS.md §14](BASELINE_TESTS.md).
 
 **Avertissement** : la baseline a été mesurée sur une machine partagée avec d'autres agents ; les durées sont gonflées (ex. `map_quick_start_test` : 113 s en suite, 82,7 s isolé). Pour une comparaison stricte, rejouer les commandes sur un arbre figé.
 
