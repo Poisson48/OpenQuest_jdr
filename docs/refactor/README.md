@@ -31,6 +31,7 @@ Non-objectifs : aucun changement de gameplay, d'UI ou de protocole réseau ; auc
 | [BASELINE_TESTS.md](BASELINE_TESTS.md) | Baseline de non-régression : 178 tests déclarés, 121 exécutés en headless (116 PASS / 5 FAIL connus), 57 tests de capture exclus, logs conservés, socle rapide proposé | référence |
 | [INVENTAIRE_TECHNIQUE.md](INVENTAIRE_TECHNIQUE.md) | Mesure reproductible (`metrics.ps1`) : volumétrie, god files, répartition, candidats code mort, scènes, tests, serveur | référence |
 | [RAPPORT_PERFORMANCE_EDITEUR_3D.md](RAPPORT_PERFORMANCE_EDITEUR_3D.md) | Mesures et causes racines des gels de l'éditeur 3D (rebuild ≈ 2,5 s, tampon de brosse 184-327 ms) + contrat de perf à tenir | référence |
+| [PLAN_SYNCHRO_INCREMENTALE.md](PLAN_SYNCHRO_INCREMENTALE.md) | Design d'implémentation de la synchro incrémentale (couches sales, `MapMeshes3D.sync()`, seuils, séquencement) | plan d'exécution phase 4 |
 
 Documents d'état (mis à jour avec ce chantier) : [ARCHITECTURE.md](../ARCHITECTURE.md) (runtime réel + cible), [REFACTOR_EDITEUR.md](../REFACTOR_EDITEUR.md) (refactor éditeur précédent, historique), [MULTIPLAYER.md](../MULTIPLAYER.md) (modèle P2P + pooling), [STACK.md](../STACK.md) (historique, bandeau « obsolète »).
 Archive serveur : [`server/legacy/README.md`](../../server/legacy/README.md) (cause de l'archivage, contenu, procédure de restauration).
