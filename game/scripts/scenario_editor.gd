@@ -3,9 +3,10 @@ extends Control
 const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
-const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
-const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
 const GraphControllerScript := preload("res://scripts/scenario_editor/graph_controller.gd")
+const SceneInspectorScript := preload("res://scripts/scenario_editor/scene_inspector.gd")
+const DockHistoryScript := preload("res://scripts/scenario_editor/dock_history.gd")
+const TransitionsPanelScript := preload("res://scripts/scenario_editor/transitions_panel.gd")
 const ScenarioEditorStyle := preload("res://scripts/scenario_editor/scenario_editor_style.gd")
 
 ## Inspecteur de droite (≈ 390 px, style Atelier).
@@ -15,9 +16,9 @@ const MINIMAP_CAPTION := "Plan d'ensemble"
 const MINIMAP_PANEL_SIZE := Vector2(220.0, 150.0)
 const MINIMAP_MARGIN := Vector2(10.0, 62.0)
 ## Onglets de l'inspecteur de droite (refonte 04).
-const DETAILS_TAB_SCENE := "scene"
-const DETAILS_TAB_BRANCHES := "branches"
-const DETAILS_TAB_META := "meta"
+const DETAILS_TAB_SCENE := SceneInspectorScript.DETAILS_TAB_SCENE
+const DETAILS_TAB_BRANCHES := SceneInspectorScript.DETAILS_TAB_BRANCHES
+const DETAILS_TAB_META := SceneInspectorScript.DETAILS_TAB_META
 ## Modes du centre (refonte 04 « Console de nœuds »).
 const MODE_GRAPH := "graph"
 const MODE_SCENARIO := "scenario"
@@ -29,9 +30,9 @@ const TOOL_LINK := GraphControllerScript.TOOL_LINK
 const TOOL_NOTE := GraphControllerScript.TOOL_NOTE
 const TOOL_FRAME := GraphControllerScript.TOOL_FRAME
 ## Onglets du dock bas.
-const DOCK_TAB_ISSUES := "issues"
-const DOCK_TAB_HISTORY := "history"
-const DOCK_TAB_JOURNAL := "journal"
+const DOCK_TAB_ISSUES := DockHistoryScript.DOCK_TAB_ISSUES
+const DOCK_TAB_HISTORY := DockHistoryScript.DOCK_TAB_HISTORY
+const DOCK_TAB_JOURNAL := DockHistoryScript.DOCK_TAB_JOURNAL
 
 @onready var status_lbl: Label = %LblStatus
 @onready var graph_edit: GraphEdit = %GraphEdit
@@ -145,8 +146,14 @@ var _note_editing_id: String = ""
 var _link_last_sid: String = ""
 var _link_click_ms: int = 0
 var _graph = GraphControllerScript.new()
+var _scene_panel = SceneInspectorScript.new()
+var _dock = DockHistoryScript.new()
+var _transitions = TransitionsPanelScript.new()
 
 func _ready() -> void:
+	_scene_panel.setup(self)
+	_dock.setup(self)
+	_transitions.setup(self)
 	_graph.setup(self)
 	%TopBar.back_pressed.connect(_on_back_pressed)
 	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
@@ -594,191 +601,20 @@ func _update_canvas_chrome() -> void:
 ## Heuristiques volontairement simples : erreurs bloquantes, accessibilité,
 ## scènes terminales sans carte, carrefours illisibles, branches MJ d'acte.
 func _refresh_dock(analysis: Dictionary = {}) -> void:
-	if dock_issues_list == null:
-		return
-	if analysis.is_empty():
-		analysis = QuestNavigation.analyze_graph(_scenario)
-	for child in dock_issues_list.get_children():
-		child.queue_free()
-	_graph_issues = _collect_graph_issues(analysis)
-	var problems := 0
-	for issue in _graph_issues:
-		if str(issue.get("severity", "warn")) != "ok":
-			problems += 1
-	dock_issue_count_lbl.text = str(problems)
-	dock_issue_count_lbl.add_theme_color_override("font_color",
-		ThemeColors.GOLD_LIGHT if problems > 0 else ThemeColors.TEXT_MUTED)
-	if _graph_issues.is_empty():
-		var empty := Label.new()
-		empty.text = "✓ Aucun problème détecté sur ce graphe."
-		empty.add_theme_color_override("font_color", ThemeColors.SUCCESS)
-		dock_issues_list.add_child(empty)
-		return
-	for issue in _graph_issues:
-		dock_issues_list.add_child(_create_dock_issue_row(issue))
+	_dock._refresh_dock(analysis)
 
 func _collect_graph_issues(analysis: Dictionary) -> Array:
-	var issues: Array = []
-	var start_id := str(_scenario.get("startSceneId", ""))
-	if start_id.is_empty() or _scene_index_for_id(start_id) < 0:
-		issues.append({
-			"severity": "error", "scene_id": "",
-			"message": "scène de départ manquante ou invalide",
-		})
-	# Branches cassées (normalement impossibles après normalisation).
-	for broken in analysis.get("brokenTransitions", []):
-		if typeof(broken) != TYPE_DICTIONARY:
-			continue
-		issues.append({
-			"severity": "error", "scene_id": str(broken.get("from", "")),
-			"message": "branche cassée vers « %s »" % str(broken.get("to", "")),
-		})
-	# Accessibilité depuis la scène de départ.
-	var warned: Dictionary = {}
-	for uid in analysis.get("unreachable", []):
-		var sid := str(uid)
-		issues.append({
-			"severity": "warn", "scene_id": sid,
-			"message": "scène inatteignable depuis le départ — vérifier les branches entrantes",
-		})
-		warned[sid] = true
-	for uid in analysis.get("orphans", []):
-		var sid := str(uid)
-		if warned.has(sid):
-			continue
-		issues.append({
-			"severity": "warn", "scene_id": sid,
-			"message": "scène orpheline (aucune branche entrante)",
-		})
-		warned[sid] = true
-	# Scènes terminales sans carte liée : la session resterait sur la carte précédente.
-	for uid in analysis.get("terminals", []):
-		var sid := str(uid)
-		var scene := _get_scene_dict(sid)
-		if scene.is_empty():
-			continue
-		if QuestNavigation.get_scene_map_ids(scene).is_empty():
-			issues.append({
-				"severity": "warn", "scene_id": sid,
-				"message": "scène terminale sans carte liée — la session restera sur la carte précédente",
-			})
-	# Carrefours trop chargés en branches entrantes (lisibilité du graphe).
-	var incoming: Dictionary = analysis.get("incoming", {})
-	for key in incoming.keys():
-		var sid := str(key)
-		var branch_n := int(incoming[key])
-		if branch_n < 5:
-			continue
-		issues.append({
-			"severity": "warn", "scene_id": sid,
-			"message": "%d branches entrantes (lisibilité) — envisager un carrefour nommé" % branch_n,
-		})
-	# Branches MJ franchissant un acte : cohérence narrative à vérifier.
-	for scene in _scenario.get("scenes", []):
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		var from_act := _scene_act_number(scene)
-		if from_act <= 0:
-			continue
-		var from_id := str(scene.get("id", ""))
-		for transition in scene.get("transitions", []):
-			if typeof(transition) != TYPE_DICTIONARY or not bool(transition.get("gmOnly", false)):
-				continue
-			var target := _get_scene_dict(str(transition.get("to", "")))
-			if target.is_empty():
-				continue
-			var to_act := _scene_act_number(target)
-			if to_act > from_act:
-				issues.append({
-					"severity": "warn", "scene_id": from_id,
-					"message": "branche MJ vers l'acte %d — vérifier la cohérence avec l'acte suivant" % to_act,
-				})
-	# Ligne de confirmation quand le point d'entrée est sain.
-	if not start_id.is_empty() and _scene_index_for_id(start_id) >= 0 and bool(analysis.get("ok", false)):
-		var outgoing := QuestNavigation.get_available_transitions(_scenario, start_id).size()
-		issues.append({
-			"severity": "ok", "scene_id": start_id,
-			"message": "scène de départ atteignable, %d sorties, aucune branche cassée" % outgoing,
-		})
-	# Déduplication puis tri erreurs → alertes → confirmations.
-	var seen: Dictionary = {}
-	var result: Array = []
-	for issue in issues:
-		var key := "%s|%s" % [str(issue.get("scene_id", "")), str(issue.get("message", ""))]
-		if seen.has(key):
-			continue
-		seen[key] = true
-		result.append(issue)
-	result.sort_custom(func(a, b): return _issue_rank(a) < _issue_rank(b))
-	return result
+	return _dock._collect_graph_issues(analysis)
 
 func _create_dock_issue_row(issue: Dictionary) -> HBoxContainer:
-	var severity := str(issue.get("severity", "warn"))
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
-	var icon := Label.new()
-	icon.text = "▲" if severity == "warn" else ("✖" if severity == "error" else "●")
-	icon.custom_minimum_size = Vector2(16, 0)
-	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var icon_color := ThemeColors.GOLD_LIGHT
-	if severity == "error":
-		icon_color = ThemeColors.DANGER
-	elif severity == "ok":
-		icon_color = ThemeColors.SUCCESS
-	icon.add_theme_color_override("font_color", icon_color)
-	row.add_child(icon)
-	var scene_id := str(issue.get("scene_id", ""))
-	if not scene_id.is_empty() and _scene_index_for_id(scene_id) >= 0:
-		var where := LinkButton.new()
-		where.text = scene_id
-		where.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
-		where.tooltip_text = "Sélectionner la scène « %s »" % scene_id
-		where.focus_mode = Control.FOCUS_NONE
-		where.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-		where.add_theme_color_override("font_hover_color", ThemeColors.GOLD)
-		where.pressed.connect(func(): _select_and_focus_scene(scene_id))
-		row.add_child(where)
-	else:
-		var where := Label.new()
-		where.text = "scénario"
-		where.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		row.add_child(where)
-	var message := Label.new()
-	message.text = str(issue.get("message", ""))
-	message.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	message.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	row.add_child(message)
-	return row
+	return _dock._create_dock_issue_row(issue)
 
 func _issue_rank(issue: Dictionary) -> int:
-	match str(issue.get("severity", "warn")):
-		"error":
-			return 0
-		"warn":
-			return 1
-		_:
-			return 2
+	return _dock._issue_rank(issue)
 
 ## Numéro d'acte déduit des tags d'une scène (« acte-2 », « act-2 »), 0 sinon.
 func _scene_act_number(scene: Dictionary) -> int:
-	var tags: Array = scene.get("tags", [])
-	if typeof(tags) != TYPE_ARRAY:
-		return 0
-	for tag in tags:
-		var text := str(tag).strip_edges().to_lower()
-		for prefix in ["acte-", "act-"]:
-			var prefix_text := str(prefix)
-			if text.begins_with(prefix_text):
-				var suffix := text.trim_prefix(prefix_text)
-				if suffix.is_valid_int():
-					return int(suffix)
-	return 0
-
-# ---------------------------------------------------------------------------
-# Zoom (sous-barre) et onglets de détails (refonte 04)
-# ---------------------------------------------------------------------------
+	return _dock._scene_act_number(scene)
 
 func _on_zoom_in_pressed() -> void:
 	_graph._on_zoom_in_pressed()
@@ -874,26 +710,10 @@ func _on_graph_scene_focus_requested(scene_id: String) -> void:
 	_graph._on_graph_scene_focus_requested(scene_id)
 
 func _open_scene_editor(sid: String, focus_fields: bool = false) -> void:
-	if sid.is_empty():
-		return
-	# Ne pas reconstruire le graphe ici : ça casse le glisser-déposer au clic gauche.
-	if sid != _selected_scene_id:
-		_commit_scene_editor()
-		_selected_scene_id = sid
-		_refresh_graph_selection_styles()
-	# Console 04 : cliquer un nœud ramène sur la fiche Scène de l'inspecteur.
-	_set_details_tab(DETAILS_TAB_SCENE)
-	_refresh_scene_panel()
-	# Focus uniquement sur un vrai clic (pas pendant un drag), sinon le déplacement est annulé.
-	if focus_fields:
-		call_deferred("_focus_scene_editor_fields")
+	_scene_panel._open_scene_editor(sid, focus_fields)
 
 func _focus_scene_editor_fields() -> void:
-	if not scene_editor.visible:
-		return
-	if scene_title:
-		scene_title.grab_focus()
-		scene_title.caret_column = scene_title.text.length()
+	_scene_panel._focus_scene_editor_fields()
 
 func _refresh_graph_selection_styles() -> void:
 	_graph._refresh_graph_selection_styles()
@@ -935,517 +755,98 @@ func _scene_graph_size(scene: Dictionary) -> Vector2:
 	return _graph._scene_graph_size(scene)
 
 func _refresh_scene_panel() -> void:
-	# L'onglet Branches affiche une invite tant qu'aucune scène n'est sélectionnée.
-	branches_hint_lbl.visible = _selected_scene_id.is_empty()
-	if _selected_scene_id.is_empty():
-		lbl_no_selection.visible = true
-		scene_editor.visible = false
-		scene_kicker_lbl.text = "SCÈNE — / —"
-		scene_title_big.text = "Aucune scène sélectionnée"
-		scene_id_chip.visible = false
-		_clear_chip_row(scene_tag_chips)
-		_clear_chip_row(scene_map_chips)
-		_clear_chip_row(scene_npc_chips)
-		scene_npc_col.visible = false
-		if scene_action_bar != null:
-			scene_action_bar.visible = false
-		return
-	lbl_no_selection.visible = false
-	scene_editor.visible = true
-	if scene_action_bar != null:
-		scene_action_bar.visible = _details_tab == DETAILS_TAB_SCENE
-	var scene := _get_scene_dict(_selected_scene_id)
-	if scene.is_empty():
-		return
-	var scene_index: int = _scene_index_for_id(_selected_scene_id)
-	var scene_total: int = _scenario.get("scenes", []).size()
-	var act: int = _scene_act_number(scene)
-	# En-tête structuré façon Atelier : « SCÈNE n / N · ACTE n » + chip d'id.
-	scene_kicker_lbl.text = "SCÈNE %d / %d" % [scene_index + 1, scene_total]
-	if act > 0:
-		scene_kicker_lbl.text += " · ACTE %d" % act
-	scene_title_big.text = str(scene.get("title", _selected_scene_id))
-	scene_id_chip.visible = true
-	lbl_scene_id.text = _selected_scene_id
-	var is_start: bool = _selected_scene_id == str(_scenario.get("startSceneId", ""))
-	var transitions: Array = scene.get("transitions", [])
-	var is_terminal: bool = typeof(transitions) != TYPE_ARRAY or transitions.is_empty()
-	if is_start:
-		scene_badge_lbl.text = "★ Scène de départ"
-		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.GOLD)
-	elif is_terminal:
-		scene_badge_lbl.text = "⚑ Scène terminale"
-		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
-	else:
-		var branch_n: int = transitions.size() if typeof(transitions) == TYPE_ARRAY else 0
-		scene_badge_lbl.text = "↔ %d branche(s) sortante(s)" % branch_n
-		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	var start_btn := %BtnSetStart
-	start_btn.disabled = is_start
-	start_btn.text = "★ Départ" if not is_start else "★ Scène de départ"
-	scene_title.text = str(scene.get("title", ""))
-	var tags: Array = scene.get("tags", [])
-	if tags is Array:
-		var tag_texts: PackedStringArray = []
-		for tag in tags:
-			tag_texts.append(str(tag))
-		scene_tags.text = ", ".join(tag_texts)
-		_refresh_tag_chips(tags)
-	else:
-		scene_tags.text = ""
-		_clear_chip_row(scene_tag_chips)
-	scene_content.text = str(scene.get("content", ""))
-	_refresh_scene_maps_ui(scene)
-	_refresh_scene_link_chips(scene)
-	_refresh_transitions_ui()
+	_scene_panel._refresh_scene_panel()
 
 ## Chips de tags de la scène (sous le grand titre, façon Atelier).
 func _refresh_tag_chips(tags: Array) -> void:
-	_clear_chip_row(scene_tag_chips)
-	for tag in tags:
-		var text := str(tag).strip_edges()
-		if text.is_empty():
-			continue
-		scene_tag_chips.add_child(_make_chip("#%s" % text, ThemeColors.LOG_NPC))
+	_scene_panel._refresh_tag_chips(tags)
 
 ## Colonnes « Cartes liées » / « PNJ présents » : chips (masquées si vide).
 func _refresh_scene_link_chips(scene: Dictionary) -> void:
-	_clear_chip_row(scene_map_chips)
-	for map_id in QuestNavigation.get_scene_map_ids(scene):
-		var map_data := MapData.get_by_id(str(map_id))
-		var title := str(map_data.get("title", map_id)) if not map_data.is_empty() else str(map_id)
-		scene_map_chips.add_child(_make_chip(title, ThemeColors.INVESTIGATION_ACCENT))
-	_clear_chip_row(scene_npc_chips)
-	var present: Array = []
-	for npc_variant in _scenario.get("npcs", []):
-		if typeof(npc_variant) != TYPE_DICTIONARY:
-			continue
-		var npc: Dictionary = npc_variant
-		var scenes: Variant = npc.get("scenes", [])
-		if typeof(scenes) != TYPE_ARRAY:
-			continue
-		for sid in scenes:
-			if str(sid) == _selected_scene_id:
-				present.append(str(npc.get("name", npc.get("id", "PNJ"))))
-				break
-	for npc_name in present:
-		scene_npc_chips.add_child(_make_chip(npc_name, ThemeColors.LOG_NPC))
-	scene_npc_col.visible = not present.is_empty()
+	_scene_panel._refresh_scene_link_chips(scene)
 
 ## Chip compact (pilule teintée) pour l'inspecteur.
 func _make_chip(text: String, color: Color) -> Control:
 	return ScenarioEditorStyle.make_chip(text, color)
 
 func _clear_chip_row(row: HFlowContainer) -> void:
-	if row == null:
-		return
-	for child in row.get_children():
-		row.remove_child(child)
-		child.queue_free()
+	_scene_panel._clear_chip_row(row)
 
 func _refresh_scene_maps_ui(scene: Dictionary) -> void:
-	_refreshing_scene_maps = true
-	scene_maps.clear()
-	var roster := str(_scenario.get("roster", "general"))
-	var scenario_id := str(_scenario.get("id", ""))
-	var selected_ids := QuestNavigation.get_scene_map_ids(scene)
-	var maps: Array = MapData.list_linkable_maps_for_scenario(scenario_id, roster)
-	if maps.is_empty():
-		scene_maps.add_item("Aucune carte disponible pour ce roster")
-		scene_maps.set_item_disabled(0, true)
-		_refreshing_scene_maps = false
-		return
-	for m in maps:
-		if typeof(m) != TYPE_DICTIONARY:
-			continue
-		var mid := str(m.get("id", ""))
-		if mid.is_empty():
-			continue
-		var title := str(m.get("title", mid))
-		var kind := "🌍" if MapData.is_world_map(m) else "🗺️"
-		var linked := str(m.get("scenarioId", ""))
-		var suffix := ""
-		if not linked.is_empty() and linked == scenario_id:
-			suffix = " · liée au scénario"
-		elif linked.is_empty():
-			suffix = " · libre"
-		var idx := scene_maps.item_count
-		scene_maps.add_item("%s %s%s" % [kind, title, suffix])
-		scene_maps.set_item_metadata(idx, mid)
-		if selected_ids.has(mid):
-			scene_maps.select(idx, false)
-	_refreshing_scene_maps = false
+	_scene_panel._refresh_scene_maps_ui(scene)
 
 func _on_scene_maps_multi_selected(_index: int, _selected: bool) -> void:
-	_on_scene_maps_changed()
+	_scene_panel._on_scene_maps_multi_selected(_index, _selected)
 
 func _on_scene_maps_changed() -> void:
-	if _refreshing_scene_maps or _selected_scene_id.is_empty():
-		return
-	_commit_scene_maps_from_ui()
-	_mark_dirty("Cartes de scène mises à jour")
+	_scene_panel._on_scene_maps_changed()
 
 func _commit_scene_maps_from_ui() -> void:
-	if _selected_scene_id.is_empty() or _refreshing_scene_maps:
-		return
-	var idx := _scene_index_for_id(_selected_scene_id)
-	if idx < 0:
-		return
-	# Ne pas écraser mapIds quand la liste affiche seulement le placeholder désactivé.
-	if scene_maps.item_count == 0:
-		return
-	if scene_maps.item_count == 1 and scene_maps.is_item_disabled(0):
-		return
-	var selected: Array = []
-	for i in scene_maps.get_selected_items():
-		var mid := str(scene_maps.get_item_metadata(i))
-		if mid.is_empty():
-			continue
-		selected.append(mid)
-		_ensure_map_linked_to_scenario(mid)
-	var scene: Dictionary = _scenario["scenes"][idx]
-	scene["mapIds"] = selected
-	_scenario["scenes"][idx] = scene
+	_scene_panel._commit_scene_maps_from_ui()
 
 func _ensure_map_linked_to_scenario(map_id: String) -> void:
-	var scenario_id := str(_scenario.get("id", ""))
-	if scenario_id.is_empty() or map_id.is_empty():
-		return
-	var map_data := MapData.get_by_id(map_id)
-	if map_data.is_empty():
-		return
-	if str(map_data.get("scenarioId", "")).is_empty():
-		map_data["scenarioId"] = scenario_id
-		MapData.update_map(map_data)
+	_scene_panel._ensure_map_linked_to_scenario(map_id)
 
 func _commit_scene_editor() -> void:
-	if _selected_scene_id.is_empty():
-		return
-	var scene := _get_scene_dict(_selected_scene_id)
-	if scene.is_empty():
-		return
-	var prev_title := str(scene.get("title", ""))
-	scene["title"] = scene_title.text.strip_edges()
-	scene["content"] = scene_content.text.strip_edges()
-	var tag_parts := scene_tags.text.split(",", false)
-	var tags: Array = []
-	for part in tag_parts:
-		var tag := str(part).strip_edges()
-		if not tag.is_empty():
-			tags.append(tag)
-	scene["tags"] = tags
-	_commit_scene_maps_from_ui()
-	if scene["title"] != prev_title:
-		_dirty = true
+	_scene_panel._commit_scene_editor()
 
 func _refresh_transitions_ui() -> void:
-	for child in transitions_list.get_children():
-		child.queue_free()
-	var scene := _get_scene_dict(_selected_scene_id)
-	if scene.is_empty():
-		branches_count_lbl.text = "BRANCHES SORTANTES"
-		return
-	var transitions: Array = scene.get("transitions", [])
-	branches_count_lbl.text = "BRANCHES SORTANTES %d" % (
-		transitions.size() if typeof(transitions) == TYPE_ARRAY else 0)
-	if transitions.is_empty():
-		var empty := Label.new()
-		empty.text = "Aucune branche — scène terminale, ou glissez un lien depuis le graphe."
-		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-		transitions_list.add_child(empty)
-		return
-	for t_idx in range(transitions.size()):
-		var transition: Dictionary = transitions[t_idx]
-		if typeof(transition) != TYPE_DICTIONARY:
-			continue
-		transitions_list.add_child(_create_transition_row(_selected_scene_id, t_idx, transition))
+	_transitions._refresh_transitions_ui()
 
 ## Carte de branche (style Atelier) : barre de couleur à gauche (or = défaut,
 ## bleu = branche, violet = MJ), nom sur la première ligne, cible en dessous,
 ## badge DÉFAUT / BRANCHE / MJ à droite.
 func _create_transition_row(from_id: String, index: int, transition: Dictionary) -> PanelContainer:
-	var row := TransitionRowScene.instantiate()
-	row.setup(transition)
-	_populate_target_options(row.get_target_option(), str(transition.get("to", "")), from_id, index)
-	_style_transition_row(row, transition)
-	var captured_idx := index
-	row.target_changed.connect(func(to_id: String):
-		_on_transition_target_changed(from_id, captured_idx, to_id)
-	)
-	row.label_changed.connect(func(text: String):
-		_update_transition_field(from_id, captured_idx, "label", text)
-		_dirty = true
-	)
-	row.default_toggled.connect(func(on: bool):
-		if on:
-			_clear_default_transitions(from_id)
-		_update_transition_field(from_id, captured_idx, "default", on)
-		_mark_dirty()
-		_refresh_outgoing_connection_styles(from_id)
-		call_deferred("_refresh_transitions_ui")
-	)
-	row.gm_only_toggled.connect(func(on: bool):
-		_update_transition_field(from_id, captured_idx, "gmOnly", on)
-		_mark_dirty()
-		_refresh_outgoing_connection_styles(from_id)
-		call_deferred("_refresh_transitions_ui")
-	)
-	row.delete_pressed.connect(func():
-		var old_to := _transition_to_at(from_id, captured_idx)
-		_remove_transition_at(from_id, captured_idx)
-		if not old_to.is_empty():
-			_disconnect_graph_edge(from_id, old_to)
-		_mark_dirty("Branche supprimée")
-		_refresh_graph_node_chrome(from_id)
-		_refresh_transitions_ui()
-		_refresh_scene_panel()
-	)
-	return row
+	return _transitions._create_transition_row(from_id, index, transition)
 
 ## Met la carte de branche au format compact de l'inspecteur Atelier.
 func _style_transition_row(row: PanelContainer, transition: Dictionary) -> void:
 	ScenarioEditorStyle.style_transition_row(row, transition)
 
 func _populate_target_options(opt: OptionButton, selected_id: String, exclude_id: String = "", transition_index: int = -1) -> void:
-	opt.clear()
-	var select_idx := -1
-	var added := 0
-	var taken: Dictionary = {}
-	if not exclude_id.is_empty():
-		var scene := _get_scene_dict(exclude_id)
-		var transitions: Array = scene.get("transitions", [])
-		for i in range(transitions.size()):
-			if i == transition_index:
-				continue
-			if typeof(transitions[i]) == TYPE_DICTIONARY:
-				var other_to := str(transitions[i].get("to", ""))
-				if not other_to.is_empty():
-					taken[other_to] = true
-	for i in range(_scenario.get("scenes", []).size()):
-		var scene: Dictionary = _scenario["scenes"][i]
-		var sid := str(scene.get("id", ""))
-		if sid.is_empty() or sid == exclude_id:
-			continue
-		if taken.has(sid) and sid != selected_id:
-			continue
-		opt.add_item("%s" % scene.get("title", sid), added)
-		opt.set_item_metadata(added, sid)
-		if sid == selected_id:
-			select_idx = added
-		added += 1
-	if opt.item_count <= 0:
-		opt.add_item("(aucune cible)", 0)
-		opt.set_item_metadata(0, "")
-		opt.set_item_disabled(0, true)
-		opt.select(0)
-		return
-	if select_idx < 0:
-		# Cible invalide / orpheline : on l'ajoute pour ne pas basculer silencieusement.
-		if not selected_id.is_empty():
-			opt.add_item("⚠ %s (manquante)" % selected_id, added)
-			opt.set_item_metadata(added, selected_id)
-			select_idx = added
-		else:
-			select_idx = 0
-	opt.select(select_idx)
+	_transitions._populate_target_options(opt, selected_id, exclude_id, transition_index)
 
 func _on_transition_target_changed(from_id: String, index: int, to_id: String) -> void:
-	to_id = to_id.strip_edges()
-	if to_id.is_empty() or to_id == from_id:
-		_set_status("Cible de branche invalide.")
-		call_deferred("_refresh_transitions_ui")
-		return
-	var old_to := _transition_to_at(from_id, index)
-	if old_to == to_id:
-		return
-	if _has_transition(from_id, to_id):
-		_set_status("Cette branche existe déjà.")
-		call_deferred("_refresh_transitions_ui")
-		return
-	_update_transition_field(from_id, index, "to", to_id)
-	if not old_to.is_empty():
-		_disconnect_graph_edge(from_id, old_to)
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	var tr: Dictionary = {}
-	if index >= 0 and index < transitions.size() and typeof(transitions[index]) == TYPE_DICTIONARY:
-		tr = transitions[index]
-	_connect_graph_edge(from_id, to_id, tr)
-	_mark_dirty("Cible de branche mise à jour")
-	_refresh_graph_node_chrome(from_id)
+	_transitions._on_transition_target_changed(from_id, index, to_id)
 
 func _transition_to_at(from_id: String, index: int) -> String:
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	if index < 0 or index >= transitions.size():
-		return ""
-	if typeof(transitions[index]) != TYPE_DICTIONARY:
-		return ""
-	return str(transitions[index].get("to", ""))
+	return _transitions._transition_to_at(from_id, index)
 
 func _refresh_outgoing_connection_styles(from_id: String) -> void:
 	_graph._refresh_outgoing_connection_styles(from_id)
 
 func _update_transition_field(from_id: String, index: int, field: String, value: Variant) -> void:
-	_notify_links_changed()
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	if index < 0 or index >= transitions.size():
-		return
-	var copy: Dictionary = transitions[index]
-	copy[field] = value
-	transitions[index] = copy
-	scene["transitions"] = transitions
+	_transitions._update_transition_field(from_id, index, field, value)
 
 func _clear_default_transitions(from_id: String) -> void:
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	for i in range(transitions.size()):
-		if typeof(transitions[i]) == TYPE_DICTIONARY:
-			transitions[i]["default"] = false
-	scene["transitions"] = transitions
+	_transitions._clear_default_transitions(from_id)
 
 func _has_transition(from_id: String, to_id: String) -> bool:
-	var scene := _get_scene_dict(from_id)
-	for transition in scene.get("transitions", []):
-		if typeof(transition) == TYPE_DICTIONARY and str(transition.get("to", "")) == to_id:
-			return true
-	return false
+	return _transitions._has_transition(from_id, to_id)
 
 func _add_or_update_transition(from_id: String, to_id: String, label: String, default: bool, gm_only: bool) -> void:
-	_notify_links_changed()
-	var scene := _get_scene_dict(from_id)
-	if scene.is_empty() or from_id == to_id:
-		return
-	var transitions: Array = scene.get("transitions", [])
-	for transition in transitions:
-		if typeof(transition) == TYPE_DICTIONARY and str(transition.get("to", "")) == to_id:
-			return
-	if default:
-		_clear_default_transitions(from_id)
-	transitions.append({ "to": to_id, "label": label, "default": default, "gmOnly": gm_only })
-	scene["transitions"] = transitions
+	_transitions._add_or_update_transition(from_id, to_id, label, default, gm_only)
 
 func _remove_transition(from_id: String, to_id: String) -> void:
-	_notify_links_changed()
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	for i in range(transitions.size() - 1, -1, -1):
-		if typeof(transitions[i]) == TYPE_DICTIONARY and str(transitions[i].get("to", "")) == to_id:
-			transitions.remove_at(i)
-	scene["transitions"] = transitions
+	_transitions._remove_transition(from_id, to_id)
 
 func _remove_transition_at(from_id: String, index: int) -> void:
-	_notify_links_changed()
-	var scene := _get_scene_dict(from_id)
-	var transitions: Array = scene.get("transitions", [])
-	if index >= 0 and index < transitions.size():
-		transitions.remove_at(index)
-	scene["transitions"] = transitions
+	_transitions._remove_transition_at(from_id, index)
 
 func _on_add_transition_pressed() -> void:
-	if _selected_scene_id.is_empty():
-		_set_status("Sélectionnez une scène d'abord.")
-		return
-	_commit_scene_editor()
-	var scenes: Array = _scenario.get("scenes", [])
-	var target_id := ""
-	for scene in scenes:
-		var sid := str(scene.get("id", ""))
-		if sid != _selected_scene_id and not _has_transition(_selected_scene_id, sid):
-			target_id = sid
-			break
-	if target_id.is_empty():
-		_set_status("Ajoutez une autre scène (non déjà liée) pour créer une branche.")
-		return
-	_add_or_update_transition(_selected_scene_id, target_id, "Nouvelle branche", false, false)
-	_connect_graph_edge(_selected_scene_id, target_id, { "to": target_id, "label": "Nouvelle branche", "default": false, "gmOnly": false })
-	_mark_dirty("Branche ajoutée")
-	_refresh_graph_node_chrome(_selected_scene_id)
-	_refresh_transitions_ui()
-	_refresh_scene_panel()
+	_transitions._on_add_transition_pressed()
 
 func _on_add_scene_pressed() -> void:
-	_commit_scene_editor()
-	var scenes: Array = _scenario.get("scenes", [])
-	var new_id := "scene-%d" % (scenes.size() + 1)
-	while _scene_index_for_id(new_id) >= 0:
-		new_id += "-x"
-	var offset := Vector2(40 + (scenes.size() % 3) * 260, 40 + int(scenes.size() / 3) * 150)
-	# Place near selected node if any
-	if not _selected_scene_id.is_empty():
-		var selected := _get_scene_dict(_selected_scene_id)
-		var gp = selected.get("graphPos", {})
-		if gp is Dictionary and gp.has("x"):
-			offset = Vector2(float(gp["x"]) + QuestNavigation.LAYOUT_H_GAP, float(gp["y"]))
-	var new_scene := {
-		"id": new_id,
-		"title": "Nouvelle scène %d" % (scenes.size() + 1),
-		"content": "",
-		"tags": [],
-		"transitions": [],
-		"mapIds": [],
-		"graphPos": { "x": offset.x, "y": offset.y },
-	}
-	scenes.append(new_scene)
-	_scenario["scenes"] = scenes
-	if scenes.size() == 1:
-		_scenario["startSceneId"] = new_id
-	# Auto-link from selected scene if it had no path to the new one
-	if not _selected_scene_id.is_empty() and _selected_scene_id != new_id:
-		var from_scene := _get_scene_dict(_selected_scene_id)
-		var existing: Array = from_scene.get("transitions", [])
-		if typeof(existing) != TYPE_ARRAY or existing.is_empty():
-			_add_or_update_transition(_selected_scene_id, new_id, "Continuer", true, false)
-	_selected_scene_id = new_id
-	_refresh_start_scene_options()
-	_mark_dirty("Scène ajoutée")
-	_rebuild_graph()
-	_refresh_scene_panel()
+	_scene_panel._on_add_scene_pressed()
 
 func _on_set_start_pressed() -> void:
-	if _selected_scene_id.is_empty():
-		return
-	_scenario["startSceneId"] = _selected_scene_id
-	_refresh_start_scene_options()
-	_mark_dirty("Scène de départ définie")
-	_rebuild_graph()
-	_refresh_scene_panel()
+	_scene_panel._on_set_start_pressed()
 
 func _on_delete_scene_pressed() -> void:
-	if _selected_scene_id.is_empty():
-		return
-	%ConfirmDeleteScene.dialog_text = "Supprimer la scène « %s » et ses liens ?" % _selected_scene_id
-	%ConfirmDeleteScene.popup_centered()
+	_scene_panel._on_delete_scene_pressed()
 
 func _on_confirm_delete_scene() -> void:
-	if _selected_scene_id.is_empty():
-		return
-	var removing_id := _selected_scene_id
-	var scenes: Array = _scenario.get("scenes", [])
-	for i in range(scenes.size() - 1, -1, -1):
-		if str(scenes[i].get("id", "")) == removing_id:
-			scenes.remove_at(i)
-	for scene in scenes:
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		var transitions: Array = scene.get("transitions", [])
-		for j in range(transitions.size() - 1, -1, -1):
-			if typeof(transitions[j]) == TYPE_DICTIONARY and str(transitions[j].get("to", "")) == removing_id:
-				transitions.remove_at(j)
-		scene["transitions"] = transitions
-	_scenario["scenes"] = scenes
-	if str(_scenario.get("startSceneId", "")) == removing_id:
-		if not scenes.is_empty():
-			_scenario["startSceneId"] = str(scenes[0].get("id", ""))
-		else:
-			_scenario["startSceneId"] = ""
-	_selected_scene_id = ""
-	_refresh_start_scene_options()
-	_mark_dirty("Scène supprimée")
-	_rebuild_graph()
-	_refresh_scene_panel()
+	_scene_panel._on_confirm_delete_scene()
 
 func _on_auto_layout_pressed() -> void:
 	_graph._on_auto_layout_pressed()
@@ -1458,63 +859,16 @@ func _on_fit_view_pressed() -> void:
 	_graph._on_fit_view_pressed()
 
 func _on_validate_pressed() -> void:
-	_commit_scene_editor()
-	_on_meta_changed()
-	var errors := QuestNavigation.validate_scenario_graph(_scenario)
-	var analysis := QuestNavigation.analyze_graph(_scenario)
-	_refresh_graph_health()
-	if not errors.is_empty():
-		_set_status("Erreur : %s" % str(errors[0]))
-		return
-	var warnings: Array = analysis.get("warnings", [])
-	_journal_add("Validation — %d erreur(s), %d avertissement(s)" % [errors.size(), warnings.size()])
-	if not warnings.is_empty():
-		_set_status("Attention : %s" % str(warnings[0]))
-	else:
-		_set_status("Graphe valide — %d scènes, %d branches" % [
-			int(analysis.get("sceneCount", 0)),
-			int(analysis.get("branchCount", 0)),
-		])
+	_dock._on_validate_pressed()
 
 func _refresh_npc_list() -> void:
-	for child in npc_list.get_children():
-		child.queue_free()
-	for i in range(_scenario.get("npcs", []).size()):
-		var npc: Dictionary = _scenario["npcs"][i]
-		if typeof(npc) != TYPE_DICTIONARY:
-			continue
-		npc_list.add_child(_create_npc_row(i, npc))
+	_scene_panel._refresh_npc_list()
 
 func _create_npc_row(index: int, npc: Dictionary) -> PanelContainer:
-	var row := NpcRowScene.instantiate()
-	row.setup(npc)
-	row.name_changed.connect(func(text: String):
-		_scenario["npcs"][index]["name"] = text
-		_dirty = true
-	)
-	row.role_changed.connect(func(text: String):
-		_scenario["npcs"][index]["role"] = text
-		_dirty = true
-	)
-	row.description_changed.connect(func(text: String):
-		_scenario["npcs"][index]["description"] = text
-		_dirty = true
-	)
-	row.delete_pressed.connect(func():
-		_scenario["npcs"].remove_at(index)
-		_dirty = true
-		_refresh_npc_list()
-	)
-	return row
+	return _scene_panel._create_npc_row(index, npc)
 
 func _on_add_npc_pressed() -> void:
-	var npcs: Array = _scenario.get("npcs", [])
-	if typeof(npcs) != TYPE_ARRAY:
-		npcs = []
-	npcs.append({ "id": "npc-%d" % (npcs.size() + 1), "name": "Nouveau PNJ", "role": "", "description": "" })
-	_scenario["npcs"] = npcs
-	_dirty = true
-	_refresh_npc_list()
+	_scene_panel._on_add_npc_pressed()
 
 func _on_save_pressed() -> void:
 	_commit_scene_editor()
@@ -1536,10 +890,7 @@ func _on_save_pressed() -> void:
 	_set_status("Scénario enregistré ✓")
 
 func _validate_scenario(scenario: Dictionary) -> String:
-	var errors := QuestNavigation.validate_scenario_graph(scenario)
-	if not errors.is_empty():
-		return str(errors[0])
-	return ""
+	return _dock._validate_scenario(scenario)
 
 func _unhandled_input(event: InputEvent) -> void:
 	var vp := get_viewport()
@@ -1736,15 +1087,10 @@ func _build_tool_rail() -> void:
 
 ## Ouvre / ferme le dock flottant (masqué par défaut : côté ouvert d'Atelier).
 func _set_dock_open(open: bool) -> void:
-	_dock_open = open
-	if dock_panel != null:
-		dock_panel.visible = open
-	if open:
-		_set_dock_tab(_dock_tab)
-	_update_canvas_chrome()
+	_dock._set_dock_open(open)
 
 func _toggle_dock() -> void:
-	_set_dock_open(not _dock_open)
+	_dock._toggle_dock()
 
 ## Enregistre le scénario puis lance une partie de test (même logique que la
 ## liste de scénarios : GameData.go_to_game_setup avec le format courant).
@@ -1762,39 +1108,7 @@ func _on_test_pressed() -> void:
 
 ## Duplique la scène sélectionnée (titre, contenu, tags, cartes, branches).
 func _on_duplicate_scene_pressed() -> void:
-	if _selected_scene_id.is_empty():
-		_set_status("Sélectionnez une scène d'abord.")
-		return
-	_commit_scene_editor()
-	var idx := _scene_index_for_id(_selected_scene_id)
-	if idx < 0:
-		return
-	var source: Dictionary = _scenario["scenes"][idx]
-	var copy: Dictionary = source.duplicate(true)
-	var base_id := str(source.get("id", "scene"))
-	var new_id := "%s-copie" % base_id
-	var suffix := 2
-	while _scene_index_for_id(new_id) >= 0:
-		new_id = "%s-copie-%d" % [base_id, suffix]
-		suffix += 1
-	copy["id"] = new_id
-	var source_title := str(source.get("title", new_id)).strip_edges()
-	if source_title.is_empty():
-		source_title = base_id
-	copy["title"] = "%s (copie)" % source_title
-	var gp: Variant = copy.get("graphPos", {})
-	var pos := _scene_graph_pos(source, idx)
-	if typeof(gp) == TYPE_DICTIONARY and gp.has("x") and gp.has("y"):
-		pos = Vector2(float(gp["x"]), float(gp["y"]))
-	copy["graphPos"] = { "x": pos.x, "y": pos.y + QuestNavigation.LAYOUT_V_GAP }
-	var scenes: Array = _scenario.get("scenes", [])
-	scenes.append(copy)
-	_scenario["scenes"] = scenes
-	_selected_scene_id = new_id
-	_refresh_start_scene_options()
-	_mark_dirty("Scène dupliquée")
-	_rebuild_graph()
-	_refresh_scene_panel()
+	_scene_panel._on_duplicate_scene_pressed()
 
 
 ## Instancie les vues Scénario / PNJ / Cartes (script séparé).
@@ -1873,56 +1187,11 @@ func _on_view_scene_selected(scene_id: String) -> void:
 
 ## Construit les panneaux Historique / Journal du dock (en plus des Problèmes).
 func _build_dock_tabs() -> void:
-	_dock_issues_panel = dock_issues_list
-	var scroll := dock_issues_list.get_parent() as ScrollContainer
-	if scroll == null:
-		return
-	_dock_history_panel = VBoxContainer.new()
-	_dock_history_panel.name = "DockHistoryList"
-	_dock_history_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dock_history_panel.add_theme_constant_override("separation", 6)
-	scroll.add_child(_dock_history_panel)
-	_dock_journal_panel = VBoxContainer.new()
-	_dock_journal_panel.name = "DockJournalList"
-	_dock_journal_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dock_journal_panel.add_theme_constant_override("separation", 6)
-	scroll.add_child(_dock_journal_panel)
-	var dock_btn_defs: Array = [
-		[DOCK_TAB_ISSUES, dock_issues_btn],
-		[DOCK_TAB_HISTORY, %BtnDockHistory],
-		[DOCK_TAB_JOURNAL, %BtnDockJournal],
-	]
-	for entry_variant in dock_btn_defs:
-		var entry: Array = entry_variant
-		var btn: Button = entry[1] as Button
-		if btn == null:
-			continue
-		var captured_tab := str(entry[0])
-		_dock_buttons[captured_tab] = btn
-		btn.disabled = false
-		btn.tooltip_text = ""
-		btn.pressed.connect(func() -> void: _set_dock_tab(captured_tab))
-	_dock_history_panel.visible = false
-	_dock_journal_panel.visible = false
-	_set_dock_tab(DOCK_TAB_ISSUES)
+	_dock._build_dock_tabs()
 
 
 func _set_dock_tab(tab: String) -> void:
-	if tab != DOCK_TAB_ISSUES and tab != DOCK_TAB_HISTORY and tab != DOCK_TAB_JOURNAL:
-		tab = DOCK_TAB_ISSUES
-	_dock_tab = tab
-	if _dock_issues_panel != null:
-		_dock_issues_panel.visible = tab == DOCK_TAB_ISSUES
-	if _dock_history_panel != null:
-		_dock_history_panel.visible = tab == DOCK_TAB_HISTORY
-	if _dock_journal_panel != null:
-		_dock_journal_panel.visible = tab == DOCK_TAB_JOURNAL
-	for tab_key in _dock_buttons.keys():
-		_style_tab_button(_dock_buttons[tab_key] as Button, str(tab_key) == tab)
-	if tab == DOCK_TAB_HISTORY:
-		_render_history()
-	elif tab == DOCK_TAB_JOURNAL:
-		_render_journal()
+	_dock._set_dock_tab(tab)
 
 
 func _on_validation_badge_pressed() -> void:
@@ -1952,80 +1221,27 @@ func _update_validation_badge() -> void:
 # ---------------------------------------------------------------------------
 
 func _history_add(text: String) -> void:
-	_history_entries.append({
-		"time": Time.get_time_string_from_system(),
-		"text": text,
-	})
-	while _history_entries.size() > 120:
-		_history_entries.pop_front()
-	if _dock_tab == DOCK_TAB_HISTORY and _dock_history_panel != null:
-		_render_history()
+	_dock._history_add(text)
 
 
 func _journal_add(text: String) -> void:
-	_journal_entries.append({
-		"time": Time.get_time_string_from_system(),
-		"text": text,
-	})
-	while _journal_entries.size() > 120:
-		_journal_entries.pop_front()
-	if _dock_tab == DOCK_TAB_JOURNAL and _dock_journal_panel != null:
-		_render_journal()
+	_dock._journal_add(text)
 
 
 func _render_history() -> void:
-	if _dock_history_panel == null:
-		return
-	for child in _dock_history_panel.get_children():
-		child.queue_free()
-	if _history_entries.is_empty():
-		_dock_history_panel.add_child(_make_dock_label("Aucune action pour l'instant.", true))
-		return
-	for i in range(_history_entries.size() - 1, -1, -1):
-		var entry: Dictionary = _history_entries[i]
-		_dock_history_panel.add_child(_make_dock_row(str(entry.get("time", "")), str(entry.get("text", ""))))
+	_dock._render_history()
 
 
 func _render_journal() -> void:
-	if _dock_journal_panel == null:
-		return
-	for child in _dock_journal_panel.get_children():
-		child.queue_free()
-	if _journal_entries.is_empty():
-		_dock_journal_panel.add_child(_make_dock_label("Journal vide.", true))
-		return
-	for i in range(_journal_entries.size() - 1, -1, -1):
-		var entry: Dictionary = _journal_entries[i]
-		_dock_journal_panel.add_child(_make_dock_row(str(entry.get("time", "")), str(entry.get("text", ""))))
+	_dock._render_journal()
 
 
 func _make_dock_row(time_text: String, text: String) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var time_lbl := Label.new()
-	time_lbl.text = time_text
-	time_lbl.theme_type_variation = &"MicroLabel"
-	time_lbl.custom_minimum_size = Vector2(72, 0)
-	var msg := Label.new()
-	msg.text = text
-	msg.theme_type_variation = &"MutedLabel"
-	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(time_lbl)
-	row.add_child(msg)
-	return row
+	return _dock._make_dock_row(time_text, text)
 
 
 func _make_dock_label(text: String, muted: bool) -> Label:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.theme_type_variation = &"MutedLabel" if muted else &"CaptionLabel"
-	return lbl
-
-
-# ---------------------------------------------------------------------------
-# Outils (rail de la sous-barre)
-# ---------------------------------------------------------------------------
+	return _dock._make_dock_label(text, muted)
 
 func _set_tool(tool: String) -> void:
 	if tool != TOOL_SELECT and tool != TOOL_LINK and tool != TOOL_NOTE and tool != TOOL_FRAME:
@@ -2093,13 +1309,7 @@ func _handle_link_click(scene_id: String) -> void:
 
 
 func _scene_title(scene_id: String) -> String:
-	var scene := _get_scene_dict(scene_id)
-	return str(scene.get("title", scene_id))
-
-
-# ---------------------------------------------------------------------------
-# Notes et cadres (annotations du plan)
-# ---------------------------------------------------------------------------
+	return _scene_panel._scene_title(scene_id)
 
 ## Convertit une position écran en coordonnées graphe (position_offset).
 func _graph_point_from_global(global_pos: Vector2) -> Vector2:
