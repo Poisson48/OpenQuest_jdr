@@ -27,6 +27,8 @@ const MapEditorFloatingPanelScript := preload("res://scripts/maps/editor/v2/floa
 const MapEditorDraggablePaletteScript := preload("res://scripts/maps/editor/draggable_palette.gd")
 const MapEditorToolFlyoutScript := preload("res://scripts/maps/editor/v2/tool_flyout.gd")
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
+## Couches 3D sales (module pur) : accumulation bulk + statistiques de synchro.
+const DirtyLayersScript := preload("res://scripts/core/maps/dirty_layers.gd")
 const ToolsScript := preload("res://scripts/maps/editor/map_editor_tools.gd")
 const OverlayScript := preload("res://scripts/maps/editor/map_editor_overlay.gd")
 const MinimapScript := preload("res://scripts/maps/editor/map_editor_minimap.gd")
@@ -506,6 +508,7 @@ func _ready() -> void:
 	doc.selection_changed.connect(_on_selection_changed)
 	doc.history_changed.connect(_on_history_changed)
 	doc.dirty_changed.connect(_on_dirty_changed)
+	doc.layers_changed.connect(_on_doc_layers_changed)
 	_bind_ui()
 	_build_generation_overlay()
 	_create_parametres_menu()
@@ -4085,9 +4088,67 @@ func _focus_element(element_id: String) -> void:
 # Synchronisation moteur / panneaux
 # ===========================================================================
 
-func _sync_engine(reset_view: bool = false) -> void:
+## Accumulation des couches sales. Pendant un bulk edit (construction de scène),
+## `changed` est débranché : les mutations n'appellent donc pas `_on_doc_changed`,
+## et les couches s'empilent ici pour être consommées par la synchro unique de fin
+## de bulk (une seule reconstruction, comme aujourd'hui).
+var _pending_layers: PackedStringArray = PackedStringArray()
+## Couches réellement passées à la dernière synchro (`["all"]` = configure complet).
+var _last_sync_layers: PackedStringArray = PackedStringArray()
+## Statistiques du dernier `_sync_engine` (total + durées par couche du moteur).
+var _last_sync_stats: Dictionary = {}
+## Profondeur d'un bulk edit (0 = édition normale). Informatif : la synchro reste
+## pilotée par `changed` ; aucune logique n'en dépend à l'étape (a).
+var _sync_batch_depth: int = 0
+
+
+## Une mutation a déclaré ses couches 3D sales : on les accumule seulement. La
+## synchro reste déclenchée par `changed`, inchangée à l'étape (a).
+func _on_doc_layers_changed(layers: PackedStringArray) -> void:
+	if layers.is_empty():
+		return
+	_pending_layers = DirtyLayersScript.union(_pending_layers, layers)
+
+
+func _take_pending_layers() -> PackedStringArray:
+	var layers := _pending_layers
+	_pending_layers = PackedStringArray()
+	return layers
+
+
+## Entre / sort d'un bulk edit (appelés par `map_editor_construction`).
+func _begin_sync_batch() -> void:
+	_sync_batch_depth += 1
+
+
+func _end_sync_batch() -> void:
+	_sync_batch_depth = maxi(0, _sync_batch_depth - 1)
+
+
+## Couches passées à la dernière synchro (`["all"]` = rebuild complet).
+func get_last_sync_layers() -> PackedStringArray:
+	return _last_sync_layers.duplicate()
+
+
+## Statistiques du dernier rebuild : durée totale de `_sync_engine`, couches
+## demandées et durées par couche relues du moteur 3D.
+func get_last_rebuild_stats() -> Dictionary:
+	return _last_sync_stats.duplicate(true)
+
+
+func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedStringArray()) -> void:
 	if _engine == null or doc.map_data.is_empty():
 		return
+	# Étape (a) de la synchro incrémentale : comportement INCHANGÉ (configure()
+	# complet ci-dessous). `layers` sert uniquement de trace pour l'étape (b) ;
+	# une liste vide retombe sur les couches accumulées, puis sur `["all"]`
+	# (repli sûr : on ne suppose jamais « rien à reconstruire »).
+	var sync_t0 := Time.get_ticks_usec()
+	if layers.is_empty():
+		layers = _take_pending_layers()
+	if layers.is_empty():
+		layers = DirtyLayersScript.all()
+	_last_sync_layers = layers
 	if _engine.has_method("start_camera_trace") and str(_engine.get("_trace_path")).is_empty():
 		_engine.call("start_camera_trace")
 	var snapshot: Dictionary = doc.to_map_data()
@@ -4125,6 +4186,18 @@ func _sync_engine(reset_view: bool = false) -> void:
 	call_deferred("_update_zoom_label")
 	_apply_player_view_overlay()
 	_refresh_overlay()
+	# Instrumentation (étape a) : durée totale de synchro + durées par couche
+	# relues du moteur. Aucun effet sur le rendu ni sur les appels.
+	var engine_stats: Dictionary = {}
+	if _engine.has_method("get_last_rebuild_stats"):
+		engine_stats = _engine.call("get_last_rebuild_stats")
+	_last_sync_stats = {
+		"sync_ms": snappedf(float(Time.get_ticks_usec() - sync_t0) / 1000.0, 0.01),
+		"sync_layers": Array(layers),
+		"sync_layers_text": DirtyLayersScript.describe(layers),
+		"sync_batch_depth": _sync_batch_depth,
+		"engine": engine_stats,
+	}
 
 func _ensure_token_portraits(tokens: Array) -> void:
 	var portrait := _default_token_portrait()
@@ -4437,7 +4510,9 @@ func _on_doc_changed(reason: String) -> void:
 	var live_incremental := _press_mode in ["move", "resize", "rotate"] and _live_incremental
 	if reason in ["undo", "redo", "meta", "fog", "tiles", "order", "light_reveal", "modify", "commit", "add", "remove"]:
 		if not (live_incremental and reason == "modify"):
-			_sync_engine()
+			# Les couches de la mutation viennent d'être émises (`layers_changed`
+			# avant `changed`) : on les consomme pour la trace de l'étape (b).
+			_sync_engine(false, _take_pending_layers())
 	_refresh_overlay()
 	if _save_policy == SAVE_ON_CHANGE and doc.is_dirty() and reason != "load" \
 			and not live_incremental:

@@ -2015,7 +2015,9 @@ func _generate_scene(_grid: Vector2) -> void:
 ## transaction (Ctrl+Z annule la cité entière, pas élément par élément).
 ## La synchro lourde de l'éditeur est **suspendue** pendant la pose : chaque
 ## `add_element` déclenche sinon une reconstruction complète de la scène 3D,
-## soit ~200 rebuilds pour une cité. On la rejoue une seule fois à la fin.
+## soit ~200 rebuilds pour une cité. On la rejoue une seule fois à la fin, avec
+## l'union des couches sales accumulées pendant le bulk (étape a : trace seule,
+## le moteur reconfigure encore tout).
 func _apply_scene_plan(plan: Dictionary) -> Dictionary:
 	var sync_handler := _begin_bulk_edit()
 	var width := int(_ed.doc.map_data.get("width", 0))
@@ -2089,6 +2091,8 @@ func _append_scene_elements(entries: Array) -> int:
 func _begin_bulk_edit() -> Callable:
 	if _ed == null or _ed.doc == null:
 		return Callable()
+	if _ed.has_method("_begin_sync_batch"):
+		_ed.call("_begin_sync_batch")
 	var handler := Callable(_ed, "_on_doc_changed")
 	if _ed.doc.changed.is_connected(handler):
 		_ed.doc.changed.disconnect(handler)
@@ -2096,6 +2100,8 @@ func _begin_bulk_edit() -> Callable:
 	return Callable()
 
 func _end_bulk_edit(handler: Callable) -> void:
+	if _ed != null and _ed.has_method("_end_sync_batch"):
+		_ed.call("_end_sync_batch")
 	if handler.is_valid() and _ed != null and _ed.doc != null \
 			and not _ed.doc.changed.is_connected(handler):
 		_ed.doc.changed.connect(handler)

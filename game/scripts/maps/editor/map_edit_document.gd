@@ -10,6 +10,10 @@ class_name MapEditDocument
 ## même transaction sont annulés/refaits en une seule étape.
 
 signal changed(reason: String)
+## Couches 3D touchées par la mutation (fermetures déjà appliquées, cf.
+## `core/maps/dirty_layers.gd`). Émis AVANT `changed` pour que la synchro
+## déclenchée par ce dernier voie déjà les couches de la mutation courante.
+signal layers_changed(layers: PackedStringArray)
 signal selection_changed(ids: Array)
 signal history_changed()
 signal dirty_changed(is_dirty: bool)
@@ -19,6 +23,8 @@ const MAX_HISTORY := 120
 ## headless, indépendant du cache global `class_name`).
 const TerrainCarveField := preload("res://scripts/maps/terrain/terrain_carve_field.gd")
 const BridgeMesh := preload("res://scripts/maps/construction/procedural_bridge_mesh.gd")
+## Table kind → couches 3D et fermetures de dépendances (module pur testé).
+const DirtyLayersScript := preload("res://scripts/core/maps/dirty_layers.gd")
 
 # --- Types de delta ---------------------------------------------------------
 const D_ELEM_ADD := "elem_add"
@@ -109,6 +115,15 @@ var _restoring: bool = false
 var _dirty: bool = false
 var _clipboard: Array = []
 
+## Émet les couches sales puis `changed`.
+##
+## `layers` arrive déjà résolue (fermetures de `DirtyLayers`) : un abonné peut
+## l'accumuler telle quelle. Toute mutation doit passer par ce helper (jamais
+## `changed.emit` directement) pour qu'aucune couche ne soit oubliée.
+func _notify(reason: String, layers: PackedStringArray) -> void:
+	layers_changed.emit(layers)
+	changed.emit(reason)
+
 # ===========================================================================
 # Chargement / sérialisation
 # ===========================================================================
@@ -131,7 +146,7 @@ func load_map(source: Dictionary) -> void:
 	_set_dirty(false)
 	history_changed.emit()
 	selection_changed.emit([])
-	changed.emit("load")
+	_notify("load", DirtyLayersScript.all())
 
 func _ensure_editor_schema() -> void:
 	if not map_data.has("walls") or typeof(map_data["walls"]) != TYPE_ARRAY:
@@ -718,7 +733,7 @@ func undo() -> bool:
 	_prune_selection()
 	_set_dirty(true)
 	history_changed.emit()
-	changed.emit("undo")
+	_notify("undo", DirtyLayersScript.all())
 	return true
 
 func redo() -> bool:
@@ -733,7 +748,7 @@ func redo() -> bool:
 	_prune_selection()
 	_set_dirty(true)
 	history_changed.emit()
-	changed.emit("redo")
+	_notify("redo", DirtyLayersScript.all())
 	return true
 
 func _apply_delta(delta: Dictionary, use_before: bool) -> void:
@@ -892,7 +907,7 @@ func add_element(elem: Dictionary, kind: String = "", note: String = "") -> Stri
 		"after": normalized.duplicate(true),
 		"note": note,
 	})
-	changed.emit("add")
+	_notify("add", DirtyLayersScript.layers_for_kind(resolved_kind))
 	return id
 
 func remove_element(id: String) -> void:
@@ -910,7 +925,7 @@ func remove_element(id: String) -> void:
 	commit_transaction()
 	_selected.erase(id)
 	selection_changed.emit(_selected.duplicate())
-	changed.emit("remove")
+	_notify("remove", DirtyLayersScript.layers_for_kind(str(before.get("kind", ""))))
 	# Hors transaction batch : recalculer le halo (pas d'ancien éclairage fantôme).
 	if was_light and _transaction_depth <= 0:
 		rebuild_light_reveal_from_lights("Suppression lumière")
@@ -939,7 +954,7 @@ func _restore_terrain_for_element(elem: Dictionary) -> void:
 		return
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": "Effacer chemin"})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 func remove_elements(ids: Array) -> void:
 	if ids.is_empty():
@@ -985,7 +1000,7 @@ func modify_element(id: String, mutations: Dictionary, note: String = "Modificat
 		"after": elem.duplicate(true),
 		"note": note,
 	})
-	changed.emit("modify")
+	_notify("modify", DirtyLayersScript.layers_for_kind(str(elem.get("kind", ""))))
 
 ## Modifie sans historique (drag en cours). `commit_live_edit` clôt l'action.
 func set_live_position(id: String, gx: float, gy: float) -> void:
@@ -1012,6 +1027,7 @@ func set_live_fields(id: String, fields: Dictionary) -> void:
 func commit_live_edit(ids: Array, note: String = "Déplacement") -> void:
 	if ids.is_empty():
 		return
+	var layers: PackedStringArray = PackedStringArray()
 	begin_transaction()
 	for id_variant in ids:
 		var id := str(id_variant)
@@ -1023,15 +1039,20 @@ func commit_live_edit(ids: Array, note: String = "Déplacement") -> void:
 			continue
 		_commit_shadow(id)
 		_push_delta({"type": D_ELEM_MOD, "id": id, "before": before, "after": after, "note": note})
+		layers = DirtyLayersScript.union(layers,
+			DirtyLayersScript.layers_for_kind(str(after.get("kind", ""))))
 	commit_transaction()
-	changed.emit("commit")
+	_notify("commit", layers if not layers.is_empty() else DirtyLayersScript.all())
 
 func revert_live_edit(ids: Array) -> void:
+	var layers: PackedStringArray = PackedStringArray()
 	for id_variant in ids:
 		var id := str(id_variant)
 		if _shadow.has(id):
 			_elements[id] = (_shadow[id] as Dictionary).duplicate(true)
-	changed.emit("revert")
+			layers = DirtyLayersScript.union(layers,
+				DirtyLayersScript.layers_for_kind(str((_shadow[id] as Dictionary).get("kind", ""))))
+	_notify("revert", layers if not layers.is_empty() else DirtyLayersScript.all())
 
 static func _states_equal(a: Dictionary, b: Dictionary) -> bool:
 	return JSON.stringify(a) == JSON.stringify(b)
@@ -1085,12 +1106,12 @@ func set_meta_values(values: Dictionary, note: String = "Réglages") -> void:
 	if not touched:
 		return
 	_push_delta({"type": D_META, "before": before, "after": after, "note": note})
-	changed.emit("meta")
+	_notify("meta", DirtyLayersScript.all())
 
 ## Applique un réglage sans historique (aperçu live d'un slider).
 func set_meta_live(key: String, value: Variant) -> void:
 	map_data[key] = value
-	changed.emit("meta_live")
+	_notify("meta_live", DirtyLayersScript.all())
 
 # --- Terrain ----------------------------------------------------------------
 
@@ -1114,7 +1135,7 @@ func paint_tiles(cells: Dictionary) -> void:
 		return
 	map_data["tiles"] = tiles
 	_push_delta({"type": D_TILES, "before": before, "after": after})
-	changed.emit("tiles")
+	_notify("tiles", DirtyLayersScript.all())
 
 func get_tile_at(cx: int, cy: int) -> String:
 	var w: int = int(map_data.get("width", 16))
@@ -1186,7 +1207,7 @@ func set_terrain_height(cx: int, cy: int, value: float, note: String = "Relief")
 	})
 	heights[idx] = clamped
 	map_data["terrainHeights"] = heights
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Applique un profil de relief calculé avant la modification du terrain.
 func apply_terrain_heights(targets: Dictionary, note: String) -> void:
@@ -1205,7 +1226,7 @@ func apply_terrain_heights(targets: Dictionary, note: String) -> void:
 	if after.is_empty():
 		return
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Pinceau de relief : monte, baisse, aplatit ou lisse les hauteurs autour d'un point.
 ## `mode` ∈ {raise, lower, flatten, smooth}. Une seule étape d'undo par appel :
@@ -1254,7 +1275,7 @@ func paint_terrain_brush(center: Vector2, radius: float, strength: float,
 		return
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Creuse légèrement le terrain sous un chemin et adoucit les bords.
 ## Une seule étape d'undo ; le chemin est ensuite posé sur ces nouvelles hauteurs.
@@ -1308,7 +1329,7 @@ func carve_path(points: Array, width: float, depth: float = 0.055,
 		return before
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 	return before
 
 static func _distance_to_polyline(p: Vector2, points: Array) -> float:
@@ -1378,7 +1399,7 @@ func paint_path_material(points: Array, width: float, material: int,
 		return
 	map_data["terrainMaterials"] = materials
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 ## lissage). Les points sont en cases, déjà lissés/ré-échantillonnés par
 ## l'éditeur. Le relief est modifié dans une seule étape d'undo.
 func paint_terrain_spline(points: Array, width: float, strength: float,
@@ -1443,7 +1464,7 @@ func paint_terrain_spline(points: Array, width: float, strength: float,
 		return
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 static func _distance_point_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
 	var ab := b - a
@@ -1480,7 +1501,7 @@ func flatten_terrain_rect(rect: Rect2, target: float, note: String = "Emprise ap
 		return
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Nivelle tout le relief à zéro (une seule étape d'undo).
 func clear_all_terrain(note: String = "Nivellement") -> void:
@@ -1498,7 +1519,7 @@ func clear_all_terrain(note: String = "Nivellement") -> void:
 		return
 	map_data["terrainHeights"] = heights
 	_push_delta({"type": D_TERRAIN, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 # --- Creusements volumétriques (Voie B : trous / grottes / tunnels) --------
 ## Primitives SDF éditables stockées dans `map_data["terrainCarves"]` :
@@ -1523,7 +1544,7 @@ func add_carve(entry: Dictionary, note: String = "Creusement 3D") -> String:
 	after.append(carve)
 	map_data["terrainCarves"] = after
 	_push_delta({"type": D_CARVE, "before": before, "after": after, "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 	return str(carve.get("id", ""))
 
 ## Retire toutes les primitives de creusement (une seule étape d'undo).
@@ -1533,7 +1554,7 @@ func clear_carves(note: String = "Creusement effacé") -> void:
 		return
 	map_data["terrainCarves"] = []
 	_push_delta({"type": D_CARVE, "before": before, "after": [], "note": note})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 # --- Sculpture volumétrique (déplacement lissé, façon argile) ----------------
 ## Les brosses sculptent une grille de **déplacement** `G` (ajout/retrait lissé,
@@ -1572,7 +1593,7 @@ func sculpt_stamp(center: Vector3, radius: float, strength: float,
 		"after": {"mode": "voxels", "values": delta[1]},
 		"note": note,
 	})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Lissage local du relief sculpté (brosse « Lisser »). Une étape d'undo.
 func sculpt_smooth(center: Vector3, radius: float,
@@ -1588,7 +1609,7 @@ func sculpt_smooth(center: Vector3, radius: float,
 		"after": {"mode": "voxels", "values": delta[1]},
 		"note": note,
 	})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Aplatit vers `target_y` dans la boule (brosse « Aplatir » façon Blender /
 ## Planet Zoo) : plateaux, terrasses, plages. Une étape d'undo par appel.
@@ -1608,7 +1629,7 @@ func sculpt_flatten(center: Vector3, radius: float, target_y: float,
 		"after": {"mode": "voxels", "values": delta[1]},
 		"note": note,
 	})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 ## Efface toute la sculpture (une seule étape d'undo).
 func clear_sculpt(note: String = "Sculpture effacée") -> void:
@@ -1624,7 +1645,7 @@ func clear_sculpt(note: String = "Sculpture effacée") -> void:
 		"after": {"mode": "full", "sculpt": {}},
 		"note": note,
 	})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 # --- Brosses de sculpture « façon Blender » --------------------------------
 ## Scrape/Raboter, Fill/Remplir, Pinch/Crête, Layer/Couche, Clay Strips —
@@ -1746,7 +1767,7 @@ func _push_sculpt_delta(field, delta: Array, note: String) -> void:
 		"after": {"mode": "voxels", "values": delta[1]},
 		"note": note,
 	})
-	changed.emit("terrain")
+	_notify("terrain", DirtyLayersScript.of("terrain"))
 
 # --- Bassins d'eau (lacs, mares, rivières, cascades) ------------------------
 ## Chaque bassin porte son propre niveau : lac/mares = `area` (polygone de
@@ -1772,7 +1793,7 @@ func add_water_body(body: Dictionary, note: String = "Bassin d'eau") -> String:
 	after.append(entry)
 	map_data["waterBodies"] = after
 	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
-	changed.emit("water_body")
+	_notify("water_body", DirtyLayersScript.of("water"))
 	return str(entry["id"])
 
 ## Applique un correctif à un bassin existant (niveau, largeur, vitesse…).
@@ -1792,7 +1813,7 @@ func update_water_body(body_id: String, patch: Dictionary,
 		return
 	map_data["waterBodies"] = after
 	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
-	changed.emit("water_body")
+	_notify("water_body", DirtyLayersScript.of("water"))
 
 ## Supprime un bassin (annulable).
 func remove_water_body(body_id: String, note: String = "Bassin supprimé") -> void:
@@ -1805,7 +1826,7 @@ func remove_water_body(body_id: String, note: String = "Bassin supprimé") -> vo
 		return
 	map_data["waterBodies"] = after
 	_push_delta({"type": D_WATER_BODY, "before": before, "after": after, "note": note})
-	changed.emit("water_body")
+	_notify("water_body", DirtyLayersScript.of("water"))
 
 ## Remplit toute la carte avec une matière (une seule étape d'undo).
 func fill_all_material(value: int, note: String = "Remplissage du sol") -> void:
@@ -1824,7 +1845,7 @@ func fill_all_material(value: int, note: String = "Remplissage du sol") -> void:
 		return
 	map_data["terrainMaterials"] = materials
 	_push_delta({"type": D_TERRAIN_MATERIAL, "before": before, "after": after, "note": note})
-	changed.emit("terrain_material")
+	_notify("terrain_material", DirtyLayersScript.of("ground"))
 
 func _terrain_neighbor_average(heights: Array, size: Vector2i, cx: int, cy: int) -> float:
 	var total := 0.0
@@ -1895,7 +1916,7 @@ func set_terrain_material(cx: int, cy: int, value: int, note: String = "Peinture
 	})
 	materials[idx] = next
 	map_data["terrainMaterials"] = materials
-	changed.emit("terrain_material")
+	_notify("terrain_material", DirtyLayersScript.of("ground"))
 
 ## Pinceau de matière du sol (herbe / terre / pierre), une étape d'undo par appel.
 func paint_terrain_material_brush(center: Vector2, radius: float, value: int,
@@ -1924,7 +1945,7 @@ func paint_terrain_material_brush(center: Vector2, radius: float, value: int,
 		return
 	map_data["terrainMaterials"] = materials
 	_push_delta({"type": D_TERRAIN_MATERIAL, "before": before, "after": after, "note": note})
-	changed.emit("terrain_material")
+	_notify("terrain_material", DirtyLayersScript.of("ground"))
 
 
 ## Remplissage par diffusion (bucket) à partir d'une case.
@@ -2010,7 +2031,7 @@ func set_fog_cells(cells: Array, note: String = "Brouillard") -> void:
 		return
 	play_defaults["fogRevealed"] = after
 	_push_delta({"type": D_FOG, "before": before, "after": after, "note": note})
-	changed.emit("fog")
+	_notify("fog", DirtyLayersScript.of("fog"))
 
 func reveal_fog(cells: Array) -> void:
 	var fog: Array = fog_cells().duplicate()
@@ -2056,7 +2077,7 @@ func set_light_revealed_cells(cells: Array, note: String = "Zones éclairées") 
 		return
 	play_defaults["lightRevealed"] = after
 	_push_delta({"type": D_LIGHT_REVEAL, "before": before, "after": after, "note": note})
-	changed.emit("light_reveal")
+	_notify("light_reveal", DirtyLayersScript.of("fog"))
 
 func reveal_light_cells(cells: Array) -> void:
 	var lit: Array = light_revealed_cells().duplicate()
@@ -2458,7 +2479,7 @@ func _reorder_selection(forward: bool, extreme: bool) -> void:
 		return
 	_push_delta({"type": D_ORDER, "before": before, "after": _order.duplicate()})
 	_resequence_z()
-	changed.emit("order")
+	_notify("order", DirtyLayersScript.all())
 
 func _resequence_z() -> void:
 	for i in range(_order.size()):

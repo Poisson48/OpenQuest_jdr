@@ -36,3 +36,5 @@ map_token_figurine_test
 session_view_model_test
 game_data_contract_test
 
+dirty_layers_test
+

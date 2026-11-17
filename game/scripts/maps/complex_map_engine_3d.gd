@@ -281,6 +281,14 @@ var _focus_tween: Tween = null
 var show_camera_diagnostics := true
 var _camera_debug_lbl: Label = null
 var _trace_path: String = ""
+# --- Instrumentation de synchro (refactor phase 4a) -----------------------
+# Durees par couche du dernier rebuild, en ms. Aucune logique de rendu n'en
+# depend : objectif = preuve chiffree avant/apres (etape b/c du plan).
+var _layer_times_ms: Dictionary = {}
+var _configure_ms: float = 0.0
+var _rebuild_layers_ms: float = 0.0
+# Couches reconfigurees par `_rebuild_layers()` (remises a zero a chaque appel).
+const _REBUILD_LAYER_KEYS: Array = ["grid", "fog", "props", "meshes", "walls", "lights", "tokens"]
 var _trace_tool: String = ""
 var _trace_last_position: Vector3 = Vector3.INF
 var _trace_last_rotation: Vector3 = Vector3.INF
@@ -545,6 +553,8 @@ func configure(
 		await ready
 	if _viewport == null or _ground == null:
 		_build_viewport_tree()
+	var configure_t0 := Time.get_ticks_usec()
+	_layer_times_ms.clear()
 	var new_id: String = p_map.get("id", "")
 	var same_map := not new_id.is_empty() and new_id == _loaded_map_id
 	var saved_camera_position := _camera.position if _camera != null else Vector3.ZERO
@@ -578,17 +588,33 @@ func configure(
 	if not p_tool.has("forceSnap"):
 		snap_to_grid = not MapRenderStyleScript.is_diorama(p_map)
 
+	var t_ground := Time.get_ticks_usec()
 	_load_ground()
+	_record_layer_ms("ground", t_ground)
+	var t_backdrop := Time.get_ticks_usec()
 	_load_backdrop()
+	_record_layer_ms("backdrop", t_backdrop)
+	var t_water := Time.get_ticks_usec()
 	_load_water()
+	_record_layer_ms("water", t_water)
+	var t_ambient := Time.get_ticks_usec()
 	_load_ambient_fx()
+	_record_layer_ms("ambient_fx", t_ambient)
+	var t_vegetation := Time.get_ticks_usec()
 	_load_vegetation()
+	_record_layer_ms("vegetation", t_vegetation)
+	var t_elevations := Time.get_ticks_usec()
 	_load_elevations()
+	_record_layer_ms("elevations", t_elevations)
 	_sync_table_environment()
 	_apply_camera_perspective()
+	var t_lights := Time.get_ticks_usec()
 	_apply_lighting()
+	_record_layer_ms("lights", t_lights)
 	_apply_render_quality()
+	var t_world_env := Time.get_ticks_usec()
 	_apply_atmosphere()
+	_record_layer_ms("world_env", t_world_env)
 	_sync_areas_overlay()
 	_hovered_area_id = ""
 	_hovered_zone_id = ""
@@ -617,6 +643,7 @@ func configure(
 	trace_event("CONFIGURE_AFTER", "same=%s preserve=%s" % [same_map, preserve_camera])
 	_rebuild_layers()
 	_update_shadow_budget(true)
+	_configure_ms = float(Time.get_ticks_usec() - configure_t0) / 1000.0
 
 ## Reconstruit UNIQUEMENT la couche des objets (meshes 3D, props, murs) sans
 ## toucher au terrain, à la végétation, à l'eau, à l'ambiance ni aux lumières.
@@ -2343,13 +2370,38 @@ func _sync_object_occlusion_stamps(meshes: Array) -> void:
 		})
 	_ground.set_object_occlusion_stamps(stamps)
 
+## Instrumentation : ajoute la duree ecoulee depuis `t0_usec` a la couche `key`
+## (cumul si la couche est configuree plusieurs fois dans la meme synchro).
+func _record_layer_ms(key: String, t0_usec: int) -> void:
+	var ms := float(Time.get_ticks_usec() - t0_usec) / 1000.0
+	_layer_times_ms[key] = float(_layer_times_ms.get(key, 0.0)) + ms
+
+
+## Stats du dernier rebuild : duree de `configure()`, duree de
+## `_rebuild_layers()` et durees par couche (ms). Lecture seule, pour les
+## rapports de perf et l'etape b (dispatch par couches).
+func get_last_rebuild_stats() -> Dictionary:
+	var layers: Dictionary = {}
+	for key in _layer_times_ms.keys():
+		layers[str(key)] = snappedf(float(_layer_times_ms[key]), 0.01)
+	return {
+		"configure_ms": snappedf(_configure_ms, 0.01),
+		"rebuild_layers_ms": snappedf(_rebuild_layers_ms, 0.01),
+		"layers_ms": layers,
+	}
+
+
 func _rebuild_layers() -> void:
 	var w: int = map_data.get("width", 16)
 	var h: int = map_data.get("height", 12)
+	var rebuild_t0 := Time.get_ticks_usec()
+	for _key in _REBUILD_LAYER_KEYS:
+		_layer_times_ms.erase(_key)
 	var fog_on := bool(map_data.get("fogEnabled", true))
 	var is_diorama := MapRenderStyleScript.is_diorama(map_data)
 	var cfg := _style_cfg if not _style_cfg.is_empty() else MapRenderStyleScript.config(map_data)
 
+	var t_grid := Time.get_ticks_usec()
 	if _grid_layer.has_method("configure"):
 		var grid_cfg := _grid_config.duplicate(true)
 		# Grille masquée par défaut en diorama (sauf si explicitement affichée).
@@ -2358,31 +2410,42 @@ func _rebuild_layers() -> void:
 		elif not grid_cfg.has("opacity"):
 			grid_cfg["opacity"] = 0.14
 		_grid_layer.configure(grid_cfg, w, h, _cell_size)
+	_record_layer_ms("grid", t_grid)
 
+	var t_fog := Time.get_ticks_usec()
 	if _fog_layer.has_method("configure"):
 		_fog_layer.configure(w, h, _cell_size, _fog_revealed, is_gm, fog_on, is_diorama)
+	_record_layer_ms("fog", t_fog)
 
+	var t_props := Time.get_ticks_usec()
 	if _props_layer and _props_layer.has_method("configure"):
 		var props = map_data.get("props", [])
 		_props_layer.configure(props if props is Array else [], _cell_size, map_data)
+	_record_layer_ms("props", t_props)
 
+	var t_meshes := Time.get_ticks_usec()
 	if _meshes_layer and _meshes_layer.has_method("configure"):
 		var meshes_arr: Array = map_data.get("meshes", []) if map_data.get("meshes") is Array else []
 		_meshes_layer.configure(meshes_arr, _cell_size, map_data)
 		# Ancrage des objets (AO de contact cuite côté terrain, preset cinéma).
 		_sync_object_occlusion_stamps(meshes_arr)
+	_record_layer_ms("meshes", t_meshes)
 
+	var t_walls := Time.get_ticks_usec()
 	if _walls_layer and _walls_layer.has_method("configure"):
 		var walls = map_data.get("walls", [])
 		var show_walls := bool(cfg.get("volumetricWalls", true))
 		_walls_layer.configure(walls if walls is Array else [], _cell_size, show_walls)
+	_record_layer_ms("walls", t_walls)
 
+	var t_lights := Time.get_ticks_usec()
 	if _lights_layer and _lights_layer.has_method("configure"):
 		var sources = _lighting_config.get("sources", [])
 		_lights_layer.configure(sources if sources is Array else [], _cell_size)
 		# En diorama : lumières douces sans ombres.
 		if is_diorama and _lights_layer.has_method("set_shadows_enabled"):
 			_lights_layer.set_shadows_enabled(false)
+	_record_layer_ms("lights", t_lights)
 
 	var elevations_ok := not is_diorama
 	if _elevations_layer:
@@ -2392,6 +2455,7 @@ func _rebuild_layers() -> void:
 	# rendu n'ont pas changé. Deux bénéfices façon Dofus : pas de clignotement au
 	# refresh, et la marche peut s'animer depuis la position courante (au lieu
 	# d'un saut sec vers la case d'arrivée).
+	var t_tokens := Time.get_ticks_usec()
 	var render_key := "%s|%s|%s" % [_loaded_map_id, str(table_view), str(is_diorama)]
 	if render_key != _token_render_key:
 		_token_render_key = render_key
@@ -2436,6 +2500,8 @@ func _rebuild_layers() -> void:
 		_token_nodes.erase(tid)
 
 	_rebuild_token_overlay()
+	_record_layer_ms("tokens", t_tokens)
+	_rebuild_layers_ms = float(Time.get_ticks_usec() - rebuild_t0) / 1000.0
 
 ## Construit un nœud de token complet (visuel, relief, figurine, sélection).
 func _create_token_node(tok: Dictionary, w: int, h: int) -> Node:
