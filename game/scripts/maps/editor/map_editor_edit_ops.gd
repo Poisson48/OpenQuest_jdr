@@ -442,8 +442,12 @@ func _on_pointer_released(grid: Vector2, _screen: Vector2, button: int, _mods: D
 			_ed._handle_state.clear()
 		"rotate":
 			if _ed._press_moved:
+				# Phase 4d : `commit_live_edit()` émet un changement de couche
+				# « meshes » → la synchro CIBLÉE (MapMeshes3D.sync) est déjà déclenchée
+				# par `_on_doc_changed`. Le `_sync_engine()` complet qui suivait était
+				# redondant (aucun décor contextuel ni lumière à rafraîchir en rotation)
+				# et coûtait ≈1,45 s de rebuild complet par release.
 				_ed.doc.commit_live_edit(_ed._drag_ids, "Rotation")
-				_ed._sync_engine()
 			_ed._drag_ids.clear()
 			_ed._handle_state.clear()
 		"draw":

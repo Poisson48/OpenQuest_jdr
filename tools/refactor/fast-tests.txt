@@ -38,3 +38,5 @@ game_data_contract_test
 
 dirty_layers_test
 
+editor_commit_perf_test
+

@@ -173,13 +173,13 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 
 Suivi détaillé : [docs/refactor/README.md](docs/refactor/README.md) · plan et ADR : [docs/refactor/PLAN_REFACTORISATION.md](docs/refactor/PLAN_REFACTORISATION.md).
 
-- [x] **Phase 0 — filets & vert** : porte de compilation client (477 fichiers scripts + scènes, 0 échec), `tools/refactor/verify.ps1` + `metrics.ps1` + socle rapide de tests, build serveur réparé (`typecheck`/`build`/`test` verts), 13 fichiers TS morts archivés dans `server/legacy/`, 6 scripts cassés réparés ou supprimés, 3 audits + inventaire + baseline, docs réalignées
-- [ ] **Phase 1 — purge du code mort** (en cours) : `core/` mort et périmé, 4 modules d'éditeur morts, 6 scripts legacy de `maps/`, sonde `zz_probe_grid.gd` — −2 639 lignes en phase 1, −3 276 au total avec la phase 0
-- [ ] **Phase 2** — tests de contrat, découpage de `game_data.gd`, `map_data.gd`, `map_workspace.gd`, `SessionViewModel`
-- [ ] **Phase 3** — éditeur de scénario : routeur de liens pur dans `core/`, `scenario_editor.gd` découpé
-- [ ] **Phase 4** — éditeur de cartes 2.5D en 5 vagues (document → couches 3D → construction/moteur → contrôleur)
-- [ ] **Phase 5** — serveur et contrat de données : une seule implémentation de dés, `data/schemas/` validé
-- [ ] **Phase 6** — CI GitHub Actions, consolidation documentaire, métriques finales
+- [x] **Phase 0 — filets & vert** : porte de compilation client (scripts + scènes, 0 échec), `tools/refactor/verify.ps1` (4 étapes) + `metrics.ps1` + socle rapide de 27 tests, build serveur réparé, 13 fichiers TS morts archivés, 6 scripts cassés réparés ou supprimés, 3 audits + inventaire + baseline, docs réalignées
+- [x] **Phase 1 — purge du code mort** : `core/` mort, 4 modules d'éditeur morts, 6 scripts legacy de `maps/`, sonde `zz_probe_grid.gd` — −3 276 lignes au total
+- [x] **Phase 2 — contrats & cœur client** : tests de contrat (SessionViewModel 30, GameData 40, contrat éditeur gelé), `game_data.gd` 4 586 → 4 199 l. (session_model, game_storage, turn_flow, roster), `map_data.gd` 2 287 → 1 954 l. (image + schéma) ; reste 2.8c cartes de démo
+- [x] **Phase 3 (partielle)** — éditeur de scénario : routeur de liens pur dans `core/graph/`, style et contrôleur de graphe sortis, `scenario_editor.gd` 3 204 → 2 386 l. ; reste panneaux (3.4-3.5)
+- [x] **Phase 4 (partielle, perf)** — synchro incrémentale : couches sales + `MapMeshes3D.sync()` diff-based → commit d'édition **1 506 → 45 ms** (−97 %), release −50 % (garde-fou `editor_commit_perf_test`) ; reste 4d-4f et les vagues d'extraction
+- [x] **Phase 5 (partielle)** — serveur : une seule implémentation de dés (TS archivé), validateur `data/schemas` (gate bot/ruleset) + rapport de dérive, contrat de protocole pooling v2 (302 vérifications) ; reste l'alignement des schémas en dérive
+- [x] **Phase 6 (partielle)** — CI GitHub Actions (serveur + Godot + data), index `docs/README.md` (27 rapports archivés, 422 liens vérifiés), règles de refactor dans `CONTRIBUTING.md` ; reste métriques finales
 
 ### En cours / WIP récent
 

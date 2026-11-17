@@ -31,7 +31,7 @@ Phase 0  Filets & vert                    ✅ 2026-11-17
 Phase 1  Purge du code mort               ✅ 2026-11-17  (−3 276 lignes, 27 scripts supprimés)
 Phase 2  Contrats & cœur client           ✅ 2.0-2.7 livrés (+ 2.8 image) ; reste 2.8 schéma/démos
 Phase 3  Éditeur de scénario              🔄 3.1-3.2 livrées (routeur, style) ; slices graph/panneaux à suivre
-Phase 4  Éditeur de cartes 2.5D (5 vagues)🔄 étape (a) livrée (couches sales + instrumentation) ; (b) sync diff-based à suivre
+Phase 4  Éditeur de cartes 2.5D (5 vagues)🔄 4a-4b livrées : synchro ciblée ×33 (commit 1 506→45 ms), release −50 % ; 4d-4f à suivre
 Phase 5  Serveur & contrat de données     🔄 5.2-5.3 livrées (dés uniques, validateur schemas) ; 5.4-5.5 à suivre
 Phase 6  Industrialisation & docs         🔄 6.1 livrée (CI GitHub Actions) ; docs/métriques finales à suivre
 ```
@@ -176,7 +176,9 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | V3 | `editor/map_editor_construction.gd` (façade `setup(editor)`) | 2 679 | ~150 | Faible-Moyen |
 | V3 | `complex_map_engine_3d.gd` (3 sous-vagues : rendu → caméra → tokens) | 4 230 | 500-700 | **Élevé** |
 | V4 | `map_complex_editor.gd` par slices (builders UI → layout → settings → commandes → terrain/eau → placement) | 5 359 | ~900 | **Très élevé** |
-| V0 | **Étape (a)** : couches sales (`DirtyLayers`, signal `layers_changed`, 173 vérifs) + instrumentation par couche — ✅ comportement inchangé, `_last_sync_layers` prêt pour (b) | — | — | Faible |
+| V0 | **Étape (a)** : couches sales (`DirtyLayers`, signal `layers_changed`, 173 vérifs) + instrumentation par couche — ✅ comportement inchangé | — | — | Faible |
+| V0 | **Étape (b)** : `MapMeshes3D.sync()` diff-based + `update_meshes_layer()` + dispatch ciblé meshes — ✅ commit d'édition **1 506 → 45 ms** (−97 %, ×33) ; parité d'état prouvée (42 modules) ; garde-fou `editor_commit_perf_test` (seuil 150 ms) | — | — | Moyen |
+| V0 | **Étape (d, partielle)** : suppression du `_sync_engine()` complet redondant au release de ROTATION (la synchro ciblée du commit suffit) — ✅ tests éditeur 5/5 | — | — | Faible |
 | V5 | Nettoyage : grille outils v1 masquée, palette environnement masquée, docs périmées | — | — | Faible |
 
 Règles : **jamais deux god files dans le même commit** ; conserver les wrappers et les noms de membres atteints par les tests ; parité de hauteurs vérifiée par tests de référence avant remplacement ; captures avant/après obligatoires pour les vagues 2-4.
@@ -272,14 +274,14 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 
 | Métrique | Avant (2026-11-17) | Cible après chantier |
 |---|---:|---:|
-| Fichiers `.gd` > 1 000 lignes | 20 → **19** (round 3) | 0 |
-| Fichiers `.gd` > 500 lignes | 51 → **54** (round 3 : modules extraits > 500 l.) | 0 |
-| Lignes client | 116 299 (113 024 phase 1 ; **116 757 round 3** — l'extraction ajoute des façades) | stabiliser puis décroître |
+| Fichiers `.gd` > 1 000 lignes | 20 → **19** (round 5) | 0 |
+| Fichiers `.gd` > 500 lignes | 51 → **55** (round 5) | 0 |
+| Lignes client | 116 299 → **118 300** (round 5 : les extractions ajoutent des façades/wrappers) | stabiliser puis décroître en phase 4 |
 | `core/` vivant | 28 % | 100 % (modules conservés = modules exécutés) |
 | `game_data.gd` | 4 587 l. → **4 199** (round 3) | ≤ 400 l. (façade) |
 | `map_complex_editor.gd` | 5 360 l. | ≤ 1 000 l. |
 | `complex_map_engine_3d.gd` | 4 231 l. | ≤ 700 l. |
-| `scenario_editor.gd` | 3 205 l. | ≤ 800 l. |
+| `scenario_editor.gd` | 3 205 → **2 386** (round 5, style + graphe sortis) | ≤ 800 l. |
 | Moteurs de dés exécutables | 2 (+2 façades) | **1** ✅ (phase 5.2) |
 | Build serveur | ❌ rouge depuis 2 mois | ✅ vert |
 | `verify.ps1` | n'existait pas | < 3 min, vert |
@@ -293,8 +295,10 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 
 > **État au 2026-11-17 (fin de round 3)** : phases 0-2 (2.0-2.8 image), 3.1 et 5.2 livrées et poussées ; `verify.ps1` vert ; 3 échecs de test corrigés + 4 tests récupérés par le runner (baseline → 1 échec connu WebRTC) ; `game_data.gd` 4 586 → 4 199 l., `map_data.gd` 2 287 → 2 088 l., overlay de liens −36 %.
 
-1. **Round 4 — phase 3.2-3.5** : découper `scenario_editor.gd` (3 204 l.) par slices (style → graph controller → panneaux), puis `map_workspace.gd` (1 321 l.).
-2. **Round 4 — phase 4 / perf** : synchro incrémentale (`map_complex_editor.gd:_on_doc_changed` → `MapMeshes3D.configure`, ≈1,7 s par mutation mesurés) : c'est la priorité « gel éditeur » ; puis vagues V1 (map_edit_document, terrain_carve_field, tool_options).
-3. **Round 4 — phase 2.8 fin + 5.3** : `map_schema`/démos hors de MapData ; validateur `data/schemas` branché dans verify.ps1.
-4. **Vérification** : suite complète sur l'état final (124 tests attendus, 1 échec connu WebRTC) + `metrics.ps1` avant/après.
-5. **Phase 6** : CI GitHub Actions (typecheck + compile gate + socle rapide).
+> **État au 2026-11-17 (fin de round 5)** : phases 0-2 (dont 2.8 image + schéma), 3.1-3.3 (routeur, style, graphe), 4a-4b (synchro ciblée **1 506 → 45 ms**, release −50 %), 5.2-5.4 (dés uniques, validateur schemas, contrat protocole 302 vérifs) et 6.1-6.3 (CI, index docs, CONTRIBUTING) livrées et poussées. Reste : 2.8c (démos, reporté), 3.4-3.5, 4c-4f, 5.3-alignement/5.5, 6.4.
+
+1. **Round 6 — 4d** : supprimer/remplacer le 2ᵉ `_sync_engine()` complet de `map_editor_edit_ops.gd` au release de déplacement/redimensionnement (rotation déjà fait) — release 1 492 → cible ≤150 ms ; router `props`/`lights` en diff pour le release décor.
+2. **Round 6 — 3.4-3.5** : extraire `transitions_panel` (~350 l.), `scene_inspector` (~330 l.), `dock_history` (~350 l.) de `scenario_editor.gd` (2 386 l.) pour viser ≤800 l. ; puis `map_workspace.gd` (1 321 l.).
+3. **Round 6 — bugs client gelés** : `multiplayer_manager._resolve_request()` n'est appelé que sur `error` → `_pending_requests` jamais purgé sur succès (faux timeout 8 s, documenté par le test de protocole 5.4).
+4. **Round 6 — 5.3 alignement** : décider réaligner/archiver les schémas en dérive (`scenario` 0/12, `map` 0/3) et 5.5 docs serveur ; 6.4 métriques finales.
+5. **2.8c** : reprogrammer l'extraction des cartes de démo de `MapData` (1 954 → ~1 470 l.) avec un découpage plus fin (le premier essai a cassé le build : dépendances entremêlées aux générateurs/constantes).
