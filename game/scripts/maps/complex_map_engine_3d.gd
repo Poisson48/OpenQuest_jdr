@@ -285,6 +285,8 @@ var _trace_path: String = ""
 # Durees par couche du dernier rebuild, en ms. Aucune logique de rendu n'en
 # depend : objectif = preuve chiffree avant/apres (etape b/c du plan).
 var _layer_times_ms: Dictionary = {}
+# Stats du dernier `update_meshes_layer()` (diff : reused/updated/added/removed).
+var _last_mesh_sync_stats: Dictionary = {}
 var _configure_ms: float = 0.0
 var _rebuild_layers_ms: float = 0.0
 # Couches reconfigurees par `_rebuild_layers()` (remises a zero a chaque appel).
@@ -644,6 +646,44 @@ func configure(
 	_rebuild_layers()
 	_update_shadow_budget(true)
 	_configure_ms = float(Time.get_ticks_usec() - configure_t0) / 1000.0
+
+## Reconstruit la couche des objets 3D (meshes) au complet : `configure()` de
+## la couche + ancrage AO. Utilisé par `_rebuild_layers()` (chargement, style…).
+func _rebuild_meshes_layer() -> void:
+	if _meshes_layer == null or not _meshes_layer.has_method("configure"):
+		return
+	var meshes_arr: Array = map_data.get("meshes", []) if map_data.get("meshes") is Array else []
+	_meshes_layer.configure(meshes_arr, _cell_size, map_data)
+	# Ancrage des objets (AO de contact cuite côté terrain, preset cinéma).
+	_sync_object_occlusion_stamps(meshes_arr)
+
+## Met à jour UNIQUEMENT la couche meshes, par DIFF (étape b de la synchro
+## incrémentale) : les objets inchangés sont réutilisés (pose seule), seuls les
+## ajouts/retraits/reconstructions coûtent une instanciation. Aucune autre
+## couche n'est touchée (ni terrain, ni eau, ni végétation, ni lumières).
+##
+## `p_map` : snapshot du document (défaut = `map_data` courant). Le budget
+## d'ombres est réappliqué comme après une reconstruction complète.
+func update_meshes_layer(p_map: Dictionary = {}) -> void:
+	if _meshes_layer == null or not is_instance_valid(_meshes_layer):
+		return
+	var snapshot: Dictionary = p_map if not p_map.is_empty() else map_data
+	# Le document est la source de vérité : on garde le snapshot à jour pour les
+	# requêtes suivantes (AO, ponts, inspection). Les autres couches ne changent
+	# pas sur une synchro ciblée « meshes ».
+	map_data = snapshot
+	var meshes_arr: Array = snapshot.get("meshes", []) if snapshot.get("meshes") is Array else []
+	_layer_times_ms.erase("meshes")
+	var t0 := Time.get_ticks_usec()
+	if _meshes_layer.has_method("sync"):
+		_last_mesh_sync_stats = _meshes_layer.sync(meshes_arr, _cell_size, snapshot)
+	else:
+		_meshes_layer.configure(meshes_arr, _cell_size, snapshot)
+		_last_mesh_sync_stats = {}
+	_record_layer_ms("meshes", t0)
+	_sync_object_occlusion_stamps(meshes_arr)
+	# Le calque mis à jour peut avoir rallumé des casters : réapplique le budget.
+	_update_shadow_budget(true)
 
 ## Reconstruit UNIQUEMENT la couche des objets (meshes 3D, props, murs) sans
 ## toucher au terrain, à la végétation, à l'eau, à l'ambiance ni aux lumières.
@@ -2388,6 +2428,7 @@ func get_last_rebuild_stats() -> Dictionary:
 		"configure_ms": snappedf(_configure_ms, 0.01),
 		"rebuild_layers_ms": snappedf(_rebuild_layers_ms, 0.01),
 		"layers_ms": layers,
+		"mesh_sync": _last_mesh_sync_stats.duplicate(true),
 	}
 
 
@@ -2424,11 +2465,7 @@ func _rebuild_layers() -> void:
 	_record_layer_ms("props", t_props)
 
 	var t_meshes := Time.get_ticks_usec()
-	if _meshes_layer and _meshes_layer.has_method("configure"):
-		var meshes_arr: Array = map_data.get("meshes", []) if map_data.get("meshes") is Array else []
-		_meshes_layer.configure(meshes_arr, _cell_size, map_data)
-		# Ancrage des objets (AO de contact cuite côté terrain, preset cinéma).
-		_sync_object_occlusion_stamps(meshes_arr)
+	_rebuild_meshes_layer()
 	_record_layer_ms("meshes", t_meshes)
 
 	var t_walls := Time.get_ticks_usec()

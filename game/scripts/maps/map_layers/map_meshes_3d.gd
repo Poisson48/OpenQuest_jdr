@@ -98,6 +98,15 @@ const MIN_LIT_ROUGHNESS := 0.86
 ## dépasse `budget × ce facteur` (évite le clignotement au déplacement caméra).
 const SHADOW_BUDGET_HYSTERESIS := 1.15
 
+# Champs dont un changement ne modifie QUE la pose de l'objet (transform,
+# ombre de contact) : un nœud peut être réutilisé et seulement repositionné.
+# Toute autre clé (asset, seed, dimensions, matériau, points de chemin…)
+# exige une reconstruction du nœud.
+const _POSE_KEYS: Array = [
+	"x", "y", "elevation", "display", "followTerrain", "tiltToTerrain",
+	"zOrder", "note", "terrain_restore",
+]
+
 var _cell_size: float = 1.0
 ## id → nœud racine (Node3D) du mesh, pour le déplacement live.
 var _nodes: Dictionary = {}
@@ -201,6 +210,132 @@ func configure(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> vo
 		_nodes[str(mesh.get("id", ""))] = node
 		_mesh_entries[str(mesh.get("id", ""))] = mesh.duplicate(true)
 	_active_shadow_casters = _shadow_casters.size()
+
+## Met à jour la couche par DIFF par rapport à l'état courant (étape b de la
+## synchro incrémentale de l'éditeur) : réutilise les nœuds dont l'asset et les
+## paramètres visuels n'ont pas changé (nouvelle pose et ombre de contact
+## seulement), instancie uniquement les nouveaux, libère les absents.
+##
+## À la différence de `configure()` (chargement complet), `sync()` ne relit NI le
+## terrain NI le style/qualité : une synchro ciblée « meshes » ne les change pas.
+## Le budget d'ombres est réappliqué par l'appelant (`ComplexMapEngine3D`).
+##
+## Renvoie `{ "reused": n, "updated": n, "added": n, "removed": n }` (traces).
+func sync(meshes: Array, cell_size: float, map_data: Dictionary = {}) -> Dictionary:
+	_cell_size = cell_size if cell_size > 0.0 else 1.0
+	if not map_data.is_empty():
+		_map_height = maxi(1, int(map_data.get("height", _map_height)))
+	var stats := { "reused": 0, "updated": 0, "added": 0, "removed": 0 }
+	var wanted: Dictionary = {}
+	for mesh_variant in meshes:
+		if not mesh_variant is Dictionary:
+			continue
+		var mesh: Dictionary = mesh_variant
+		if bool(mesh.get("hidden", false)):
+			continue
+		var id := str(mesh.get("id", ""))
+		if id.is_empty():
+			continue
+		wanted[id] = mesh
+	# 1) Libérer les objets absents (supprimés, ou passés en `hidden`).
+	for id_variant in _nodes.keys().duplicate():
+		var id := str(id_variant)
+		if wanted.has(id):
+			continue
+		_free_mesh(id)
+		stats["removed"] = int(stats["removed"]) + 1
+	# 2) Réutiliser / repositionner / reconstruire, dans l'ordre du document.
+	for id_variant in wanted.keys():
+		var id := str(id_variant)
+		var mesh: Dictionary = wanted[id_variant]
+		var node: Node3D = _nodes.get(id, null) as Node3D
+		var previous: Dictionary = _mesh_entries.get(id, {}) \
+			if _mesh_entries.get(id) is Dictionary else {}
+		if node != null and is_instance_valid(node) and _can_reuse_mesh(previous, mesh):
+			if _pose_signature(previous) != _pose_signature(mesh):
+				_refresh_mesh_entry(id, mesh)
+				stats["updated"] = int(stats["updated"]) + 1
+			else:
+				_mesh_entries[id] = mesh.duplicate(true)
+				stats["reused"] = int(stats["reused"]) + 1
+			continue
+		# Asset ou paramètres visuels différents : reconstruction ciblée.
+		_free_mesh(id)
+		var built := _build_mesh(mesh)
+		if built == null:
+			continue
+		add_child(built)
+		_nodes[id] = built
+		_mesh_entries[id] = mesh.duplicate(true)
+		stats["added"] = int(stats["added"]) + 1
+	# Les lumières de feu des nœuds libérés ont pu disparaître : purge.
+	_fire_lights = _fire_lights.filter(func(light): return light != null and is_instance_valid(light))
+	_active_shadow_casters = _shadow_casters.size()
+	return stats
+
+## Signature des champs de POSE (hors géométrie) : deux entrées de même signature
+## se distinguent par la seule transform → simple repositionnement du nœud.
+func _pose_signature(entry: Dictionary) -> String:
+	var subset: Dictionary = {}
+	for key in _POSE_KEYS:
+		subset[key] = entry.get(key)
+	return JSON.stringify(subset)
+
+## Un nœud est réutilisable si son asset est identique ET si toutes les clés
+## modifiées sont des clés de pose. Sinon on reconstruit (parité avec
+## `configure()`, qui repart de zéro).
+func _can_reuse_mesh(previous: Dictionary, mesh: Dictionary) -> bool:
+	if previous.is_empty():
+		return false
+	if str(previous.get("asset", "")) != str(mesh.get("asset", "")):
+		return false
+	var keys: Dictionary = {}
+	for key in previous.keys():
+		keys[key] = true
+	for key in mesh.keys():
+		keys[key] = true
+	for key_variant in keys.keys():
+		var key := str(key_variant)
+		if key == "id" or key in _POSE_KEYS:
+			continue
+		if previous.get(key) != mesh.get(key):
+			return false
+	return true
+
+## Réapplique une entrée modifiée à un nœud existant : repose la racine, remet
+## l'ombre de contact à jour, et rebake les visuels procéduraux dépendants du
+## terrain (chemins, clôtures) ou les ponts — mêmes opérations que
+## `_reseat_nodes()`, mais sur un seul objet.
+func _refresh_mesh_entry(mesh_id: String, mesh: Dictionary) -> void:
+	var node: Node3D = _nodes.get(mesh_id, null) as Node3D
+	if node == null or not is_instance_valid(node):
+		return
+	_mesh_entries[mesh_id] = mesh.duplicate(true)
+	var asset := str(mesh.get("asset", ""))
+	var visual: Node = node.get_meta("visual", null) if node.has_meta("visual") else null
+	if visual is MeshInstance3D:
+		if _is_bridge(asset):
+			_rebuild_bridge(visual as MeshInstance3D, mesh)
+		elif (visual as Node).has_meta("flat_mesh"):
+			_rebake_procedural_visual(visual as MeshInstance3D, mesh)
+	_place_root(node, mesh)
+	var shadow := _find_child_with_meta(node, "contact_shadow")
+	if shadow is Node3D:
+		_repose_contact_shadow(node, shadow as Node3D, _is_inclined(mesh))
+
+## Libère un objet de la couche et purge toutes ses entrées d'index.
+func _free_mesh(mesh_id: String) -> void:
+	var node: Node = _nodes.get(mesh_id, null)
+	if node != null and is_instance_valid(node):
+		if node.get_parent() == self:
+			remove_child(node)
+		node.free()
+	_nodes.erase(mesh_id)
+	_mesh_entries.erase(mesh_id)
+	_shadow_casters.erase(mesh_id)
+	_bridge_decks.erase(mesh_id)
+	_occlusion_alpha.erase(mesh_id)
+	_occlusion_targets.erase(mesh_id)
 
 ## ===========================================================================
 # Budget d'ombres par distance (preset cinéma)

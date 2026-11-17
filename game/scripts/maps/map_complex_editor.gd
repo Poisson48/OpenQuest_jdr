@@ -4139,15 +4139,19 @@ func get_last_rebuild_stats() -> Dictionary:
 func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedStringArray()) -> void:
 	if _engine == null or doc.map_data.is_empty():
 		return
-	# Étape (a) de la synchro incrémentale : comportement INCHANGÉ (configure()
-	# complet ci-dessous). `layers` sert uniquement de trace pour l'étape (b) ;
-	# une liste vide retombe sur les couches accumulées, puis sur `["all"]`
+	# Synchro incrémentale — étape (b) : si la mutation ne touche QUE la couche
+	# `meshes`, le moteur met à jour cette seule couche par DIFF (les objets
+	# inchangés sont réutilisés, cf. `MapMeshes3D.sync()`). Tout le reste
+	# (`["all"]`, terrain, style, mode joueur…) garde le `configure()` complet,
+	# qui reste le chemin de référence.
+	# Une liste vide retombe sur les couches accumulées, puis sur `["all"]`
 	# (repli sûr : on ne suppose jamais « rien à reconstruire »).
 	var sync_t0 := Time.get_ticks_usec()
 	if layers.is_empty():
 		layers = _take_pending_layers()
 	if layers.is_empty():
 		layers = DirtyLayersScript.all()
+	var meshes_only := _is_meshes_only(layers)
 	_last_sync_layers = layers
 	if _engine.has_method("start_camera_trace") and str(_engine.get("_trace_path")).is_empty():
 		_engine.call("start_camera_trace")
@@ -4159,25 +4163,32 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 	_engine.set_snap_to_grid(_snap_mode == "cell")
 	if _engine.has_method("trace_event"):
 		_engine.call("trace_event", "SYNC_BEFORE", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
-	# Vue joueur : is_gm=false → brouillard joueur + présentation contrainte.
-	var as_gm := not _player_view
-	_engine.configure(
-		snapshot,
-		tokens,
-		_mock_party(),
-		defaults.get("effects", []),
-		defaults.get("zones", []),
-		defaults.get("fogRevealed", []),
-		not _editable,
-		as_gm,
-		{"mode": "select"},
-		view_state,
-	)
-	# Préférences de confort machine (menu Paramètres) : `configure()` vient de
-	# remettre le rendu aux valeurs de la carte, on réapplique les surcharges.
-	AppSettings.apply_to_engine(_engine)
-	if _engine.has_method("trace_event"):
-		_engine.call("trace_event", "SYNC_AFTER", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
+	if meshes_only and _engine.has_method("update_meshes_layer"):
+		# Diff ciblé : ni caméra, ni style/qualité, ni mode joueur ne bougent.
+		_engine.call("update_meshes_layer", snapshot)
+		if _engine.has_method("trace_event"):
+			_engine.call("trace_event", "SYNC_MESHES",
+				"meshes=%d" % (snapshot.get("meshes", []) as Array).size())
+	else:
+		# Vue joueur : is_gm=false → brouillard joueur + présentation contrainte.
+		var as_gm := not _player_view
+		_engine.configure(
+			snapshot,
+			tokens,
+			_mock_party(),
+			defaults.get("effects", []),
+			defaults.get("zones", []),
+			defaults.get("fogRevealed", []),
+			not _editable,
+			as_gm,
+			{"mode": "select"},
+			view_state,
+		)
+		# Préférences de confort machine (menu Paramètres) : `configure()` vient de
+		# remettre le rendu aux valeurs de la carte, on réapplique les surcharges.
+		AppSettings.apply_to_engine(_engine)
+		if _engine.has_method("trace_event"):
+			_engine.call("trace_event", "SYNC_AFTER", "tokens=%d view=%s" % [tokens.size(), not view_state.is_empty()])
 	if reset_view and view_state.is_empty():
 		if _engine.has_method("request_fit_to_view"):
 			_engine.call_deferred("request_fit_to_view")
@@ -4195,9 +4206,17 @@ func _sync_engine(reset_view: bool = false, layers: PackedStringArray = PackedSt
 		"sync_ms": snappedf(float(Time.get_ticks_usec() - sync_t0) / 1000.0, 0.01),
 		"sync_layers": Array(layers),
 		"sync_layers_text": DirtyLayersScript.describe(layers),
+		"sync_targeted_meshes": meshes_only,
 		"sync_batch_depth": _sync_batch_depth,
 		"engine": engine_stats,
 	}
+
+## Vrai si la synchro ne concerne QUE la couche meshes (aucune autre couche) :
+## c'est la seule condition qui autorise le diff ciblé de l'étape (b). Toute
+## autre couche (terrain, eau, style, reliquat « all »…) impose le configure complet.
+func _is_meshes_only(layers: PackedStringArray) -> bool:
+	return layers.size() == 1 and layers[0] == DirtyLayersScript.MESHES
+
 
 func _ensure_token_portraits(tokens: Array) -> void:
 	var portrait := _default_token_portrait()
