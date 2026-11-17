@@ -44,10 +44,12 @@ $tests = Get-ChildItem -Path $testsDir -Filter '*.gd' |
     Sort-Object Name
 
 if (-not $IncludeShots) {
-    $tests = $tests | Where-Object {
-        $_.BaseName -notmatch '_shot_test$' -and
-        ((Get-Content $_.FullName -Raw) -notmatch 'save_png\(')
-    }
+    # Seuls les tests de CAPTURE (`*_shot_test.gd`) sont exclus par défaut : ils
+    # exigent un rendu GPU réel. Les tests qui appellent `save_png()` pour créer
+    # leurs propres IMAGES DE TEST (fixtures) restent exécutables en headless —
+    # les exclure par contenu masquait 4 tests (map_vision, map_props,
+    # map_render_style, map_night_reveal).
+    $tests = $tests | Where-Object { $_.BaseName -notmatch '_shot_test$' }
 }
 if (-not [string]::IsNullOrWhiteSpace($Filter)) {
     $tests = $tests | Where-Object { $_.BaseName -match $Filter }

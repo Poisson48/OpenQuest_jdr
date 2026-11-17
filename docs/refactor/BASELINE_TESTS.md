@@ -529,3 +529,12 @@ Variante « ultra-rapide » (~20 s) si le temps presse : `dice_engine_test|rules
 
 **Conséquence pour la baseline** : la liste des échecs connus passe de 5 à **1** (`webrtc_pooling_e2e_test`, qui passe en 3,7 s avec un serveur pooling local).
 **Découverte à exploiter en phase 4** : `ComplexMapEngine3D.configure()` complet coûte ≈1,7 s en headless (`_meshes_layer.configure`) et est déclenché à CHAQUE mutation du document (`map_complex_editor.gd:_on_doc_changed`) — c'est la cause mesurée du gel de l'éditeur (cf. `RAPPORT_PERFORMANCE_EDITEUR_3D.md`). La synchro incrémentale (couches sales) est prioritaire en vague 3.
+---
+
+## 16. Correctif de sélection du runner — 4 tests récupérés (2026-11-17)
+
+Le runner excluait par défaut tout test contenant `save_png(` en le prenant pour une capture. Or **4 tests utilisent `save_png()` pour créer leurs propres IMAGES DE TEST (fixtures)**, pas pour capturer l'écran : ils n'ont besoin d'aucun GPU et passaient déjà en headless.
+
+`scripts/run_tests.ps1` exclut désormais UNIQUEMENT les fichiers `*_shot_test.gd` (convention documentée). Vérifié : `map_vision_test`, `map_props_test`, `map_render_style_test`, `map_night_reveal_test` → **4 PASS** en headless via le runner.
+
+**Impact coverage** : la suite headless passe de 120 à **124 tests** (+4), sans nouveau rouge. Ces tests couvrent respectivement la vision/cazes, les props, le style de rendu et la révélation nocturne.
