@@ -34,6 +34,10 @@ func _init() -> void:
 
 func _run() -> void:
 	await process_frame
+	# Déterminisme : fige le RNG global (certains placements du générateur de
+	# scène utilisent randf() hors du RNG seedé par `_scene_seed`). Sans cela,
+	# la carte peut être générée avec deux décors qui se chevauchent selon le run.
+	seed(SEED)
 	var md = get_root().get_node("MapData")
 	var map: Dictionary = md.create_complex_map("Test cité", "general", "local", MAP_W, MAP_H)
 	map["renderStyle"] = "2.5d"
