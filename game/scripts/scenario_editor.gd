@@ -7,6 +7,7 @@ const GraphNodeScene := preload("res://scenes/scenario_editor/panels/graph_node.
 const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
 const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
 const GraphLinkOverlayScript := preload("res://scripts/scenario_editor/panels/graph_link_overlay.gd")
+const ScenarioEditorStyle := preload("res://scripts/scenario_editor/scenario_editor_style.gd")
 
 ## Bornes du zoom manuel (pilule zoom / rail d'outils).
 const GRAPH_ZOOM_MIN := 0.35
@@ -251,57 +252,13 @@ func _auto_select_start_scene() -> void:
 ## badge scénario suit directement le titre, le champ de recherche occupe le
 ## centre et les actions restent à droite.
 func _slim_top_bar() -> void:
-	var top := %TopBar
-	top.add_theme_constant_override("separation", 8)
-	top.crumb.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_MICRO - 1)
-	top.title.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_H3 + 2)
-	top.btn_back.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_MICRO + 1)
-	(top.get_node("Actions") as HBoxContainer).add_theme_constant_override("separation", 6)
-	# Le titre ne prend plus toute la largeur : badge juste après, puis les
-	# deux ressorts qui centrent le champ de recherche.
-	var titles: Control = top.get_node("Titles")
-	titles.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	scene_badge_panel.visible = true
+	ScenarioEditorStyle.slim_top_bar(self)
 
 ## Fond de page façon Atelier : aplat très sombre + trame de points sur TOUTE la
 ## fenêtre, et canevas du graphe transparent (ni panneau opaque, ni grille
 ## GraphEdit) pour laisser respirer le « côté ouvert ». Aucun dégradé.
 func _install_backdrop() -> void:
-	var bg := get_node_or_null("Background")
-	if bg is CanvasItem:
-		(bg as CanvasItem).visible = false
-	var backdrop: Control = null
-	var backdrop_script: Resource = null
-	var backdrop_path := "res://scripts/scenario_editor/panels/editor_backdrop.gd"
-	if ResourceLoader.exists(backdrop_path):
-		backdrop_script = load(backdrop_path)
-	if backdrop_script is Script:
-		backdrop = (backdrop_script as Script).new() as Control
-	if backdrop != null:
-		backdrop.name = "Backdrop"
-		backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		add_child(backdrop)
-		move_child(backdrop, 0)
-	# Canevas transparent : la trame de page traverse le graphe.
-	var empty := StyleBoxEmpty.new()
-	graph_edit.add_theme_stylebox_override("panel", empty)
-	graph_edit.show_grid = false
-	var graph_panel := graph_edit.get_parent().get_parent() as PanelContainer
-	if graph_panel != null:
-		graph_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	# Sous-barre : fine barre flottante translucide, le fond reste visible.
-	var subbar := get_node_or_null("MainLayout/SubBar") as PanelContainer
-	if subbar != null:
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.05, 0.045, 0.075, 0.72)
-		style.set_corner_radius_all(10)
-		style.set_border_width_all(1)
-		style.border_color = Color(1, 1, 1, 0.06)
-		style.content_margin_left = 10
-		style.content_margin_right = 10
-		style.content_margin_top = 4
-		style.content_margin_bottom = 4
-		subbar.add_theme_stylebox_override("panel", style)
+	ScenarioEditorStyle.install_backdrop(self)
 
 
 ## Branche les contrôles propres à la console (sous-barre, onglets, dock).
@@ -339,239 +296,23 @@ func _connect_console_buttons() -> void:
 ## 26 à 34 px. `skip_button_sizing` empêche l'écrasement (posé avant le passage
 ## différé de l'autoload), `_enforce_compact_buttons` le re-applique ensuite.
 func _style_compact_ui() -> void:
-	var compact_defs: Array = [
-		[%TopBar.get_node("BtnBack") as Button, 28, 12],
-		[search_btn, 26, 12],
-		[health_summary_btn, 26, 11],
-		[validation_btn, 26, 11],
-		[%BtnValidate, 28, 12],
-		[test_btn, 28, 12],
-		[%BtnSave, 30, 13],
-		[%BtnModeGraph, 28, 12],
-		[%BtnModeScenario, 28, 12],
-		[%BtnModeNpc, 28, 12],
-		[%BtnModeMaps, 28, 12],
-		[%BtnAddScene, 28, 12],
-		[%BtnAddNpc, 28, 12],
-		[%BtnAutoLayout, 28, 11],
-		[details_btn_scene, 30, 12],
-		[details_btn_branches, 30, 12],
-		[details_btn_meta, 30, 12],
-		[%BtnZoomOut, 26, 16],
-		[%BtnZoomIn, 26, 16],
-		[%BtnFitView, 26, 15],
-		[problems_pill, 28, 11],
-		[dock_issues_btn, 28, 11],
-		[%BtnDockHistory, 28, 11],
-		[%BtnDockJournal, 28, 11],
-		[dock_close_btn, 24, 13],
-		[duplicate_scene_btn, 28, 11],
-		[%BtnDeleteScene, 28, 11],
-		[%BtnSetStart, 28, 11],
-		[%BtnAddTransition, 28, 11],
-		[%BtnAddNpcPanel, 28, 11],
-	]
-	for def_variant in compact_defs:
-		var def: Array = def_variant
-		_compact_button(def[0] as Button, float(def[1]), int(def[2]))
-	# Style « ghost » resserré : le thème a 10 px de marge par côté, ce qui
-	# fait déborder la barre haute à 1280 px de large.
-	var ghost_normal := _make_flat_style(Color(0, 0, 0, 0), 6, Color(0, 0, 0, 0), 0)
-	ghost_normal.content_margin_left = 7.0
-	ghost_normal.content_margin_right = 7.0
-	ghost_normal.content_margin_top = 2.0
-	ghost_normal.content_margin_bottom = 2.0
-	var ghost_hover := ghost_normal.duplicate() as StyleBoxFlat
-	ghost_hover.bg_color = Color(0.2, 0.169, 0.278, 0.8)
-	var ghost_pressed := ghost_normal.duplicate() as StyleBoxFlat
-	ghost_pressed.bg_color = Color(0.227, 0.173, 0.09, 1.0)
-	for ghost_btn in [health_summary_btn, validation_btn, %BtnValidate, test_btn,
-			%BtnModeGraph, %BtnModeScenario, %BtnModeNpc, %BtnModeMaps,
-			%BtnAddScene, %BtnAddNpc, %BtnAutoLayout, duplicate_scene_btn,
-			%BtnSetStart, %BtnAddTransition, %BtnAddNpcPanel, problems_pill]:
-		var ghost := ghost_btn as Button
-		if ghost == null:
-			continue
-		ghost.add_theme_stylebox_override("normal", ghost_normal)
-		ghost.add_theme_stylebox_override("hover", ghost_hover)
-		ghost.add_theme_stylebox_override("pressed", ghost_pressed)
-		ghost.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	# Champ de recherche : bouton stylé « input ».
-	search_btn.custom_minimum_size = Vector2(238, 26)
-	search_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	search_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	search_btn.focus_mode = Control.FOCUS_ALL
-	var search_style := _make_flat_style(ThemeColors.BG_INPUT, 8, ThemeColors.BORDER, 1)
-	search_style.content_margin_left = 10.0
-	search_style.content_margin_right = 8.0
-	search_style.content_margin_top = 2.0
-	search_style.content_margin_bottom = 2.0
-	var search_hover := search_style.duplicate() as StyleBoxFlat
-	search_hover.border_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
-		ThemeColors.GOLD.b, 0.55)
-	search_btn.add_theme_stylebox_override("normal", search_style)
-	search_btn.add_theme_stylebox_override("hover", search_hover)
-	search_btn.add_theme_stylebox_override("pressed", search_hover)
-	search_btn.add_theme_stylebox_override("focus", search_hover)
-	search_btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	search_btn.add_theme_color_override("font_hover_color", ThemeColors.TEXT)
-	# Badge d'identifiant du scénario (pilule).
-	var badge_style := _make_flat_style(
-		Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.10), 10,
-		Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.40), 1)
-	badge_style.content_margin_left = 7.0
-	badge_style.content_margin_right = 7.0
-	badge_style.content_margin_top = 1.0
-	badge_style.content_margin_bottom = 1.0
-	scene_badge_panel.add_theme_stylebox_override("panel", badge_style)
-	scene_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scenario_badge_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
-	scenario_badge_id_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	# Le pied de l'en-tête (n°/acte) reste discret.
-	# Chip d'identifiant de scène (inspecteur).
-	var id_style := _make_flat_style(Color(0.0, 0.0, 0.0, 0.22), 10, ThemeColors.BORDER, 1)
-	id_style.content_margin_left = 8.0
-	id_style.content_margin_right = 8.0
-	id_style.content_margin_top = 2.0
-	id_style.content_margin_bottom = 2.0
-	scene_id_chip.add_theme_stylebox_override("panel", id_style)
-	scene_id_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_inspector_density()
+	ScenarioEditorStyle.style_compact_ui(self)
 
-## Densité de l'inspecteur : libellés en petites capitales et champs compacts
-## (le panneau fait 380 px, il doit tenir sans scrolling inutile).
-func _style_inspector_density() -> void:
-	var micro_labels: Array = []
-	for label_name in ["LblSceneTitle", "LblSceneTags", "LblSceneContent", "LblSceneMaps",
-			"LblSceneNpcs", "LblSynopsis", "LblSetting", "LblStart", "LblSceneBadge"]:
-		var node := find_child(label_name, true, false) as Label
-		if node != null:
-			micro_labels.append(node)
-	for label_variant in micro_labels:
-		var label := label_variant as Label
-		label.add_theme_font_size_override("font_size", 11)
-	for edit in [scene_title, scene_tags]:
-		(edit as LineEdit).add_theme_font_size_override("font_size", 15)
-		(edit as LineEdit).custom_minimum_size = Vector2(0, 34)
-	for text_edit in [scene_content, meta_synopsis, meta_setting, meta_mystery]:
-		(text_edit as TextEdit).add_theme_font_size_override("font_size", 14)
-	scene_content.custom_minimum_size = Vector2(0, 104)
-	scene_title_big.add_theme_font_size_override("font_size", 23)
-	scene_kicker_lbl.add_theme_font_size_override("font_size", 11)
-	branches_count_lbl.add_theme_font_size_override("font_size", 17)
-	# OptButtons / ItemList de l'inspecteur.
-	for opt in [meta_format, meta_roster, meta_start_scene]:
-		(opt as OptionButton).add_theme_font_size_override("font_size", 13)
-	scene_maps.add_theme_font_size_override("font_size", 12)
 
 ## Centre visuellement le champ de recherche dans la barre haute : les deux
 ## ressorts autour de lui reçoivent la place restante, recalculée à chaque
 ## redimensionnement (sinon il dérive vers la droite à cause des actions).
 func _balance_top_bar() -> void:
-	if top_bar == null or search_btn == null:
-		return
-	var back_btn: Control = top_bar.get_node_or_null("BtnBack") as Control
-	var titles: Control = top_bar.get_node_or_null("Titles") as Control
-	var actions: Control = top_bar.get_node_or_null("Actions") as Control
-	var spacer_l: Control = top_bar.get_node_or_null("TopSpacerL") as Control
-	var spacer_r: Control = top_bar.get_node_or_null("TopSpacerR") as Control
-	if back_btn == null or titles == null or actions == null \
-			or spacer_l == null or spacer_r == null:
-		return
-	var separations := 8.0 * float(maxi(top_bar.get_child_count() - 1, 0))
-	var left_block := back_btn.size.x + titles.size.x + scene_badge_panel.size.x
-	var free := top_bar.size.x - left_block - actions.size.x - search_btn.size.x - separations
-	if free <= 1.0:
-		spacer_l.custom_minimum_size.x = 0.0
-		spacer_r.custom_minimum_size.x = 0.0
-		return
-	var half := maxf((top_bar.size.x - search_btn.size.x) * 0.5, 0.0)
-	# 2 séparations entre les 3 blocs de gauche.
-	var left_needed := clampf(half - left_block - 16.0, 0.0, free)
-	spacer_l.custom_minimum_size.x = left_needed
-	spacer_r.custom_minimum_size.x = maxf(free - left_needed, 0.0)
+	ScenarioEditorStyle.balance_top_bar(self)
 
 ## Re-applique les tailles compactes après le passage différé de ButtonSizing.
 func _enforce_compact_buttons() -> void:
-	for button in find_children("*", "BaseButton", true, false):
-		if button.has_meta("skip_button_sizing"):
-			var target: Button = button as Button
-			if target == null:
-				continue
-			var wanted := float(target.get_meta("compact_height", 0.0))
-			if wanted > 0.0:
-				target.custom_minimum_size.y = wanted
+	ScenarioEditorStyle.enforce_compact_buttons(self)
 
 ## Style commun des panneaux flottants du canevas (pilules sombres arrondies).
 func _style_floating_panels() -> void:
-	var rail_style := _make_flat_style(Color(0.09, 0.075, 0.125, 0.94), 12,
-		ThemeColors.BORDER, 1)
-	rail_style.content_margin_left = 4.0
-	rail_style.content_margin_right = 4.0
-	rail_style.content_margin_top = 6.0
-	rail_style.content_margin_bottom = 6.0
-	rail_style.shadow_color = Color(0.0, 0.0, 0.0, 0.35)
-	rail_style.shadow_size = 8
-	tool_rail.add_theme_stylebox_override("panel", rail_style)
-	var pill_style := _make_flat_style(Color(0.105, 0.09, 0.145, 0.92), 12,
-		ThemeColors.BORDER, 1)
-	pill_style.content_margin_left = 10.0
-	pill_style.content_margin_right = 10.0
-	pill_style.content_margin_top = 4.0
-	pill_style.content_margin_bottom = 4.0
-	pill_style.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
-	pill_style.shadow_size = 8
-	for pill in [legend_pill, zoom_pill, hint_pill]:
-		(pill as PanelContainer).add_theme_stylebox_override("panel", pill_style)
-	# Pilule « Problèmes » (bouton) : même langage visuel que les autres pilules.
-	var problems_normal := _make_flat_style(Color(0.105, 0.09, 0.145, 0.92), 12,
-		ThemeColors.BORDER, 1)
-	var problems_hover := problems_normal.duplicate() as StyleBoxFlat
-	problems_hover.border_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
-		ThemeColors.GOLD.b, 0.55)
-	var problems_pressed := problems_normal.duplicate() as StyleBoxFlat
-	problems_pressed.bg_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
-		ThemeColors.GOLD.b, 0.12)
-	problems_pill.add_theme_stylebox_override("normal", problems_normal)
-	problems_pill.add_theme_stylebox_override("hover", problems_hover)
-	problems_pill.add_theme_stylebox_override("pressed", problems_pressed)
-	problems_pill.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
-	problems_pill.add_theme_color_override("font_hover_color", ThemeColors.GOLD_LIGHT)
-	# Canevas ouvert : le panneau du graphe n'a ni marge ni fond opaque.
-	var canvas_style := StyleBoxFlat.new()
-	canvas_style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-	canvas_style.set_content_margin_all(0.0)
-	graph_panel_node.add_theme_stylebox_override("panel", canvas_style)
-	graph_panel_node.add_theme_stylebox_override("panel_selected", canvas_style)
-	# Panneau du dock flottant.
-	var dock_style := _make_flat_style(ThemeColors.SURFACE_DOCK, 12,
-		ThemeColors.BORDER, 1)
-	dock_style.content_margin_left = 12.0
-	dock_style.content_margin_right = 12.0
-	dock_style.content_margin_top = 6.0
-	dock_style.content_margin_bottom = 8.0
-	dock_style.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-	dock_style.shadow_size = 16
-	dock_panel.add_theme_stylebox_override("panel", dock_style)
+	ScenarioEditorStyle.style_floating_panels(self)
 
-## StyleBoxFlat utilitaire (coins arrondis, bordure, fond).
-func _make_flat_style(bg: Color, radius: int, border: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg
-	style.set_corner_radius_all(radius)
-	style.set_border_width_all(border_width)
-	style.border_color = border
-	return style
-
-## Bouton compact : hauteur réduite, taille de police dédiée, pas de focus.
-func _compact_button(btn: Button, height: float, font_size: int) -> void:
-	if btn == null:
-		return
-	btn.set_meta("skip_button_sizing", true)
-	btn.set_meta("compact_height", height)
-	btn.custom_minimum_size = Vector2(btn.custom_minimum_size.x, height)
-	btn.add_theme_font_size_override("font_size", font_size)
-	btn.focus_mode = Control.FOCUS_NONE
 
 func _configure_graph_edit() -> void:
 	graph_edit.show_grid = true
@@ -1189,41 +930,7 @@ func _set_details_tab(tab: String) -> void:
 
 ## Style « toggle » des onglets : filet or + fond accentué sur l'onglet actif.
 func _style_tab_button(btn: Button, active: bool) -> void:
-	if btn == null:
-		return
-	btn.button_pressed = active
-	var normal := StyleBoxFlat.new()
-	var active_bg := Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.10)
-	normal.bg_color = active_bg if active else Color(0, 0, 0, 0)
-	normal.border_width_bottom = 2
-	normal.border_color = ThemeColors.GOLD if active else Color(0, 0, 0, 0)
-	normal.content_margin_left = 10.0
-	normal.content_margin_right = 10.0
-	normal.content_margin_top = 4.0
-	normal.content_margin_bottom = 4.0
-	var hover := normal.duplicate() as StyleBoxFlat
-	if not active:
-		hover.bg_color = Color(1, 1, 1, 0.05)
-	var pressed := normal.duplicate() as StyleBoxFlat
-	if active:
-		pressed.bg_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.16)
-	# Style disabled explicite : le thème GhostButton utilise un StyleBox vide
-	# (marges nulles), ce qui collait les libellés des onglets « bientôt ».
-	var disabled := normal.duplicate() as StyleBoxFlat
-	disabled.bg_color = Color(0, 0, 0, 0)
-	disabled.border_color = Color(0, 0, 0, 0)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("disabled", disabled)
-	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	var font_color := ThemeColors.GOLD_LIGHT if active else ThemeColors.TEXT_MUTED
-	btn.add_theme_color_override("font_color", font_color)
-	btn.add_theme_color_override("font_hover_color", ThemeColors.GOLD_LIGHT)
-	btn.add_theme_color_override("font_pressed_color", ThemeColors.GOLD_LIGHT)
-	btn.add_theme_color_override("font_focus_color", ThemeColors.GOLD_LIGHT)
-	btn.add_theme_color_override("font_disabled_color",
-		Color(ThemeColors.TEXT_MUTED.r, ThemeColors.TEXT_MUTED.g, ThemeColors.TEXT_MUTED.b, 0.5))
+	ScenarioEditorStyle.style_tab_button(btn, active)
 
 func _rebuild_graph() -> void:
 	if _rebuild_scheduled:
@@ -1712,24 +1419,7 @@ func _refresh_scene_link_chips(scene: Dictionary) -> void:
 
 ## Chip compact (pilule teintée) pour l'inspecteur.
 func _make_chip(text: String, color: Color) -> Control:
-	var panel := PanelContainer.new()
-	var style := _make_flat_style(Color(color.r, color.g, color.b, 0.09), 10,
-		Color(color.r, color.g, color.b, 0.36), 1)
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 1.0
-	style.content_margin_bottom = 1.0
-	panel.add_theme_stylebox_override("panel", style)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	var label := Label.new()
-	label.text = text
-	label.theme_type_variation = &"MicroLabel"
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", color)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(label)
-	return panel
+	return ScenarioEditorStyle.make_chip(text, color)
 
 func _clear_chip_row(row: HFlowContainer) -> void:
 	if row == null:
@@ -1900,70 +1590,7 @@ func _create_transition_row(from_id: String, index: int, transition: Dictionary)
 
 ## Met la carte de branche au format compact de l'inspecteur Atelier.
 func _style_transition_row(row: PanelContainer, transition: Dictionary) -> void:
-	var is_default := bool(transition.get("default", false))
-	var is_gm := bool(transition.get("gmOnly", false))
-	var accent := ThemeColors.GOLD if is_default else (
-		ThemeColors.LOG_NPC if is_gm else Color("8fd2ea"))
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.075, 0.125, 0.72)
-	style.set_corner_radius_all(7)
-	style.set_border_width_all(1)
-	style.border_color = Color(0.17, 0.145, 0.25, 1.0)
-	style.border_width_left = 3
-	style.border_color = accent
-	style.content_margin_left = 9.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 5.0
-	style.content_margin_bottom = 5.0
-	row.add_theme_stylebox_override("panel", style)
-	var vbox := row.get_node_or_null("VBox") as VBoxContainer
-	var top := row.get_node_or_null("VBox/Top") as HBoxContainer
-	var flags := row.get_node_or_null("VBox/Flags") as HBoxContainer
-	var arrow := row.get_node_or_null("VBox/Top/LblArrow") as Label
-	var edit := row.get_node_or_null("VBox/EditLabel") as LineEdit
-	var target := row.get_node_or_null("VBox/Top/TargetOpt") as OptionButton
-	var chk_default := row.get_node_or_null("VBox/Flags/ChkDefault") as CheckBox
-	var chk_gm := row.get_node_or_null("VBox/Flags/ChkGm") as CheckBox
-	var btn_delete := row.get_node_or_null("VBox/Flags/BtnDelete") as Button
-	if arrow != null:
-		arrow.visible = false
-	# Nom de branche en premier, cible sur la ligne suivante.
-	if vbox != null and edit != null:
-		vbox.move_child(edit, 0)
-		vbox.add_theme_constant_override("separation", 4)
-	if edit != null:
-		edit.add_theme_font_size_override("font_size", 14)
-		edit.custom_minimum_size = Vector2(0, 26)
-		edit.placeholder_text = "Nom de la branche (affiché au MJ)"
-	if top != null:
-		top.add_theme_constant_override("separation", 6)
-	if target != null:
-		target.add_theme_font_size_override("font_size", 12)
-		target.set_meta("skip_button_sizing", true)
-		target.custom_minimum_size = Vector2(0, 24)
-	# Badge de type à droite de la cible.
-	if top != null:
-		var badge := Label.new()
-		badge.theme_type_variation = &"MicroLabel"
-		badge.add_theme_font_size_override("font_size", 10)
-		badge.add_theme_color_override("font_color", accent)
-		badge.text = "DÉFAUT" if is_default else ("MJ" if is_gm else "BRANCHE")
-		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		top.add_child(badge)
-	if flags != null:
-		flags.add_theme_constant_override("separation", 6)
-	for check in [chk_default, chk_gm]:
-		var box := check as CheckBox
-		if box == null:
-			continue
-		box.add_theme_font_size_override("font_size", 11)
-		box.set_meta("skip_button_sizing", true)
-		box.custom_minimum_size = Vector2(0, 22)
-	if btn_delete != null:
-		btn_delete.add_theme_font_size_override("font_size", 12)
-		btn_delete.set_meta("skip_button_sizing", true)
-		btn_delete.custom_minimum_size = Vector2(26, 22)
+	ScenarioEditorStyle.style_transition_row(row, transition)
 
 func _populate_target_options(opt: OptionButton, selected_id: String, exclude_id: String = "", transition_index: int = -1) -> void:
 	opt.clear()
@@ -2638,15 +2265,7 @@ func _instantiate_views() -> void:
 
 ## Crée un bouton compact style console.
 func _make_console_button(text: String, tooltip: String) -> Button:
-	var btn := Button.new()
-	btn.text = text
-	btn.tooltip_text = tooltip
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.set_meta("skip_button_sizing", true)
-	btn.set_meta("compact_height", 28.0)
-	btn.custom_minimum_size = Vector2(0, 28)
-	btn.add_theme_font_size_override("font_size", 12)
-	return btn
+	return ScenarioEditorStyle.make_console_button(text, tooltip)
 
 
 ## Change le mode central : Graphe ou vue Scénario / PNJ / Cartes.
