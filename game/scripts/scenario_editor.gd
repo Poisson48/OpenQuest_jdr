@@ -3,22 +3,11 @@ extends Control
 const UiShortcuts := preload("res://scripts/shared/ui_shortcuts.gd")
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
-const GraphNodeScene := preload("res://scenes/scenario_editor/panels/graph_node.tscn")
 const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
 const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
-const GraphLinkOverlayScript := preload("res://scripts/scenario_editor/panels/graph_link_overlay.gd")
+const GraphControllerScript := preload("res://scripts/scenario_editor/graph_controller.gd")
 const ScenarioEditorStyle := preload("res://scripts/scenario_editor/scenario_editor_style.gd")
 
-## Bornes du zoom manuel (pilule zoom / rail d'outils).
-const GRAPH_ZOOM_MIN := 0.35
-const GRAPH_ZOOM_MAX := 1.6
-## Cadrage : espace réservé aux panneaux flottants du canevas (rail d'outils à
-## gauche, pilules en bas). Le graphe se cale dans l'espace restant pour
-## qu'aucune carte ne passe sous un panneau.
-const FIT_INSET_LEFT := 54.0
-const FIT_INSET_RIGHT := 6.0
-const FIT_INSET_TOP := 8.0
-const FIT_INSET_BOTTOM := 10.0
 ## Inspecteur de droite (≈ 390 px, style Atelier).
 const INSPECTOR_WIDTH := 380.0
 ## Panneau flottant « Plan d'ensemble » (minimap) en bas-gauche du canevas.
@@ -35,10 +24,10 @@ const MODE_SCENARIO := "scenario"
 const MODE_NPC := "npc"
 const MODE_MAPS := "maps"
 ## Outils de la sous-barre.
-const TOOL_SELECT := "select"
-const TOOL_LINK := "link"
-const TOOL_NOTE := "note"
-const TOOL_FRAME := "frame"
+const TOOL_SELECT := GraphControllerScript.TOOL_SELECT
+const TOOL_LINK := GraphControllerScript.TOOL_LINK
+const TOOL_NOTE := GraphControllerScript.TOOL_NOTE
+const TOOL_FRAME := GraphControllerScript.TOOL_FRAME
 ## Onglets du dock bas.
 const DOCK_TAB_ISSUES := "issues"
 const DOCK_TAB_HISTORY := "history"
@@ -155,8 +144,10 @@ var _note_edit: LineEdit = null
 var _note_editing_id: String = ""
 var _link_last_sid: String = ""
 var _link_click_ms: int = 0
+var _graph = GraphControllerScript.new()
 
 func _ready() -> void:
+	_graph.setup(self)
 	%TopBar.back_pressed.connect(_on_back_pressed)
 	%ConfirmDiscard.confirmed.connect(_on_confirm_discard)
 	%BtnSave.pressed.connect(_on_save_pressed)
@@ -315,34 +306,7 @@ func _style_floating_panels() -> void:
 
 
 func _configure_graph_edit() -> void:
-	graph_edit.show_grid = true
-	graph_edit.snapping_enabled = true
-	graph_edit.snapping_distance = 16
-	graph_edit.right_disconnects = true
-	# La minimap native ne dessine pas l'overlay des liens (elle resterait vide) :
-	# on la désactive, la vue d'ensemble se fait avec « Cadrer » + zoom.
-	graph_edit.minimap_enabled = false
-	if graph_edit.has_method("set_connection_lines_curvature"):
-		graph_edit.connection_lines_curvature = 0.35
-	if "connection_lines_thickness" in graph_edit:
-		graph_edit.connection_lines_thickness = 2.0
-	# Clic-glisser sur le fond = déplacer la vue (en plus du clic milieu).
-	if not graph_edit.gui_input.is_connected(_on_graph_gui_input):
-		graph_edit.gui_input.connect(_on_graph_gui_input)
-	# Le zoom et les outils sont dans la sous-barre : on masque la barre d'outils
-	# native de GraphEdit (boutons de zoom, grille, accroche, menu, minimap).
-	for native_toolbar_prop in [
-		"show_zoom_buttons", "show_zoom_label", "show_grid_buttons",
-		"show_minimap_button", "show_arrange_button", "show_menu",
-	]:
-		if _property_exists(graph_edit, str(native_toolbar_prop)):
-			graph_edit.set(str(native_toolbar_prop), false)
-	# Bornes de zoom alignées sur les boutons − / + de la sous-barre.
-	if _property_exists(graph_edit, "zoom_min"):
-		graph_edit.set("zoom_min", GRAPH_ZOOM_MIN)
-	if _property_exists(graph_edit, "zoom_max"):
-		graph_edit.set("zoom_max", GRAPH_ZOOM_MAX)
-	_setup_link_overlay()
+	_graph._configure_graph_edit()
 
 ## Vrai si l'objet expose la propriété donnée (compat. versions de Godot).
 func _property_exists(obj: Object, property_name: String) -> bool:
@@ -357,92 +321,24 @@ func _property_exists(obj: Object, property_name: String) -> bool:
 ## liens sous les GraphNode (invisibles dès que deux scènes se chevauchent).
 ## L'overlay gère les peignes de séparation, les détours et les libellés.
 func _setup_link_overlay() -> void:
-	if _link_overlay != null and is_instance_valid(_link_overlay):
-		return
-	_link_overlay = GraphLinkOverlayScript.new()
-	_link_overlay.name = "GraphLinkOverlay"
-	add_child(_link_overlay)
-	_link_overlay.call("setup", graph_edit,
-		func() -> Dictionary: return _scenario,
-		func() -> String: return _selected_scene_id)
+	_graph._setup_link_overlay()
 
 func _notify_links_changed() -> void:
-	if _link_overlay != null and is_instance_valid(_link_overlay):
-		_link_overlay.call("notify_scenario_changed")
+	_graph._notify_links_changed()
 
 ## Suivi du survol (indispensable : l'overlay est traversant, donc sans souris)
 ## et suppression d'une branche au clic droit sur le lien *visible*.
 func _input(event: InputEvent) -> void:
-	if _link_overlay == null or not is_instance_valid(_link_overlay):
-		return
-	if graph_edit == null or not is_instance_valid(graph_edit):
-		return
-	if event is InputEventMouseMotion:
-		var mouse_global := (event as InputEventMouseMotion).global_position
-		if graph_edit.is_visible_in_tree() and graph_edit.get_global_rect().has_point(mouse_global):
-			_link_overlay.call("set_hover_global", mouse_global)
-		else:
-			_link_overlay.call("clear_hover")
-		return
-	if event is InputEventMouseButton:
-		var button := event as InputEventMouseButton
-		if not button.pressed or button.button_index != MOUSE_BUTTON_RIGHT:
-			return
-		var hovered: Dictionary = _link_overlay.call("get_hovered_edge")
-		if hovered.is_empty():
-			return
-		var from_id := str(hovered.get("from_id", ""))
-		var to_id := str(hovered.get("to_id", ""))
-		if from_id.is_empty() or to_id.is_empty():
-			return
-		_on_graph_disconnection_request(_graph_node_name_for_id(from_id), 0, _graph_node_name_for_id(to_id), 0)
-		if get_viewport() != null:
-			get_viewport().set_input_as_handled()
+	_graph._input(event)
 
 func _on_graph_gui_input(event: InputEvent) -> void:
-	# Outils Note / Cadre : la souris sert à créer des annotations, pas à pan.
-	if _tool == TOOL_NOTE or _tool == TOOL_FRAME:
-		if _handle_annotation_input(event):
-			return
-	# Molette = zoom natif de GraphEdit : on resynchronise le libellé après coup.
-	if event is InputEventMouseButton and event.pressed:
-		var wheel := event as InputEventMouseButton
-		if wheel.button_index == MOUSE_BUTTON_WHEEL_UP or wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			call_deferred("_update_zoom_label")
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			# Ne pas démarrer un pan si le pointeur est sur une scène (évite de bloquer le drag).
-			if _is_pointer_over_graph_node():
-				return
-			_graph_panning = true
-			_graph_pan_last = event.position
-			graph_edit.mouse_default_cursor_shape = Control.CURSOR_MOVE
-			graph_edit.accept_event()
-		else:
-			_stop_graph_panning()
-		return
-	if event is InputEventMouseMotion and _graph_panning:
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			_stop_graph_panning()
-			return
-		var motion := event as InputEventMouseMotion
-		graph_edit.scroll_offset -= motion.relative
-		_graph_pan_last = motion.position
-		graph_edit.accept_event()
+	_graph._on_graph_gui_input(event)
 
 func _is_pointer_over_graph_node() -> bool:
-	var mouse := graph_edit.get_global_mouse_position()
-	for child in graph_edit.get_children():
-		if child is GraphNode and is_instance_valid(child) and not child.is_queued_for_deletion():
-			if (child as Control).get_global_rect().has_point(mouse):
-				return true
-	return false
+	return _graph._is_pointer_over_graph_node()
 
 func _stop_graph_panning() -> void:
-	if not _graph_panning:
-		return
-	_graph_panning = false
-	graph_edit.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	_graph._stop_graph_panning()
 
 func _setup_option_buttons() -> void:
 	_rebuild_format_options_for_context()
@@ -510,20 +406,10 @@ func _load_scenario() -> void:
 	_dirty = false
 
 func _setup_graph_popup() -> void:
-	_graph_popup = PopupMenu.new()
-	_graph_popup.name = "GraphScenePopup"
-	add_child(_graph_popup)
-	_graph_popup.index_pressed.connect(_on_graph_popup_index_pressed)
+	_graph._setup_graph_popup()
 
 func _connect_graph_signals() -> void:
-	graph_edit.connection_request.connect(_on_graph_connection_request)
-	graph_edit.disconnection_request.connect(_on_graph_disconnection_request)
-	graph_edit.node_selected.connect(_on_graph_node_selected)
-	graph_edit.popup_request.connect(_on_graph_popup_request)
-	if graph_edit.has_signal("end_node_move"):
-		graph_edit.end_node_move.connect(_on_graph_end_node_move)
-	if graph_edit.has_signal("node_dragged"):
-		graph_edit.node_dragged.connect(_on_graph_node_dragged)
+	_graph._connect_graph_signals()
 
 func _refresh_all() -> void:
 	_notify_links_changed()
@@ -895,21 +781,16 @@ func _scene_act_number(scene: Dictionary) -> int:
 # ---------------------------------------------------------------------------
 
 func _on_zoom_in_pressed() -> void:
-	_set_graph_zoom(graph_edit.zoom * 1.1)
+	_graph._on_zoom_in_pressed()
 
 func _on_zoom_out_pressed() -> void:
-	_set_graph_zoom(graph_edit.zoom * 0.9)
+	_graph._on_zoom_out_pressed()
 
 func _set_graph_zoom(value: float) -> void:
-	if graph_edit == null:
-		return
-	graph_edit.zoom = clampf(value, GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX)
-	_update_zoom_label()
+	_graph._set_graph_zoom(value)
 
 func _update_zoom_label() -> void:
-	if graph_edit == null or zoom_lbl == null:
-		return
-	zoom_lbl.text = "%d %%" % int(round(graph_edit.zoom * 100.0))
+	_graph._update_zoom_label()
 
 ## Bascule l'inspecteur de droite entre Scène / Branches / Métadonnées.
 func _set_details_tab(tab: String) -> void:
@@ -933,238 +814,64 @@ func _style_tab_button(btn: Button, active: bool) -> void:
 	ScenarioEditorStyle.style_tab_button(btn, active)
 
 func _rebuild_graph() -> void:
-	if _rebuild_scheduled:
-		return
-	_rebuild_scheduled = true
-	call_deferred("_rebuild_graph_deferred")
+	_graph._rebuild_graph()
 
 func _rebuild_graph_deferred() -> void:
-	_rebuild_scheduled = false
-	_rebuilding_graph = true
-	_commit_scene_editor()
-	_sync_graph_layout_from_nodes()
-	if graph_edit.has_method("clear_connections"):
-		graph_edit.clear_connections()
-	var stale: Array = []
-	for child in graph_edit.get_children():
-		if child is GraphNode:
-			stale.append(child)
-	for child in stale:
-		graph_edit.remove_child(child)
-		child.free()
-
-	var scenes: Array = _scenario.get("scenes", [])
-	var analysis := QuestNavigation.analyze_graph(_scenario)
-	var unreachable: Dictionary = {}
-	for uid in analysis.get("unreachable", []):
-		unreachable[str(uid)] = true
-
-	for i in range(scenes.size()):
-		var scene: Dictionary = scenes[i]
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		var sid: String = str(scene.get("id", "scene-%d" % i))
-		var node := _build_scene_graph_node(scene, sid, i, unreachable.has(sid))
-		graph_edit.add_child(node)
-
-	_apply_all_graph_connections()
-	_rebuilding_graph = false
-	_refresh_graph_health()
-	if not _pending_focus_scene_id.is_empty():
-		var focus_id := _pending_focus_scene_id
-		_pending_focus_scene_id = ""
-		call_deferred("_focus_graph_on_scene", focus_id)
+	_graph._rebuild_graph_deferred()
 
 func _sync_graph_layout_from_nodes() -> void:
-	for child in graph_edit.get_children():
-		if not child is GraphNode or not is_instance_valid(child) or child.is_queued_for_deletion():
-			continue
-		var sid := str(child.get_meta("scene_id", ""))
-		var idx := _scene_index_for_id(sid)
-		if idx < 0:
-			continue
-		var scene: Dictionary = _scenario["scenes"][idx]
-		scene["graphPos"] = { "x": child.position_offset.x, "y": child.position_offset.y }
-		var sz: Vector2 = child.size
-		if child.has_meta("graph_size"):
-			sz = child.get_meta("graph_size")
-		if sz.x >= 10.0 and sz.y >= 10.0:
-			scene["graphSize"] = { "w": sz.x, "h": sz.y }
-		_scenario["scenes"][idx] = scene
+	_graph._sync_graph_layout_from_nodes()
 
 func _build_scene_graph_node(scene: Dictionary, sid: String, index: int, is_unreachable: bool) -> GraphNode:
-	var node := GraphNodeScene.instantiate()
-	node.name = _stable_graph_node_name(sid)
-	node.position_offset = _scene_graph_pos(scene, index)
-	node.setup(scene, sid, index, is_unreachable, str(_scenario.get("startSceneId", "")), _selected_scene_id)
-	node.context_requested.connect(_on_graph_node_context_requested)
-	node.scene_activated.connect(_on_graph_scene_activated)
-	node.scene_focus_requested.connect(_on_graph_scene_focus_requested)
-	node.resize_request.connect(func(new_minsize: Vector2): _on_graph_node_resize_request(node, new_minsize))
-	node.draggable = true
-	node.selectable = true
-	return node
+	return _graph._build_scene_graph_node(scene, sid, index, is_unreachable)
 
 func _apply_all_graph_connections() -> void:
-	if graph_edit.has_method("clear_connections"):
-		graph_edit.clear_connections()
-	var scenes: Array = _scenario.get("scenes", [])
-	for scene in scenes:
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		var from_id := str(scene.get("id", ""))
-		var from_name := _graph_node_name_for_id(from_id)
-		if from_name.is_empty():
-			continue
-		for transition in scene.get("transitions", []):
-			if typeof(transition) != TYPE_DICTIONARY:
-				continue
-			var to_id := str(transition.get("to", ""))
-			if to_id.is_empty() or to_id == from_id:
-				continue
-			var to_name := _graph_node_name_for_id(to_id)
-			if to_name.is_empty():
-				continue
-			if not graph_edit.is_node_connected(from_name, 0, to_name, 0):
-				graph_edit.connect_node(from_name, 0, to_name, 0)
-			_set_connection_activity_for_transition(from_name, to_name, transition)
+	_graph._apply_all_graph_connections()
 
 func _set_connection_activity_for_transition(from_name: StringName, to_name: StringName, transition: Dictionary) -> void:
-	# Les liens natifs de GraphEdit sont masqués : c'est l'overlay qui dessine les
-	# branches (couleurs ★/branche/MJ). L'« activité » de GraphEdit mélange la
-	# connexion vers une couleur claire et la rendait visible PAR-DESSUS les cartes
-	# (couche _connection_layer) : on la force à 0 (couleur du port = transparente).
-	graph_edit.set_connection_activity(from_name, 0, to_name, 0, 0.0)
+	_graph._set_connection_activity_for_transition(from_name, to_name, transition)
 
 func _connect_graph_edge(from_id: String, to_id: String, transition: Dictionary = {}) -> void:
-	var from_name := _graph_node_name_for_id(from_id)
-	var to_name := _graph_node_name_for_id(to_id)
-	if from_name.is_empty() or to_name.is_empty():
-		return
-	if not graph_edit.is_node_connected(from_name, 0, to_name, 0):
-		graph_edit.connect_node(from_name, 0, to_name, 0)
-	if not transition.is_empty():
-		_set_connection_activity_for_transition(from_name, to_name, transition)
-	else:
-		graph_edit.set_connection_activity(from_name, 0, to_name, 0, 0.0)
+	_graph._connect_graph_edge(from_id, to_id, transition)
 
 func _disconnect_graph_edge(from_id: String, to_id: String) -> void:
-	var from_name := _graph_node_name_for_id(from_id)
-	var to_name := _graph_node_name_for_id(to_id)
-	if from_name.is_empty() or to_name.is_empty():
-		return
-	if graph_edit.is_node_connected(from_name, 0, to_name, 0):
-		graph_edit.disconnect_node(from_name, 0, to_name, 0)
+	_graph._disconnect_graph_edge(from_id, to_id)
 
 func _refresh_graph_node_chrome(scene_id: String = "") -> void:
-	_notify_links_changed()
-	var analysis := QuestNavigation.analyze_graph(_scenario)
-	var unreachable: Dictionary = {}
-	for uid in analysis.get("unreachable", []):
-		unreachable[str(uid)] = true
-	var start_id := str(_scenario.get("startSceneId", ""))
-	for child in graph_edit.get_children():
-		if not child is GraphNode or not child.has_method("refresh_chrome"):
-			continue
-		var sid := str(child.get_meta("scene_id", ""))
-		if not scene_id.is_empty() and sid != scene_id:
-			continue
-		var scene := _get_scene_dict(sid)
-		if scene.is_empty():
-			continue
-		child.refresh_chrome(scene, sid, unreachable.has(sid), start_id, _selected_scene_id)
+	_graph._refresh_graph_node_chrome(scene_id)
 
 func _scene_graph_pos(scene: Dictionary, index: int) -> Vector2:
-	var gp = scene.get("graphPos", {})
-	if gp is Dictionary and gp.has("x") and gp.has("y"):
-		return Vector2(float(gp["x"]), float(gp["y"]))
-	var col := index % 3
-	var row := int(index / 3)
-	return Vector2(40.0 + col * 280.0, 40.0 + row * 210.0)
+	return _graph._scene_graph_pos(scene, index)
 
 func _stable_graph_node_name(scene_id: String) -> String:
-	var safe := scene_id.validate_node_name()
-	if safe.is_empty():
-		safe = "unknown"
-	return "SN_%s" % safe
+	return _graph._stable_graph_node_name(scene_id)
 
 func _graph_node_name_for_id(scene_id: String) -> StringName:
-	if scene_id.is_empty() or _scene_index_for_id(scene_id) < 0:
-		return StringName("")
-	return StringName(_stable_graph_node_name(scene_id))
+	return _graph._graph_node_name_for_id(scene_id)
 
 func _scene_index_for_id(scene_id: String) -> int:
-	var scenes: Array = _scenario.get("scenes", [])
-	for i in range(scenes.size()):
-		if str(scenes[i].get("id", "")) == scene_id:
-			return i
-	return -1
+	return _graph._scene_index_for_id(scene_id)
 
 func _get_scene_dict(scene_id: String) -> Dictionary:
-	var idx := _scene_index_for_id(scene_id)
-	if idx < 0:
-		return {}
-	return _scenario["scenes"][idx]
+	return _graph._get_scene_dict(scene_id)
 
 func _on_graph_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	if _rebuilding_graph:
-		return
-	var from_id := _scene_id_from_graph_node(from_node)
-	var to_id := _scene_id_from_graph_node(to_node)
-	if from_id.is_empty() or to_id.is_empty() or from_id == to_id:
-		_set_status("Lien impossible (même scène).")
-		return
-	if _has_transition(from_id, to_id):
-		_set_status("Cette branche existe déjà.")
-		return
-	_add_or_update_transition(from_id, to_id, "Nouvelle branche", false, false)
-	if not graph_edit.is_node_connected(from_node, from_port, to_node, to_port):
-		graph_edit.connect_node(from_node, from_port, to_node, to_port)
-	graph_edit.set_connection_activity(from_node, from_port, to_node, to_port, 0.0)
-	_mark_dirty("Branche créée")
-	_refresh_graph_node_chrome(from_id)
-	if _selected_scene_id == from_id:
-		_refresh_transitions_ui()
-		_refresh_scene_panel()
+	_graph._on_graph_connection_request(from_node, from_port, to_node, to_port)
 
 func _on_graph_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	if _rebuilding_graph:
-		return
-	var from_id := _scene_id_from_graph_node(from_node)
-	var to_id := _scene_id_from_graph_node(to_node)
-	if graph_edit.is_node_connected(from_node, from_port, to_node, to_port):
-		graph_edit.disconnect_node(from_node, from_port, to_node, to_port)
-	_remove_transition(from_id, to_id)
-	_mark_dirty("Branche retirée")
-	_refresh_graph_node_chrome(from_id)
-	if _selected_scene_id == from_id:
-		_refresh_transitions_ui()
-		_refresh_scene_panel()
+	_graph._on_graph_disconnection_request(from_node, from_port, to_node, to_port)
 
 func _scene_id_from_graph_node(node_name: StringName) -> String:
-	for child in graph_edit.get_children():
-		if child is GraphNode and child.name == node_name:
-			return str(child.get_meta("scene_id", ""))
-	return ""
+	return _graph._scene_id_from_graph_node(node_name)
 
 func _on_graph_node_selected(node: Node) -> void:
-	if not node is GraphNode:
-		return
-	var sid := str(node.get_meta("scene_id", ""))
-	if _tool == TOOL_LINK:
-		_handle_link_click(sid)
-		return
-	_open_scene_editor(sid, false)
+	_graph._on_graph_node_selected(node)
 
 func _on_graph_scene_activated(scene_id: String) -> void:
-	if _tool == TOOL_LINK:
-		return
-	_open_scene_editor(scene_id, false)
+	_graph._on_graph_scene_activated(scene_id)
 
 func _on_graph_scene_focus_requested(scene_id: String) -> void:
-	if _tool == TOOL_LINK:
-		return
-	_open_scene_editor(scene_id, true)
+	_graph._on_graph_scene_focus_requested(scene_id)
 
 func _open_scene_editor(sid: String, focus_fields: bool = false) -> void:
 	if sid.is_empty():
@@ -1189,135 +896,43 @@ func _focus_scene_editor_fields() -> void:
 		scene_title.caret_column = scene_title.text.length()
 
 func _refresh_graph_selection_styles() -> void:
-	for child in graph_edit.get_children():
-		if child is GraphNode and child.has_method("set_selected_visual"):
-			var sid := str(child.get_meta("scene_id", ""))
-			child.set_selected_visual(sid == _selected_scene_id)
+	_graph._refresh_graph_selection_styles()
 
 func _on_graph_node_resize_request(node: GraphNode, new_minsize: Vector2) -> void:
-	var clamped := new_minsize
-	if node.has_method("apply_size"):
-		clamped = node.apply_size(new_minsize)
-	else:
-		clamped = Vector2(
-			clampf(new_minsize.x, 160.0, 520.0),
-			clampf(new_minsize.y, 90.0, 420.0)
-		)
-		node.custom_minimum_size = clamped
-		node.size = clamped
-	var sid := str(node.get_meta("scene_id", ""))
-	_store_scene_graph_size(sid, clamped)
+	_graph._on_graph_node_resize_request(node, new_minsize)
 
 func _store_scene_graph_size(sid: String, sz: Vector2) -> void:
-	var idx := _scene_index_for_id(sid)
-	if idx < 0 or sz.x < 10.0 or sz.y < 10.0:
-		return
-	var scene: Dictionary = _scenario["scenes"][idx]
-	scene["graphSize"] = { "w": sz.x, "h": sz.y }
-	_scenario["scenes"][idx] = scene
-	_dirty = true
+	_graph._store_scene_graph_size(sid, sz)
 
 func _on_graph_popup_request(at_position: Vector2) -> void:
-	_show_graph_scene_popup("", graph_edit.get_screen_position() + at_position)
+	_graph._on_graph_popup_request(at_position)
 
 func _on_graph_node_context_requested(scene_id: String, screen_pos: Vector2) -> void:
-	_show_graph_scene_popup(scene_id, screen_pos)
+	_graph._on_graph_node_context_requested(scene_id, screen_pos)
 
 func _show_graph_scene_popup(context_scene_id: String, screen_pos: Vector2) -> void:
-	_graph_popup.clear()
-	var has_branches := false
-	if not context_scene_id.is_empty():
-		var context_scene := _get_scene_dict(context_scene_id)
-		var transitions: Array = context_scene.get("transitions", [])
-		if typeof(transitions) == TYPE_ARRAY:
-			for transition in transitions:
-				if typeof(transition) != TYPE_DICTIONARY:
-					continue
-				var to_id := str(transition.get("to", ""))
-				if to_id.is_empty() or _scene_index_for_id(to_id) < 0:
-					continue
-				var label := str(transition.get("label", "")).strip_edges()
-				if label.is_empty():
-					var target := _get_scene_dict(to_id)
-					label = str(target.get("title", to_id))
-				var mark := "★" if transition.get("default", false) else ("👁" if transition.get("gmOnly", false) else "→")
-				var idx := _graph_popup.item_count
-				_graph_popup.add_item("%s %s" % [mark, label])
-				_graph_popup.set_item_metadata(idx, to_id)
-				has_branches = true
-	if has_branches:
-		_graph_popup.add_separator("Toutes les scènes")
-	else:
-		_graph_popup.add_separator("Aller à une scène")
-
-	for scene in _scenario.get("scenes", []):
-		if typeof(scene) != TYPE_DICTIONARY:
-			continue
-		var sid := str(scene.get("id", ""))
-		if sid.is_empty():
-			continue
-		var idx := _graph_popup.item_count
-		_graph_popup.add_item(QuestNavigation.format_picker_label(scene, sid == _selected_scene_id, false))
-		_graph_popup.set_item_metadata(idx, sid)
-
-	if _graph_popup.item_count == 0:
-		return
-	_graph_popup.position = Vector2i(screen_pos)
-	_graph_popup.popup()
+	_graph._show_graph_scene_popup(context_scene_id, screen_pos)
 
 func _on_graph_popup_index_pressed(index: int) -> void:
-	var sid := str(_graph_popup.get_item_metadata(index))
-	if sid.is_empty():
-		return
-	_select_and_focus_scene(sid)
+	_graph._on_graph_popup_index_pressed(index)
 
 func _select_and_focus_scene(sid: String) -> void:
-	if sid.is_empty():
-		return
-	_open_scene_editor(sid, true)
-	call_deferred("_focus_graph_on_scene", sid)
+	_graph._select_and_focus_scene(sid)
 
 func _focus_graph_on_scene(sid: String) -> void:
-	var node_name := _graph_node_name_for_id(sid)
-	if node_name.is_empty():
-		return
-	var gn := graph_edit.get_node_or_null(NodePath(str(node_name)))
-	if not gn is GraphNode:
-		return
-	var z := graph_edit.zoom
-	var view := graph_edit.size
-	if view.x < 10 or view.y < 10:
-		return
-	var node_size: Vector2 = gn.size
-	if node_size.x < 10:
-		node_size = Vector2(QuestNavigation.NODE_WIDTH, QuestNavigation.NODE_HEIGHT)
-	graph_edit.scroll_offset = gn.position_offset * z - (view - node_size * z) * 0.5
+	_graph._focus_graph_on_scene(sid)
 
 func _on_graph_node_dragged(node: Node) -> void:
-	if not node is GraphNode:
-		return
-	_persist_graph_node_layout(node)
+	_graph._on_graph_node_dragged(node)
 
 func _on_graph_end_node_move() -> void:
-	_sync_graph_layout_from_nodes()
-	if not _dirty:
-		_dirty = true
+	_graph._on_graph_end_node_move()
 
 func _persist_graph_node_layout(node: GraphNode) -> void:
-	var sid := str(node.get_meta("scene_id", ""))
-	var idx := _scene_index_for_id(sid)
-	if idx < 0:
-		return
-	var scene: Dictionary = _scenario["scenes"][idx]
-	scene["graphPos"] = { "x": node.position_offset.x, "y": node.position_offset.y }
-	_scenario["scenes"][idx] = scene
-	_dirty = true
+	_graph._persist_graph_node_layout(node)
 
 func _scene_graph_size(scene: Dictionary) -> Vector2:
-	var gs = scene.get("graphSize", {})
-	if typeof(gs) == TYPE_DICTIONARY and gs.has("w") and gs.has("h"):
-		return Vector2(float(gs["w"]), float(gs["h"]))
-	return Vector2(QuestNavigation.NODE_WIDTH, QuestNavigation.NODE_HEIGHT)
+	return _graph._scene_graph_size(scene)
 
 func _refresh_scene_panel() -> void:
 	# L'onglet Branches affiche une invite tant qu'aucune scène n'est sélectionnée.
@@ -1670,19 +1285,7 @@ func _transition_to_at(from_id: String, index: int) -> String:
 	return str(transitions[index].get("to", ""))
 
 func _refresh_outgoing_connection_styles(from_id: String) -> void:
-	var scene := _get_scene_dict(from_id)
-	var from_name := _graph_node_name_for_id(from_id)
-	if from_name.is_empty() or scene.is_empty():
-		return
-	for transition in scene.get("transitions", []):
-		if typeof(transition) != TYPE_DICTIONARY:
-			continue
-		var to_name := _graph_node_name_for_id(str(transition.get("to", "")))
-		if to_name.is_empty():
-			continue
-		if graph_edit.is_node_connected(from_name, 0, to_name, 0):
-			_set_connection_activity_for_transition(from_name, to_name, transition)
-	_refresh_graph_node_chrome(from_id)
+	_graph._refresh_outgoing_connection_styles(from_id)
 
 func _update_transition_field(from_id: String, index: int, field: String, value: Variant) -> void:
 	_notify_links_changed()
@@ -1845,51 +1448,14 @@ func _on_confirm_delete_scene() -> void:
 	_refresh_scene_panel()
 
 func _on_auto_layout_pressed() -> void:
-	_commit_scene_editor()
-	_scenario = QuestNavigation.apply_auto_layout(_scenario)
-	_mark_dirty("Disposition automatique")
-	_journal_add("Disposition automatique appliquée (auto-layout)")
-	_rebuild_graph()
-	call_deferred("_on_fit_view_pressed")
+	_graph._on_auto_layout_pressed()
 
 ## Cadre tout le graphe DANS L'ESPACE LIBRE du canevas : les marges réservées
 ## aux panneaux flottants (rail à gauche, pilules/minimap en bas) ne sont pas
 ## recouvertes par des cartes — c'est ce qui permet un canevas plein écran sans
 ## dock fixe tout en gardant les cartes lisibles.
 func _on_fit_view_pressed() -> void:
-	var min_pos := Vector2(INF, INF)
-	var max_pos := Vector2(-INF, -INF)
-	var found := false
-	for child in graph_edit.get_children():
-		if child is GraphNode:
-			found = true
-			var pos: Vector2 = child.position_offset
-			var size: Vector2 = child.size
-			if size.x < 10:
-				size = Vector2(QuestNavigation.NODE_WIDTH, QuestNavigation.NODE_HEIGHT)
-			min_pos = Vector2(minf(min_pos.x, pos.x), minf(min_pos.y, pos.y))
-			max_pos = Vector2(maxf(max_pos.x, pos.x + size.x), maxf(max_pos.y, pos.y + size.y))
-	if not found:
-		return
-	var content := Rect2(min_pos, max_pos - min_pos)
-	var view := graph_edit.size
-	if view.x < 10 or view.y < 10:
-		return
-	var insets := Rect2(FIT_INSET_LEFT, FIT_INSET_TOP,
-		FIT_INSET_LEFT + FIT_INSET_RIGHT, FIT_INSET_TOP + FIT_INSET_BOTTOM)
-	var available := Vector2(
-		maxf(view.x - insets.size.x, 40.0),
-		maxf(view.y - insets.size.y, 40.0))
-	var zoom := clampf(minf(
-		available.x / maxf(content.size.x, 1.0),
-		available.y / maxf(content.size.y, 1.0)), GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX)
-	graph_edit.zoom = zoom
-	var drawn := content.size * zoom
-	var offset := Vector2(
-		FIT_INSET_LEFT + (available.x - drawn.x) * 0.5,
-		FIT_INSET_TOP + (available.y - drawn.y) * 0.5)
-	graph_edit.scroll_offset = content.position * zoom - offset
-	_update_zoom_label()
+	_graph._on_fit_view_pressed()
 
 func _on_validate_pressed() -> void:
 	_commit_scene_editor()
@@ -2537,8 +2103,7 @@ func _scene_title(scene_id: String) -> String:
 
 ## Convertit une position écran en coordonnées graphe (position_offset).
 func _graph_point_from_global(global_pos: Vector2) -> Vector2:
-	var zoom := maxf(graph_edit.zoom, 0.0001)
-	return (global_pos - graph_edit.global_position + graph_edit.scroll_offset) / zoom
+	return _graph._graph_point_from_global(global_pos)
 
 
 ## Gère les clics de souris quand un outil d'annotation est actif.
@@ -2587,13 +2152,11 @@ func _handle_annotation_input(event: InputEvent) -> bool:
 
 
 func _set_tool_preview_graph(rect: Rect2) -> void:
-	if _link_overlay != null and is_instance_valid(_link_overlay):
-		_link_overlay.call("set_tool_preview_graph", rect)
+	_graph._set_tool_preview_graph(rect)
 
 
 func _clear_tool_preview() -> void:
-	if _link_overlay != null and is_instance_valid(_link_overlay):
-		_link_overlay.call("clear_tool_preview")
+	_graph._clear_tool_preview()
 
 
 ## Notes du plan : stockées dans le scénario (`editorNotes`), dessinées par
