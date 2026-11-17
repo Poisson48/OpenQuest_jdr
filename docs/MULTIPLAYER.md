@@ -1,7 +1,8 @@
 # Multijoueur OpenQuest JDR — Architecture P2P + Pooling
 
 > Document de référence pour le multijoueur OpenQuest.  
-> Dernière mise à jour : septembre 2026 — branche `server/pooling-v1`.  
+> Dernière mise à jour : 2026-11-17 — protocole v2 (contrat testé, voir §3.3),
+> phase 5.4 du refactor.  
 > Voir aussi la feuille de route cartes interactives : [INTERACTIVE_MAPS_STRATEGY.md](./INTERACTIVE_MAPS_STRATEGY.md).
 
 ---
@@ -82,10 +83,19 @@ Le serveur pooling écoute sur le port **8080** (matchmaking uniquement).
 
 ---
 
-## 3. Protocole pooling (WebSocket JSON)
+## 3. Protocole pooling (WebSocket JSON) — v2
 
 Tous les messages sont du JSON UTF-8 sur `ws://host:8080`.  
 Connexion initiale : `ws://127.0.0.1:8080?name=Pseudo` (optionnel).
+
+**Enveloppe v2** : tout message reste **plat** (`type`), et toute requête peut
+porter un `req_id` (chaîne ≤ 64 caractères) que le serveur renvoie **tel quel**
+dans sa réponse ou son erreur (`withReqId()` / `extractReqId()`, voir
+`server/src/lobby/protocol.ts`). Le serveur annonce `PROTOCOL_VERSION = 2` dans
+`welcome.protocol`. La validation par type (zod) est décrite dans
+`docs/SESSION_PROTOCOLE.md` ; le contrat complet est **testé** par
+`server/scripts/test_lobby_protocol.ts` (`npm run test:protocol`, inclus dans
+`npm test`). La table de référence est en [§3.3](#33-contrat-de-protocole-v2-référence).
 
 ### 3.1 Client → Serveur
 
@@ -118,10 +128,10 @@ Crée une partie. **Réservé au MJ** (`role: "gm"` obligatoire). Le MJ devient 
 
 | Champ | Type | Défaut | Description |
 |-------|------|--------|-------------|
-| `role` | `"gm"` | — | **Obligatoire.** Seule valeur acceptée : `"gm"`. Sinon erreur `NOT_GM`. |
+| `role` | `"gm"` | — | **Obligatoire.** Seule valeur acceptée : `"gm"`. Sinon erreur `INVALID_PAYLOAD` (code `GM_ONLY` si le serveur refuse un rôle non-MJ à un autre niveau). |
 | `roomName` | string | `"Partie XXXX"` | Nom affiché |
 | `maxPlayers` | number | 6 | 2–8 joueurs |
-| `p2pHost` | string? | null | Adresse ENet (rempli par le MJ après `create_server`) |
+| `p2pHost` | string? | null | Adresse P2P publiée à la création ; en pratique le MJ la définit ensuite via `set_p2p_host` (champ conservé pour compatibilité) |
 
 #### `join_room`
 Rejoint une partie par code 4 chiffres (joueurs uniquement).
@@ -183,7 +193,8 @@ Relais de signalisation entre deux joueurs du même salon.
 }
 ```
 
-`signalType` : `"offer"` | `"answer"` | `"ice"`
+`signalType` : `"offer"` | `"answer"` | `"ice"` | `"meta"` (`meta` sert à
+l'annonce de présence WebRTC, payload `{ "action": "join" }` par exemple).
 
 #### `ping`
 
@@ -197,9 +208,21 @@ Relais de signalisation entre deux joueurs du même salon.
 
 #### `welcome`
 
+Envoyé à la connexion **et** en réponse à `register_player`/`join` : identité
+serveur, version de protocole et serveurs ICE pour le P2P WebRTC.
+
 ```json
-{ "type": "welcome", "playerId": "uuid", "playerName": "Aragorn" }
+{
+  "type": "welcome",
+  "playerId": "uuid",
+  "playerName": "Aragorn",
+  "protocol": 2,
+  "iceServers": [{ "urls": ["stun:stun.l.google.com:19302"] }]
+}
 ```
+
+`iceServers` (optionnel) : STUN publics + TURN optionnel (`TURN_URL`,
+`TURN_USERNAME`, `TURN_CREDENTIAL`). Le client le lit pour `WebRTCP2P.configure_ice()`.
 
 #### `lobby_update`
 Liste des salons disponibles.
@@ -243,6 +266,14 @@ Liste des salons disponibles.
         "isGm": true,
         "character": { "name": "Aragorn", "race": "Humain", "class": "Guerrier" },
         "joinedAt": 1725300000000
+      },
+      {
+        "playerId": "uuid-player",
+        "playerName": "Legolas",
+        "isHost": false,
+        "isGm": false,
+        "character": { "name": "Legolas", "race": "Elfe", "class": "Rôdeur" },
+        "joinedAt": 1725300060000
       }
     ],
     "createdAt": 1725300000000
@@ -273,6 +304,32 @@ Envoyé à **tous** les membres quand le MJ quitte ou se déconnecte. Le salon e
 
 `reason` : `"gm_left"` (départ volontaire) | `"gm_disconnected"` (perte connexion WebSocket)
 
+#### `session_ticket`
+
+Émis à l'entrée dans un salon (`create_room`, `join_room`, `rejoin_room`,
+`resume_session`) : ticket de reprise **usage unique**, TTL 2 min, à conserver
+côté client (persisté dans `user://multiplayer_settings.cfg`).
+
+```json
+{ "type": "session_ticket", "ticket": "0b0d4c9e-…", "expiresAt": 1725300120000, "roomCode": "4827" }
+```
+
+#### `resumed`
+
+Réponse à `resume_session` : même identité (`playerId`, `playerName`), place
+dans le salon si celui-ci existe encore (`room` est alors l'état complet), sinon
+`room: null` (identité restaurée, partie à rejoindre autrement). Un
+**nouveau** `session_ticket` suit.
+
+```json
+{
+  "type": "resumed",
+  "playerId": "uuid",
+  "playerName": "Aragorn",
+  "room": { "code": "4827", "hostId": "uuid-mj", "gmId": "uuid-mj", "p2pHost": "webrtc", "maxPlayers": 4, "players": [], "name": "Aventure du vendredi", "createdAt": 1725300000000 }
+}
+```
+
 #### `signal` (Phase 2)
 
 ```json
@@ -287,16 +344,105 @@ Envoyé à **tous** les membres quand le MJ quitte ou se déconnecte. Le salon e
 #### `error`
 
 ```json
-{ "type": "error", "message": "Salon 9999 introuvable.", "code": "JOIN_FAILED" }
+{ "type": "error", "code": "ROOM_NOT_FOUND", "message": "Salon 9999 introuvable.", "req_id": "abcd1234-3" }
 ```
 
-Codes d'erreur : `CREATE_FAILED`, `JOIN_FAILED`, `NOT_GM`
+`req_id` n'est présent que si la requête fautive en portait un (le client
+l'utilise pour retirer la requête de `_pending_requests`).
+
+Codes d'erreur **stables** (source : `server/src/lobby/protocol.ts`) :
+`BAD_JSON`, `UNKNOWN_TYPE`, `INVALID_PAYLOAD`, `RATE_LIMITED`, `GM_ONLY`,
+`JOIN_FAILED`, `ROOM_FULL`, `ROOM_NOT_FOUND`, `NOT_IN_ROOM`,
+`TARGET_NOT_FOUND`, `TICKET_INVALID`, `TICKET_EXPIRED`, `ALREADY_IN_ROOM`,
+`INTERNAL`. Le client mappe ces codes vers des textes joueur (`POOLING_ERRORS`
+dans `multiplayer_manager.gd`) ; le test de contrat vérifie que les deux
+ensembles sont **exactement** identiques.
 
 #### `pong`
 
 ```json
 { "type": "pong" }
 ```
+
+### 3.3 Contrat de protocole v2 (référence)
+
+Cette table est la **référence testée** : chaque type est vérifié par
+`server/scripts/test_lobby_protocol.ts` contre le schéma zod
+(`src/lobby/validate.ts`) et contre ce que le client Godot
+(`game/scripts/multiplayer/multiplayer_manager.gd`) envoie et lit réellement.
+Toute évolution doit mettre à jour **le code, ce tableau, et le test** dans le
+même commit.
+
+#### Client → Serveur (13 types)
+
+| `type` | Payload | Validé par | Envoyé par le client |
+|---|---|---|---|
+| `register_player` | `playerName?` | zod | oui (`_process`, via `_send_request`) |
+| `join` | `playerName?` | zod | non (alias historique de `register_player`) |
+| `get_lobby` | `{}` | zod | non (alias historique de `list_rooms`) |
+| `list_rooms` | `{}` | zod | oui |
+| `create_room` | `role: "gm"`, `roomName?`, `maxPlayers?` (2–8), `p2pHost?` | zod | oui (MJ uniquement) |
+| `join_room` | `code` = 4 chiffres | zod | oui |
+| `rejoin_room` | `code` = 4 chiffres | zod | oui |
+| `resume_session` | `ticket` (8–120 car.) | zod | oui (dès `welcome` si ticket valide) |
+| `leave_room` | `{}` | zod | oui (`_send`, sans `req_id`) |
+| `register_character` | `character: objet` | zod (objet libre) | oui |
+| `set_p2p_host` | `address` (ex. `"192.168.0.42:7777"` ou `"webrtc"`) | zod | oui (`_send`, sans `req_id`) |
+| `signal` | `targetPlayerId`, `signalType` (`offer`/`answer`/`ice`/`meta`), `payload` | zod | oui (`_send`, sans `req_id`) |
+| `ping` | `{}` | zod | non (le client n'envoie pas de keepalive) |
+
+#### Serveur → Client (12 types)
+
+| `type` | Champs principaux | Lu par le client |
+|---|---|---|
+| `welcome` | `playerId`, `playerName`, `protocol`, `iceServers?` | oui |
+| `pong` | — | non (réponse à `ping`, que le client n'envoie pas) |
+| `error` | `code`, `message`, `req_id?` | oui |
+| `lobby_update` | `rooms[]` (`RoomSummary`) | oui |
+| `room_update` | `room` (`RoomState`) | oui |
+| `host_assigned` | `hostId`, `p2pHost` | oui |
+| `player_joined` | `playerId`, `playerName`, `roomCode` | oui (déclenche `list_rooms`) |
+| `player_left` | `playerId`, `playerName`, `roomCode`, `wasGm?` | oui (déclenche `list_rooms`) |
+| `room_closed` | `roomCode`, `reason` (`gm_left`/`gm_disconnected`) | oui |
+| `session_ticket` | `ticket`, `expiresAt`, `roomCode` | oui |
+| `resumed` | `playerId`, `playerName`, `room` (`RoomState` ou `null`) | oui |
+| `signal` | `fromPlayerId`, `signalType`, `payload` | oui |
+
+Conventions communes :
+
+- **`req_id`** : corrélation requête/réponse ; le serveur échoie via
+  `withReqId()` ; le client l'extrait via `extractReqId()` et résout la requête
+  en attente. Réponses de succès **et** erreurs peuvent le porter.
+- **Validation** : `parseClientMessage()` (zod, `.loose()` = champs inconnus
+  ignorés) ; requête invalide ⇒ `INVALID_PAYLOAD` avec le chemin du champ, sans
+  toucher à l'état du salon.
+- **Rate-limit** : chaque type possède une règle explicite dans
+  `src/lobby/rate_limit.ts` (`signal` 240/s, `ping` 4/s, `create_room` 3/5 s,
+  `join_room`/`rejoin_room`/`resume_session` 6/5 s…) ; au double seuil, la
+  socket est fermée. Voir `docs/SESSION_PROTOCOLE.md`.
+- **Ticket de reprise** : `session_ticket` (usage unique, TTL 2 min) →
+  `resume_session` → `resumed` + nouveau ticket. Détail :
+  `docs/SESSION_PROTOCOLE.md`.
+- **Dette client connue (hors périmètre serveur)** : `multiplayer_manager.gd`
+  n'appelle `_resolve_request()` que dans le handler `error` ; les réponses de
+  succès portent pourtant un `req_id`, si bien qu'une requête réussie reste dans
+  `_pending_requests` jusqu'à `_expire_pending()` (`REQUEST_TIMEOUT = 8 s`) et
+  émet alors « Pas de réponse du serveur ». À corriger côté Godot ; le test de
+  contrat gèle ce comportement pour qu'il soit revisité.
+
+Test de contrat :
+
+```powershell
+cd server
+npm run test:protocol   # pur, sans port, < 1 s — inclus dans `npm test`
+```
+
+`server/scripts/test_lobby_protocol.ts` vérifie : les 13 types client→serveur
+(schéma zod + payloads réels + rejets), les 12 types serveur→client (champs lus
+par le client), l'égalité stricte des 14 codes d'erreur serveur/client/docs,
+`PROTOCOL_VERSION = 2`, `withReqId`/`extractReqId`, la forme du ticket de
+reprise, les seuils de rate-limit, l'alignement de ce document et la dette
+client ci-dessus.
 
 ---
 
@@ -359,14 +505,25 @@ server/
 ├── src/
 │   ├── index.ts              # Point d'entrée — serveur pooling
 │   ├── pooling/
-│   │   └── server.ts         # Matchmaking WebSocket (salons, codes)
+│   │   └── server.ts         # Matchmaking WebSocket (salons, codes, tickets, relais signal)
 │   └── lobby/
-│       └── rooms.ts          # RoomManager (codes, joueurs)
+│       ├── types.ts          # Protocole v2 (messages client/serveur)
+│       ├── protocol.ts       # PROTOCOL_VERSION, codes d'erreur, req_id
+│       ├── validate.ts       # Validation zod par type de message
+│       ├── rooms.ts          # RoomManager (codes, joueurs, GM)
+│       ├── tickets.ts        # Tickets de reprise de session
+│       └── rate_limit.ts     # Fenêtre glissante par (joueur, type)
+├── scripts/
+│   ├── test_lobby.ts               # unités lobby (81 vérif.)
+│   ├── test_lobby_protocol.ts      # contrat protocole v2 (pur, 302 vérif.)
+│   └── test_lobby_integration.ts   # bout en bout réseau (18 vérif.)
+└── legacy/                   # moteur de jeu TS archivé (phase 5, ADR-001)
 │
 game/
 ├── scripts/
 │   ├── multiplayer/
-│   │   └── multiplayer_manager.gd   # Autoload ENet + pooling
+│   │   ├── multiplayer_manager.gd   # Autoload ENet + pooling (contrat client)
+│   │   └── webrtc_p2p.gd            # Transport WebRTC (signal offer/answer/ice/meta)
 │   └── main_menu.gd                 # UI salon P2P
 └── project.godot                    # Autoload MultiplayerManager
 ```
@@ -427,18 +584,26 @@ npm run dev
 - MJ : bouton **🚀 Lancer la partie** visible une fois ENet actif
 - Joueur : **En attente du MJ...** jusqu'au lancement
 
+**Tests automatiques :**
+- `cd server && npm test` → `test:lobby` (81 vérif.), `test:protocol`
+  (contrat protocole v2, pur, 302 vérif.) et `test:lobby:net`
+  (bout en bout réseau, 18 vérif.) ;
+- `./scripts/run_tests.ps1 -Filter 'session_protocol_test'` (client Godot).
+
 ---
 
-## 7. Limitations connues (v1)
+## 7. Limitations connues (v2)
 
 | Limitation | Contournement |
 |------------|---------------|
-| ENet LAN uniquement (pas Internet) | Phase 2 WebRTC |
-| MJ IA locale côté hôte (pas ai-gm.ts) | Brancher MCP / serveur IA plus tard |
+| WebRTC derrière NAT symétrique | TURN optionnel (`TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`) |
+| Repli LAN ENet si WebRTC indisponible | `p2p_transport=enet` / `force_loopback_p2p` |
+| MJ IA côté hôte uniquement (moteur serveur `ai-gm.ts` archivé, ADR-001) | MJ IA locale à l'hôte ; MCP non actif |
 | Salons volatiles (RAM, pas de persistance) | Phase 4 déploiement |
 | Hôte = MJ — si MJ quitte, salon fermé pour tous | MJ recrée une partie |
 | Reconnexion MJ après déconnexion | Non supportée — recréer une partie |
-| Reconnexion joueur | `rejoin_room` avec le même code |
+| Reconnexion joueur | `rejoin_room` avec le même code, ou `resume_session` avec le ticket |
+| Dette client : réponses de succès non retirées de `_pending_requests` | `_expire_pending()` après `REQUEST_TIMEOUT = 8 s` ; à corriger côté Godot (voir §3.3) |
 | Pare-feu Windows peut bloquer port 7777 | Autoriser Godot dans le pare-feu |
 
 ---
@@ -447,5 +612,8 @@ npm run dev
 
 - [Godot 4 — High-level multiplayer](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html)
 - [ENetMultiplayerPeer](https://docs.godotengine.org/en/stable/classes/class_enetmultiplayerpeer.html)
+- `docs/SESSION_PROTOCOLE.md` — enveloppe, `req_id`, tickets, rate-limit
+- `server/scripts/test_lobby_protocol.ts` — test de contrat du protocole v2
+- `docs/refactor/AUDIT_SERVEUR.md` — audit serveur (dont protocole et tests)
 - `docs/COLLABORATION.md` — workflow Git entre développeurs
-- `docs/MCP.md` — MJ IA via MCP (outil serveur séparé)
+- `docs/MCP.md` — MJ IA via MCP (archivé : `server/legacy/mcp/`)

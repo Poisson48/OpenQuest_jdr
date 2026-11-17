@@ -10,8 +10,9 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test:lobby": "tsx scripts/test_lobby.ts",
+    "test:protocol": "tsx scripts/test_lobby_protocol.ts",
     "test:lobby:net": "tsx scripts/test_lobby_integration.ts",
-    "test": "npm run test:lobby && npm run test:lobby:net"
+    "test": "npm run test:lobby && npm run test:protocol && npm run test:lobby:net"
   },
   "engines": {
     "node": ">=20"
