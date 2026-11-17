@@ -199,7 +199,7 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 |---|---|
 | 6.1 | CI GitHub Actions : `tsc --noEmit` + `npm test` + compilation Godot headless (binaire téléchargé) + tests rapides — ✅ `.github/workflows/tests.yml` (2 jobs) |
 | 6.2 | Consolider les ≈70 docs `docs/` : index, archives datées, documents obsolètes déplacés dans `docs/archive/` |
-| 6.3 | Règle de frontière de propriété (ADR-009) dans `CONTRIBUTING.md` + revue des PR |
+| 6.3 | Règle de frontière de propriété (ADR-009) + porte de vérification + règles de tests/schémas dans `CONTRIBUTING.md` — ✅ |
 | 6.4 | Métriques finales : comparer [inventaire](INVENTAIRE_TECHNIQUE.md) avant/après ; objectif : 0 fichier > 1 000 lignes, 0 code mort |
 
 ---
