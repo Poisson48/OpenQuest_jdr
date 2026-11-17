@@ -1,5 +1,27 @@
 # Moteur de dés — spécification et utilisation
 
+> ## ⚠️ État courant (phase 5.2 — ADR-005, 2026-11-17)
+>
+> **Une seule implémentation exécutable : le moteur GDScript**
+> `game/scripts/core/rules/dice_engine.gd` (l'hôte P2P Godot est autoritaire,
+> le serveur Node ne fait que du pooling — voir `docs/refactor/AUDIT_SERVEUR.md`
+> §3 et `docs/refactor/PLAN_REFACTORISATION.md`, ADR-005).
+>
+> - **Spec/contrat partagé inchangé** : `data/schemas/dice_roll.json` (résultat)
+>   + `game/data/tests/dice_cases.json` (29 cas de grammaire/sémantique).
+> - **La chaîne TypeScript est archivée** dans `server/legacy/` :
+>   `dice.ts` (façade), `rules/dice_engine.ts` (moteur) et
+>   `scripts/test_dice_engine.ts`. Elle n'est plus compilée, plus testée par
+>   `npm test` et plus atteignable par aucun flux de jeu. Restauration :
+>   `server/legacy/README.md`.
+> - Le test de référence est `game/scripts/tests/dice_engine_test.gd` ; côté
+>   serveur, `npm test` ne couvre plus que le lobby (`test:lobby` +
+>   `test:lobby:net`).
+>
+> Les sections ci-dessous décrivent l'état historique (deux implémentations) et
+> restent utiles comme spécification du comportement ; les blocs TypeScript y
+> sont conservés à titre d'archive.
+
 > Étape 1 du [plan d'adaptation des idées Let's Role](rapport-letsrole/ADAPTATION.md).
 > **Aucune ligne de code reprise** : la grammaire, le schéma de résultat et les deux
 > implémentations (GDScript / TypeScript) sont les nôtres ; l'inspiration porte sur le
@@ -7,15 +29,18 @@
 
 ## Deux implémentations, un contrat
 
+> *Section historique (avant la phase 5.2). Aujourd'hui seule la ligne GDScript est
+> active ; la ligne TypeScript renvoie vers `server/legacy/`.*
+
 | Implémentation | Fichier | Usage |
 |---|---|---|
-| GDScript (client, P2P) | `game/scripts/core/rules/dice_engine.gd` | jets de la session, hôte MJ, MJ IA local |
-| TypeScript (serveur) | `server/src/rules/dice_engine.ts` | bots, `ai-gm.ts`, `game_session.ts` |
+| GDScript (client, P2P) | `game/scripts/core/rules/dice_engine.gd` | jets de la session, hôte MJ, MJ IA local — **seule implémentation exécutable** |
+| TypeScript (serveur) | `server/legacy/rules/dice_engine.ts` *(ex `server/src/rules/dice_engine.ts`)* | archivé (phase 5.2) : était utilisé par `ai-gm.ts` / `game_session.ts` (eux-mêmes archivés) |
 | Contrat | `data/schemas/dice_roll.json` | sérialisation JSON, réseau, journal |
-| Cas partagés | `game/data/tests/dice_cases.json` | les deux implémentations doivent passer les mêmes cas |
+| Cas partagés | `game/data/tests/dice_cases.json` | spec de référence exécutée par le test GDScript |
 
-Les façades historiques sont conservées : `Dice.roll()` / `Dice.format()` (GDScript) et
-`Dice.roll()` / `Dice.formatResult()` (TypeScript). Aucun appelant n'a été modifié.
+Les façades historiques étaient : `Dice.roll()` / `Dice.format()` (GDScript) et
+`Dice.roll()` / `Dice.formatResult()` (TypeScript, archivée avec le moteur).
 
 ## Grammaire (v1)
 
@@ -82,6 +107,7 @@ DiceEngine.roll("1d20")                                 # RNG global
 ```
 
 ```ts
+// Historique (moteur TS archivé dans server/legacy/rules/dice_engine.ts).
 rollDice("4d6keeph3", { rolls: [3, 5, 1, 6] });
 rollDice("10d100", { seed: 4242 });
 ```
@@ -94,16 +120,25 @@ profondeur d'expression ≤ 32 · 20 explosions par dé · division entière, di
 ## Tests
 
 ```powershell
-# Client (headless)
+# Référence (headless) — seule suite active du moteur
 $env:GODOT_BIN = 'C:\...\Godot_v4.7.2-stable_win64_console.exe'
 ./scripts/run_tests.ps1 -Filter 'dice_engine_test'
-
-# Serveur (Node)
-cd server; npm run test:dice
 ```
 
-Les deux suites lisent `game/data/tests/dice_cases.json` : toute évolution de la grammaire
-doit ajouter un cas au fichier, sinon les deux implémentations peuvent diverger.
+Le test de référence lit `game/data/tests/dice_cases.json` : toute évolution de
+la grammaire doit ajouter un cas à ce fichier.
+
+Côté serveur, `npm test` ne lance plus que le lobby (`test:lobby` +
+`test:lobby:net`). L'ancien test TS, archivé, reste lançable manuellement
+(hors CI) après restauration ou directement :
+
+```powershell
+cd server; npx tsx legacy/scripts/test_dice_engine.ts
+```
+
+Historique (avant la phase 5.2) : les deux suites lisaient le même
+`dice_cases.json` et `npm run test:dice` exécutait le moteur TypeScript ; ce
+script npm a été retiré.
 
 ## Hors périmètre (v1)
 

@@ -2,15 +2,22 @@
  * test_dice_engine.ts — Vérifie le moteur TS contre les cas partagés
  * `game/data/tests/dice_cases.json` (les mêmes que le test GDScript).
  *
- *   cd server && npm run test:dice
+ * ARCHIVÉ (phase 5.2 / ADR-005) : ce test n'est plus exécuté par `npm test`
+ * (le serveur n'a plus de moteur de dés exécutable ; seule l'implémentation
+ * GDScript de `game/scripts/core/rules/dice_engine.gd` est active).
+ * Il reste exécutable manuellement depuis `server/` :
+ *
+ *   npx tsx legacy/scripts/test_dice_engine.ts
+ *
+ * Restauration complète : voir `server/legacy/README.md`.
  */
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { formatDiceResult, rollDice, type DiceRollOutcome } from "../src/rules/dice_engine.js";
-import { Dice, isDiceError } from "../src/dice.js";
+import { formatDiceResult, rollDice, type DiceRollOutcome } from "../rules/dice_engine.js";
+import { Dice, isDiceError } from "../dice.js";
 
 interface SharedCase {
   name: string;
@@ -20,7 +27,7 @@ interface SharedCase {
 }
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
-const casesPath = resolve(scriptDir, "..", "..", "game", "data", "tests", "dice_cases.json");
+const casesPath = resolve(scriptDir, "..", "..", "..", "game", "data", "tests", "dice_cases.json");
 
 let checks = 0;
 let failures = 0;

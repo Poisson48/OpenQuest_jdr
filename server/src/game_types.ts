@@ -287,13 +287,3 @@ export interface SceneHooks {
   npc: Npc | null;
   allNpcs: Npc[];
 }
-
-/** Résultat renvoyé par AiGM.resolveAction (le jet est toujours résolu, jamais en erreur). */
-export interface ActionResolution {
-  actionType: ActionType;
-  roll: import("./dice.js").DiceRollResult;
-  rollInfo: RollInfo;
-  success: boolean;
-  gmText: string;
-  shouldAdvanceScene: boolean;
-}
