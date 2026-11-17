@@ -139,10 +139,10 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 
 | Lot | Contenu | Estimation | Risque |
 |---|---|---|---|
-| 2.1 | `session_view_model_test.gd` (caractérisation du contrat de signaux) | ~150 l. | Faible |
-| 2.2 | `game_data_contract_test.gd` (30-40 assertions sur l'API publique de l'autoload) | ~200 l. | Faible |
-| 2.3 | `CONTRAT_EDITEUR.md` généré + test de contrat listant les membres atteints par les tests (ADR-006) | ~120 l. | Faible |
-| 2.4 | `game_data.gd` lot 1 : `session_model` (~390 l. → `core/session/session_model.gd`), protégé par `session_model_test` | M | Moyen |
+| 2.1 | `session_view_model_test.gd` (caractérisation du contrat de signaux) — ✅ 30 assertions, PASS | ~150 l. | Faible |
+| 2.2 | `game_data_contract_test.gd` (30-40 assertions sur l'API publique de l'autoload) — ✅ 40 assertions, PASS | ~200 l. | Faible |
+| 2.3 | `CONTRAT_EDITEUR.md` généré + test de contrat listant les membres atteints par les tests (ADR-006) — ✅ 536 l. générées, 169 membres éditeur + 99 document + 128 moteur, outil `editor_contract.ps1` rejouable | ~120 l. | Faible |
+| 2.4 | `game_data.gd` lot 1 : `session_model` (~390 l. → `core/session/session_model.gd`), protégé par `session_model_test` — ✅ fait (commit 76e76a6) : god file 4 586 → 4 348 l. | M | Moyen |
 | 2.5 | `game_data.gd` lots suivants : `game_storage` → `turn_flow` → `inventory_rules` → `roster` | XL (4-6 PR) | Élevé |
 | 2.6 | `game_data.gd` : sortir le déplacement sémantique (533 l.) et la navigation d'échelle, une fois le modèle `mapPlayState` figé | L | Élevé |
 | 2.7 | `session/panels/map_workspace.gd` (1 321 l.) : sortir le contrôleur de déplacement, respecter le contrat SessionViewModel | M | Moyen |
