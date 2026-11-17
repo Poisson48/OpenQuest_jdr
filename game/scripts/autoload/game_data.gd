@@ -22,6 +22,9 @@ const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
 const DiceEngineScript = preload("res://scripts/core/rules/dice_engine.gd")
 const SessionModel = preload("res://scripts/core/session/session_model.gd")
+const GameStorage = preload("res://scripts/core/persistence/game_storage.gd")
+const TurnFlow = preload("res://scripts/core/session/turn_flow.gd")
+const Roster = preload("res://scripts/core/party/roster.gd")
 
 var characters: Array = []
 var scenarios: Array = []
@@ -52,29 +55,10 @@ func save_all_data() -> void:
 	save_active_game()
 
 func _load_json_file(path: String) -> Variant:
-	if not FileAccess.file_exists(path):
-		return null
-	var file := FileAccess.open(path, FileAccess.READ)
-	if not file:
-		return null
-	var content := file.get_as_text()
-	if content.strip_edges().is_empty():
-		# Fichier vide (ex. écriture interrompue au 1er boot) — pas une erreur.
-		return null
-	var json := JSON.new()
-	var error := json.parse(content)
-	if error != OK:
-		push_warning("Erreur lecture JSON (%s) : %s" % [path, json.get_error_message()])
-		return null
-	return json.data
+	return GameStorage.load_json(path)
 
 func _save_json_file(path: String, data: Variant) -> bool:
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if not file:
-		push_error("Impossible d'écrire le fichier : %s" % path)
-		return false
-	file.store_string(JSON.stringify(data, "\t"))
-	return true
+	return GameStorage.save_json(path, data)
 
 # ==============================================================================
 # PERSONNAGES
@@ -116,20 +100,10 @@ func save_characters() -> void:
 	characters_updated.emit()
 
 func get_characters(roster: String = "") -> Array:
-	if roster.is_empty():
-		return characters
-	var result := []
-	for c in characters:
-		var r = c.get("roster", "general")
-		if r == roster:
-			result.append(c)
-	return result
+	return Roster.filter_characters_by_roster(characters, roster)
 
 func is_character_valid_for_format(char: Dictionary, quest_format: String) -> bool:
-	if char.is_empty():
-		return false
-	var is_inv := quest_format == "investigation"
-	return (char.get("roster", "general") == "investigation") == is_inv
+	return Roster.is_character_valid_for_format(char, quest_format)
 
 func is_bot_valid_for_format(bot: Dictionary, quest_format: String) -> bool:
 	if bot.is_empty():
@@ -137,11 +111,7 @@ func is_bot_valid_for_format(bot: Dictionary, quest_format: String) -> bool:
 	return (quest_format == "investigation") == is_investigation_bot(bot)
 
 func get_characters_for_quest_format(quest_format: String) -> Array:
-	var result: Array = []
-	for c in characters:
-		if is_character_valid_for_format(c, quest_format):
-			result.append(c)
-	return result
+	return Roster.characters_for_quest_format(characters, quest_format)
 
 func is_scenario_valid_for_format(scenario: Dictionary, quest_format: String) -> bool:
 	if scenario.is_empty():
@@ -675,15 +645,8 @@ func get_scenario_by_id(id: String) -> Dictionary:
 	return {}
 
 func sync_game_scenario_metadata(game: Dictionary) -> Dictionary:
-	if game.is_empty():
-		return game
-	var scn_id: String = game.get("scenarioId", "")
-	if scn_id.is_empty():
-		return game
-	var scn := get_scenario_by_id(scn_id)
-	if not scn.is_empty():
-		game["scenarioTitle"] = scn.get("title", "Aventure")
-	return game
+	var scenario := get_scenario_by_id(str(game.get("scenarioId", "")))
+	return GameStorage.apply_scenario_metadata(game, scenario)
 
 func sync_active_game_scenario_metadata() -> void:
 	if active_game.is_empty():
@@ -1065,45 +1028,25 @@ func _load_default_bots() -> Array:
 func load_active_game() -> void:
 	_migrate_legacy_active_game()
 	var data = _load_json_file(SAVED_GAMES_PATH)
-	if data is Array:
-		saved_games = _normalize_saved_games_list(data)
-	else:
-		saved_games = []
+	var games: Array = data if data is Array else []
+	saved_games = GameStorage.normalize_saved_games_list(games)
 	active_game = {}
 	active_game_updated.emit()
 
 func _migrate_legacy_active_game() -> void:
-	if not FileAccess.file_exists(ACTIVE_GAME_PATH):
-		return
-	var legacy = _load_json_file(ACTIVE_GAME_PATH)
-	if legacy is Dictionary and legacy.get("status", "") == "playing":
-		if not legacy.has("id") or str(legacy["id"]).is_empty():
-			legacy["id"] = generate_id("game")
-		_upsert_saved_game_entry(legacy, false)
-	DirAccess.remove_absolute(ACTIVE_GAME_PATH)
+	GameStorage.migrate_legacy_active_game(
+		ACTIVE_GAME_PATH, saved_games, SAVED_GAMES_PATH,
+		func() -> String: return generate_id("game"))
 
 func _normalize_saved_games_list(games: Array) -> Array:
-	var result: Array = []
-	for g in games:
-		if g is Dictionary and g.get("status", "") == "playing":
-			result.append(g)
-	return result
+	return GameStorage.normalize_saved_games_list(games)
 
 func _persist_saved_games() -> void:
-	_save_json_file(SAVED_GAMES_PATH, saved_games)
+	GameStorage.save_json(SAVED_GAMES_PATH, saved_games)
 
 func _upsert_saved_game_entry(game: Dictionary, emit_signal: bool = true) -> void:
-	var game_id: String = game.get("id", "")
-	if game_id.is_empty():
+	if not GameStorage.upsert_game(saved_games, game):
 		return
-	for i in range(saved_games.size()):
-		if saved_games[i].get("id") == game_id:
-			saved_games[i] = game
-			_persist_saved_games()
-			if emit_signal:
-				active_game_updated.emit()
-			return
-	saved_games.append(game)
 	_persist_saved_games()
 	if emit_signal:
 		active_game_updated.emit()
@@ -1111,48 +1054,39 @@ func _upsert_saved_game_entry(game: Dictionary, emit_signal: bool = true) -> voi
 func save_active_game(state: Dictionary = {}) -> void:
 	if not state.is_empty():
 		active_game = state
-	if active_game.is_empty():
-		active_game_updated.emit()
-		return
-	var status: String = active_game.get("status", "playing")
-	if status == "ended":
+	var decision := GameStorage.save_decision(active_game)
+	if decision == GameStorage.SAVE_DELETE:
 		delete_game(active_game.get("id", ""))
 		return
-	if status == "playing" or status == "completed":
+	if decision == GameStorage.SAVE_UPSERT:
 		sync_active_game_scenario_metadata()
-		active_game["updatedAt"] = Time.get_unix_time_from_system()
+		GameStorage.touch(active_game)
 		_upsert_saved_game_entry(active_game.duplicate(true))
-	else:
-		active_game_updated.emit()
+		return
+	active_game_updated.emit()
 
 func has_active_game() -> bool:
 	return not active_game.is_empty() and active_game.get("status") == "playing"
 
 func get_playing_games() -> Array:
-	var result: Array = []
-	for g in saved_games:
-		if g.get("status", "") == "playing":
-			result.append(g)
-	return result
+	return GameStorage.playing_games(saved_games)
 
 func load_game_by_id(game_id: String) -> bool:
-	for g in saved_games:
-		if g.get("id") == game_id:
-			active_game = sync_game_scenario_metadata(g.duplicate(true))
-			_ensure_navigation_state()
-			ensure_map_play_state()
-			init_all_world_map_fog()
-			_ensure_party_tokens_on_world_maps()
-			active_game_updated.emit()
-			return true
-	return false
+	var stored := GameStorage.find_game(saved_games, game_id)
+	if stored.is_empty():
+		return false
+	active_game = sync_game_scenario_metadata(stored.duplicate(true))
+	_ensure_navigation_state()
+	ensure_map_play_state()
+	init_all_world_map_fog()
+	_ensure_party_tokens_on_world_maps()
+	active_game_updated.emit()
+	return true
 
 func delete_game(game_id: String) -> void:
 	if game_id.is_empty():
 		return
-	for i in range(saved_games.size() - 1, -1, -1):
-		if saved_games[i].get("id") == game_id:
-			saved_games.remove_at(i)
+	GameStorage.remove_game(saved_games, game_id)
 	_persist_saved_games()
 	if active_game.get("id") == game_id:
 		active_game = {}
@@ -1165,20 +1099,11 @@ func clear_all_saved_games() -> void:
 	saved_games.clear()
 	active_game = {}
 	_persist_saved_games()
-	if FileAccess.file_exists(ACTIVE_GAME_PATH):
-		DirAccess.remove_absolute(ACTIVE_GAME_PATH)
+	GameStorage.remove_file_if_exists(ACTIVE_GAME_PATH)
 	active_game_updated.emit()
 
 func get_game_party_summary(game: Dictionary) -> String:
-	var party: Array = game.get("party", [])
-	if party.is_empty():
-		return "Groupe vide"
-	var names: Array = []
-	for m in party:
-		names.append(m.get("name", "?"))
-	if names.size() <= 3:
-		return ", ".join(names)
-	return "%s + %d autres" % [names[0], names.size() - 1]
+	return Roster.party_summary(game)
 
 ## Une partie jouable exige au moins une carte existante.
 ## Si `map_ids` est vide et `allow_fallback` est vrai, reprend les cartes du scénario / démos liées.
@@ -1296,44 +1221,14 @@ func add_log_entry(author: String, text: String, type: String = "player") -> voi
 	save_active_game()
 
 func get_playable_members() -> Array:
-	if active_game.is_empty():
-		return []
-	var party: Array = active_game.get("party", [])
-	var humans: Array = []
-	for member in party:
-		if member.get("isHuman", false):
-			humans.append(member)
-	if humans.is_empty():
-		return party.duplicate()
-	return humans
+	return Roster.playable_members(active_game)
 
 func get_active_member() -> Dictionary:
-	var party: Array = active_game.get("party", [])
-	if party.is_empty():
-		return {}
-	var playable := get_playable_members()
-	var mode: String = active_game.get("mode", "solo")
-	if mode == "solo":
-		for member in playable:
-			if member.get("isHuman", false):
-				return member
-		if not playable.is_empty():
-			return playable[0]
-		return party[0]
-	var turn_idx: int = int(active_game.get("turnIndex", 0))
-	if playable.is_empty():
-		return party[turn_idx % party.size()]
-	return playable[turn_idx % playable.size()]
+	return Roster.active_member(active_game)
 
 func next_turn() -> void:
-	if active_game.is_empty():
-		return
-	var playable := get_playable_members()
-	if playable.size() <= 1:
-		return
-	var idx: int = int(active_game.get("turnIndex", 0))
-	active_game["turnIndex"] = (idx + 1) % playable.size()
-	save_active_game()
+	if TurnFlow.next_turn(active_game):
+		save_active_game()
 
 ## Journalise l'action d'un joueur. N'avance pas le tour : le MJ décide
 ## ensuite s'il valide (Tour suivant) ou laisse rejouer le même personnage.
@@ -1348,25 +1243,15 @@ func apply_player_action(author: String, action: String) -> void:
 
 ## Le MJ passe explicitement au joueur suivant. Diffuser / scène ne le font pas.
 func advance_player_turn() -> void:
-	if active_game.is_empty():
-		return
-	active_game["waitingForGm"] = false
-	var playable := get_playable_members()
-	if playable.size() > 1:
-		var idx: int = int(active_game.get("turnIndex", 0))
-		active_game["turnIndex"] = (idx + 1) % playable.size()
-	save_active_game()
+	if TurnFlow.advance_player_turn(active_game):
+		save_active_game()
 
 func set_waiting_for_gm(waiting: bool) -> void:
-	if active_game.is_empty():
-		return
-	active_game["waitingForGm"] = waiting
-	save_active_game()
+	if TurnFlow.set_waiting_for_gm(active_game, waiting):
+		save_active_game()
 
 func is_waiting_for_gm() -> bool:
-	if active_game.is_empty():
-		return false
-	return bool(active_game.get("waitingForGm", false))
+	return TurnFlow.is_waiting_for_gm(active_game)
 
 func get_scenario_npcs() -> Array:
 	if active_game.is_empty():
@@ -1478,24 +1363,10 @@ static func _append_session_npc(result: Array, seen: Dictionary, npc: Dictionary
 	result.append(row)
 
 func can_member_act(client_id: String) -> bool:
-	if active_game.is_empty() or active_game.get("status") == "completed":
-		return false
-	if is_waiting_for_gm():
-		return false
-	if active_game.get("gmType", "ai") == "ai":
-		return true
-	var actor := get_active_member()
-	if actor.is_empty():
-		return true
-	var actor_client: String = str(actor.get("clientId", ""))
-	if actor_client.is_empty():
-		return client_id.is_empty()
-	return actor_client == client_id
+	return TurnFlow.can_member_act(active_game, client_id)
 
 func get_gm_display_name() -> String:
-	if active_game.is_empty():
-		return "MJ"
-	return str(active_game.get("gmName", "MJ"))
+	return TurnFlow.gm_display_name(active_game)
 
 func advance_scene() -> bool:
 	if active_game.is_empty():
@@ -1621,8 +1492,7 @@ func complete_scenario(reason: String = "") -> bool:
 	if not reason.is_empty():
 		suffix = " %s" % reason
 	add_log_entry("Système", "[b]Fin du scénario atteinte ![/b]%s" % suffix, "system")
-	active_game["status"] = "completed"
-	active_game["waitingForGm"] = false
+	TurnFlow.mark_completed(active_game)
 	save_active_game()
 	return true
 
@@ -2033,29 +1903,13 @@ func _seed_valbois_party_tokens() -> void:
 # ---------------------------------------------------------------------------
 
 func _ensure_party_inventories() -> void:
-	if active_game.is_empty():
-		return
-	var party: Array = active_game.get("party", [])
-	for i in range(party.size()):
-		if typeof(party[i]) != TYPE_DICTIONARY:
-			continue
-		if not party[i].has("inventory") or typeof(party[i]["inventory"]) != TYPE_ARRAY:
-			party[i]["inventory"] = []
-	active_game["party"] = party
+	Roster.ensure_inventories(active_game)
 
 func get_member_inventory(member_id: String) -> Array:
-	var member := _find_party_member(member_id)
-	if member.is_empty():
-		return []
-	var inv = member.get("inventory", [])
-	return inv if typeof(inv) == TYPE_ARRAY else []
+	return Roster.member_inventory(active_game, member_id)
 
 func find_party_member_id_by_name(member_name: String) -> String:
-	var needle := member_name.strip_edges().to_lower()
-	for m in active_game.get("party", []):
-		if str(m.get("name", "")).strip_edges().to_lower() == needle:
-			return str(m.get("id", ""))
-	return ""
+	return Roster.find_member_id_by_name(active_game, member_name)
 
 func give_item_to_member(member_id: String, item_id: String, item_name: String, qty: int = 1, silent: bool = false) -> bool:
 	if active_game.is_empty() or member_id.is_empty() or item_id.is_empty() or qty <= 0:
@@ -4271,10 +4125,7 @@ func apply_map_play_action(map_id: String, x: int, y: int, tool: Dictionary) -> 
 	save_map_play_and_sync()
 
 func _find_party_member(member_id: String) -> Dictionary:
-	for m in active_game.get("party", []):
-		if m.get("id") == member_id:
-			return m
-	return {}
+	return Roster.find_member(active_game, member_id)
 
 func _reveal_investigation_on_scene_advance() -> void:
 	if active_game.get("questFormat", "") != "investigation":
