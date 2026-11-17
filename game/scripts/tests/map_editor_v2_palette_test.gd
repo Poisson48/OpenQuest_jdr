@@ -4,7 +4,13 @@ extends SceneTree
 ## Vérifie le rendu (groupes, boutons), la sélection silencieuse,
 ## l'émission de tool_selected au clic et le conteneur d'options.
 
-const PaletteScript = preload("res://scripts/maps/editor/v2/palette.gd")
+## Palette chargée en RUNTIME dans `_run()` (pas en `const preload`) : en mode
+## `--script`, le script de test est compilé AVANT que les autoloads du projet
+## soient enregistrés ; `palette.gd` référence `AppSettings` (autoload) et un
+## `preload` en tête de fichier échoue donc à la compilation
+## (« Identifier not found: AppSettings »). `load()` après le premier frame
+## résout l'autoload sans rien changer au comportement de la palette.
+var _palette_script: GDScript = null
 
 var _failed := false
 # Reçus de tool_selected pendant le test (pour vérifier l'absence de signal).
@@ -18,8 +24,16 @@ func _init() -> void:
 func _run() -> void:
 	await process_frame
 
+	# Autoloads enregistrés : la palette (qui lit AppSettings) peut être chargée.
+	_palette_script = load("res://scripts/maps/editor/v2/palette.gd")
+	_assert("palette_script_loaded", _palette_script != null)
+	if _palette_script == null:
+		print("map_editor_v2_palette_test:FAIL")
+		quit(1)
+		return
+
 	# --- Construction de la palette et remplissage via l'API publique. ---
-	var palette = PaletteScript.new()
+	var palette = _palette_script.new()
 	get_root().add_child(palette)
 	palette.tool_selected.connect(_on_tool_selected)
 	palette.setup([

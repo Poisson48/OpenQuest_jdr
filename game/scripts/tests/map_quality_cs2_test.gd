@@ -30,6 +30,12 @@ func _init() -> void:
 
 func _run() -> void:
 	await process_frame
+	# Herméticité : neutralise en mémoire les préférences de rendu de la
+	# machine (`user://app_settings.cfg` : aa=msaa4, ssil=false, shadow_quality…).
+	# Elles priment sur le rendu décidé par la carte via
+	# `AppSettings.apply_to_engine()` après chaque `configure()` : sans ce
+	# reset, `ui_engine_classic_msaa` lit 4× au lieu de 2× (cf. baseline §6.3).
+	var prefs := _neutralize_render_prefs()
 	_test_resolution()
 	_test_classique_identical()
 	_test_cinema_config()
@@ -40,6 +46,7 @@ func _run() -> void:
 	await _test_session_preset()
 	await _test_atmosphere_tilt()
 	await _test_editor_ui()
+	_restore_render_prefs(prefs)
 	if _failed:
 		quit(1)
 		return
@@ -905,6 +912,44 @@ func _test_editor_ui() -> void:
 # ===========================================================================
 # Helpers
 # ===========================================================================
+
+## Met la section `rendering` d'AppSettings aux valeurs par défaut (neutres :
+## aa=auto → la carte décide, shadow_quality=map, aucun effet coupé) SANS
+## toucher au fichier `user://app_settings.cfg` : le test reste hermétique et
+## ne détruit pas les préférences de la machine. Retourne la sauvegarde
+## (à passer à `_restore_render_prefs`).
+func _neutralize_render_prefs() -> Dictionary:
+	var asettings := get_root().get_node_or_null("AppSettings")
+	if asettings == null:
+		return {}
+	var values: Variant = asettings.get("_values")
+	var defaults: Variant = asettings.get("DEFAULTS")
+	if not (values is Dictionary) or not (defaults is Dictionary):
+		return {}
+	var rendering: Variant = (values as Dictionary).get("rendering")
+	var rendering_defaults: Variant = (defaults as Dictionary).get("rendering")
+	if not (rendering is Dictionary) or not (rendering_defaults is Dictionary):
+		return {}
+	var backup: Dictionary = (rendering as Dictionary).duplicate(true)
+	for key in (rendering_defaults as Dictionary).keys():
+		(rendering as Dictionary)[key] = (rendering_defaults as Dictionary)[key]
+	asettings.call("apply_section", "rendering")
+	return backup
+
+
+## Restaure la section `rendering` sauvegardée par `_neutralize_render_prefs`.
+func _restore_render_prefs(backup: Dictionary) -> void:
+	if backup.is_empty():
+		return
+	var asettings := get_root().get_node_or_null("AppSettings")
+	if asettings == null:
+		return
+	var values: Variant = asettings.get("_values")
+	if not (values is Dictionary):
+		return
+	(values as Dictionary)["rendering"] = backup.duplicate(true)
+	asettings.call("apply_section", "rendering")
+
 
 func _wait_frames(n: int) -> void:
 	for _i in range(n):

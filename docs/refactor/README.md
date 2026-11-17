@@ -1,6 +1,6 @@
 # Chantier de refactorisation — index et mode d'emploi
 
-> **Statut au 2026-11-17** : lancé le 2026-11-17 (HEAD de départ `4514c61`). **phases 0 et 1 livrées** (2026-11-17), phases 2-6 planifiées.
+> **Statut au 2026-11-17** : lancé le 2026-11-17 (HEAD de départ `4514c61`). **phases 0, 1 et 2.0-2.4 livrées** (2026-11-17), lots 2.5-2.8 et phases 3-6 planifiés.
 > **Le document qui fait foi** est le [plan de refactorisation](PLAN_REFACTORISATION.md) : ADR, feuille de route, portes de qualité, règles d'exécution, métriques cibles.
 > **Convention de comptage** : lignes physiques (`(Get-Content <fichier>).Count`), comme les audits ; `metrics.ps1` compte la ligne finale (+1 par fichier). Ne pas mélanger les deux unités.
 

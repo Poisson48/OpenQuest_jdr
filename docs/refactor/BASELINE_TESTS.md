@@ -282,18 +282,23 @@ Distribution des durées : **63 tests < 5 s**, 40 entre 5 et 15 s, 12 entre 15 e
 
 | # | Test | Statut runner | Cause réelle | Reproduit isolé ? | Nature |
 |---|---|---|---|---|---|
-| 1 | `map_editor_snap_test` | FAIL (timeout, 180 s) | Blocage (hang) dans la chaîne de murs, section « coin L » | Oui, encore bloqué après 240 s | **Défaut produit** (boucle) |
+| 1 | `map_editor_snap_test` | FAIL (timeout, 180 s) | **Test trop lent** (~257 s), pas une boucle : synchro 3D complète (`configure()` ≈1,7 s) à chaque mutation (~150) ; corrigé en phase 2.0 | Passait en 257 s | **Test non isolé du rendu** |
 | 2 | `map_editor_v2_palette_test` | FAIL (timeout, 180 s) | Le test **ne compile pas** : `palette.gd:78` référence l'autoload `AppSettings` dans un `const preload` | Oui (identique) | **Défaut de test/couplage autoload** |
 | 3 | `map_quality_cs2_test` | FAIL (assertion, 12 s) | 1 assertion sur 187 : MSAA classique attendu 2× mais 4× imposé par les préférences `user://` | Oui | **Environnement non hermétique** |
 | 4 | `webrtc_pooling_e2e_test` | FAIL (assertion, 22 s) | Aucun serveur pooling sur `ws://127.0.0.1:8080` | Oui ; **PASS en 3,7 s avec le serveur** | **Dépendance de service** |
 | 5 | `zz_probe_grid` | FAIL (timeout, 181 s) | Sonde temporaire cassée : `GraphEdit.get_theme_item_list()` n'existe plus → erreur avant `quit()` | Oui | **Script mort abandonné** |
 
-### 6.1 `map_editor_snap_test` — hang > 180 s (ce n'est pas une assertion)
+### 6.1 `map_editor_snap_test` — test trop lent > 180 s (ce n'est pas une assertion)
 
 - Échec au bout de **180 s pile** (`FAIL (timeout)`), sans aucune sortie d'erreur : le runner tue au timeout.
 - En isolation avec 240 s : **encore bloqué**. Dernière assertion réussie : `wall_chain_height` (log
   `diag_map_editor_snap_test_20261117_194901.out.log`, 77 lignes `OK`, aucune erreur).
-- Le blocage survient dans la section « coin L automatique », à l'appel
+- **Diagnostic initial corrigé en phase 2.0 (2026-11-17)** : ce n'est pas un blocage.
+  Le test passe en **257 s** ; chaque mutation du document déclenche
+  `_on_doc_changed()` → `ComplexMapEngine3D.configure()` complet ≈1,7 s
+  (`_meshes_layer.configure` = 1 694 ms / 1 734 mesurés) × ~150 mutations
+  > timeout 180 s. Le point de mesure initial portait sur la section « coin L
+  automatique », à l'appel
   `editor._create_mesh_wall_chain(Vector2(70.0, 60.0), Vector2(70.0, 66.0))` (~l. 415-420 du test) : le test
   poursuit ensuite par `wall_l_corner_created`, `wall_l_corner_at_junction`… qui n'arrivent jamais.
 - Conséquence pour le refactor : test à isoler/corriger (ou marquer xfail) **avant** de l'utiliser comme garde-fou ;
@@ -508,3 +513,19 @@ Variante « ultra-rapide » (~20 s) si le temps presse : `dice_engine_test|rules
 | `city_scene_test` | **flake de concurrence** | échoue (`no_ground_overlap`) uniquement parce qu'une instance du jeu a été relancée pendant le run ; **PASS en isolation** (`./scripts/run_tests.ps1 -Filter '^city_scene_test$'`). Ne pas lancer la suite et l'éditeur/jeu en même temps. |
 
 **Conclusion** : aucune régression attribuable aux suppressions de la phase 1. `verify.ps1` est vert, la compilation des 452 fichiers (scripts + scènes) est verte, les tests du domaine sont verts (17/17) et la suite complète retrouve le profil de la baseline moins le test-sonde supprimé.
+
+---
+
+## 15. Phase 2.0 — les 3 échecs de test corrigés (2026-11-17)
+
+> Après la phase 1, la phase 2.0 a traité les 3 échecs de test restants (hors WebRTC qui dépend d'un serveur).
+> Vérification : `./tools/refactor/verify.ps1` VERT (compilation 369 fichiers 0 échec, typecheck serveur, socle rapide 25 PASS / 0 FAIL).
+
+| Test | Cause racine | Correctif (test seul, zéro modification de prod) | Résultat |
+|---|---|---|---|
+| `map_editor_v2_palette_test` | `const preload` du test compilé AVANT l'enregistrement des autoloads en mode `--script` → `palette.gd` référence `AppSettings` | `load()` dans `_run()` après le premier frame | **PASS (12 OK)** |
+| `map_quality_cs2_test` | Non hermétique : `AppSettings.apply_to_engine()` réapplique `user://app_settings.cfg` (msaa4) après chaque `configure()` et gagne sur le preset classique | neutralisation **en mémoire** de la section `rendering` (fichier cfg intact, SHA256 vérifié) | **PASS (183 OK / 0 FAIL)** |
+| `map_editor_snap_test` | **Test trop lent** (257 s), pas une boucle : `configure()` complet ≈1,7 s à chaque mutation (~150) | suspension de `doc.changed`→`_on_doc_changed` pendant le test (motif bulk-edit), rejeu unique avant teardown | **PASS (33 s, 95 OK)** |
+
+**Conséquence pour la baseline** : la liste des échecs connus passe de 5 à **1** (`webrtc_pooling_e2e_test`, qui passe en 3,7 s avec un serveur pooling local).
+**Découverte à exploiter en phase 4** : `ComplexMapEngine3D.configure()` complet coûte ≈1,7 s en headless (`_meshes_layer.configure`) et est déclenché à CHAQUE mutation du document (`map_complex_editor.gd:_on_doc_changed`) — c'est la cause mesurée du gel de l'éditeur (cf. `RAPPORT_PERFORMANCE_EDITEUR_3D.md`). La synchro incrémentale (couches sales) est prioritaire en vague 3.

@@ -4,6 +4,9 @@ extends SceneTree
 ## (métadonnées du manifeste Blender : anchor roof/wall).
 
 var _failed := false
+## Handler de synchro de l'éditeur, suspendu pendant le test puis restauré
+## (voir `_run` : la synchro 3D complète coûte ~1,7 s par mutation en headless).
+var _editor_sync_handler := Callable()
 
 func _init() -> void:
 	call_deferred("_run")
@@ -31,6 +34,19 @@ func _run() -> void:
 	await process_frame
 	editor.load_map(village)
 	await process_frame
+	# --- Suspension de la synchro 3D lourde de l'éditeur ---------------------
+	# Ce test vérifie les DONNÉES de construction (aimantation, pavage, coins L,
+	# étirement) ainsi que l'aperçu et le statut, pas le rendu 3D. Or chaque
+	# mutation du document déclenche `_on_doc_changed()` →
+	# `ComplexMapEngine3D.configure()` complet (~1,7 s mesurés en headless,
+	# `_meshes_layer.configure` dominant) : les ~150 mutations du test coûtent
+	# ~4 min et dépassent le timeout du runner (180 s), ce qui était pris pour un
+	# « hang » (diagnostic corrigé : aucune boucle infinie, cf. task-8).
+	# Même motif que `MapEditorConstruction._apply_scene_plan()` (bulk edit) :
+	# on suspend la synchro, et on la rejoue UNE fois à la fin.
+	_editor_sync_handler = Callable(editor, "_on_doc_changed")
+	if editor.doc.changed.is_connected(_editor_sync_handler):
+		editor.doc.changed.disconnect(_editor_sync_handler)
 	# Navigation rapide entre zones du monde (émet l'ouverture d'une autre zone).
 	var cycle_targets: Array = []
 	editor.open_map_requested.connect(func(id): cycle_targets.append(id))
@@ -503,6 +519,14 @@ func _run() -> void:
 	await process_frame
 	_assert("wall_feedback_created", _meshes_with_asset(editor, wall_asset).size() > feedback_walls_before)
 	editor._set_tool("select")
+
+	# Restaure la synchro de l'éditeur et rejoue-la une seule fois (état final
+	# cohérent : le test n'a pas besoin du rendu 3D, mais l'éditeur doit rester
+	# sain pour la suite éventuelle d'assertions/le teardown).
+	if _editor_sync_handler.is_valid() \
+			and not editor.doc.changed.is_connected(_editor_sync_handler):
+		editor.doc.changed.connect(_editor_sync_handler)
+		editor._on_doc_changed("commit")
 
 	editor.queue_free()
 	await process_frame
