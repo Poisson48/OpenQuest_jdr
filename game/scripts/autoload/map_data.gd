@@ -27,6 +27,10 @@ const CITE_DEMO_SEED := 20261112
 const CITE_DEMO_WIDTH := 44
 const CITE_DEMO_HEIGHT := 32
 const ProceduralCityScript := preload("res://scripts/maps/construction/procedural_city.gd")
+## Traitement d'image (phase 2.8) : cutout alpha, nuit procédurale, vignettes.
+const CutoutScript := preload("res://scripts/core/image/cutout.gd")
+const NightTextureScript := preload("res://scripts/core/image/night_texture.gd")
+const ThumbnailScript := preload("res://scripts/core/image/thumbnail.gd")
 const DEFAULT_GRID_CONFIG := {
 	"size": 70,
 	"opacity": 0.22,
@@ -708,39 +712,17 @@ func night_image_exists(map_data: Dictionary) -> bool:
 	return FileAccess.file_exists(path)
 
 ## Texture nuit : fichier dédié, sinon assombrissement procédural du jour.
+## Façade : implémentation dans `core/image/night_texture.gd` (phase 2.8).
 func load_night_texture(map_data: Dictionary) -> Texture2D:
 	var night_path := resolve_night_image_path(map_data)
-	if not night_path.is_empty() and night_image_exists(map_data):
-		var night_img := _load_rgba_image(night_path)
-		if night_img != null:
-			return ImageTexture.create_from_image(night_img)
+	var night_ok := not night_path.is_empty() and night_image_exists(map_data)
 	var day_path := str(map_data.get("backgroundImage", "")).strip_edges()
-	if day_path.is_empty():
-		return null
-	var day_img := _load_rgba_image(day_path)
-	if day_img == null:
-		return null
-	return ImageTexture.create_from_image(make_procedural_night_image(day_img))
+	return NightTextureScript.load_texture(day_path, night_path if night_ok else "")
 
 ## Assombrit / désature une image jour (fallback offline sans Gemini).
+## Façade : implémentation dans `core/image/night_texture.gd`.
 func make_procedural_night_image(day: Image) -> Image:
-	var img := day.duplicate()
-	img.convert(Image.FORMAT_RGBA8)
-	var w: int = img.get_width()
-	var h: int = img.get_height()
-	for y in range(h):
-		for x in range(w):
-			var c: Color = img.get_pixel(x, y)
-			var lum: float = c.r * 0.299 + c.g * 0.587 + c.b * 0.114
-			var desat := Color(lum, lum, lum, c.a).lerp(c, 0.42)
-			var cooled := Color(
-				desat.r * 0.32 + 0.04,
-				desat.g * 0.36 + 0.05,
-				desat.b * 0.48 + 0.10,
-				c.a
-			)
-			img.set_pixel(x, y, cooled)
-	return img
+	return NightTextureScript.make_procedural_night_image(day)
 
 ## Cases dans le rayon d'une lumière (disque grille, pour stamp lightRevealed).
 func light_reveal_cells(source: Dictionary, map_w: int = 0, map_h: int = 0) -> Array:
@@ -1119,27 +1101,9 @@ func list_token_images() -> Array:
 
 ## Charge un portrait et le découpe en disque, prêt à coiffer un token.
 ## `border` teinte l'anneau extérieur (couleur du personnage).
+## Façade : implémentation dans `core/image/thumbnail.gd` (phase 2.8).
 func load_token_portrait(path: String, border: Color = Color(0.15, 0.12, 0.1), size: int = 160) -> Texture2D:
-	var img := _load_rgba_image(path)
-	if img == null:
-		return null
-	# Cadre carré centré (meilleur pour les portraits en pied).
-	var side := mini(img.get_width(), img.get_height())
-	var ox := (img.get_width() - side) / 2
-	var oy := maxi(0, (img.get_height() - side) / 5)  # un peu vers le haut (visage)
-	img = img.get_region(Rect2i(ox, oy, side, side))
-	img.resize(size, size, Image.INTERPOLATE_LANCZOS)
-	var half := float(size) * 0.5
-	for y in range(size):
-		for x in range(size):
-			var dx := (float(x) - half) / half
-			var dy := (float(y) - half) / half
-			var d := sqrt(dx * dx + dy * dy)
-			if d > 1.0:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
-			elif d > 0.86:
-				img.set_pixel(x, y, border)
-	return ImageTexture.create_from_image(img)
+	return ThumbnailScript.make_token_portrait(path, border, size)
 
 ## Détourages déjà calculés, indexés par « chemin@hauteur ». Le découpage est
 ## une boucle par pixel : sans ce cache, chaque rendu de liste de groupe ou de
@@ -1152,180 +1116,20 @@ func load_token_cutout(path: String, max_height: int = 256) -> Texture2D:
 	var cache_key := "%s@%d" % [path, max_height]
 	if _token_cutout_cache.has(cache_key):
 		return _token_cutout_cache[cache_key]
-	var tex := _build_token_cutout(path, max_height)
+	var tex := CutoutScript.build_token_cutout(path, max_height)
 	_token_cutout_cache[cache_key] = tex
 	return tex
 
 func clear_token_cutout_cache() -> void:
 	_token_cutout_cache.clear()
 
-func _build_token_cutout(path: String, max_height: int) -> Texture2D:
-	var img := _load_rgba_image(path)
-	if img == null:
-		return null
-	var w := img.get_width()
-	var h := img.get_height()
-	var clear_n := 0
-	for y in range(h):
-		for x in range(w):
-			if img.get_pixel(x, y).a < 0.05:
-				clear_n += 1
-	# Déjà détouré (fond transparent) → ne pas flood-fill les pixels sombres du perso.
-	if clear_n < int(w * h * 0.05):
-		_knockout_edge_background(img, 0.045)
-	var scale := float(max_height) / float(maxi(1, h))
-	var new_w := maxi(1, int(round(float(w) * scale)))
-	var new_h := max_height
-	img.resize(new_w, new_h, Image.INTERPOLATE_LANCZOS)
-	_harden_cutout_alpha(img, 0.40)
-	return ImageTexture.create_from_image(img)
-
-## Opaque ou transparent — jamais semi-transparent (évite le fantôme sur la carte).
-func _harden_cutout_alpha(img: Image, keep_threshold: float = 0.4) -> void:
-	for y in range(img.get_height()):
-		for x in range(img.get_width()):
-			var c := img.get_pixel(x, y)
-			if c.a >= keep_threshold:
-				c.a = 1.0
-				img.set_pixel(x, y, c)
-			elif c.a > 0.02 and (c.r + c.g + c.b) > 0.08:
-				# Anti-alias / trou sombre du perso → opaque, pas transparent.
-				c.a = 1.0
-				img.set_pixel(x, y, c)
-			else:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
-	_fill_cutout_interior_holes(img)
-
-## Bouche les trous intérieurs : tout transparent non relié aux bords = trou dans le perso.
-func _fill_cutout_interior_holes(img: Image) -> void:
-	var w := img.get_width()
-	var h := img.get_height()
-	if w < 3 or h < 3:
-		return
-	var outside := PackedByteArray()
-	outside.resize(w * h)
-	outside.fill(0)
-	var queue: Array[Vector2i] = []
-	for x in range(w):
-		queue.append(Vector2i(x, 0))
-		queue.append(Vector2i(x, h - 1))
-	for y in range(h):
-		queue.append(Vector2i(0, y))
-		queue.append(Vector2i(w - 1, y))
-	var head := 0
-	while head < queue.size():
-		var p: Vector2i = queue[head]
-		head += 1
-		if p.x < 0 or p.y < 0 or p.x >= w or p.y >= h:
-			continue
-		var idx := p.y * w + p.x
-		if outside[idx] != 0:
-			continue
-		if img.get_pixel(p.x, p.y).a >= 0.5:
-			continue
-		outside[idx] = 1
-		queue.append(Vector2i(p.x + 1, p.y))
-		queue.append(Vector2i(p.x - 1, p.y))
-		queue.append(Vector2i(p.x, p.y + 1))
-		queue.append(Vector2i(p.x, p.y - 1))
-	for y in range(h):
-		for x in range(w):
-			var idx := y * w + x
-			if outside[idx] != 0:
-				continue
-			if img.get_pixel(x, y).a >= 0.5:
-				continue
-			# Trou intérieur : moyenne des voisins opaques.
-			var op := 0
-			var ar := 0.0
-			var ag := 0.0
-			var ab := 0.0
-			for dy in range(-2, 3):
-				for dx in range(-2, 3):
-					var nx := x + dx
-					var ny := y + dy
-					if nx < 0 or ny < 0 or nx >= w or ny >= h:
-						continue
-					var n := img.get_pixel(nx, ny)
-					if n.a < 0.5:
-						continue
-					op += 1
-					ar += n.r
-					ag += n.g
-					ab += n.b
-			if op > 0:
-				img.set_pixel(x, y, Color(ar / float(op), ag / float(op), ab / float(op), 1.0))
-			else:
-				img.set_pixel(x, y, Color(0.15, 0.12, 0.1, 1.0))
-
-## Remplit en transparent uniquement le fond sombre relié aux bords de l'image.
-func _knockout_edge_background(img: Image, threshold: float = 0.12) -> void:
-	var w := img.get_width()
-	var h := img.get_height()
-	if w <= 0 or h <= 0:
-		return
-	var visited := PackedByteArray()
-	visited.resize(w * h)
-	visited.fill(0)
-	var queue: Array[Vector2i] = []
-	for x in range(w):
-		queue.append(Vector2i(x, 0))
-		queue.append(Vector2i(x, h - 1))
-	for y in range(h):
-		queue.append(Vector2i(0, y))
-		queue.append(Vector2i(w - 1, y))
-	var head := 0
-	while head < queue.size():
-		var p: Vector2i = queue[head]
-		head += 1
-		if p.x < 0 or p.y < 0 or p.x >= w or p.y >= h:
-			continue
-		var idx := p.y * w + p.x
-		if visited[idx] != 0:
-			continue
-		visited[idx] = 1
-		var c := img.get_pixel(p.x, p.y)
-		if c.a < 0.05:
-			continue
-		if c.r > threshold or c.g > threshold or c.b > threshold:
-			continue
-		img.set_pixel(p.x, p.y, Color(0, 0, 0, 0))
-		queue.append(Vector2i(p.x + 1, p.y))
-		queue.append(Vector2i(p.x - 1, p.y))
-		queue.append(Vector2i(p.x, p.y + 1))
-		queue.append(Vector2i(p.x, p.y - 1))
-
-func _load_rgba_image(path: String) -> Image:
-	var raw := path.strip_edges()
-	if raw.is_empty():
-		return null
-	var resolved := raw
-	if raw.begins_with("res://") or raw.begins_with("user://"):
-		resolved = ProjectSettings.globalize_path(raw)
-	var img := Image.new()
-	if img.load(resolved) != OK:
-		# Dernier recours : fichier res:// via FileAccess (évite CompressedTexture2D).
-		if raw.begins_with("res://") and FileAccess.file_exists(raw):
-			var bytes := FileAccess.get_file_as_bytes(raw)
-			if bytes.is_empty() or img.load_png_from_buffer(bytes) != OK:
-				return null
-		else:
-			return null
-	img.convert(Image.FORMAT_RGBA8)
-	return img
-
+## Dimensions en pixels d'une image source (façade `core/image/thumbnail.gd`).
 func get_image_pixel_size(source_path: String) -> Vector2i:
-	var img := _load_rgba_image(source_path)
-	if img == null:
-		return Vector2i.ZERO
-	return Vector2i(img.get_width(), img.get_height())
+	return ThumbnailScript.image_pixel_size(source_path)
 
+## Nombre de cases suggéré pour une grille de `grid_px` pixels (façade).
 func suggest_cells_from_image(source_path: String, grid_px: int = 70) -> Vector2i:
-	var px := get_image_pixel_size(source_path)
-	if px == Vector2i.ZERO:
-		return Vector2i(20, 14)
-	var gs := maxi(20, grid_px)
-	return Vector2i(clampi(int(roundf(float(px.x) / float(gs))), 4, 96), clampi(int(roundf(float(px.y) / float(gs))), 4, 96))
+	return ThumbnailScript.suggest_cells(source_path, grid_px)
 
 func clear_background_image(map_id: String) -> void:
 	for i in range(maps.size()):
@@ -1378,11 +1182,8 @@ func load_background_texture(map_data: Dictionary) -> Texture2D:
 		return null
 	# Toujours le PNG source (user:// ou res://), jamais la CompressedTexture2D
 	# importée — sinon detect_3d/compress peut dégrader l'illustration.
-	var img := _load_rgba_image(path)
-	if img == null:
-		return null
-	# Pas de mipmaps : un fond illustré upscalé devient flou avec les mips.
-	return ImageTexture.create_from_image(img)
+	# Façade : implémentation dans `core/image/cutout.gd` (phase 2.8).
+	return CutoutScript.load_texture(path)
 
 func generate_tile_texture(map_data: Dictionary, grid_cfg: Dictionary = {}) -> Texture2D:
 	var cfg := grid_cfg if not grid_cfg.is_empty() else get_grid_config(map_data)
