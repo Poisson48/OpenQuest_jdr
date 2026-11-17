@@ -557,6 +557,14 @@ func _handle_incoming() -> void:
 		_handle_message(data)
 
 func _handle_message(data: Dictionary) -> void:
+	# Protocole pooling v2 : le serveur échoie le `req_id` de la requête sur
+	# TOUTE réponse (`withReqId()` côté serveur — `server/src/pooling/server.ts`),
+	# succès comme erreur. On résout donc la requête dès la réception, AVANT le
+	# dispatch : sinon un succès laisse son entrée dans `_pending_requests`, qui
+	# expirerait en faux « Pas de réponse du serveur » après REQUEST_TIMEOUT
+	# (8 s) — et les entrées s'accumuleraient (fuite). Résolu avant le `match`
+	# pour couvrir aussi les branches à retour anticipé (ex. `room_update` vide).
+	_resolve_request(str(data.get("req_id", "")))
 	match data.get("type", ""):
 		"welcome":
 			player_id = data.get("playerId", "")
@@ -642,7 +650,7 @@ func _handle_message(data: Dictionary) -> void:
 			list_rooms()
 		"error":
 			var code := str(data.get("code", ""))
-			_resolve_request(str(data.get("req_id", "")))
+			# La requête (si req_id) est déjà résolue en tête de `_handle_message`.
 			p2p_error.emit(_pooling_error_text(code, str(data.get("message", "Erreur réseau"))))
 
 func _on_room_created_side_effects(room: Dictionary) -> void:

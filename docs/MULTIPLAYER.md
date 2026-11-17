@@ -423,12 +423,14 @@ Conventions communes :
 - **Ticket de reprise** : `session_ticket` (usage unique, TTL 2 min) →
   `resume_session` → `resumed` + nouveau ticket. Détail :
   `docs/SESSION_PROTOCOLE.md`.
-- **Dette client connue (hors périmètre serveur)** : `multiplayer_manager.gd`
-  n'appelle `_resolve_request()` que dans le handler `error` ; les réponses de
-  succès portent pourtant un `req_id`, si bien qu'une requête réussie reste dans
-  `_pending_requests` jusqu'à `_expire_pending()` (`REQUEST_TIMEOUT = 8 s`) et
-  émet alors « Pas de réponse du serveur ». À corriger côté Godot ; le test de
-  contrat gèle ce comportement pour qu'il soit revisité.
+- **Résolution des requêtes (dette corrigée)** : `multiplayer_manager.gd`
+  résout la requête (`_resolve_request()`) à la réception de **toute** réponse
+  portant un `req_id` — succès comme erreur — en tête de `_handle_message()`,
+  avant le dispatch `match`. Une requête réussie ne reste donc plus dans
+  `_pending_requests` : plus de faux « Pas de réponse du serveur » après
+  `REQUEST_TIMEOUT = 8 s`, ni de fuite d'entrées. Couvert par
+  `game/scripts/tests/pooling_client_requests_test.gd` (test client, sans
+  réseau) et vérifié par le contrat ci-dessous.
 
 Test de contrat :
 
@@ -441,8 +443,9 @@ npm run test:protocol   # pur, sans port, < 1 s — inclus dans `npm test`
 (schéma zod + payloads réels + rejets), les 12 types serveur→client (champs lus
 par le client), l'égalité stricte des 14 codes d'erreur serveur/client/docs,
 `PROTOCOL_VERSION = 2`, `withReqId`/`extractReqId`, la forme du ticket de
-reprise, les seuils de rate-limit, l'alignement de ce document et la dette
-client ci-dessus.
+reprise, les seuils de rate-limit, l'alignement de ce document et la résolution
+des requêtes corrélées côté client (appel générique avant dispatch, dette
+ci-dessus corrigée).
 
 ---
 
@@ -586,9 +589,10 @@ npm run dev
 
 **Tests automatiques :**
 - `cd server && npm test` → `test:lobby` (81 vérif.), `test:protocol`
-  (contrat protocole v2, pur, 302 vérif.) et `test:lobby:net`
+  (contrat protocole v2, pur, 309 vérif.) et `test:lobby:net`
   (bout en bout réseau, 18 vérif.) ;
-- `./scripts/run_tests.ps1 -Filter 'session_protocol_test'` (client Godot).
+- `./scripts/run_tests.ps1 -Filter 'session_protocol_test|pooling_client_requests_test'`
+  (client Godot).
 
 ---
 
@@ -603,7 +607,6 @@ npm run dev
 | Hôte = MJ — si MJ quitte, salon fermé pour tous | MJ recrée une partie |
 | Reconnexion MJ après déconnexion | Non supportée — recréer une partie |
 | Reconnexion joueur | `rejoin_room` avec le même code, ou `resume_session` avec le ticket |
-| Dette client : réponses de succès non retirées de `_pending_requests` | `_expire_pending()` après `REQUEST_TIMEOUT = 8 s` ; à corriger côté Godot (voir §3.3) |
 | Pare-feu Windows peut bloquer port 7777 | Autoriser Godot dans le pare-feu |
 
 ---

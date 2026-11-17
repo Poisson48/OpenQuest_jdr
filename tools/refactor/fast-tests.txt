@@ -40,3 +40,5 @@ dirty_layers_test
 
 editor_commit_perf_test
 
+pooling_client_requests_test
+

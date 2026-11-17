@@ -19,9 +19,12 @@
  *      `docs/SESSION_PROTOCOLE.md` / `docs/MULTIPLAYER.md` ;
  *   4. tickets de reprise, rate-limit et `PROTOCOL_VERSION = 2` sont conformes
  *      au contrat documenté ;
- *   5. le test gèle aussi la dette client connue : `_resolve_request()` n'est
- *      appelé que sur `error` (pas sur les réponses de succès qui portent
- *      pourtant un `req_id`).
+ *   5. la dette client est CORRIGÉE et vérifiée : `_resolve_request()` est
+ *      appelé UNE seule fois, génériquement en tête de `_handle_message()` —
+ *      toute réponse portant un `req_id` (succès comme erreur) purge donc la
+ *      requête en attente, ce qui supprime le faux timeout « Pas de réponse »
+ *      (REQUEST_TIMEOUT = 8 s) et la fuite de `_pending_requests`. Le test
+ *      client associé est `game/scripts/tests/pooling_client_requests_test.gd`.
  *
  *   cd server && npm run test:protocol
  *
@@ -641,26 +644,74 @@ function testMultiplayerDoc(): void {
 }
 
 // ---------------------------------------------------------------------------
-// 10. Dette client connue (gelée par le contrat, hors périmètre serveur)
+// 10. Résolution des requêtes corrélées sur TOUTE réponse portant `req_id`
+//     (dette client corrigée : plus de faux timeout à 8 s, plus de fuite)
 // ---------------------------------------------------------------------------
 
-function testKnownClientGap(): void {
-  section("known_client_gap", () => {
+function testPoolingRequestResolution(): void {
+  section("pooling.request_resolution", () => {
     const handlers = parseClientHandlers(clientSource);
     const resolveCalls = [...clientSource.matchAll(/_resolve_request\(/g)].length;
-    // 1 définition (func _resolve_request) + 1 appel, uniquement dans le handler `error`.
-    check("gap.resolve_request.appels", resolveCalls, 2);
-    const errorSegment = handlers.get("error") ?? "";
-    assertTrue("gap.resolve_request.sur_error", errorSegment.includes("_resolve_request("), "le client ne résout pas les requêtes sur `error`");
-    const successSegments = [...handlers.entries()].filter(([type]) => type !== "error");
+    // 1 définition (`func _resolve_request`) + 1 SEUL appel : générique, en tête
+    // de `_handle_message()`, avant le dispatch `match`.
+    check("resolve.appels", resolveCalls, 2);
+
+    const handleStart = clientSource.indexOf("func _handle_message(");
+    assertTrue("resolve.handle_message.present", handleStart >= 0, "func _handle_message introuvable");
+    const matchIndex = clientSource.indexOf('match data.get("type"', handleStart);
+    const genericCall = clientSource.indexOf("_resolve_request(", handleStart);
+    assertTrue(
+      "resolve.avant_dispatch",
+      handleStart >= 0 && genericCall > handleStart && matchIndex > genericCall,
+      "le client doit résoudre la requête AVANT le dispatch `match` de _handle_message()",
+    );
+    assertTrue(
+      "resolve.req_id_extrait",
+      /_resolve_request\(str\(data\.get\("req_id", ""\)\)\)/.test(clientSource),
+      'l\'appel générique doit extraire `data["req_id"]`',
+    );
+    // Plus aucun appel redondant par handler (dont `error`, qui n'a plus à résoudre).
     check(
-      "gap.resolve_request.pas_sur_succes",
-      successSegments.filter(([, segment]) => segment.includes("_resolve_request(")).map(([type]) => type),
+      "resolve.pas_d_appel_par_handler",
+      [...handlers.entries()]
+        .filter(([, segment]) => segment.includes("_resolve_request("))
+        .map(([type]) => type),
       [],
     );
-    // Les réponses de succès portent pourtant un req_id (contrat serveur vérifié §3) :
-    // le client accumule donc une échéance jusqu'à _expire_pending() (REQUEST_TIMEOUT = 8 s).
-    assertTrue("gap.documente", multiplayerDoc.includes("REQUEST_TIMEOUT") || multiplayerDoc.includes("dette"), "la dette client n'est pas documentée dans MULTIPLAYER.md");
+
+    // Contrat serveur (§3) qui rend la résolution générique suffisante : le
+    // `req_id` est échoié sur les réponses de SUCCÈS comme sur `error`.
+    check("resolve.echo_succes", withReqId({ type: "lobby_update", rooms: [] }, "r-1").req_id, "r-1");
+    check("resolve.echo_erreur", protocolFail(ErrorCode.RoomNotFound, "introuvable", "r-2").req_id, "r-2");
+
+    // Dette documentée comme RÉSOLUE, avec renvoi au test client de référence.
+    const clientTestPath = resolve(
+      repoRoot,
+      "game",
+      "scripts",
+      "tests",
+      "pooling_client_requests_test.gd",
+    );
+    assertTrue(
+      "resolve.test_client.present",
+      existsSync(clientTestPath),
+      `test client introuvable : ${clientTestPath}`,
+    );
+    assertTrue(
+      "resolve.test_client.documente",
+      multiplayerDoc.includes("pooling_client_requests_test.gd"),
+      "MULTIPLAYER.md ne cite pas `pooling_client_requests_test.gd`",
+    );
+    assertTrue(
+      "resolve.documente",
+      /résolu|résolue|résolution/i.test(multiplayerDoc),
+      "MULTIPLAYER.md ne documente pas la résolution des requêtes corrélées",
+    );
+    assertTrue(
+      "resolve.doc.sans_ancienne_dette",
+      !/Dette client connue/i.test(multiplayerDoc),
+      "MULTIPLAYER.md contient encore l'ancienne mention « Dette client connue »",
+    );
   });
 }
 
@@ -679,7 +730,7 @@ function main(): void {
   testSessionTicket();
   testRateLimit();
   testMultiplayerDoc();
-  testKnownClientGap();
+  testPoolingRequestResolution();
 
   if (failures > 0) {
     console.log(`protocol_contract_test:FAIL ${failures} échec(s) sur ${checks} vérifications`);
