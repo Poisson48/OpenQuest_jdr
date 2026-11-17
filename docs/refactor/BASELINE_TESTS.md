@@ -538,3 +538,16 @@ Le runner excluait par défaut tout test contenant `save_png(` en le prenant pou
 `scripts/run_tests.ps1` exclut désormais UNIQUEMENT les fichiers `*_shot_test.gd` (convention documentée). Vérifié : `map_vision_test`, `map_props_test`, `map_render_style_test`, `map_night_reveal_test` → **4 PASS** en headless via le runner.
 
 **Impact coverage** : la suite headless passe de 120 à **124 tests** (+4), sans nouveau rouge. Ces tests couvrent respectivement la vision/cazes, les props, le style de rendu et la révélation nocturne.
+---
+
+## 17. Run de transition pendant les extractions du round 3 (2026-11-17)
+
+Run lancé sur l'état `e51b6bd` **pendant que les extractions du round 3 étaient en cours** (game_data, map_data, routeur) — il ne vaut donc pas comme mesure propre, mais son résultat est cohérent :
+
+| Mesure | Résultat |
+|---|---|
+| Tests exécutés | **122** (runner de l'époque, avant récupération des 4 tests fixtures) |
+| Échecs | **1** — `webrtc_pooling_e2e_test` (pas de serveur pooling local) |
+| Log | `docs/refactor/logs/godot_suite_post_phase2.log` |
+
+C'est la preuve que les corrections de la phase 2.0 (palette, msaa, snap) tiennent et que les échecs connus sont ramenés à **1** (WebRTC sans serveur LAN). Le run **propre** sur `HEAD` (runner corrigé, 4 tests récupérés, nouveaux tests de contrat) est consigné dans `docs/refactor/logs/godot_suite_round3_final.log` et exploité au round suivant.
