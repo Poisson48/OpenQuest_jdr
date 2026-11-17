@@ -45,10 +45,11 @@ Write-Host "Godot: $godot"
 Write-Host "Projet: $GamePath"
 $passthrough = @($args)
 if ($UserDataDir.StartsWith("res://")) {
-    # Godot ne charge pas une scène passée en `res://...` : convertir en chemin
-    # absolu, sinon le client ouvre le Hub au lieu de la démo demandée.
+    # Godot 4.7 n'accepte plus une scène en argument positionnel (l'argument
+    # positionnel sert au project.godot) : il faut `--scene <chemin>`. On
+    # convertit aussi la res:// en chemin absolu.
     $scenePath = Join-Path $GamePath $UserDataDir.Substring(6)
-    $passthrough = @($scenePath) + $passthrough
+    $passthrough = @('--scene', $scenePath) + $passthrough
     $UserDataDir = Join-Path $env:APPDATA "Godot\app_userdata\OpenQuest_MJ"
 }
 Write-Host "Profil utilisateur: $UserDataDir"

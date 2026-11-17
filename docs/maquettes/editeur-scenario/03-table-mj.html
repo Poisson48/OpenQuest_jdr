@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refonte 3 — La Table du MJ · Éditeur de scénario</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  /* ============ REFONTE 3 — « LA TABLE DU MJ » (écran de MJ, double page) ============ */
+  body { background: radial-gradient(1200px 700px at 50% -5%, #2a2436 0%, transparent 55%), linear-gradient(180deg, #0b0a10, #14111c); }
+  .topbar { height: 60px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid var(--hairline); background: rgba(13,11,18,.85); position: relative; z-index: 20; }
+  .back { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: transparent; }
+  .crumbs { font-size: 11.5px; color: var(--muted-2); }
+  .doc-title { font-family: var(--serif); font-size: 18px; color: var(--gold-light); }
+  .bookmarks { display: flex; gap: 6px; margin-left: 18px; }
+  .bookmark { padding: 8px 18px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: 0; background: rgba(255,255,255,.02); color: var(--muted); font-size: 12.5px; position: relative; top: 10px; }
+  .bookmark.on { background: #efe4c9; color: #3a2a10; border-color: #c8ae78; font-weight: 600; }
+  .spread { position: absolute; inset: 60px 0 0 0; padding: 22px 26px 14px; display: grid; grid-template-columns: 1fr 14px 1.12fr; grid-template-rows: 1fr; gap: 0; min-height: 0; }
+  .page { overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.04), transparent 18%),
+      #efe4c9;
+    color: #2a2114; border: 1px solid #c8ae78; box-shadow: 0 22px 50px rgba(0,0,0,.5);
+  }
+  .page--left { border-radius: 14px 4px 4px 14px; }
+  .page--right { border-radius: 4px 14px 14px 4px; border-left: 0;
+    background: linear-gradient(270deg, rgba(255,255,255,.04), transparent 18%), #f2e8cf; }
+  .spine { width: 14px; background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,.06) 40%, rgba(0,0,0,.28)); border-top: 1px solid #c8ae78; border-bottom: 1px solid #c8ae78; }
+  .page-head { padding: 14px 22px 10px; border-bottom: 1px solid #d8c397; display: flex; align-items: center; gap: 10px; }
+  .page-head .kicker { color: #8a6f3d; }
+  .page-head h2 { font-size: 17px; color: #4a3414; }
+  .page-scroll { overflow: auto; padding: 14px 22px 24px; }
+  .p-search { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #d8c397; border-radius: 8px; background: #f8f0dc; color: #8a6f3d; font-size: 12px; margin-bottom: 12px; }
+  .table-acts .act-head { color: #8a6f3d; }
+  .table-acts .scene-row { color: #2a2114; }
+  .table-acts .scene-row:hover { background: rgba(90,58,22,.07); }
+  .table-acts .scene-row.is-active { background: rgba(201,164,76,.16); border-color: #c8ae78; }
+  .table-acts .scene-title { color: #2f2413; }
+  .table-acts .scene-meta, .table-acts .scene-num { color: #8a6f3d; }
+  .table-acts .scene-dot.is-gold { background: #b98a2e; box-shadow: none; }
+  .table-acts .scene-dot.is-green { background: #3d7d6c; }
+  .plan-card { margin-top: 14px; border: 1px solid #d8c397; border-radius: 10px; background: #f8f0dc; overflow: hidden; }
+  .plan-card .cap { padding: 8px 12px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8a6f3d; border-bottom: 1px solid #e2d3ab; display: flex; align-items: center; gap: 8px; }
+  .plan-card .body { height: 210px; }
+  .scene-title { font-family: var(--serif); font-size: 27px; color: #3a2a10; margin: 4px 0 4px; }
+  .scene-sub { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #8a6f3d; }
+  .scene-tags { display: flex; gap: 6px; margin: 10px 0 14px; }
+  .scene-tags .tag { color: #6d4d1c; border-color: #d8c397; background: rgba(201,164,76,.12); }
+  .scene-text { font-family: var(--serif); font-size: 15.5px; line-height: 1.62; color: #3b2f1c; }
+  .scene-text::first-letter { font-size: 34px; float: left; line-height: .9; padding: 4px 6px 0 0; color: #8a6f3d; }
+  .rule { height: 1px; background: linear-gradient(90deg, transparent, #d8c397, transparent); margin: 18px 0 16px; }
+  .section-label { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8a6f3d; margin-bottom: 8px; }
+  .out-list { display: flex; flex-direction: column; gap: 6px; }
+  .out-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #dcc9a0; border-radius: 8px; background: #f8f0dc; border-left-width: 3px; }
+  .out-row.is-default { border-left-color: #b98a2e; }
+  .out-row.is-gm { border-left-color: #7b62a8; }
+  .out-row.is-branch { border-left-color: #4f8aa6; }
+  .out-row .mk { width: 16px; color: #8a6f3d; }
+  .out-row .lbl { flex: 1; color: #3b2f1c; }
+  .out-row .to { color: #8a6f3d; font-size: 11px; }
+  .gm-notes { border: 1px dashed #c8ae78; border-radius: 8px; background: #f8f0dc; padding: 10px 12px; color: #6d5a38; font-size: 12.5px; line-height: 1.55; min-height: 68px; }
+  .scene-foot { display: flex; align-items: center; gap: 10px; padding: 10px 22px; border-top: 1px solid #d8c397; background: #eadfbe; color: #6d5a38; font-size: 12px; }
+  .scene-foot .btn { background: #f8f0dc; border-color: #c8ae78; color: #4a3414; }
+  .scene-foot .navbtn { padding: 6px 10px; border-radius: 7px; border: 1px solid #c8ae78; background: #f8f0dc; color: #4a3414; }
+  .chips .chip { border-color: #d8c397; color: #6d4d1c; background: rgba(201,164,76,.1); }
+  .chips .chip--map { border-color: #b9c6e8; color: #3d5480; background: rgba(130,150,216,.12); }
+</style>
+</head>
+<body data-variant="table-mj">
+  <header class="topbar">
+    <button class="back">← Retour</button>
+    <div class="crumbs">Hub › Scénarios › <b style="color:var(--muted)">Éditeur</b></div>
+    <div class="doc-title">Retour à Valbois</div>
+    <nav class="bookmarks">
+      <button class="bookmark on">Préparation</button>
+      <button class="bookmark">Plan</button>
+      <button class="bookmark">Session</button>
+      <button class="bookmark">Validation</button>
+    </nav>
+    <span class="spacer"></span>
+    <span class="badge badge--gold">✓ Graphe valide</span>
+    <button class="btn">▶ Tester</button>
+    <button class="btn btn--gold">Enregistrer</button>
+  </header>
+
+  <div class="spread">
+    <!-- Page de gauche : sommaire + plan -->
+    <section class="page page--left">
+      <div class="page-head">
+        <span class="kicker">Préparation</span>
+        <h2>Sommaire du scénario</h2>
+        <span class="spacer"></span>
+        <span class="badge" style="border-color:#d8c397;color:#6d4d1c">9 scènes</span>
+      </div>
+      <div class="page-scroll">
+        <div class="p-search">⌕ Filtrer par acte, lieu, tag…</div>
+        <div class="plan-card">
+          <div class="cap">Le plan <span class="spacer"></span><span style="font-size:10px">clic = sélectionner</span></div>
+          <div class="body" id="mini"></div>
+        </div>
+        <div id="acts" class="table-acts"></div>
+      </div>
+    </section>
+
+    <div class="spine"></div>
+
+    <!-- Page de droite : la scène, comme on la lit en table -->
+    <section class="page page--right">
+      <div class="page-head">
+        <span class="kicker" id="scene-kicker">Scène 03 / 09</span>
+        <span class="spacer"></span>
+        <span class="badge" style="border-color:#d8c397;color:#6d4d1c">Acte I</span>
+        <span class="badge" id="scene-id" style="border-color:#d8c397;color:#6d4d1c"></span>
+      </div>
+      <div class="page-scroll" id="scene-body"></div>
+      <div class="scene-foot">
+        <button class="navbtn">◀ Précédente</button>
+        <span class="mono" style="font-size:11px" id="scene-index">3 / 9</span>
+        <button class="navbtn">Suivante ▶</button>
+        <span class="spacer"></span>
+        <span>Suite par défaut : <b id="default-next">—</b></span>
+        <button class="btn btn--sm">Clore l'aventure</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="assets/mock.js"></script>
+  <script>
+    (function () {
+      const M = window.MOCK;
+      const S = M.scenario;
+      const mini = M.mountGraph(document.getElementById("mini"), { w: 1360, h: 820, mini: true, dim: false, interactive: true });
+      const actsEl = document.getElementById("acts");
+      const bodyEl = document.getElementById("scene-body");
+
+      function renderActs() {
+        actsEl.innerHTML = M.actsHTML(S.selected);
+        actsEl.querySelectorAll(".scene-row").forEach((el) => el.addEventListener("click", () => select(el.dataset.id)));
+      }
+
+      function renderScene() {
+        const s = M.scene(S.selected);
+        const idx = S.scenes.indexOf(s) + 1;
+        document.getElementById("scene-kicker").textContent = "Scène " + String(idx).padStart(2, "0") + " / " + String(S.scenes.length).padStart(2, "0");
+        document.getElementById("scene-id").textContent = s.id;
+        document.getElementById("scene-index").textContent = idx + " / " + S.scenes.length;
+        const def = s.transitions.find((t) => t.default);
+        document.getElementById("default-next").textContent = def ? def.label : "aucune (fin)";
+        const outs = s.transitions.map((t) => {
+          const kind = t.default ? "is-default" : t.gmOnly ? "is-gm" : "is-branch";
+          const mk = t.default ? "★" : t.gmOnly ? "👁" : "→";
+          const to = M.byId[t.to] ? M.byId[t.to].title : t.to;
+          return `<div class="out-row ${kind}"><span class="mk">${mk}</span><span class="lbl">${M.esc(t.label)}</span><span class="to">→ ${M.esc(to)}</span></div>`;
+        }).join("");
+        const npcs = S.npcs.filter((n) => n.scenes.includes(s.id));
+        bodyEl.innerHTML = `
+          <div class="scene-sub">${s.start ? "★ Scène de départ" : s.terminal ? "⚑ Fin de branche" : "Scène " + String(idx).padStart(2, "0")}</div>
+          <h1 class="scene-title">${M.esc(s.title)}</h1>
+          <div class="scene-tags">${s.tags.map((t) => `<span class="tag">#${M.esc(t)}</span>`).join("")}</div>
+          <div class="scene-text">${M.esc(s.content)}</div>
+          <div class="rule"></div>
+          <div class="section-label">Sorties de scène (${s.transitions.length})</div>
+          <div class="out-list">${outs || '<div class="gm-notes">Scène terminale — le MJ peut clore l\u2019aventure.</div>'}</div>
+          <div class="rule"></div>
+          <div class="section-label">Notes privées du MJ</div>
+          <div class="gm-notes">Ici, le MJ prépare ses répliques et ses secrets : rien de ce texte n\u2019est montré aux joueurs. (Zone de texte persistée par scène.)</div>
+          <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap">
+            <div><div class="section-label">Cartes liées</div><div class="chips">${S.maps.slice(0, 2).map((m) => `<span class="chip chip--map">${M.esc(m)}</span>`).join("")}</div></div>
+            <div><div class="section-label">PNJ présents</div><div class="chips">${(npcs.length ? npcs.map((n) => `<span class="chip">${M.esc(n.name)}</span>`).join("") : '<span class="chip">—</span>')}</div></div>
+          </div>`;
+      }
+
+      function select(id) {
+        if (id !== S.selected) M.emitSelect(id);
+        if (mini) mini.select(id);
+        renderActs(); renderScene();
+      }
+
+      renderActs(); renderScene();
+      M.onSelect((id) => { if (mini) mini.select(id); renderActs(); renderScene(); });
+      actsEl.addEventListener("click", (e) => e.stopPropagation());
+    })();
+  </script>
+</body>
+</html>

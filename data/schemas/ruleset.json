@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/ruleset.json",
+  "title": "OpenQuest Ruleset",
+  "description": "Fiche déclarative (ruleset) : champs, valeurs dérivées, jets et tables, décrits sans code. Implémentation : game/scripts/core/rules/ruleset.gd + formula.gd. Exemples : game/data/rulesets/*.json.",
+  "type": "object",
+  "required": ["id", "title", "fields"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Identifiant stable du ruleset (kebab-case)."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "description": { "type": "string" },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Champs saisis sur la fiche (le premier est souvent la caractéristique principale).",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "label": { "type": "string" },
+          "type": { "type": "string", "enum": ["int", "float", "bool", "string"] },
+          "min": { "type": "number" },
+          "max": { "type": "number" },
+          "default": { "type": ["number", "boolean", "string"] },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "derived": {
+      "type": "array",
+      "description": "Valeurs calculées à partir des champs et d'autres dérivés (formule maison, pas de JavaScript).",
+      "items": {
+        "type": "object",
+        "required": ["id", "formula"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "label": { "type": "string" },
+          "formula": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Ex. floor((@str - 10) / 2), max(1, 6 + @mod_con), if(@level >= 5, 3, 2)."
+          }
+        }
+      }
+    },
+    "rolls": {
+      "type": "array",
+      "description": "Jets standard : formule étendue avec les valeurs puis passée au moteur de dés.",
+      "items": {
+        "type": "object",
+        "required": ["id", "formula"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "label": { "type": "string" },
+          "formula": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Formule de dés du lot 1, références @champ autorisées. Ex. 1d20 + @mod_str, 2d6[degats]."
+          },
+          "visibility": { "type": "string", "enum": ["table", "gm"] }
+        }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rows"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "label": { "type": "string" },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id"],
+              "additionalProperties": true,
+              "properties": {
+                "id": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

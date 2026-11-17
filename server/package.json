@@ -9,6 +9,10 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test:dice": "tsx scripts/test_dice_engine.ts",
+    "test:lobby": "tsx scripts/test_lobby.ts",
+    "test:lobby:net": "tsx scripts/test_lobby_integration.ts",
+    "test": "npm run test:dice && npm run test:lobby && npm run test:lobby:net",
     "mcp": "tsx src/mcp/run.ts"
   },
   "engines": {

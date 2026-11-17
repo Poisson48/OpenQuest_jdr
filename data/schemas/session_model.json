@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/session_model.json",
+  "title": "OpenQuest Session Model",
+  "description": "Contrat des structures de session embarquées dans active_game / save_game : barres et aura de token, journal de campagne, ordre de tour optionnel, quickbar par personnage. Implémentation : game/scripts/autoload/game_data.gd (section « Modèle de session »).",
+  "type": "object",
+  "properties": {
+    "journal": { "$ref": "#/$defs/Journal" },
+    "turnOrder": { "$ref": "#/$defs/TurnOrder" },
+    "quickbars": { "$ref": "#/$defs/Quickbars" }
+  },
+  "$defs": {
+    "TokenBar": {
+      "type": "object",
+      "required": ["id", "label", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 24 },
+        "label": { "type": "string", "maxLength": 24 },
+        "value": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 },
+        "color": { "type": "string" },
+        "link": {
+          "type": "string",
+          "description": "Lien vers une valeur de fiche, ex. member:hero-1:hp."
+        }
+      }
+    },
+    "TokenAura": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "type": "string" },
+        "radius": { "type": "number", "minimum": 0.25, "maximum": 8.0 },
+        "pulse": { "type": "boolean" },
+        "label": { "type": "string", "maxLength": 40 }
+      }
+    },
+    "JournalPage": {
+      "type": "object",
+      "required": ["id", "title", "body", "visibility"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "visibility": {
+          "type": "string",
+          "enum": ["table", "gm"],
+          "description": "table = visible par les joueurs ; gm = MJ uniquement."
+        },
+        "updatedAt": { "type": "integer" }
+      }
+    },
+    "JournalFolder": {
+      "type": "object",
+      "required": ["id", "title", "pages"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "pages": { "type": "array", "items": { "$ref": "#/$defs/JournalPage" } }
+      }
+    },
+    "Journal": {
+      "type": "object",
+      "required": ["folders"],
+      "additionalProperties": false,
+      "properties": {
+        "folders": { "type": "array", "items": { "$ref": "#/$defs/JournalFolder" } }
+      }
+    },
+    "TurnOrderItem": {
+      "type": "object",
+      "required": ["id", "name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "value": { "type": "integer" },
+        "memberId": { "type": "string" },
+        "color": { "type": "string" }
+      }
+    },
+    "TurnOrder": {
+      "type": "object",
+      "required": ["open", "direction", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "open": {
+          "type": "boolean",
+          "description": "false = aucun ordre de tour actif (tour narratif)."
+        },
+        "direction": {
+          "type": "integer",
+          "enum": [1, -1],
+          "description": "1 = décroissant (initiative classique), -1 = croissant."
+        },
+        "index": { "type": "integer", "minimum": 0 },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/TurnOrderItem" } }
+      }
+    },
+    "QuickbarSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string", "maxLength": 40 },
+        "action": { "type": "string", "enum": ["roll", "action", "note"] },
+        "formula": { "type": "string", "maxLength": 120 },
+        "visibility": { "type": "string", "enum": ["table", "gm"] },
+        "icon": { "type": "string", "maxLength": 8 }
+      }
+    },
+    "Quickbars": {
+      "type": "object",
+      "description": "Clé = identifiant de personnage, valeur = au plus 10 emplacements.",
+      "additionalProperties": {
+        "type": "array",
+        "maxItems": 10,
+        "items": { "$ref": "#/$defs/QuickbarSlot" }
+      }
+    }
+  }
+}

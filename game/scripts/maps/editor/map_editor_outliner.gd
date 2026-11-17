@@ -1,6 +1,8 @@
 extends VBoxContainer
 class_name MapEditorOutliner
 
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const EmptyStateScript := preload("res://scripts/maps/editor/v2/empty_state.gd")
 
@@ -133,7 +135,7 @@ func _add_layer_header(layer_def: Dictionary, count: int) -> void:
 	name_lbl.text = "%s (%d)" % [layer_def.get("name", "Calque"), count]
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.add_theme_font_size_override("font_size", 12)
-	name_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	name_lbl.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	row.add_child(name_lbl)
 
 	var visible_btn := Button.new()
@@ -194,7 +196,7 @@ func _add_orphan_header(layer_id: int) -> void:
 	var lbl := Label.new()
 	lbl.text = "Calque %d (hors liste)" % layer_id
 	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	_tree_host.add_child(lbl)
 
 func _add_element_row(elem: Dictionary) -> void:
@@ -220,9 +222,9 @@ func _add_element_row(elem: Dictionary) -> void:
 		float(elem.get("x", 0.0)), float(elem.get("y", 0.0)),
 	]
 	if doc.is_selected(id):
-		btn.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		btn.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	elif not doc.is_element_visible(elem):
-		btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		btn.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	btn.pressed.connect(func():
 		if Input.is_key_pressed(KEY_CTRL):
 			doc.toggle_selection(id)

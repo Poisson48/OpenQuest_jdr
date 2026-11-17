@@ -6,6 +6,42 @@ const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const GraphNodeScene := preload("res://scenes/scenario_editor/panels/graph_node.tscn")
 const TransitionRowScene := preload("res://scenes/scenario_editor/panels/transition_row.tscn")
 const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
+const GraphLinkOverlayScript := preload("res://scripts/scenario_editor/panels/graph_link_overlay.gd")
+
+## Bornes du zoom manuel (pilule zoom / rail d'outils).
+const GRAPH_ZOOM_MIN := 0.35
+const GRAPH_ZOOM_MAX := 1.6
+## Cadrage : espace réservé aux panneaux flottants du canevas (rail d'outils à
+## gauche, pilules en bas). Le graphe se cale dans l'espace restant pour
+## qu'aucune carte ne passe sous un panneau.
+const FIT_INSET_LEFT := 54.0
+const FIT_INSET_RIGHT := 6.0
+const FIT_INSET_TOP := 8.0
+const FIT_INSET_BOTTOM := 10.0
+## Inspecteur de droite (≈ 390 px, style Atelier).
+const INSPECTOR_WIDTH := 380.0
+## Panneau flottant « Plan d'ensemble » (minimap) en bas-gauche du canevas.
+const MINIMAP_CAPTION := "Plan d'ensemble"
+const MINIMAP_PANEL_SIZE := Vector2(220.0, 150.0)
+const MINIMAP_MARGIN := Vector2(10.0, 62.0)
+## Onglets de l'inspecteur de droite (refonte 04).
+const DETAILS_TAB_SCENE := "scene"
+const DETAILS_TAB_BRANCHES := "branches"
+const DETAILS_TAB_META := "meta"
+## Modes du centre (refonte 04 « Console de nœuds »).
+const MODE_GRAPH := "graph"
+const MODE_SCENARIO := "scenario"
+const MODE_NPC := "npc"
+const MODE_MAPS := "maps"
+## Outils de la sous-barre.
+const TOOL_SELECT := "select"
+const TOOL_LINK := "link"
+const TOOL_NOTE := "note"
+const TOOL_FRAME := "frame"
+## Onglets du dock bas.
+const DOCK_TAB_ISSUES := "issues"
+const DOCK_TAB_HISTORY := "history"
+const DOCK_TAB_JOURNAL := "journal"
 
 @onready var status_lbl: Label = %LblStatus
 @onready var graph_edit: GraphEdit = %GraphEdit
@@ -28,6 +64,50 @@ const NpcRowScene := preload("res://scenes/scenario_editor/panels/npc_row.tscn")
 @onready var scene_content: TextEdit = %SceneContent
 @onready var transitions_list: VBoxContainer = %TransitionsList
 @onready var scene_badge_lbl: Label = %LblSceneBadge
+# --- Console de nœuds (refonte 04) : barre slim, inspecteur, dock ---
+@onready var scenario_badge_lbl: Label = %LblScenarioBadge
+@onready var scenario_badge_id_lbl: Label = %LblScenarioBadgeId
+@onready var graph_count_lbl: Label = %LblGraphCount
+@onready var zoom_lbl: Label = %LblZoom
+@onready var mode_graph_btn: Button = %BtnModeGraph
+@onready var details_btn_scene: Button = %BtnDetailsScene
+@onready var details_btn_branches: Button = %BtnDetailsBranches
+@onready var details_btn_meta: Button = %BtnDetailsMeta
+@onready var details_scene_tab: VBoxContainer = %DetailsSceneTab
+@onready var details_branches_tab: VBoxContainer = %DetailsBranchesTab
+@onready var details_meta_tab: VBoxContainer = %DetailsMetaTab
+@onready var branches_hint_lbl: Label = %LblBranchesHint
+@onready var dock_issues_list: VBoxContainer = %DockIssuesList
+@onready var dock_issues_btn: Button = %BtnDockIssues
+@onready var dock_issue_count_lbl: Label = %LblIssueCount
+# --- Mix Atelier : barre slim, canevas ouvert, panneaux flottants ---
+@onready var top_bar: HBoxContainer = %TopBar
+@onready var search_btn: Button = %BtnTopSearch
+@onready var health_summary_btn: Button = %BtnHealthSummary
+@onready var validation_btn: Button = %BtnValidation
+@onready var test_btn: Button = %BtnTest
+@onready var problems_pill: Button = %BtnProblemsPill
+@onready var dock_panel: PanelContainer = %DockPanel
+@onready var dock_close_btn: Button = %BtnDockClose
+@onready var graph_panel_node: PanelContainer = %GraphPanel
+@onready var canvas_overlay: Control = %CanvasOverlay
+@onready var tool_rail: PanelContainer = %ToolRail
+@onready var legend_pill: PanelContainer = %LegendPill
+@onready var zoom_pill: PanelContainer = %ZoomPill
+@onready var hint_pill: PanelContainer = %HintPill
+@onready var legend_health_lbl: Label = %LblLegendHealth
+@onready var scene_badge_panel: PanelContainer = %ScenarioBadgePanel
+@onready var scene_kicker_lbl: Label = %LblSceneKicker
+@onready var scene_title_big: Label = %LblSceneTitleBig
+@onready var scene_id_chip: PanelContainer = %SceneIdChip
+@onready var scene_tag_chips: HFlowContainer = %SceneTagChips
+@onready var scene_map_chips: HFlowContainer = %SceneMapChips
+@onready var scene_npc_chips: HFlowContainer = %SceneNpcChips
+@onready var scene_npc_col: VBoxContainer = %SceneNpcCol
+@onready var duplicate_scene_btn: Button = %BtnDuplicateScene
+@onready var scene_action_bar: VBoxContainer = %SceneActionBar
+@onready var branches_count_lbl: Label = %LblTransitions
+@onready var hints_lbl: Label = %LblHints
 
 var _scenario: Dictionary = {}
 var _selected_scene_id: String = ""
@@ -42,6 +122,38 @@ var _graph_panning: bool = false
 var _graph_pan_last: Vector2 = Vector2.ZERO
 var _refreshing_scene_maps: bool = false
 var _rebuild_scheduled: bool = false
+var _link_overlay: Control = null
+var _details_tab: String = DETAILS_TAB_SCENE
+var _graph_issues: Array = []
+var _initial_fit_done: bool = false
+# --- Console de nœuds : modes, outils, vues, palette, minimap, dock ---------
+var _mode: String = MODE_GRAPH
+var _tool: String = TOOL_SELECT
+var _dock_tab: String = DOCK_TAB_ISSUES
+var _dock_open: bool = false
+var _link_source_id: String = ""
+var _views: Control = null
+var _palette: Control = null
+var _minimap: Control = null
+var _graph_panel: Control = null
+var _views_host: Control = null
+var _dock_issues_panel: Control = null
+var _dock_history_panel: Control = null
+var _dock_journal_panel: Control = null
+var _validation_badge: Button = null
+var _hints_lbl: Label = null
+var _mode_buttons: Dictionary = {}
+var _tool_buttons: Dictionary = {}
+var _dock_buttons: Dictionary = {}
+var _history_entries: Array = []
+var _journal_entries: Array = []
+var _frame_dragging: bool = false
+var _frame_drag_start: Vector2 = Vector2.ZERO
+var _note_dialog: ConfirmationDialog = null
+var _note_edit: LineEdit = null
+var _note_editing_id: String = ""
+var _link_last_sid: String = ""
+var _link_click_ms: int = 0
 
 func _ready() -> void:
 	%TopBar.back_pressed.connect(_on_back_pressed)
@@ -58,6 +170,13 @@ func _ready() -> void:
 	%BtnFitView.pressed.connect(_on_fit_view_pressed)
 	%BtnValidate.pressed.connect(_on_validate_pressed)
 	%ConfirmDeleteScene.confirmed.connect(_on_confirm_delete_scene)
+	_validation_badge = validation_btn
+	_hints_lbl = hints_lbl
+	_connect_console_buttons()
+	_slim_top_bar()
+	_install_backdrop()
+	_style_compact_ui()
+	_style_floating_panels()
 	scene_maps.multi_selected.connect(_on_scene_maps_multi_selected)
 	scene_maps.item_selected.connect(func(_idx): _on_scene_maps_changed())
 
@@ -68,15 +187,400 @@ func _ready() -> void:
 	_load_scenario()
 	_connect_graph_signals()
 	_refresh_all()
-	call_deferred("_on_fit_view_pressed")
+	_set_details_tab(DETAILS_TAB_SCENE)
+	_style_tab_button(mode_graph_btn, true)
+	for disabled_tab in [%BtnModeScenario, %BtnModeNpc, %BtnModeMaps, %BtnDockHistory, %BtnDockJournal]:
+		_style_tab_button(disabled_tab, false)
+	_style_tab_button(dock_issues_btn, true)
+	_build_console_extras()
+	_update_zoom_label()
+	call_deferred("_run_initial_fit")
+	call_deferred("_enforce_compact_buttons")
+	call_deferred("_balance_top_bar")
+	if not top_bar.resized.is_connected(_balance_top_bar):
+		top_bar.resized.connect(_balance_top_bar)
+
+## Cadrage initial : le graphe est reconstruit en différé et les tailles de cartes
+## sont appliquées après coup. Cadrer trop tôt donnait un zoom minimal (35 %) et
+## des cartes coupées. On attend la fin du rebuild + stabilisation du layout.
+func _run_initial_fit() -> void:
+	if _initial_fit_done:
+		return
+	await get_tree().process_frame
+	for _i in range(60):
+		if not is_inside_tree():
+			return
+		await get_tree().process_frame
+		var nodes := 0
+		for child in graph_edit.get_children():
+			if child is GraphNode and is_instance_valid(child):
+				nodes += 1
+		if not _rebuilding_graph and nodes > 0:
+			break
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	_on_fit_view_pressed()
+	_auto_select_start_scene()
+	# Les tailles définitives des cartes (contenu, lignes tronquées) arrivent
+	# après plusieurs frames : on recadre pendant ~0,7 s pour converger, sinon la
+	# vue reste coupée en bas (zoom calculé sur des tailles provisoires).
+	for _i in range(42):
+		if not is_inside_tree():
+			return
+		await get_tree().process_frame
+		_on_fit_view_pressed()
+	_initial_fit_done = true
+
+## Sélectionne la scène de départ à l'ouverture (sinon le panneau détails reste
+## vide et le graphe n'a aucun nœud sélectionné).
+func _auto_select_start_scene() -> void:
+	if not _selected_scene_id.is_empty():
+		return
+	var start_id := str(_scenario.get("startSceneId", ""))
+	if start_id.is_empty() or _scene_index_for_id(start_id) < 0:
+		return
+	_selected_scene_id = start_id
+	_refresh_graph_node_chrome(start_id)
+	_refresh_graph_selection_styles()
+	_refresh_transitions_ui()
+	_refresh_scene_panel()
+
+## Barre haute compacte du mix Atelier : fil d'Ariane et titre resserrés, le
+## badge scénario suit directement le titre, le champ de recherche occupe le
+## centre et les actions restent à droite.
+func _slim_top_bar() -> void:
+	var top := %TopBar
+	top.add_theme_constant_override("separation", 8)
+	top.crumb.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_MICRO - 1)
+	top.title.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_H3 + 2)
+	top.btn_back.add_theme_font_size_override("font_size", ThemeColors.FONT_SIZE_MICRO + 1)
+	(top.get_node("Actions") as HBoxContainer).add_theme_constant_override("separation", 6)
+	# Le titre ne prend plus toute la largeur : badge juste après, puis les
+	# deux ressorts qui centrent le champ de recherche.
+	var titles: Control = top.get_node("Titles")
+	titles.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	scene_badge_panel.visible = true
+
+## Fond de page façon Atelier : aplat très sombre + trame de points sur TOUTE la
+## fenêtre, et canevas du graphe transparent (ni panneau opaque, ni grille
+## GraphEdit) pour laisser respirer le « côté ouvert ». Aucun dégradé.
+func _install_backdrop() -> void:
+	var bg := get_node_or_null("Background")
+	if bg is CanvasItem:
+		(bg as CanvasItem).visible = false
+	var backdrop: Control = null
+	var backdrop_script: Resource = null
+	var backdrop_path := "res://scripts/scenario_editor/panels/editor_backdrop.gd"
+	if ResourceLoader.exists(backdrop_path):
+		backdrop_script = load(backdrop_path)
+	if backdrop_script is Script:
+		backdrop = (backdrop_script as Script).new() as Control
+	if backdrop != null:
+		backdrop.name = "Backdrop"
+		backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(backdrop)
+		move_child(backdrop, 0)
+	# Canevas transparent : la trame de page traverse le graphe.
+	var empty := StyleBoxEmpty.new()
+	graph_edit.add_theme_stylebox_override("panel", empty)
+	graph_edit.show_grid = false
+	var graph_panel := graph_edit.get_parent().get_parent() as PanelContainer
+	if graph_panel != null:
+		graph_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	# Sous-barre : fine barre flottante translucide, le fond reste visible.
+	var subbar := get_node_or_null("MainLayout/SubBar") as PanelContainer
+	if subbar != null:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.05, 0.045, 0.075, 0.72)
+		style.set_corner_radius_all(10)
+		style.set_border_width_all(1)
+		style.border_color = Color(1, 1, 1, 0.06)
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 4
+		style.content_margin_bottom = 4
+		subbar.add_theme_stylebox_override("panel", style)
+
+
+## Branche les contrôles propres à la console (sous-barre, onglets, dock).
+func _connect_console_buttons() -> void:
+	%BtnZoomOut.pressed.connect(_on_zoom_out_pressed)
+	%BtnZoomIn.pressed.connect(_on_zoom_in_pressed)
+	# Bouton de mode actif : ne jamais pouvoir le désactiver (aucune autre vue).
+	mode_graph_btn.toggled.connect(func(on: bool):
+		if not on:
+			mode_graph_btn.button_pressed = true
+	)
+	details_btn_scene.pressed.connect(func(): _set_details_tab(DETAILS_TAB_SCENE))
+	details_btn_branches.pressed.connect(func(): _set_details_tab(DETAILS_TAB_BRANCHES))
+	details_btn_meta.pressed.connect(func(): _set_details_tab(DETAILS_TAB_META))
+	# Onglet « Problèmes » : déjà actif, on rafraîchit par confort (pas de vue morte).
+	dock_issues_btn.toggled.connect(func(on: bool):
+		if not on:
+			dock_issues_btn.button_pressed = true
+			return
+		_refresh_dock()
+	)
+	# --- Barre slim : recherche, résumé, validation, test, dock --------------
+	search_btn.pressed.connect(_open_palette)
+	health_summary_btn.pressed.connect(_open_palette)
+	validation_btn.pressed.connect(_on_validation_badge_pressed)
+	test_btn.pressed.connect(_on_test_pressed)
+	problems_pill.pressed.connect(_toggle_dock)
+	dock_close_btn.pressed.connect(func(): _set_dock_open(false))
+	duplicate_scene_btn.pressed.connect(_on_duplicate_scene_pressed)
+	if graph_edit.has_signal("zoom_changed"):
+		graph_edit.zoom_changed.connect(_update_zoom_label)
+
+## Tailles compactes : l'autoload ButtonSizing impose 48 px de haut à tous les
+## boutons ; la barre slim et les panneaux flottants ont besoin de contrôles de
+## 26 à 34 px. `skip_button_sizing` empêche l'écrasement (posé avant le passage
+## différé de l'autoload), `_enforce_compact_buttons` le re-applique ensuite.
+func _style_compact_ui() -> void:
+	var compact_defs: Array = [
+		[%TopBar.get_node("BtnBack") as Button, 28, 12],
+		[search_btn, 26, 12],
+		[health_summary_btn, 26, 11],
+		[validation_btn, 26, 11],
+		[%BtnValidate, 28, 12],
+		[test_btn, 28, 12],
+		[%BtnSave, 30, 13],
+		[%BtnModeGraph, 28, 12],
+		[%BtnModeScenario, 28, 12],
+		[%BtnModeNpc, 28, 12],
+		[%BtnModeMaps, 28, 12],
+		[%BtnAddScene, 28, 12],
+		[%BtnAddNpc, 28, 12],
+		[%BtnAutoLayout, 28, 11],
+		[details_btn_scene, 30, 12],
+		[details_btn_branches, 30, 12],
+		[details_btn_meta, 30, 12],
+		[%BtnZoomOut, 26, 16],
+		[%BtnZoomIn, 26, 16],
+		[%BtnFitView, 26, 15],
+		[problems_pill, 28, 11],
+		[dock_issues_btn, 28, 11],
+		[%BtnDockHistory, 28, 11],
+		[%BtnDockJournal, 28, 11],
+		[dock_close_btn, 24, 13],
+		[duplicate_scene_btn, 28, 11],
+		[%BtnDeleteScene, 28, 11],
+		[%BtnSetStart, 28, 11],
+		[%BtnAddTransition, 28, 11],
+		[%BtnAddNpcPanel, 28, 11],
+	]
+	for def_variant in compact_defs:
+		var def: Array = def_variant
+		_compact_button(def[0] as Button, float(def[1]), int(def[2]))
+	# Style « ghost » resserré : le thème a 10 px de marge par côté, ce qui
+	# fait déborder la barre haute à 1280 px de large.
+	var ghost_normal := _make_flat_style(Color(0, 0, 0, 0), 6, Color(0, 0, 0, 0), 0)
+	ghost_normal.content_margin_left = 7.0
+	ghost_normal.content_margin_right = 7.0
+	ghost_normal.content_margin_top = 2.0
+	ghost_normal.content_margin_bottom = 2.0
+	var ghost_hover := ghost_normal.duplicate() as StyleBoxFlat
+	ghost_hover.bg_color = Color(0.2, 0.169, 0.278, 0.8)
+	var ghost_pressed := ghost_normal.duplicate() as StyleBoxFlat
+	ghost_pressed.bg_color = Color(0.227, 0.173, 0.09, 1.0)
+	for ghost_btn in [health_summary_btn, validation_btn, %BtnValidate, test_btn,
+			%BtnModeGraph, %BtnModeScenario, %BtnModeNpc, %BtnModeMaps,
+			%BtnAddScene, %BtnAddNpc, %BtnAutoLayout, duplicate_scene_btn,
+			%BtnSetStart, %BtnAddTransition, %BtnAddNpcPanel, problems_pill]:
+		var ghost := ghost_btn as Button
+		if ghost == null:
+			continue
+		ghost.add_theme_stylebox_override("normal", ghost_normal)
+		ghost.add_theme_stylebox_override("hover", ghost_hover)
+		ghost.add_theme_stylebox_override("pressed", ghost_pressed)
+		ghost.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	# Champ de recherche : bouton stylé « input ».
+	search_btn.custom_minimum_size = Vector2(238, 26)
+	search_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	search_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	search_btn.focus_mode = Control.FOCUS_ALL
+	var search_style := _make_flat_style(ThemeColors.BG_INPUT, 8, ThemeColors.BORDER, 1)
+	search_style.content_margin_left = 10.0
+	search_style.content_margin_right = 8.0
+	search_style.content_margin_top = 2.0
+	search_style.content_margin_bottom = 2.0
+	var search_hover := search_style.duplicate() as StyleBoxFlat
+	search_hover.border_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
+		ThemeColors.GOLD.b, 0.55)
+	search_btn.add_theme_stylebox_override("normal", search_style)
+	search_btn.add_theme_stylebox_override("hover", search_hover)
+	search_btn.add_theme_stylebox_override("pressed", search_hover)
+	search_btn.add_theme_stylebox_override("focus", search_hover)
+	search_btn.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	search_btn.add_theme_color_override("font_hover_color", ThemeColors.TEXT)
+	# Badge d'identifiant du scénario (pilule).
+	var badge_style := _make_flat_style(
+		Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.10), 10,
+		Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.40), 1)
+	badge_style.content_margin_left = 7.0
+	badge_style.content_margin_right = 7.0
+	badge_style.content_margin_top = 1.0
+	badge_style.content_margin_bottom = 1.0
+	scene_badge_panel.add_theme_stylebox_override("panel", badge_style)
+	scene_badge_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scenario_badge_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	scenario_badge_id_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	# Le pied de l'en-tête (n°/acte) reste discret.
+	# Chip d'identifiant de scène (inspecteur).
+	var id_style := _make_flat_style(Color(0.0, 0.0, 0.0, 0.22), 10, ThemeColors.BORDER, 1)
+	id_style.content_margin_left = 8.0
+	id_style.content_margin_right = 8.0
+	id_style.content_margin_top = 2.0
+	id_style.content_margin_bottom = 2.0
+	scene_id_chip.add_theme_stylebox_override("panel", id_style)
+	scene_id_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_inspector_density()
+
+## Densité de l'inspecteur : libellés en petites capitales et champs compacts
+## (le panneau fait 380 px, il doit tenir sans scrolling inutile).
+func _style_inspector_density() -> void:
+	var micro_labels: Array = []
+	for label_name in ["LblSceneTitle", "LblSceneTags", "LblSceneContent", "LblSceneMaps",
+			"LblSceneNpcs", "LblSynopsis", "LblSetting", "LblStart", "LblSceneBadge"]:
+		var node := find_child(label_name, true, false) as Label
+		if node != null:
+			micro_labels.append(node)
+	for label_variant in micro_labels:
+		var label := label_variant as Label
+		label.add_theme_font_size_override("font_size", 11)
+	for edit in [scene_title, scene_tags]:
+		(edit as LineEdit).add_theme_font_size_override("font_size", 15)
+		(edit as LineEdit).custom_minimum_size = Vector2(0, 34)
+	for text_edit in [scene_content, meta_synopsis, meta_setting, meta_mystery]:
+		(text_edit as TextEdit).add_theme_font_size_override("font_size", 14)
+	scene_content.custom_minimum_size = Vector2(0, 104)
+	scene_title_big.add_theme_font_size_override("font_size", 23)
+	scene_kicker_lbl.add_theme_font_size_override("font_size", 11)
+	branches_count_lbl.add_theme_font_size_override("font_size", 17)
+	# OptButtons / ItemList de l'inspecteur.
+	for opt in [meta_format, meta_roster, meta_start_scene]:
+		(opt as OptionButton).add_theme_font_size_override("font_size", 13)
+	scene_maps.add_theme_font_size_override("font_size", 12)
+
+## Centre visuellement le champ de recherche dans la barre haute : les deux
+## ressorts autour de lui reçoivent la place restante, recalculée à chaque
+## redimensionnement (sinon il dérive vers la droite à cause des actions).
+func _balance_top_bar() -> void:
+	if top_bar == null or search_btn == null:
+		return
+	var back_btn: Control = top_bar.get_node_or_null("BtnBack") as Control
+	var titles: Control = top_bar.get_node_or_null("Titles") as Control
+	var actions: Control = top_bar.get_node_or_null("Actions") as Control
+	var spacer_l: Control = top_bar.get_node_or_null("TopSpacerL") as Control
+	var spacer_r: Control = top_bar.get_node_or_null("TopSpacerR") as Control
+	if back_btn == null or titles == null or actions == null \
+			or spacer_l == null or spacer_r == null:
+		return
+	var separations := 8.0 * float(maxi(top_bar.get_child_count() - 1, 0))
+	var left_block := back_btn.size.x + titles.size.x + scene_badge_panel.size.x
+	var free := top_bar.size.x - left_block - actions.size.x - search_btn.size.x - separations
+	if free <= 1.0:
+		spacer_l.custom_minimum_size.x = 0.0
+		spacer_r.custom_minimum_size.x = 0.0
+		return
+	var half := maxf((top_bar.size.x - search_btn.size.x) * 0.5, 0.0)
+	# 2 séparations entre les 3 blocs de gauche.
+	var left_needed := clampf(half - left_block - 16.0, 0.0, free)
+	spacer_l.custom_minimum_size.x = left_needed
+	spacer_r.custom_minimum_size.x = maxf(free - left_needed, 0.0)
+
+## Re-applique les tailles compactes après le passage différé de ButtonSizing.
+func _enforce_compact_buttons() -> void:
+	for button in find_children("*", "BaseButton", true, false):
+		if button.has_meta("skip_button_sizing"):
+			var target: Button = button as Button
+			if target == null:
+				continue
+			var wanted := float(target.get_meta("compact_height", 0.0))
+			if wanted > 0.0:
+				target.custom_minimum_size.y = wanted
+
+## Style commun des panneaux flottants du canevas (pilules sombres arrondies).
+func _style_floating_panels() -> void:
+	var rail_style := _make_flat_style(Color(0.09, 0.075, 0.125, 0.94), 12,
+		ThemeColors.BORDER, 1)
+	rail_style.content_margin_left = 4.0
+	rail_style.content_margin_right = 4.0
+	rail_style.content_margin_top = 6.0
+	rail_style.content_margin_bottom = 6.0
+	rail_style.shadow_color = Color(0.0, 0.0, 0.0, 0.35)
+	rail_style.shadow_size = 8
+	tool_rail.add_theme_stylebox_override("panel", rail_style)
+	var pill_style := _make_flat_style(Color(0.105, 0.09, 0.145, 0.92), 12,
+		ThemeColors.BORDER, 1)
+	pill_style.content_margin_left = 10.0
+	pill_style.content_margin_right = 10.0
+	pill_style.content_margin_top = 4.0
+	pill_style.content_margin_bottom = 4.0
+	pill_style.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
+	pill_style.shadow_size = 8
+	for pill in [legend_pill, zoom_pill, hint_pill]:
+		(pill as PanelContainer).add_theme_stylebox_override("panel", pill_style)
+	# Pilule « Problèmes » (bouton) : même langage visuel que les autres pilules.
+	var problems_normal := _make_flat_style(Color(0.105, 0.09, 0.145, 0.92), 12,
+		ThemeColors.BORDER, 1)
+	var problems_hover := problems_normal.duplicate() as StyleBoxFlat
+	problems_hover.border_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
+		ThemeColors.GOLD.b, 0.55)
+	var problems_pressed := problems_normal.duplicate() as StyleBoxFlat
+	problems_pressed.bg_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g,
+		ThemeColors.GOLD.b, 0.12)
+	problems_pill.add_theme_stylebox_override("normal", problems_normal)
+	problems_pill.add_theme_stylebox_override("hover", problems_hover)
+	problems_pill.add_theme_stylebox_override("pressed", problems_pressed)
+	problems_pill.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	problems_pill.add_theme_color_override("font_hover_color", ThemeColors.GOLD_LIGHT)
+	# Canevas ouvert : le panneau du graphe n'a ni marge ni fond opaque.
+	var canvas_style := StyleBoxFlat.new()
+	canvas_style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	canvas_style.set_content_margin_all(0.0)
+	graph_panel_node.add_theme_stylebox_override("panel", canvas_style)
+	graph_panel_node.add_theme_stylebox_override("panel_selected", canvas_style)
+	# Panneau du dock flottant.
+	var dock_style := _make_flat_style(ThemeColors.SURFACE_DOCK, 12,
+		ThemeColors.BORDER, 1)
+	dock_style.content_margin_left = 12.0
+	dock_style.content_margin_right = 12.0
+	dock_style.content_margin_top = 6.0
+	dock_style.content_margin_bottom = 8.0
+	dock_style.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	dock_style.shadow_size = 16
+	dock_panel.add_theme_stylebox_override("panel", dock_style)
+
+## StyleBoxFlat utilitaire (coins arrondis, bordure, fond).
+func _make_flat_style(bg: Color, radius: int, border: Color, border_width: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg
+	style.set_corner_radius_all(radius)
+	style.set_border_width_all(border_width)
+	style.border_color = border
+	return style
+
+## Bouton compact : hauteur réduite, taille de police dédiée, pas de focus.
+func _compact_button(btn: Button, height: float, font_size: int) -> void:
+	if btn == null:
+		return
+	btn.set_meta("skip_button_sizing", true)
+	btn.set_meta("compact_height", height)
+	btn.custom_minimum_size = Vector2(btn.custom_minimum_size.x, height)
+	btn.add_theme_font_size_override("font_size", font_size)
+	btn.focus_mode = Control.FOCUS_NONE
 
 func _configure_graph_edit() -> void:
 	graph_edit.show_grid = true
 	graph_edit.snapping_enabled = true
 	graph_edit.snapping_distance = 16
 	graph_edit.right_disconnects = true
-	graph_edit.minimap_enabled = true
-	graph_edit.minimap_size = Vector2(140, 90)
+	# La minimap native ne dessine pas l'overlay des liens (elle resterait vide) :
+	# on la désactive, la vue d'ensemble se fait avec « Cadrer » + zoom.
+	graph_edit.minimap_enabled = false
 	if graph_edit.has_method("set_connection_lines_curvature"):
 		graph_edit.connection_lines_curvature = 0.35
 	if "connection_lines_thickness" in graph_edit:
@@ -84,8 +588,86 @@ func _configure_graph_edit() -> void:
 	# Clic-glisser sur le fond = déplacer la vue (en plus du clic milieu).
 	if not graph_edit.gui_input.is_connected(_on_graph_gui_input):
 		graph_edit.gui_input.connect(_on_graph_gui_input)
+	# Le zoom et les outils sont dans la sous-barre : on masque la barre d'outils
+	# native de GraphEdit (boutons de zoom, grille, accroche, menu, minimap).
+	for native_toolbar_prop in [
+		"show_zoom_buttons", "show_zoom_label", "show_grid_buttons",
+		"show_minimap_button", "show_arrange_button", "show_menu",
+	]:
+		if _property_exists(graph_edit, str(native_toolbar_prop)):
+			graph_edit.set(str(native_toolbar_prop), false)
+	# Bornes de zoom alignées sur les boutons − / + de la sous-barre.
+	if _property_exists(graph_edit, "zoom_min"):
+		graph_edit.set("zoom_min", GRAPH_ZOOM_MIN)
+	if _property_exists(graph_edit, "zoom_max"):
+		graph_edit.set("zoom_max", GRAPH_ZOOM_MAX)
+	_setup_link_overlay()
+
+## Vrai si l'objet expose la propriété donnée (compat. versions de Godot).
+func _property_exists(obj: Object, property_name: String) -> bool:
+	if obj == null:
+		return false
+	for entry in obj.get_property_list():
+		if typeof(entry) == TYPE_DICTIONARY and str(entry.get("name", "")) == property_name:
+			return true
+	return false
+
+## Overlay des branches, dessiné AU-DESSUS des cartes : GraphEdit trace ses
+## liens sous les GraphNode (invisibles dès que deux scènes se chevauchent).
+## L'overlay gère les peignes de séparation, les détours et les libellés.
+func _setup_link_overlay() -> void:
+	if _link_overlay != null and is_instance_valid(_link_overlay):
+		return
+	_link_overlay = GraphLinkOverlayScript.new()
+	_link_overlay.name = "GraphLinkOverlay"
+	add_child(_link_overlay)
+	_link_overlay.call("setup", graph_edit,
+		func() -> Dictionary: return _scenario,
+		func() -> String: return _selected_scene_id)
+
+func _notify_links_changed() -> void:
+	if _link_overlay != null and is_instance_valid(_link_overlay):
+		_link_overlay.call("notify_scenario_changed")
+
+## Suivi du survol (indispensable : l'overlay est traversant, donc sans souris)
+## et suppression d'une branche au clic droit sur le lien *visible*.
+func _input(event: InputEvent) -> void:
+	if _link_overlay == null or not is_instance_valid(_link_overlay):
+		return
+	if graph_edit == null or not is_instance_valid(graph_edit):
+		return
+	if event is InputEventMouseMotion:
+		var mouse_global := (event as InputEventMouseMotion).global_position
+		if graph_edit.is_visible_in_tree() and graph_edit.get_global_rect().has_point(mouse_global):
+			_link_overlay.call("set_hover_global", mouse_global)
+		else:
+			_link_overlay.call("clear_hover")
+		return
+	if event is InputEventMouseButton:
+		var button := event as InputEventMouseButton
+		if not button.pressed or button.button_index != MOUSE_BUTTON_RIGHT:
+			return
+		var hovered: Dictionary = _link_overlay.call("get_hovered_edge")
+		if hovered.is_empty():
+			return
+		var from_id := str(hovered.get("from_id", ""))
+		var to_id := str(hovered.get("to_id", ""))
+		if from_id.is_empty() or to_id.is_empty():
+			return
+		_on_graph_disconnection_request(_graph_node_name_for_id(from_id), 0, _graph_node_name_for_id(to_id), 0)
+		if get_viewport() != null:
+			get_viewport().set_input_as_handled()
 
 func _on_graph_gui_input(event: InputEvent) -> void:
+	# Outils Note / Cadre : la souris sert à créer des annotations, pas à pan.
+	if _tool == TOOL_NOTE or _tool == TOOL_FRAME:
+		if _handle_annotation_input(event):
+			return
+	# Molette = zoom natif de GraphEdit : on resynchronise le libellé après coup.
+	if event is InputEventMouseButton and event.pressed:
+		var wheel := event as InputEventMouseButton
+		if wheel.button_index == MOUSE_BUTTON_WHEEL_UP or wheel.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			call_deferred("_update_zoom_label")
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			# Ne pas démarrer un pan si le pointeur est sur une scène (évite de bloquer le drag).
@@ -203,6 +785,7 @@ func _connect_graph_signals() -> void:
 		graph_edit.node_dragged.connect(_on_graph_node_dragged)
 
 func _refresh_all() -> void:
+	_notify_links_changed()
 	_sync_meta_ui()
 	_rebuild_graph()
 	_refresh_npc_list()
@@ -323,6 +906,324 @@ func _refresh_graph_health() -> void:
 		graph_health_lbl.add_theme_color_override("font_color", ThemeColors.SUCCESS)
 	else:
 		graph_health_lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	_update_scenario_header()
+	_update_graph_counters(analysis)
+	_refresh_dock(analysis)
+	_update_validation_badge()
+	_update_canvas_chrome()
+
+## En-tête : titre du scénario + badge d'identifiant (barre slim du mix Atelier).
+func _update_scenario_header() -> void:
+	var title := str(_scenario.get("title", "")).strip_edges()
+	if title.is_empty():
+		title = "Éditeur de scénario"
+	if %TopBar.has_method("set_title"):
+		%TopBar.set_title(title)
+	var scenario_id := str(_scenario.get("id", ""))
+	scenario_badge_lbl.text = "Brouillon"
+	scenario_badge_id_lbl.text = scenario_id
+	scenario_badge_id_lbl.visible = not scenario_id.is_empty()
+	scenario_badge_lbl.tooltip_text = "Statut et identifiant du scénario"
+
+## Compteur « N nœuds · M liens » de la sous-barre.
+func _update_graph_counters(analysis: Dictionary) -> void:
+	if graph_count_lbl == null:
+		return
+	graph_count_lbl.text = "%d nœuds · %d liens" % [
+		int(analysis.get("sceneCount", 0)),
+		int(analysis.get("branchCount", 0)),
+	]
+	if health_summary_btn != null:
+		var ok := bool(analysis.get("ok", false))
+		var mark := "✓" if ok else "⚠"
+		health_summary_btn.text = "%s %d scènes · %d branches" % [
+			mark, int(analysis.get("sceneCount", 0)), int(analysis.get("branchCount", 0))]
+		health_summary_btn.add_theme_color_override("font_color",
+			ThemeColors.SUCCESS if ok else ThemeColors.GOLD_LIGHT)
+
+## Pilule légende (santé du graphe) + pilule « Problèmes » du canevas ouvert.
+func _update_canvas_chrome() -> void:
+	if legend_health_lbl != null:
+		var ok := QuestNavigation.validate_scenario_graph(_scenario).is_empty()
+		legend_health_lbl.text = "● graphe valide" if ok else "● graphe à vérifier"
+		legend_health_lbl.add_theme_color_override("font_color",
+			ThemeColors.SUCCESS if ok else ThemeColors.GOLD_LIGHT)
+	if problems_pill != null:
+		var problems := 0
+		for issue in _graph_issues:
+			if str(issue.get("severity", "warn")) != "ok":
+				problems += 1
+		problems_pill.text = "⚠ Problèmes %d" % problems if problems > 0 else "✓ Problèmes 0"
+		problems_pill.add_theme_color_override("font_color",
+			ThemeColors.GOLD_LIGHT if problems > 0 else ThemeColors.SUCCESS)
+		problems_pill.tooltip_text = "Ouvrir le panneau Problèmes / Historique / Journal" \
+			if not _dock_open else "Fermer le panneau"
+
+# ---------------------------------------------------------------------------
+# Dock « Problèmes » (refonte 04)
+# ---------------------------------------------------------------------------
+
+## Reconstruit la liste des problèmes à partir de l'analyse du graphe.
+## Heuristiques volontairement simples : erreurs bloquantes, accessibilité,
+## scènes terminales sans carte, carrefours illisibles, branches MJ d'acte.
+func _refresh_dock(analysis: Dictionary = {}) -> void:
+	if dock_issues_list == null:
+		return
+	if analysis.is_empty():
+		analysis = QuestNavigation.analyze_graph(_scenario)
+	for child in dock_issues_list.get_children():
+		child.queue_free()
+	_graph_issues = _collect_graph_issues(analysis)
+	var problems := 0
+	for issue in _graph_issues:
+		if str(issue.get("severity", "warn")) != "ok":
+			problems += 1
+	dock_issue_count_lbl.text = str(problems)
+	dock_issue_count_lbl.add_theme_color_override("font_color",
+		ThemeColors.GOLD_LIGHT if problems > 0 else ThemeColors.TEXT_MUTED)
+	if _graph_issues.is_empty():
+		var empty := Label.new()
+		empty.text = "✓ Aucun problème détecté sur ce graphe."
+		empty.add_theme_color_override("font_color", ThemeColors.SUCCESS)
+		dock_issues_list.add_child(empty)
+		return
+	for issue in _graph_issues:
+		dock_issues_list.add_child(_create_dock_issue_row(issue))
+
+func _collect_graph_issues(analysis: Dictionary) -> Array:
+	var issues: Array = []
+	var start_id := str(_scenario.get("startSceneId", ""))
+	if start_id.is_empty() or _scene_index_for_id(start_id) < 0:
+		issues.append({
+			"severity": "error", "scene_id": "",
+			"message": "scène de départ manquante ou invalide",
+		})
+	# Branches cassées (normalement impossibles après normalisation).
+	for broken in analysis.get("brokenTransitions", []):
+		if typeof(broken) != TYPE_DICTIONARY:
+			continue
+		issues.append({
+			"severity": "error", "scene_id": str(broken.get("from", "")),
+			"message": "branche cassée vers « %s »" % str(broken.get("to", "")),
+		})
+	# Accessibilité depuis la scène de départ.
+	var warned: Dictionary = {}
+	for uid in analysis.get("unreachable", []):
+		var sid := str(uid)
+		issues.append({
+			"severity": "warn", "scene_id": sid,
+			"message": "scène inatteignable depuis le départ — vérifier les branches entrantes",
+		})
+		warned[sid] = true
+	for uid in analysis.get("orphans", []):
+		var sid := str(uid)
+		if warned.has(sid):
+			continue
+		issues.append({
+			"severity": "warn", "scene_id": sid,
+			"message": "scène orpheline (aucune branche entrante)",
+		})
+		warned[sid] = true
+	# Scènes terminales sans carte liée : la session resterait sur la carte précédente.
+	for uid in analysis.get("terminals", []):
+		var sid := str(uid)
+		var scene := _get_scene_dict(sid)
+		if scene.is_empty():
+			continue
+		if QuestNavigation.get_scene_map_ids(scene).is_empty():
+			issues.append({
+				"severity": "warn", "scene_id": sid,
+				"message": "scène terminale sans carte liée — la session restera sur la carte précédente",
+			})
+	# Carrefours trop chargés en branches entrantes (lisibilité du graphe).
+	var incoming: Dictionary = analysis.get("incoming", {})
+	for key in incoming.keys():
+		var sid := str(key)
+		var branch_n := int(incoming[key])
+		if branch_n < 5:
+			continue
+		issues.append({
+			"severity": "warn", "scene_id": sid,
+			"message": "%d branches entrantes (lisibilité) — envisager un carrefour nommé" % branch_n,
+		})
+	# Branches MJ franchissant un acte : cohérence narrative à vérifier.
+	for scene in _scenario.get("scenes", []):
+		if typeof(scene) != TYPE_DICTIONARY:
+			continue
+		var from_act := _scene_act_number(scene)
+		if from_act <= 0:
+			continue
+		var from_id := str(scene.get("id", ""))
+		for transition in scene.get("transitions", []):
+			if typeof(transition) != TYPE_DICTIONARY or not bool(transition.get("gmOnly", false)):
+				continue
+			var target := _get_scene_dict(str(transition.get("to", "")))
+			if target.is_empty():
+				continue
+			var to_act := _scene_act_number(target)
+			if to_act > from_act:
+				issues.append({
+					"severity": "warn", "scene_id": from_id,
+					"message": "branche MJ vers l'acte %d — vérifier la cohérence avec l'acte suivant" % to_act,
+				})
+	# Ligne de confirmation quand le point d'entrée est sain.
+	if not start_id.is_empty() and _scene_index_for_id(start_id) >= 0 and bool(analysis.get("ok", false)):
+		var outgoing := QuestNavigation.get_available_transitions(_scenario, start_id).size()
+		issues.append({
+			"severity": "ok", "scene_id": start_id,
+			"message": "scène de départ atteignable, %d sorties, aucune branche cassée" % outgoing,
+		})
+	# Déduplication puis tri erreurs → alertes → confirmations.
+	var seen: Dictionary = {}
+	var result: Array = []
+	for issue in issues:
+		var key := "%s|%s" % [str(issue.get("scene_id", "")), str(issue.get("message", ""))]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		result.append(issue)
+	result.sort_custom(func(a, b): return _issue_rank(a) < _issue_rank(b))
+	return result
+
+func _create_dock_issue_row(issue: Dictionary) -> HBoxContainer:
+	var severity := str(issue.get("severity", "warn"))
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 8)
+	var icon := Label.new()
+	icon.text = "▲" if severity == "warn" else ("✖" if severity == "error" else "●")
+	icon.custom_minimum_size = Vector2(16, 0)
+	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var icon_color := ThemeColors.GOLD_LIGHT
+	if severity == "error":
+		icon_color = ThemeColors.DANGER
+	elif severity == "ok":
+		icon_color = ThemeColors.SUCCESS
+	icon.add_theme_color_override("font_color", icon_color)
+	row.add_child(icon)
+	var scene_id := str(issue.get("scene_id", ""))
+	if not scene_id.is_empty() and _scene_index_for_id(scene_id) >= 0:
+		var where := LinkButton.new()
+		where.text = scene_id
+		where.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
+		where.tooltip_text = "Sélectionner la scène « %s »" % scene_id
+		where.focus_mode = Control.FOCUS_NONE
+		where.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+		where.add_theme_color_override("font_hover_color", ThemeColors.GOLD)
+		where.pressed.connect(func(): _select_and_focus_scene(scene_id))
+		row.add_child(where)
+	else:
+		var where := Label.new()
+		where.text = "scénario"
+		where.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		row.add_child(where)
+	var message := Label.new()
+	message.text = str(issue.get("message", ""))
+	message.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	row.add_child(message)
+	return row
+
+func _issue_rank(issue: Dictionary) -> int:
+	match str(issue.get("severity", "warn")):
+		"error":
+			return 0
+		"warn":
+			return 1
+		_:
+			return 2
+
+## Numéro d'acte déduit des tags d'une scène (« acte-2 », « act-2 »), 0 sinon.
+func _scene_act_number(scene: Dictionary) -> int:
+	var tags: Array = scene.get("tags", [])
+	if typeof(tags) != TYPE_ARRAY:
+		return 0
+	for tag in tags:
+		var text := str(tag).strip_edges().to_lower()
+		for prefix in ["acte-", "act-"]:
+			var prefix_text := str(prefix)
+			if text.begins_with(prefix_text):
+				var suffix := text.trim_prefix(prefix_text)
+				if suffix.is_valid_int():
+					return int(suffix)
+	return 0
+
+# ---------------------------------------------------------------------------
+# Zoom (sous-barre) et onglets de détails (refonte 04)
+# ---------------------------------------------------------------------------
+
+func _on_zoom_in_pressed() -> void:
+	_set_graph_zoom(graph_edit.zoom * 1.1)
+
+func _on_zoom_out_pressed() -> void:
+	_set_graph_zoom(graph_edit.zoom * 0.9)
+
+func _set_graph_zoom(value: float) -> void:
+	if graph_edit == null:
+		return
+	graph_edit.zoom = clampf(value, GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX)
+	_update_zoom_label()
+
+func _update_zoom_label() -> void:
+	if graph_edit == null or zoom_lbl == null:
+		return
+	zoom_lbl.text = "%d %%" % int(round(graph_edit.zoom * 100.0))
+
+## Bascule l'inspecteur de droite entre Scène / Branches / Métadonnées.
+func _set_details_tab(tab: String) -> void:
+	if tab != DETAILS_TAB_SCENE and tab != DETAILS_TAB_BRANCHES and tab != DETAILS_TAB_META:
+		tab = DETAILS_TAB_SCENE
+	_details_tab = tab
+	details_scene_tab.visible = tab == DETAILS_TAB_SCENE
+	details_branches_tab.visible = tab == DETAILS_TAB_BRANCHES
+	details_meta_tab.visible = tab == DETAILS_TAB_META
+	_style_tab_button(details_btn_scene, tab == DETAILS_TAB_SCENE)
+	_style_tab_button(details_btn_branches, tab == DETAILS_TAB_BRANCHES)
+	_style_tab_button(details_btn_meta, tab == DETAILS_TAB_META)
+	# La rangée d'actions reste collée en bas de l'inspecteur (hors scroll).
+	if scene_action_bar != null:
+		scene_action_bar.visible = tab == DETAILS_TAB_SCENE and not _selected_scene_id.is_empty()
+	if tab == DETAILS_TAB_BRANCHES:
+		_refresh_transitions_ui()
+
+## Style « toggle » des onglets : filet or + fond accentué sur l'onglet actif.
+func _style_tab_button(btn: Button, active: bool) -> void:
+	if btn == null:
+		return
+	btn.button_pressed = active
+	var normal := StyleBoxFlat.new()
+	var active_bg := Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.10)
+	normal.bg_color = active_bg if active else Color(0, 0, 0, 0)
+	normal.border_width_bottom = 2
+	normal.border_color = ThemeColors.GOLD if active else Color(0, 0, 0, 0)
+	normal.content_margin_left = 10.0
+	normal.content_margin_right = 10.0
+	normal.content_margin_top = 4.0
+	normal.content_margin_bottom = 4.0
+	var hover := normal.duplicate() as StyleBoxFlat
+	if not active:
+		hover.bg_color = Color(1, 1, 1, 0.05)
+	var pressed := normal.duplicate() as StyleBoxFlat
+	if active:
+		pressed.bg_color = Color(ThemeColors.GOLD.r, ThemeColors.GOLD.g, ThemeColors.GOLD.b, 0.16)
+	# Style disabled explicite : le thème GhostButton utilise un StyleBox vide
+	# (marges nulles), ce qui collait les libellés des onglets « bientôt ».
+	var disabled := normal.duplicate() as StyleBoxFlat
+	disabled.bg_color = Color(0, 0, 0, 0)
+	disabled.border_color = Color(0, 0, 0, 0)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("disabled", disabled)
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var font_color := ThemeColors.GOLD_LIGHT if active else ThemeColors.TEXT_MUTED
+	btn.add_theme_color_override("font_color", font_color)
+	btn.add_theme_color_override("font_hover_color", ThemeColors.GOLD_LIGHT)
+	btn.add_theme_color_override("font_pressed_color", ThemeColors.GOLD_LIGHT)
+	btn.add_theme_color_override("font_focus_color", ThemeColors.GOLD_LIGHT)
+	btn.add_theme_color_override("font_disabled_color",
+		Color(ThemeColors.TEXT_MUTED.r, ThemeColors.TEXT_MUTED.g, ThemeColors.TEXT_MUTED.b, 0.5))
 
 func _rebuild_graph() -> void:
 	if _rebuild_scheduled:
@@ -422,8 +1323,11 @@ func _apply_all_graph_connections() -> void:
 			_set_connection_activity_for_transition(from_name, to_name, transition)
 
 func _set_connection_activity_for_transition(from_name: StringName, to_name: StringName, transition: Dictionary) -> void:
-	var activity := 1.0 if transition.get("default", false) else (0.35 if transition.get("gmOnly", false) else 0.7)
-	graph_edit.set_connection_activity(from_name, 0, to_name, 0, activity)
+	# Les liens natifs de GraphEdit sont masqués : c'est l'overlay qui dessine les
+	# branches (couleurs ★/branche/MJ). L'« activité » de GraphEdit mélange la
+	# connexion vers une couleur claire et la rendait visible PAR-DESSUS les cartes
+	# (couche _connection_layer) : on la force à 0 (couleur du port = transparente).
+	graph_edit.set_connection_activity(from_name, 0, to_name, 0, 0.0)
 
 func _connect_graph_edge(from_id: String, to_id: String, transition: Dictionary = {}) -> void:
 	var from_name := _graph_node_name_for_id(from_id)
@@ -435,7 +1339,7 @@ func _connect_graph_edge(from_id: String, to_id: String, transition: Dictionary 
 	if not transition.is_empty():
 		_set_connection_activity_for_transition(from_name, to_name, transition)
 	else:
-		graph_edit.set_connection_activity(from_name, 0, to_name, 0, 0.7)
+		graph_edit.set_connection_activity(from_name, 0, to_name, 0, 0.0)
 
 func _disconnect_graph_edge(from_id: String, to_id: String) -> void:
 	var from_name := _graph_node_name_for_id(from_id)
@@ -446,6 +1350,7 @@ func _disconnect_graph_edge(from_id: String, to_id: String) -> void:
 		graph_edit.disconnect_node(from_name, 0, to_name, 0)
 
 func _refresh_graph_node_chrome(scene_id: String = "") -> void:
+	_notify_links_changed()
 	var analysis := QuestNavigation.analyze_graph(_scenario)
 	var unreachable: Dictionary = {}
 	for uid in analysis.get("unreachable", []):
@@ -468,7 +1373,7 @@ func _scene_graph_pos(scene: Dictionary, index: int) -> Vector2:
 		return Vector2(float(gp["x"]), float(gp["y"]))
 	var col := index % 3
 	var row := int(index / 3)
-	return Vector2(40.0 + col * 260.0, 40.0 + row * 150.0)
+	return Vector2(40.0 + col * 280.0, 40.0 + row * 210.0)
 
 func _stable_graph_node_name(scene_id: String) -> String:
 	var safe := scene_id.validate_node_name()
@@ -508,7 +1413,7 @@ func _on_graph_connection_request(from_node: StringName, from_port: int, to_node
 	_add_or_update_transition(from_id, to_id, "Nouvelle branche", false, false)
 	if not graph_edit.is_node_connected(from_node, from_port, to_node, to_port):
 		graph_edit.connect_node(from_node, from_port, to_node, to_port)
-	graph_edit.set_connection_activity(from_node, from_port, to_node, to_port, 0.7)
+	graph_edit.set_connection_activity(from_node, from_port, to_node, to_port, 0.0)
 	_mark_dirty("Branche créée")
 	_refresh_graph_node_chrome(from_id)
 	if _selected_scene_id == from_id:
@@ -539,12 +1444,19 @@ func _on_graph_node_selected(node: Node) -> void:
 	if not node is GraphNode:
 		return
 	var sid := str(node.get_meta("scene_id", ""))
+	if _tool == TOOL_LINK:
+		_handle_link_click(sid)
+		return
 	_open_scene_editor(sid, false)
 
 func _on_graph_scene_activated(scene_id: String) -> void:
+	if _tool == TOOL_LINK:
+		return
 	_open_scene_editor(scene_id, false)
 
 func _on_graph_scene_focus_requested(scene_id: String) -> void:
+	if _tool == TOOL_LINK:
+		return
 	_open_scene_editor(scene_id, true)
 
 func _open_scene_editor(sid: String, focus_fields: bool = false) -> void:
@@ -555,6 +1467,8 @@ func _open_scene_editor(sid: String, focus_fields: bool = false) -> void:
 		_commit_scene_editor()
 		_selected_scene_id = sid
 		_refresh_graph_selection_styles()
+	# Console 04 : cliquer un nœud ramène sur la fiche Scène de l'inspecteur.
+	_set_details_tab(DETAILS_TAB_SCENE)
 	_refresh_scene_panel()
 	# Focus uniquement sur un vrai clic (pas pendant un drag), sinon le déplacement est annulé.
 	if focus_fields:
@@ -699,16 +1613,38 @@ func _scene_graph_size(scene: Dictionary) -> Vector2:
 	return Vector2(QuestNavigation.NODE_WIDTH, QuestNavigation.NODE_HEIGHT)
 
 func _refresh_scene_panel() -> void:
+	# L'onglet Branches affiche une invite tant qu'aucune scène n'est sélectionnée.
+	branches_hint_lbl.visible = _selected_scene_id.is_empty()
 	if _selected_scene_id.is_empty():
 		lbl_no_selection.visible = true
 		scene_editor.visible = false
+		scene_kicker_lbl.text = "SCÈNE — / —"
+		scene_title_big.text = "Aucune scène sélectionnée"
+		scene_id_chip.visible = false
+		_clear_chip_row(scene_tag_chips)
+		_clear_chip_row(scene_map_chips)
+		_clear_chip_row(scene_npc_chips)
+		scene_npc_col.visible = false
+		if scene_action_bar != null:
+			scene_action_bar.visible = false
 		return
 	lbl_no_selection.visible = false
 	scene_editor.visible = true
+	if scene_action_bar != null:
+		scene_action_bar.visible = _details_tab == DETAILS_TAB_SCENE
 	var scene := _get_scene_dict(_selected_scene_id)
 	if scene.is_empty():
 		return
-	lbl_scene_id.text = "id: %s" % _selected_scene_id
+	var scene_index: int = _scene_index_for_id(_selected_scene_id)
+	var scene_total: int = _scenario.get("scenes", []).size()
+	var act: int = _scene_act_number(scene)
+	# En-tête structuré façon Atelier : « SCÈNE n / N · ACTE n » + chip d'id.
+	scene_kicker_lbl.text = "SCÈNE %d / %d" % [scene_index + 1, scene_total]
+	if act > 0:
+		scene_kicker_lbl.text += " · ACTE %d" % act
+	scene_title_big.text = str(scene.get("title", _selected_scene_id))
+	scene_id_chip.visible = true
+	lbl_scene_id.text = _selected_scene_id
 	var is_start: bool = _selected_scene_id == str(_scenario.get("startSceneId", ""))
 	var transitions: Array = scene.get("transitions", [])
 	var is_terminal: bool = typeof(transitions) != TYPE_ARRAY or transitions.is_empty()
@@ -722,6 +1658,9 @@ func _refresh_scene_panel() -> void:
 		var branch_n: int = transitions.size() if typeof(transitions) == TYPE_ARRAY else 0
 		scene_badge_lbl.text = "↔ %d branche(s) sortante(s)" % branch_n
 		scene_badge_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	var start_btn := %BtnSetStart
+	start_btn.disabled = is_start
+	start_btn.text = "★ Départ" if not is_start else "★ Scène de départ"
 	scene_title.text = str(scene.get("title", ""))
 	var tags: Array = scene.get("tags", [])
 	if tags is Array:
@@ -729,11 +1668,75 @@ func _refresh_scene_panel() -> void:
 		for tag in tags:
 			tag_texts.append(str(tag))
 		scene_tags.text = ", ".join(tag_texts)
+		_refresh_tag_chips(tags)
 	else:
 		scene_tags.text = ""
+		_clear_chip_row(scene_tag_chips)
 	scene_content.text = str(scene.get("content", ""))
 	_refresh_scene_maps_ui(scene)
+	_refresh_scene_link_chips(scene)
 	_refresh_transitions_ui()
+
+## Chips de tags de la scène (sous le grand titre, façon Atelier).
+func _refresh_tag_chips(tags: Array) -> void:
+	_clear_chip_row(scene_tag_chips)
+	for tag in tags:
+		var text := str(tag).strip_edges()
+		if text.is_empty():
+			continue
+		scene_tag_chips.add_child(_make_chip("#%s" % text, ThemeColors.LOG_NPC))
+
+## Colonnes « Cartes liées » / « PNJ présents » : chips (masquées si vide).
+func _refresh_scene_link_chips(scene: Dictionary) -> void:
+	_clear_chip_row(scene_map_chips)
+	for map_id in QuestNavigation.get_scene_map_ids(scene):
+		var map_data := MapData.get_by_id(str(map_id))
+		var title := str(map_data.get("title", map_id)) if not map_data.is_empty() else str(map_id)
+		scene_map_chips.add_child(_make_chip(title, ThemeColors.INVESTIGATION_ACCENT))
+	_clear_chip_row(scene_npc_chips)
+	var present: Array = []
+	for npc_variant in _scenario.get("npcs", []):
+		if typeof(npc_variant) != TYPE_DICTIONARY:
+			continue
+		var npc: Dictionary = npc_variant
+		var scenes: Variant = npc.get("scenes", [])
+		if typeof(scenes) != TYPE_ARRAY:
+			continue
+		for sid in scenes:
+			if str(sid) == _selected_scene_id:
+				present.append(str(npc.get("name", npc.get("id", "PNJ"))))
+				break
+	for npc_name in present:
+		scene_npc_chips.add_child(_make_chip(npc_name, ThemeColors.LOG_NPC))
+	scene_npc_col.visible = not present.is_empty()
+
+## Chip compact (pilule teintée) pour l'inspecteur.
+func _make_chip(text: String, color: Color) -> Control:
+	var panel := PanelContainer.new()
+	var style := _make_flat_style(Color(color.r, color.g, color.b, 0.09), 10,
+		Color(color.r, color.g, color.b, 0.36), 1)
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 1.0
+	style.content_margin_bottom = 1.0
+	panel.add_theme_stylebox_override("panel", style)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var label := Label.new()
+	label.text = text
+	label.theme_type_variation = &"MicroLabel"
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(label)
+	return panel
+
+func _clear_chip_row(row: HFlowContainer) -> void:
+	if row == null:
+		return
+	for child in row.get_children():
+		row.remove_child(child)
+		child.queue_free()
 
 func _refresh_scene_maps_ui(scene: Dictionary) -> void:
 	_refreshing_scene_maps = true
@@ -835,8 +1838,11 @@ func _refresh_transitions_ui() -> void:
 		child.queue_free()
 	var scene := _get_scene_dict(_selected_scene_id)
 	if scene.is_empty():
+		branches_count_lbl.text = "BRANCHES SORTANTES"
 		return
 	var transitions: Array = scene.get("transitions", [])
+	branches_count_lbl.text = "BRANCHES SORTANTES %d" % (
+		transitions.size() if typeof(transitions) == TYPE_ARRAY else 0)
 	if transitions.is_empty():
 		var empty := Label.new()
 		empty.text = "Aucune branche — scène terminale, ou glissez un lien depuis le graphe."
@@ -850,10 +1856,14 @@ func _refresh_transitions_ui() -> void:
 			continue
 		transitions_list.add_child(_create_transition_row(_selected_scene_id, t_idx, transition))
 
+## Carte de branche (style Atelier) : barre de couleur à gauche (or = défaut,
+## bleu = branche, violet = MJ), nom sur la première ligne, cible en dessous,
+## badge DÉFAUT / BRANCHE / MJ à droite.
 func _create_transition_row(from_id: String, index: int, transition: Dictionary) -> PanelContainer:
 	var row := TransitionRowScene.instantiate()
 	row.setup(transition)
 	_populate_target_options(row.get_target_option(), str(transition.get("to", "")), from_id, index)
+	_style_transition_row(row, transition)
 	var captured_idx := index
 	row.target_changed.connect(func(to_id: String):
 		_on_transition_target_changed(from_id, captured_idx, to_id)
@@ -887,6 +1897,73 @@ func _create_transition_row(from_id: String, index: int, transition: Dictionary)
 		_refresh_scene_panel()
 	)
 	return row
+
+## Met la carte de branche au format compact de l'inspecteur Atelier.
+func _style_transition_row(row: PanelContainer, transition: Dictionary) -> void:
+	var is_default := bool(transition.get("default", false))
+	var is_gm := bool(transition.get("gmOnly", false))
+	var accent := ThemeColors.GOLD if is_default else (
+		ThemeColors.LOG_NPC if is_gm else Color("8fd2ea"))
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.075, 0.125, 0.72)
+	style.set_corner_radius_all(7)
+	style.set_border_width_all(1)
+	style.border_color = Color(0.17, 0.145, 0.25, 1.0)
+	style.border_width_left = 3
+	style.border_color = accent
+	style.content_margin_left = 9.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
+	row.add_theme_stylebox_override("panel", style)
+	var vbox := row.get_node_or_null("VBox") as VBoxContainer
+	var top := row.get_node_or_null("VBox/Top") as HBoxContainer
+	var flags := row.get_node_or_null("VBox/Flags") as HBoxContainer
+	var arrow := row.get_node_or_null("VBox/Top/LblArrow") as Label
+	var edit := row.get_node_or_null("VBox/EditLabel") as LineEdit
+	var target := row.get_node_or_null("VBox/Top/TargetOpt") as OptionButton
+	var chk_default := row.get_node_or_null("VBox/Flags/ChkDefault") as CheckBox
+	var chk_gm := row.get_node_or_null("VBox/Flags/ChkGm") as CheckBox
+	var btn_delete := row.get_node_or_null("VBox/Flags/BtnDelete") as Button
+	if arrow != null:
+		arrow.visible = false
+	# Nom de branche en premier, cible sur la ligne suivante.
+	if vbox != null and edit != null:
+		vbox.move_child(edit, 0)
+		vbox.add_theme_constant_override("separation", 4)
+	if edit != null:
+		edit.add_theme_font_size_override("font_size", 14)
+		edit.custom_minimum_size = Vector2(0, 26)
+		edit.placeholder_text = "Nom de la branche (affiché au MJ)"
+	if top != null:
+		top.add_theme_constant_override("separation", 6)
+	if target != null:
+		target.add_theme_font_size_override("font_size", 12)
+		target.set_meta("skip_button_sizing", true)
+		target.custom_minimum_size = Vector2(0, 24)
+	# Badge de type à droite de la cible.
+	if top != null:
+		var badge := Label.new()
+		badge.theme_type_variation = &"MicroLabel"
+		badge.add_theme_font_size_override("font_size", 10)
+		badge.add_theme_color_override("font_color", accent)
+		badge.text = "DÉFAUT" if is_default else ("MJ" if is_gm else "BRANCHE")
+		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		top.add_child(badge)
+	if flags != null:
+		flags.add_theme_constant_override("separation", 6)
+	for check in [chk_default, chk_gm]:
+		var box := check as CheckBox
+		if box == null:
+			continue
+		box.add_theme_font_size_override("font_size", 11)
+		box.set_meta("skip_button_sizing", true)
+		box.custom_minimum_size = Vector2(0, 22)
+	if btn_delete != null:
+		btn_delete.add_theme_font_size_override("font_size", 12)
+		btn_delete.set_meta("skip_button_sizing", true)
+		btn_delete.custom_minimum_size = Vector2(26, 22)
 
 func _populate_target_options(opt: OptionButton, selected_id: String, exclude_id: String = "", transition_index: int = -1) -> void:
 	opt.clear()
@@ -981,6 +2058,7 @@ func _refresh_outgoing_connection_styles(from_id: String) -> void:
 	_refresh_graph_node_chrome(from_id)
 
 func _update_transition_field(from_id: String, index: int, field: String, value: Variant) -> void:
+	_notify_links_changed()
 	var scene := _get_scene_dict(from_id)
 	var transitions: Array = scene.get("transitions", [])
 	if index < 0 or index >= transitions.size():
@@ -1006,6 +2084,7 @@ func _has_transition(from_id: String, to_id: String) -> bool:
 	return false
 
 func _add_or_update_transition(from_id: String, to_id: String, label: String, default: bool, gm_only: bool) -> void:
+	_notify_links_changed()
 	var scene := _get_scene_dict(from_id)
 	if scene.is_empty() or from_id == to_id:
 		return
@@ -1019,6 +2098,7 @@ func _add_or_update_transition(from_id: String, to_id: String, label: String, de
 	scene["transitions"] = transitions
 
 func _remove_transition(from_id: String, to_id: String) -> void:
+	_notify_links_changed()
 	var scene := _get_scene_dict(from_id)
 	var transitions: Array = scene.get("transitions", [])
 	for i in range(transitions.size() - 1, -1, -1):
@@ -1027,6 +2107,7 @@ func _remove_transition(from_id: String, to_id: String) -> void:
 	scene["transitions"] = transitions
 
 func _remove_transition_at(from_id: String, index: int) -> void:
+	_notify_links_changed()
 	var scene := _get_scene_dict(from_id)
 	var transitions: Array = scene.get("transitions", [])
 	if index >= 0 and index < transitions.size():
@@ -1140,9 +2221,14 @@ func _on_auto_layout_pressed() -> void:
 	_commit_scene_editor()
 	_scenario = QuestNavigation.apply_auto_layout(_scenario)
 	_mark_dirty("Disposition automatique")
+	_journal_add("Disposition automatique appliquée (auto-layout)")
 	_rebuild_graph()
 	call_deferred("_on_fit_view_pressed")
 
+## Cadre tout le graphe DANS L'ESPACE LIBRE du canevas : les marges réservées
+## aux panneaux flottants (rail à gauche, pilules/minimap en bas) ne sont pas
+## recouvertes par des cartes — c'est ce qui permet un canevas plein écran sans
+## dock fixe tout en gardant les cartes lisibles.
 func _on_fit_view_pressed() -> void:
 	var min_pos := Vector2(INF, INF)
 	var max_pos := Vector2(-INF, -INF)
@@ -1158,16 +2244,25 @@ func _on_fit_view_pressed() -> void:
 			max_pos = Vector2(maxf(max_pos.x, pos.x + size.x), maxf(max_pos.y, pos.y + size.y))
 	if not found:
 		return
-	var margin := Vector2(40, 40)
-	var bounds := Rect2(min_pos - margin, (max_pos - min_pos) + margin * 2.0)
+	var content := Rect2(min_pos, max_pos - min_pos)
 	var view := graph_edit.size
 	if view.x < 10 or view.y < 10:
 		return
-	var zoom_x := view.x / maxf(bounds.size.x, 1.0)
-	var zoom_y := view.y / maxf(bounds.size.y, 1.0)
-	var zoom := clampf(minf(zoom_x, zoom_y), 0.35, 1.25)
+	var insets := Rect2(FIT_INSET_LEFT, FIT_INSET_TOP,
+		FIT_INSET_LEFT + FIT_INSET_RIGHT, FIT_INSET_TOP + FIT_INSET_BOTTOM)
+	var available := Vector2(
+		maxf(view.x - insets.size.x, 40.0),
+		maxf(view.y - insets.size.y, 40.0))
+	var zoom := clampf(minf(
+		available.x / maxf(content.size.x, 1.0),
+		available.y / maxf(content.size.y, 1.0)), GRAPH_ZOOM_MIN, GRAPH_ZOOM_MAX)
 	graph_edit.zoom = zoom
-	graph_edit.scroll_offset = bounds.position * zoom - (view - bounds.size * zoom) * 0.5
+	var drawn := content.size * zoom
+	var offset := Vector2(
+		FIT_INSET_LEFT + (available.x - drawn.x) * 0.5,
+		FIT_INSET_TOP + (available.y - drawn.y) * 0.5)
+	graph_edit.scroll_offset = content.position * zoom - offset
+	_update_zoom_label()
 
 func _on_validate_pressed() -> void:
 	_commit_scene_editor()
@@ -1179,6 +2274,7 @@ func _on_validate_pressed() -> void:
 		_set_status("Erreur : %s" % str(errors[0]))
 		return
 	var warnings: Array = analysis.get("warnings", [])
+	_journal_add("Validation — %d erreur(s), %d avertissement(s)" % [errors.size(), warnings.size()])
 	if not warnings.is_empty():
 		_set_status("Attention : %s" % str(warnings[0]))
 	else:
@@ -1240,6 +2336,10 @@ func _on_save_pressed() -> void:
 	_scenario = normalized.duplicate(true)
 	_dirty = false
 	_refresh_all()
+	_journal_add("Scénario enregistré — %d scènes, %d branches" % [
+		_scenario.get("scenes", []).size(),
+		QuestNavigation.analyze_graph(_scenario).get("branchCount", 0),
+	])
 	_set_status("Scénario enregistré ✓")
 
 func _validate_scenario(scenario: Dictionary) -> String:
@@ -1250,6 +2350,39 @@ func _validate_scenario(scenario: Dictionary) -> String:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var vp := get_viewport()
+	# Palette de commandes ouverte : Échap la ferme avant tout le reste.
+	if _palette != null and is_instance_valid(_palette) and bool(_palette.call("is_open")):
+		if UiShortcuts.is_cancel(event):
+			_palette.call("close")
+			if vp != null:
+				vp.set_input_as_handled()
+			return
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		if key.pressed and not key.echo and not _is_text_input_focused():
+			if key.ctrl_pressed and key.keycode == KEY_K:
+				_open_palette()
+				if vp != null:
+					vp.set_input_as_handled()
+				return
+			match key.keycode:
+				KEY_F:
+					_on_fit_view_pressed()
+					if vp != null:
+						vp.set_input_as_handled()
+					return
+				KEY_L:
+					_set_tool(TOOL_LINK)
+					return
+				KEY_N:
+					_set_tool(TOOL_NOTE)
+					return
+				KEY_C:
+					_set_tool(TOOL_FRAME)
+					return
+				KEY_V:
+					_set_tool(TOOL_SELECT)
+					return
 	if UiShortcuts.is_cancel(event):
 		if vp != null:
 			vp.set_input_as_handled()
@@ -1279,6 +2412,7 @@ func _go_back() -> void:
 
 func _mark_dirty(status: String = "") -> void:
 	_dirty = true
+	_history_add("Modification" if status.is_empty() else status)
 	_refresh_graph_health()
 	if not status.is_empty():
 		_set_status(status)
@@ -1288,3 +2422,783 @@ func _set_status(text: String) -> void:
 		status_lbl.text = text + " · non sauvé"
 	else:
 		status_lbl.text = text
+
+
+# ============================================================================
+# Console de nœuds — shell complet (modes, outils, palette, minimap, dock)
+# ============================================================================
+
+## Construit les éléments de la refonte qui ne sont pas dans la scène : vues
+## Scénario / PNJ / Cartes, rail d'outils vertical, palette Ctrl+K, minimap
+## flottante, onglets du dock et activation des modes.
+func _build_console_extras() -> void:
+	_graph_panel = graph_panel_node
+	# --- Vues Scénario / PNJ / Cartes, sous les panneaux flottants -----------
+	var canvas_host := _graph_panel.get_parent() as Control
+	if canvas_host != null:
+		_views_host = Control.new()
+		_views_host.name = "ViewsHost"
+		_views_host.mouse_filter = Control.MOUSE_FILTER_STOP
+		_views_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_views_host.visible = false
+		canvas_host.add_child(_views_host)
+		canvas_host.move_child(_views_host, _graph_panel.get_index() + 1)
+		_instantiate_views()
+	# --- Minimap : panneau flottant « Plan d'ensemble » (bas-gauche) ---------
+	var mini_script: Resource = null
+	if ResourceLoader.exists("res://scripts/scenario_editor/panels/editor_minimap.gd"):
+		mini_script = load("res://scripts/scenario_editor/panels/editor_minimap.gd")
+	if mini_script is Script:
+		_minimap = (mini_script as Script).new() as Control
+		if _minimap != null:
+			add_child(_minimap)
+			_minimap.call("setup", graph_edit, func() -> Dictionary: return _scenario)
+			_minimap.call("set_caption", MINIMAP_CAPTION)
+			_minimap.call("set_panel_size", MINIMAP_PANEL_SIZE)
+			_minimap.call("set_placement", "bottom_left", MINIMAP_MARGIN)
+			_minimap.call("set_enabled", true)
+	# --- Palette de commandes (Ctrl+K) --------------------------------------
+	var palette_script: Resource = null
+	if ResourceLoader.exists("res://scripts/scenario_editor/panels/command_palette.gd"):
+		palette_script = load("res://scripts/scenario_editor/panels/command_palette.gd")
+	if palette_script is Script:
+		_palette = (palette_script as Script).new() as Control
+		if _palette != null:
+			add_child(_palette)
+			_palette.call("setup", self)
+			_palette.connect("action_chosen", _on_palette_action)
+	# --- Rail d'outils vertical flottant (canevas ouvert) --------------------
+	_build_tool_rail()
+	# --- Dock : onglets Problèmes / Historique / Journal --------------------
+	_build_dock_tabs()
+	_set_dock_open(false)
+	# --- Modes : activer les boutons Scénario / PNJ / Cartes ----------------
+	var mode_defs: Array = [
+		[MODE_GRAPH, %BtnModeGraph],
+		[MODE_SCENARIO, %BtnModeScenario],
+		[MODE_NPC, %BtnModeNpc],
+		[MODE_MAPS, %BtnModeMaps],
+	]
+	for mode_variant in mode_defs:
+		var mode_def: Array = mode_variant
+		var mode_btn: Button = mode_def[1] as Button
+		if mode_btn == null:
+			continue
+		var captured_mode := str(mode_def[0])
+		_mode_buttons[captured_mode] = mode_btn
+		mode_btn.disabled = false
+		mode_btn.tooltip_text = ""
+		mode_btn.toggle_mode = true
+		mode_btn.pressed.connect(func() -> void: _set_mode(captured_mode))
+	_set_mode(MODE_GRAPH)
+	_journal_add("Console prête — scénario « %s »" % str(_scenario.get("title", "")))
+	_history_add("Ouverture de l'éditeur")
+
+## Rail vertical flottant : 4 outils + séparateur + zoom − / + / cadrer.
+func _build_tool_rail() -> void:
+	var box := %RailBox as VBoxContainer
+	if box == null:
+		return
+	for child in box.get_children():
+		box.remove_child(child)
+		child.queue_free()
+	_tool_buttons.clear()
+	var tool_defs: Array = [
+		[TOOL_SELECT, "◉", "Sélection (V)"],
+		[TOOL_LINK, "⟜", "Créer un lien (L) : cliquez la source puis la cible"],
+		[TOOL_NOTE, "✎", "Note (N) : cliquez le plan pour poser une note"],
+		[TOOL_FRAME, "▭", "Cadre (C) : glissez pour encadrer un acte"],
+	]
+	for tool_variant in tool_defs:
+		var tool_def: Array = tool_variant
+		var tool_btn := _make_console_button(str(tool_def[1]), str(tool_def[2]))
+		tool_btn.toggle_mode = true
+		tool_btn.name = "BtnTool%s" % str(tool_def[0]).capitalize()
+		tool_btn.custom_minimum_size = Vector2(30, 28)
+		tool_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		tool_btn.add_theme_font_size_override("font_size", 16)
+		box.add_child(tool_btn)
+		_tool_buttons[str(tool_def[0])] = tool_btn
+		var captured_tool := str(tool_def[0])
+		tool_btn.pressed.connect(func() -> void: _set_tool(captured_tool))
+	var sep := HSeparator.new()
+	sep.name = "RailSep"
+	sep.custom_minimum_size = Vector2(22, 1)
+	sep.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(sep)
+	var rail_actions: Array = [
+		["−", "Dézoomer le graphe", _on_zoom_out_pressed],
+		["+", "Zoomer le graphe", _on_zoom_in_pressed],
+		["⛶", "Cadrer tout le graphe (F)", _on_fit_view_pressed],
+	]
+	for action_variant in rail_actions:
+		var action: Array = action_variant
+		var action_btn := _make_console_button(str(action[0]), str(action[1]))
+		action_btn.custom_minimum_size = Vector2(30, 28)
+		action_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		action_btn.add_theme_font_size_override("font_size", 16)
+		box.add_child(action_btn)
+		action_btn.pressed.connect(action[2] as Callable)
+	_style_tool_buttons()
+
+## Ouvre / ferme le dock flottant (masqué par défaut : côté ouvert d'Atelier).
+func _set_dock_open(open: bool) -> void:
+	_dock_open = open
+	if dock_panel != null:
+		dock_panel.visible = open
+	if open:
+		_set_dock_tab(_dock_tab)
+	_update_canvas_chrome()
+
+func _toggle_dock() -> void:
+	_set_dock_open(not _dock_open)
+
+## Enregistre le scénario puis lance une partie de test (même logique que la
+## liste de scénarios : GameData.go_to_game_setup avec le format courant).
+func _on_test_pressed() -> void:
+	_on_save_pressed()
+	if _dirty:
+		return
+	var scenario_id := str(_scenario.get("id", ""))
+	if scenario_id.is_empty():
+		_set_status("Erreur : scénario sans identifiant")
+		return
+	var setup_mode := "investigation" if _is_investigation_mode() else "adventure"
+	_journal_add("Partie de test lancée sur « %s »" % scenario_id)
+	GameData.go_to_game_setup(setup_mode, scenario_id)
+
+## Duplique la scène sélectionnée (titre, contenu, tags, cartes, branches).
+func _on_duplicate_scene_pressed() -> void:
+	if _selected_scene_id.is_empty():
+		_set_status("Sélectionnez une scène d'abord.")
+		return
+	_commit_scene_editor()
+	var idx := _scene_index_for_id(_selected_scene_id)
+	if idx < 0:
+		return
+	var source: Dictionary = _scenario["scenes"][idx]
+	var copy: Dictionary = source.duplicate(true)
+	var base_id := str(source.get("id", "scene"))
+	var new_id := "%s-copie" % base_id
+	var suffix := 2
+	while _scene_index_for_id(new_id) >= 0:
+		new_id = "%s-copie-%d" % [base_id, suffix]
+		suffix += 1
+	copy["id"] = new_id
+	var source_title := str(source.get("title", new_id)).strip_edges()
+	if source_title.is_empty():
+		source_title = base_id
+	copy["title"] = "%s (copie)" % source_title
+	var gp: Variant = copy.get("graphPos", {})
+	var pos := _scene_graph_pos(source, idx)
+	if typeof(gp) == TYPE_DICTIONARY and gp.has("x") and gp.has("y"):
+		pos = Vector2(float(gp["x"]), float(gp["y"]))
+	copy["graphPos"] = { "x": pos.x, "y": pos.y + QuestNavigation.LAYOUT_V_GAP }
+	var scenes: Array = _scenario.get("scenes", [])
+	scenes.append(copy)
+	_scenario["scenes"] = scenes
+	_selected_scene_id = new_id
+	_refresh_start_scene_options()
+	_mark_dirty("Scène dupliquée")
+	_rebuild_graph()
+	_refresh_scene_panel()
+
+
+## Instancie les vues Scénario / PNJ / Cartes (script séparé).
+func _instantiate_views() -> void:
+	if _views_host == null:
+		return
+	var script: Resource = null
+	var views_path := "res://scripts/scenario_editor/panels/editor_views.gd"
+	if ResourceLoader.exists(views_path):
+		script = load(views_path)
+	if not (script is Script):
+		return
+	_views = (script as Script).new() as Control
+	if _views == null:
+		return
+	_views.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_views_host.add_child(_views)
+	_views.call("setup", _scenario,
+		func() -> Array: return MapData.maps,
+		func() -> String: return _selected_scene_id)
+	if _views.has_signal("scene_selected"):
+		_views.connect("scene_selected", _on_view_scene_selected)
+	if _views.has_signal("request_add_npc"):
+		_views.connect("request_add_npc", _on_add_npc_pressed)
+	if _views.has_signal("npc_changed"):
+		_views.connect("npc_changed", func() -> void:
+			_refresh_npc_list()
+			_mark_dirty("PNJ modifié"))
+	if _views.has_signal("map_link_changed"):
+		_views.connect("map_link_changed", func() -> void:
+			_refresh_scene_panel()
+			_mark_dirty("Carte liée à une scène"))
+
+
+## Crée un bouton compact style console.
+func _make_console_button(text: String, tooltip: String) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.tooltip_text = tooltip
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.set_meta("skip_button_sizing", true)
+	btn.set_meta("compact_height", 28.0)
+	btn.custom_minimum_size = Vector2(0, 28)
+	btn.add_theme_font_size_override("font_size", 12)
+	return btn
+
+
+## Change le mode central : Graphe ou vue Scénario / PNJ / Cartes.
+func _set_mode(mode: String) -> void:
+	if mode != MODE_GRAPH and mode != MODE_SCENARIO and mode != MODE_NPC and mode != MODE_MAPS:
+		mode = MODE_GRAPH
+	_mode = mode
+	_commit_scene_editor()
+	if _graph_panel != null:
+		_graph_panel.visible = mode == MODE_GRAPH
+	if _views_host != null:
+		_views_host.visible = mode != MODE_GRAPH
+	# Panneaux flottants du canevas : seulement en vue Graphe.
+	if canvas_overlay != null:
+		canvas_overlay.visible = mode == MODE_GRAPH
+	if _minimap != null and is_instance_valid(_minimap):
+		_minimap.call("set_enabled", mode == MODE_GRAPH)
+	if _views != null and is_instance_valid(_views) and mode != MODE_GRAPH:
+		_views.call("set_mode", mode)
+		_views.call("refresh")
+	for mode_key in _mode_buttons.keys():
+		_style_tab_button(_mode_buttons[mode_key] as Button, str(mode_key) == mode)
+	match mode:
+		MODE_SCENARIO:
+			_set_status("Vue Scénario")
+		MODE_NPC:
+			_set_status("Vue PNJ")
+		MODE_MAPS:
+			_set_status("Vue Cartes")
+		_:
+			_set_status("Prêt")
+
+
+func _on_view_scene_selected(scene_id: String) -> void:
+	_open_scene_editor(scene_id, false)
+	if _views != null and is_instance_valid(_views):
+		_views.call("refresh")
+
+
+## Construit les panneaux Historique / Journal du dock (en plus des Problèmes).
+func _build_dock_tabs() -> void:
+	_dock_issues_panel = dock_issues_list
+	var scroll := dock_issues_list.get_parent() as ScrollContainer
+	if scroll == null:
+		return
+	_dock_history_panel = VBoxContainer.new()
+	_dock_history_panel.name = "DockHistoryList"
+	_dock_history_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dock_history_panel.add_theme_constant_override("separation", 6)
+	scroll.add_child(_dock_history_panel)
+	_dock_journal_panel = VBoxContainer.new()
+	_dock_journal_panel.name = "DockJournalList"
+	_dock_journal_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dock_journal_panel.add_theme_constant_override("separation", 6)
+	scroll.add_child(_dock_journal_panel)
+	var dock_btn_defs: Array = [
+		[DOCK_TAB_ISSUES, dock_issues_btn],
+		[DOCK_TAB_HISTORY, %BtnDockHistory],
+		[DOCK_TAB_JOURNAL, %BtnDockJournal],
+	]
+	for entry_variant in dock_btn_defs:
+		var entry: Array = entry_variant
+		var btn: Button = entry[1] as Button
+		if btn == null:
+			continue
+		var captured_tab := str(entry[0])
+		_dock_buttons[captured_tab] = btn
+		btn.disabled = false
+		btn.tooltip_text = ""
+		btn.pressed.connect(func() -> void: _set_dock_tab(captured_tab))
+	_dock_history_panel.visible = false
+	_dock_journal_panel.visible = false
+	_set_dock_tab(DOCK_TAB_ISSUES)
+
+
+func _set_dock_tab(tab: String) -> void:
+	if tab != DOCK_TAB_ISSUES and tab != DOCK_TAB_HISTORY and tab != DOCK_TAB_JOURNAL:
+		tab = DOCK_TAB_ISSUES
+	_dock_tab = tab
+	if _dock_issues_panel != null:
+		_dock_issues_panel.visible = tab == DOCK_TAB_ISSUES
+	if _dock_history_panel != null:
+		_dock_history_panel.visible = tab == DOCK_TAB_HISTORY
+	if _dock_journal_panel != null:
+		_dock_journal_panel.visible = tab == DOCK_TAB_JOURNAL
+	for tab_key in _dock_buttons.keys():
+		_style_tab_button(_dock_buttons[tab_key] as Button, str(tab_key) == tab)
+	if tab == DOCK_TAB_HISTORY:
+		_render_history()
+	elif tab == DOCK_TAB_JOURNAL:
+		_render_journal()
+
+
+func _on_validation_badge_pressed() -> void:
+	_set_mode(MODE_GRAPH)
+	_set_dock_tab(DOCK_TAB_ISSUES)
+	_set_dock_open(true)
+
+
+func _update_validation_badge() -> void:
+	if _validation_badge == null:
+		return
+	var errors := QuestNavigation.validate_scenario_graph(_scenario).size()
+	var suggestions := _graph_issues.size()
+	var text := "%d erreur%s" % [errors, "s" if errors > 1 else ""]
+	if errors == 0:
+		text = "✓ 0 erreur"
+	if suggestions > 0:
+		text += " · %d suggestion%s" % [suggestions, "s" if suggestions > 1 else ""]
+	_validation_badge.text = text
+	var color: Color = ThemeColors.SUCCESS if errors == 0 else ThemeColors.DANGER
+	_validation_badge.add_theme_color_override("font_color", color)
+	_validation_badge.tooltip_text = "Voir les problèmes du graphe (%d)" % suggestions
+
+
+# ---------------------------------------------------------------------------
+# Historique et journal (dock)
+# ---------------------------------------------------------------------------
+
+func _history_add(text: String) -> void:
+	_history_entries.append({
+		"time": Time.get_time_string_from_system(),
+		"text": text,
+	})
+	while _history_entries.size() > 120:
+		_history_entries.pop_front()
+	if _dock_tab == DOCK_TAB_HISTORY and _dock_history_panel != null:
+		_render_history()
+
+
+func _journal_add(text: String) -> void:
+	_journal_entries.append({
+		"time": Time.get_time_string_from_system(),
+		"text": text,
+	})
+	while _journal_entries.size() > 120:
+		_journal_entries.pop_front()
+	if _dock_tab == DOCK_TAB_JOURNAL and _dock_journal_panel != null:
+		_render_journal()
+
+
+func _render_history() -> void:
+	if _dock_history_panel == null:
+		return
+	for child in _dock_history_panel.get_children():
+		child.queue_free()
+	if _history_entries.is_empty():
+		_dock_history_panel.add_child(_make_dock_label("Aucune action pour l'instant.", true))
+		return
+	for i in range(_history_entries.size() - 1, -1, -1):
+		var entry: Dictionary = _history_entries[i]
+		_dock_history_panel.add_child(_make_dock_row(str(entry.get("time", "")), str(entry.get("text", ""))))
+
+
+func _render_journal() -> void:
+	if _dock_journal_panel == null:
+		return
+	for child in _dock_journal_panel.get_children():
+		child.queue_free()
+	if _journal_entries.is_empty():
+		_dock_journal_panel.add_child(_make_dock_label("Journal vide.", true))
+		return
+	for i in range(_journal_entries.size() - 1, -1, -1):
+		var entry: Dictionary = _journal_entries[i]
+		_dock_journal_panel.add_child(_make_dock_row(str(entry.get("time", "")), str(entry.get("text", ""))))
+
+
+func _make_dock_row(time_text: String, text: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var time_lbl := Label.new()
+	time_lbl.text = time_text
+	time_lbl.theme_type_variation = &"MicroLabel"
+	time_lbl.custom_minimum_size = Vector2(72, 0)
+	var msg := Label.new()
+	msg.text = text
+	msg.theme_type_variation = &"MutedLabel"
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(time_lbl)
+	row.add_child(msg)
+	return row
+
+
+func _make_dock_label(text: String, muted: bool) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.theme_type_variation = &"MutedLabel" if muted else &"CaptionLabel"
+	return lbl
+
+
+# ---------------------------------------------------------------------------
+# Outils (rail de la sous-barre)
+# ---------------------------------------------------------------------------
+
+func _set_tool(tool: String) -> void:
+	if tool != TOOL_SELECT and tool != TOOL_LINK and tool != TOOL_NOTE and tool != TOOL_FRAME:
+		tool = TOOL_SELECT
+	_tool = tool
+	_link_source_id = ""
+	if tool == TOOL_NOTE or tool == TOOL_FRAME:
+		graph_edit.mouse_default_cursor_shape = Control.CURSOR_CROSS
+	else:
+		graph_edit.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	if _link_overlay != null and is_instance_valid(_link_overlay):
+		_link_overlay.call("clear_tool_preview")
+	_style_tool_buttons()
+	match tool:
+		TOOL_LINK:
+			_set_status("Outil Lien")
+		TOOL_NOTE:
+			_set_status("Outil Note")
+		TOOL_FRAME:
+			_set_status("Outil Cadre")
+		_:
+			_set_status("Sélection")
+
+
+func _style_tool_buttons() -> void:
+	for tool_key in _tool_buttons.keys():
+		_style_tab_button(_tool_buttons[tool_key] as Button, str(tool_key) == _tool)
+
+
+## En mode Lien : premier clic = source, second = cible → crée la branche.
+func _handle_link_click(scene_id: String) -> void:
+	if scene_id.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	if scene_id == _link_last_sid and now - _link_click_ms < 350:
+		return
+	_link_last_sid = scene_id
+	_link_click_ms = now
+	if _link_source_id.is_empty():
+		_link_source_id = scene_id
+		_open_scene_editor(scene_id, false)
+		_set_status("Lien : départ « %s » — cliquez la scène cible" % _scene_title(scene_id))
+		return
+	if scene_id == _link_source_id:
+		_link_source_id = ""
+		_set_status("Lien annulé (même scène)")
+		return
+	if _has_transition(_link_source_id, scene_id):
+		_set_status("Cette branche existe déjà")
+		return
+	var from_id := _link_source_id
+	_add_or_update_transition(from_id, scene_id, "Nouvelle branche", false, false)
+	_connect_graph_edge(from_id, scene_id, {
+		"to": scene_id,
+		"label": "Nouvelle branche",
+		"default": false,
+		"gmOnly": false,
+	})
+	_link_source_id = ""
+	_mark_dirty("Branche créée (mode Lien)")
+	_refresh_graph_node_chrome(from_id)
+	_refresh_transitions_ui()
+	_refresh_scene_panel()
+	_set_status("Branche « %s » → « %s » créée" % [_scene_title(from_id), _scene_title(scene_id)])
+
+
+func _scene_title(scene_id: String) -> String:
+	var scene := _get_scene_dict(scene_id)
+	return str(scene.get("title", scene_id))
+
+
+# ---------------------------------------------------------------------------
+# Notes et cadres (annotations du plan)
+# ---------------------------------------------------------------------------
+
+## Convertit une position écran en coordonnées graphe (position_offset).
+func _graph_point_from_global(global_pos: Vector2) -> Vector2:
+	var zoom := maxf(graph_edit.zoom, 0.0001)
+	return (global_pos - graph_edit.global_position + graph_edit.scroll_offset) / zoom
+
+
+## Gère les clics de souris quand un outil d'annotation est actif.
+func _handle_annotation_input(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and _tool == TOOL_NOTE:
+			if _delete_note_at(_graph_point_from_global(mb.global_position)):
+				graph_edit.accept_event()
+				return true
+			return false
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		var point := _graph_point_from_global(mb.global_position)
+		if mb.pressed:
+			if _tool == TOOL_NOTE:
+				var note := _find_note_at(point)
+				if not note.is_empty():
+					_open_note_dialog(str(note.get("id", "")))
+				else:
+					_create_note_at(point)
+				graph_edit.accept_event()
+				return true
+			if _tool == TOOL_FRAME:
+				_frame_dragging = true
+				_frame_drag_start = point
+				_set_tool_preview_graph(Rect2(point, Vector2.ZERO))
+				graph_edit.accept_event()
+				return true
+			return false
+		if _tool == TOOL_FRAME and _frame_dragging:
+			_frame_dragging = false
+			var start := _frame_drag_start
+			var rect := Rect2(start, point - start).abs()
+			_clear_tool_preview()
+			if rect.size.x > 60.0 and rect.size.y > 40.0:
+				_create_frame(rect)
+			graph_edit.accept_event()
+			return true
+		return false
+	if event is InputEventMouseMotion and _frame_dragging:
+		var point := _graph_point_from_global((event as InputEventMouseMotion).global_position)
+		_set_tool_preview_graph(Rect2(_frame_drag_start, point - _frame_drag_start).abs())
+		return true
+	return false
+
+
+func _set_tool_preview_graph(rect: Rect2) -> void:
+	if _link_overlay != null and is_instance_valid(_link_overlay):
+		_link_overlay.call("set_tool_preview_graph", rect)
+
+
+func _clear_tool_preview() -> void:
+	if _link_overlay != null and is_instance_valid(_link_overlay):
+		_link_overlay.call("clear_tool_preview")
+
+
+## Notes du plan : stockées dans le scénario (`editorNotes`), dessinées par
+## l'overlay ; clic = éditer, clic droit = supprimer.
+func _notes() -> Array:
+	var raw: Variant = _scenario.get("editorNotes", [])
+	return raw if raw is Array else []
+
+
+func _create_note_at(point: Vector2) -> void:
+	var notes: Array = _notes()
+	notes.append({
+		"id": "note-%d" % (notes.size() + 1),
+		"text": "Note",
+		"x": point.x,
+		"y": point.y,
+	})
+	_scenario["editorNotes"] = notes
+	_mark_dirty("Note ajoutée")
+	_notify_links_changed()
+	_open_note_dialog("note-%d" % notes.size())
+
+
+func _find_note_at(point: Vector2) -> Dictionary:
+	var notes: Array = _notes()
+	for i in range(notes.size() - 1, -1, -1):
+		var note: Dictionary = notes[i]
+		var rect := Rect2(Vector2(float(note.get("x", 0.0)), float(note.get("y", 0.0))), Vector2(190, 64))
+		if rect.has_point(point):
+			return note
+	return {}
+
+
+func _delete_note_at(point: Vector2) -> bool:
+	var note := _find_note_at(point)
+	if note.is_empty():
+		return false
+	var notes: Array = _notes()
+	var remaining: Array = []
+	for entry in notes:
+		if str((entry as Dictionary).get("id", "")) != str(note.get("id", "")):
+			remaining.append(entry)
+	_scenario["editorNotes"] = remaining
+	_mark_dirty("Note supprimée")
+	_notify_links_changed()
+	return true
+
+
+func _ensure_note_dialog() -> void:
+	if _note_dialog != null and is_instance_valid(_note_dialog):
+		return
+	_note_dialog = ConfirmationDialog.new()
+	_note_dialog.title = "Note du plan"
+	_note_dialog.ok_button_text = "Valider"
+	_note_dialog.cancel_button_text = "Annuler"
+	_note_dialog.initial_position = Window.WINDOW_INITIAL_POSITION_CENTER_MAIN_WINDOW_SCREEN
+	add_child(_note_dialog)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_note_edit = LineEdit.new()
+	_note_edit.custom_minimum_size = Vector2(360, 0)
+	_note_edit.placeholder_text = "Texte de la note…"
+	margin.add_child(_note_edit)
+	_note_dialog.add_child(margin)
+	_note_dialog.confirmed.connect(_on_note_dialog_confirmed)
+
+
+func _open_note_dialog(note_id: String) -> void:
+	_ensure_note_dialog()
+	_note_editing_id = note_id
+	var text := ""
+	for entry in _notes():
+		if str((entry as Dictionary).get("id", "")) == note_id:
+			text = str((entry as Dictionary).get("text", ""))
+			break
+	_note_edit.text = text
+	_note_dialog.popup_centered(Vector2i(420, 120))
+	_note_edit.grab_focus()
+
+
+func _on_note_dialog_confirmed() -> void:
+	if _note_editing_id.is_empty():
+		return
+	var notes: Array = _notes()
+	for i in range(notes.size()):
+		var note: Dictionary = notes[i]
+		if str(note.get("id", "")) == _note_editing_id:
+			note["text"] = _note_edit.text.strip_edges()
+			notes[i] = note
+			break
+	_scenario["editorNotes"] = notes
+	_note_editing_id = ""
+	_mark_dirty("Note modifiée")
+	_notify_links_changed()
+
+
+## Cadres libres : stockés dans le scénario (`editorFrames`), dessinés SOUS les
+## cartes avec les cadres d'actes.
+func _create_frame(rect: Rect2) -> void:
+	var frames: Array = _scenario.get("editorFrames", [])
+	if not (frames is Array):
+		frames = []
+	frames.append({
+		"id": "cadre-%d" % (frames.size() + 1),
+		"label": "CADRE %d" % (frames.size() + 1),
+		"x": rect.position.x,
+		"y": rect.position.y,
+		"w": rect.size.x,
+		"h": rect.size.y,
+	})
+	_scenario["editorFrames"] = frames
+	_mark_dirty("Cadre créé")
+	_notify_links_changed()
+
+
+# ---------------------------------------------------------------------------
+# Palette de commandes (Ctrl+K)
+# ---------------------------------------------------------------------------
+
+func _open_palette() -> void:
+	if _palette == null or not is_instance_valid(_palette):
+		return
+	_palette.call("open", _palette_items())
+
+
+func _palette_items() -> Array:
+	var items: Array = []
+	for scene_variant in _scenario.get("scenes", []):
+		if typeof(scene_variant) != TYPE_DICTIONARY:
+			continue
+		var scene: Dictionary = scene_variant
+		var scene_id := str(scene.get("id", ""))
+		items.append({
+			"id": "scene:" + scene_id,
+			"label": str(scene.get("title", scene_id)),
+			"hint": scene_id,
+			"category": "Scènes",
+		})
+	var tool_defs: Array = [
+		[TOOL_SELECT, "Sélection"],
+		[TOOL_LINK, "Créer un lien"],
+		[TOOL_NOTE, "Poser une note"],
+		[TOOL_FRAME, "Créer un cadre"],
+	]
+	for tool_variant in tool_defs:
+		var tool_def: Array = tool_variant
+		items.append({
+			"id": "tool:" + str(tool_def[0]),
+			"label": str(tool_def[1]),
+			"hint": "Outil",
+			"category": "Outils",
+		})
+	var mode_defs: Array = [
+		[MODE_GRAPH, "Vue Graphe"],
+		[MODE_SCENARIO, "Vue Scénario"],
+		[MODE_NPC, "Vue PNJ"],
+		[MODE_MAPS, "Vue Cartes"],
+	]
+	for mode_variant in mode_defs:
+		var mode_def: Array = mode_variant
+		items.append({
+			"id": "mode:" + str(mode_def[0]),
+			"label": str(mode_def[1]),
+			"hint": "Mode",
+			"category": "Navigation",
+		})
+	var actions: Array = [
+		["autolayout", "Auto-layout du graphe"],
+		["fit", "Cadrer le graphe"],
+		["validate", "Valider le scénario"],
+		["save", "Enregistrer"],
+		["addscene", "Ajouter une scène"],
+		["addnpc", "Ajouter un PNJ"],
+		["addtransition", "Ajouter une branche à la scène"],
+		["focus", "Cadrer la scène sélectionnée"],
+	]
+	for action_variant in actions:
+		var action_def: Array = action_variant
+		items.append({
+			"id": "act:" + str(action_def[0]),
+			"label": str(action_def[1]),
+			"hint": "Commande",
+			"category": "Actions",
+		})
+	return items
+
+
+func _on_palette_action(id: String) -> void:
+	if id.begins_with("scene:"):
+		_set_mode(MODE_GRAPH)
+		_select_and_focus_scene(id.substr(6))
+		return
+	if id.begins_with("tool:"):
+		_set_tool(id.substr(5))
+		return
+	if id.begins_with("mode:"):
+		_set_mode(id.substr(5))
+		return
+	if id.begins_with("act:"):
+		match id.substr(4):
+			"autolayout":
+				_on_auto_layout_pressed()
+			"fit":
+				_on_fit_view_pressed()
+			"validate":
+				_on_validate_pressed()
+			"save":
+				_on_save_pressed()
+			"addscene":
+				_on_add_scene_pressed()
+			"addnpc":
+				_on_add_npc_pressed()
+			"addtransition":
+				_on_add_transition_pressed()
+			"focus":
+				if not _selected_scene_id.is_empty():
+					_select_and_focus_scene(_selected_scene_id)
+
+
+func _is_text_input_focused() -> bool:
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus == null:
+		return false
+	return focus is LineEdit or focus is TextEdit

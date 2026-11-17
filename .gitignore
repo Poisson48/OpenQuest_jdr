@@ -59,3 +59,6 @@ artifacts/tripo-review/rock-kit/rocher_*_render.png
 # Renders de debug du pipeline d'assets (surfaces projetÃ©es + lueurs)
 game/assets/objects3d/*/*_surface.png
 game/assets/objects3d/*/*_lueur.png
+
+# Sorties de travail lourdes du pipeline volumes 3D (atlas HD + GLB) : non versionnées
+artifacts/volumes_hd*/

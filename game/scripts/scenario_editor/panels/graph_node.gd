@@ -10,6 +10,8 @@ signal scene_focus_requested(scene_id: String)
 const QuestNavigationScript := preload("res://scripts/quest_navigation.gd")
 const MIN_SIZE := Vector2(160, 90)
 const MAX_SIZE := Vector2(520, 420)
+## Hauteur compacte par défaut d'une carte sans `graphSize` (cf. auto-layout).
+const DEFAULT_NODE_HEIGHT := 190.0
 const CLICK_DRAG_THRESHOLD_PX := 6.0
 
 var _left_pressing: bool = false
@@ -74,6 +76,7 @@ func refresh_chrome(scene: Dictionary, sid: String, is_unreachable: bool, start_
 	var is_selected: bool = sid == selected_id
 	set_meta("is_unreachable", is_unreachable)
 	set_meta("is_start", is_start)
+	set_meta("is_terminal", is_terminal)
 
 	var title := str(scene.get("title", sid))
 	if is_start:
@@ -124,8 +127,11 @@ func refresh_chrome(scene: Dictionary, sid: String, is_unreachable: bool, start_
 
 	%LblWarn.visible = is_unreachable and not is_start
 
-	var slot_color := ThemeColors.GOLD if is_start else (ThemeColors.SUCCESS if is_terminal else ThemeColors.GOLD_LIGHT)
-	set_slot(0, true, 0, slot_color, true, 0, slot_color)
+	# Les liens natifs de GraphEdit sont masqués : ils sont dessinés SOUS les
+	# cartes, donc illisibles dès que deux scènes se chevauchent. L'overlay
+	# `graph_link_overlay.gd` redessine les branches au-dessus (avec peignes,
+	# détours et libellés) et dessine ses propres pastilles de port.
+	set_slot(0, true, 0, Color(0, 0, 0, 0), true, 0, Color(0, 0, 0, 0))
 
 func set_selected_visual(is_selected: bool) -> void:
 	var is_start := bool(get_meta("is_start", false))
@@ -159,11 +165,10 @@ func _apply_size_from_scene(scene: Dictionary) -> void:
 	if typeof(gs) == TYPE_DICTIONARY and gs.has("w") and gs.has("h"):
 		apply_size(Vector2(float(gs["w"]), float(gs["h"])))
 	else:
-		custom_minimum_size = Vector2(QuestNavigationScript.NODE_WIDTH, 0)
-		if has_meta("graph_size"):
-			remove_meta("graph_size")
-		var preview: Label = %LblPreview
-		preview.custom_minimum_size = Vector2(190, 0)
+		# Taille par défaut compacte : sans `graphSize`, la hauteur pilotée par le
+		# texte (aperçu multi-lignes) explosait (cartes de 2700 px qui masquaient
+		# les branches). Les labels sont bornés en lignes dans `graph_node.tscn`.
+		apply_size(Vector2(QuestNavigationScript.NODE_WIDTH, DEFAULT_NODE_HEIGHT))
 
 func _clamp_size(sz: Vector2) -> Vector2:
 	return Vector2(
@@ -193,4 +198,15 @@ func _apply_panel_style(is_selected: bool, is_start: bool, is_unreachable: bool,
 		style.border_color = ThemeColors.BORDER
 	add_theme_stylebox_override("panel", style)
 	add_theme_stylebox_override("panel_selected", style)
+	# Barre de titre fondue dans la carte (côté Atelier : pas de bandeau gris
+	# au-dessus de chaque nœud, juste le titre serif + une fine ligne).
+	var titlebar := StyleBoxFlat.new()
+	titlebar.bg_color = style.bg_color.darkened(0.06)
+	titlebar.set_corner_radius_all(8)
+	titlebar.border_width_bottom = 1
+	titlebar.border_color = Color(1, 1, 1, 0.05)
+	titlebar.content_margin_left = 4
+	titlebar.content_margin_right = 4
+	add_theme_stylebox_override("titlebar", titlebar)
+	add_theme_stylebox_override("titlebar_selected", titlebar)
 	add_theme_color_override("title_color", ThemeColors.GOLD_LIGHT if is_start else ThemeColors.TEXT)

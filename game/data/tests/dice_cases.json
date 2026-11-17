@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "description": "Cas de test partagés du moteur de dés OpenQuest — exécutés par game/scripts/tests/dice_engine_test.gd et server/scripts/test_dice_engine.ts. Les 'rolls' imposent la séquence de dés (RNG scriptée) pour rendre le résultat déterministe et comparable entre les deux implémentations.",
+  "cases": [
+    {
+      "name": "simple_d20",
+      "formula": "1d20",
+      "rolls": [13],
+      "expect": { "kind": "dice", "total": 13, "rolls": [13], "modifier": 0, "kept": [13], "dropped": [] }
+    },
+    {
+      "name": "implicit_count",
+      "formula": "d20",
+      "rolls": [7],
+      "expect": { "kind": "dice", "total": 7, "rolls": [7] }
+    },
+    {
+      "name": "percentile",
+      "formula": "d%",
+      "rolls": [42],
+      "expect": { "kind": "dice", "total": 42, "rolls": [42] }
+    },
+    {
+      "name": "add_modifier",
+      "formula": "2d6+3",
+      "rolls": [4, 5],
+      "expect": { "kind": "number", "total": 12, "rolls": [4, 5], "modifier": 3 }
+    },
+    {
+      "name": "minus_modifier",
+      "formula": "1d8-1",
+      "rolls": [1],
+      "expect": { "kind": "number", "total": 0, "rolls": [1], "modifier": -1 }
+    },
+    {
+      "name": "keep_highest",
+      "formula": "4d6keeph3",
+      "rolls": [3, 5, 1, 6],
+      "expect": { "kind": "dice", "total": 14, "rolls": [3, 5, 6], "kept": [3, 5, 6], "dropped": [1] }
+    },
+    {
+      "name": "keep_lowest",
+      "formula": "4d6keepl2",
+      "rolls": [3, 5, 1, 6],
+      "expect": { "kind": "dice", "total": 4, "rolls": [3, 1], "kept": [3, 1], "dropped": [5, 6] }
+    },
+    {
+      "name": "advantage",
+      "formula": "1d20adv",
+      "rolls": [7, 15],
+      "expect": { "kind": "dice", "total": 15, "kept": [15], "dropped": [7] }
+    },
+    {
+      "name": "disadvantage",
+      "formula": "1d20disadv",
+      "rolls": [7, 15],
+      "expect": { "kind": "dice", "total": 7, "kept": [7], "dropped": [15] }
+    },
+    {
+      "name": "explode",
+      "formula": "2d6expl",
+      "rolls": [3, 6, 4],
+      "expect": { "kind": "dice", "total": 13, "kept": [3, 6, 4] }
+    },
+    {
+      "name": "reroll_one",
+      "formula": "3d6reroll",
+      "rolls": [1, 2, 3, 5],
+      "expect": { "kind": "dice", "total": 10, "kept": [5, 2, 3] }
+    },
+    {
+      "name": "clamp_min",
+      "formula": "2d10min5",
+      "rolls": [2, 7],
+      "expect": { "kind": "dice", "total": 12, "kept": [5, 7] }
+    },
+    {
+      "name": "clamp_max",
+      "formula": "2d10max3",
+      "rolls": [2, 7],
+      "expect": { "kind": "dice", "total": 5, "kept": [2, 3] }
+    },
+    {
+      "name": "pool_successes",
+      "formula": "5d10>=6",
+      "rolls": [1, 6, 7, 10, 3],
+      "expect": { "kind": "comparison", "total": 3, "success": 3, "failure": 2 }
+    },
+    {
+      "name": "pool_weighted",
+      "formula": "5d10>=6{6:2}",
+      "rolls": [1, 6, 7, 10, 3],
+      "expect": { "kind": "comparison", "total": 4, "success": 4, "failure": 2 }
+    },
+    {
+      "name": "sum_compare_true",
+      "formula": "1d20+5>=15",
+      "rolls": [10],
+      "expect": { "kind": "comparison", "total": 15, "success": 1, "failure": 0 }
+    },
+    {
+      "name": "sum_compare_false",
+      "formula": "1d20+5<10",
+      "rolls": [10],
+      "expect": { "kind": "comparison", "total": 15, "success": 0, "failure": 1 }
+    },
+    {
+      "name": "tags",
+      "formula": "2d6[degats]",
+      "rolls": [2, 3],
+      "expect": { "kind": "dice", "total": 5, "tags": ["degats"] }
+    },
+    {
+      "name": "parenthesized",
+      "formula": "(1d6+1)*2",
+      "rolls": [3],
+      "expect": { "kind": "number", "total": 8, "rolls": [3], "modifier": 5 }
+    },
+    {
+      "name": "negate",
+      "formula": "-1d4",
+      "rolls": [2],
+      "expect": { "kind": "number", "total": -2, "rolls": [2], "modifier": -4 }
+    },
+    {
+      "name": "multi_dice",
+      "formula": "1d6+2d4",
+      "rolls": [2, 1, 4],
+      "expect": { "kind": "number", "total": 7, "rolls": [2, 1, 4], "modifier": 0 }
+    },
+    {
+      "name": "error_unknown_word",
+      "formula": "abc",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_missing_sides",
+      "formula": "2d",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_zero_sides",
+      "formula": "1d0",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_too_many_dice",
+      "formula": "101d6",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_trailing_operator",
+      "formula": "1d6+",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_empty",
+      "formula": "",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_unclosed_weights",
+      "formula": "5d10>=6{6:2",
+      "rolls": [],
+      "expect": { "ok": false }
+    },
+    {
+      "name": "error_division_by_zero",
+      "formula": "1d6/0",
+      "rolls": [3],
+      "expect": { "ok": false }
+    }
+  ]
+}

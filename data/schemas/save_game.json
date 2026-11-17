@@ -169,6 +169,21 @@
       "type": "string",
       "enum": ["playing", "completed"],
       "description": "État de la partie."
+    },
+    "journal": {
+      "type": "object",
+      "description": "Journal de campagne en dossiers/pages (voir session_model.json#/$defs/Journal).",
+      "additionalProperties": true
+    },
+    "turnOrder": {
+      "type": "object",
+      "description": "Ordre de tour optionnel / initiative (voir session_model.json#/$defs/TurnOrder).",
+      "additionalProperties": true
+    },
+    "quickbars": {
+      "type": "object",
+      "description": "Quickbar par personnage, 10 emplacements max (voir session_model.json#/$defs/Quickbars).",
+      "additionalProperties": true
     }
   }
 }

@@ -1,0 +1,45 @@
+{
+  "id": "dnd-complete",
+  "title": "Complet — D&D",
+  "version": 1,
+  "description": "Ruleset de démonstration du tier « complet » : 6 caractéristiques, modificateurs, CA, PV, bonus d'attaque et jets.",
+  "fields": [
+    { "id": "str", "label": "Force", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "dex", "label": "Dextérité", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "con", "label": "Constitution", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "intel", "label": "Intelligence", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "wis", "label": "Sagesse", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "cha", "label": "Charisme", "type": "int", "min": 3, "max": 18, "default": 10 },
+    { "id": "level", "label": "Niveau", "type": "int", "min": 1, "max": 20, "default": 1 },
+    { "id": "proficiency", "label": "Maîtrise", "type": "int", "min": 2, "max": 6, "default": 2 }
+  ],
+  "derived": [
+    { "id": "mod_str", "label": "Mod. Force", "formula": "floor((@str - 10) / 2)" },
+    { "id": "mod_dex", "label": "Mod. Dextérité", "formula": "floor((@dex - 10) / 2)" },
+    { "id": "mod_con", "label": "Mod. Constitution", "formula": "floor((@con - 10) / 2)" },
+    { "id": "mod_intel", "label": "Mod. Intelligence", "formula": "floor((@intel - 10) / 2)" },
+    { "id": "mod_wis", "label": "Mod. Sagesse", "formula": "floor((@wis - 10) / 2)" },
+    { "id": "mod_cha", "label": "Mod. Charisme", "formula": "floor((@cha - 10) / 2)" },
+    { "id": "ac", "label": "Classe d'armure", "formula": "10 + @mod_dex" },
+    { "id": "pv_max", "label": "PV max", "formula": "max(1, @level * (6 + @mod_con))" },
+    { "id": "initiative", "label": "Initiative", "formula": "@mod_dex" },
+    { "id": "attaque_bonus", "label": "Bonus d'attaque", "formula": "@mod_str + @proficiency" },
+    { "id": "save_dc", "label": "DD de sauvegarde", "formula": "8 + @proficiency + @mod_intel" }
+  ],
+  "rolls": [
+    { "id": "attaque", "label": "Attaque", "formula": "1d20 + @attaque_bonus", "visibility": "table" },
+    { "id": "jet_carac", "label": "Test de caractéristique", "formula": "1d20 + @mod_dex", "visibility": "table" },
+    { "id": "degats", "label": "Dégâts", "formula": "1d8 + @mod_str[degats]", "visibility": "table" },
+    { "id": "jet_mj", "label": "Jet secret (MJ)", "formula": "1d20 + @mod_wis", "visibility": "gm" }
+  ],
+  "tables": [
+    {
+      "id": "sorts",
+      "label": "Sorts de niveau 1",
+      "rows": [
+        { "id": "projectile", "name": "Projectile magique", "degats": "1d4+1" },
+        { "id": "soin", "name": "Soin léger", "degats": "1d8" }
+      ]
+    }
+  ]
+}

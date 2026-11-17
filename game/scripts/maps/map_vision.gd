@@ -16,6 +16,9 @@ class_name MapVision
 ## reste visible (on voit le mur qui nous fait face).
 const RAY_END_EPSILON := 0.04
 
+## Moteur de polygone de visibilité (géométrie pure, partagée avec le rendu).
+const VisibilityPolygonScript := preload("res://scripts/core/los/visibility_polygon.gd")
+
 ## Rayon de vision par défaut d'un token, en cases.
 const DEFAULT_VISION_RADIUS := 8.0
 
@@ -127,6 +130,40 @@ static func visible_cells_multi(map_data: Dictionary, sources: Array) -> Array:
 				if is_clear(segments, origin, target):
 					seen[key] = true
 	return seen.keys()
+
+# ===========================================================================
+# Polygones de visibilité (rendu du brouillard lissé)
+# ===========================================================================
+#
+# Le calcul des cases révélées reste `visible_cells_multi` (test rayon/case) :
+# mesuré plus rapide en GDScript pour nos tailles de carte. Les polygones
+# servent au rendu (masque lissé) et aux requêtes géométriques ponctuelles.
+
+## Polygones de visibilité des sources, dans l'ordre des sources.
+## `angle_step` : pas angulaire en radians (défaut ≈ 7,5°).
+static func visibility_polygons(map_data: Dictionary, sources: Array, angle_step: float = -1.0) -> Array:
+	var segments := wall_segments(map_data)
+	var out: Array = []
+	for source_variant in sources:
+		if not source_variant is Dictionary:
+			continue
+		var source: Dictionary = source_variant
+		var origin: Vector2 = source.get("pos", Vector2.ZERO)
+		var radius := float(source.get("radius", DEFAULT_VISION_RADIUS))
+		if radius <= 0.0:
+			continue
+		var step := angle_step if angle_step > 0.0 else VisibilityPolygonScript.DEFAULT_ANGLE_STEP
+		out.append(VisibilityPolygonScript.compute(origin, segments, radius, step))
+	return out
+
+## Vrai si `point` est visible depuis au moins une des sources, d'après les
+## polygones (précision limitée par le pas angulaire : pour du gameplay, préférer
+## `has_line_of_sight`).
+static func is_point_visible(map_data: Dictionary, sources: Array, point: Vector2) -> bool:
+	for polygon_variant in visibility_polygons(map_data, sources):
+		if VisibilityPolygonScript.contains(polygon_variant as PackedVector2Array, point):
+			return true
+	return false
 
 ## Sources de vision déduites des tokens.
 ##

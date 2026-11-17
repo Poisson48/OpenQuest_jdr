@@ -1,9 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://scenario_editor_001"]
+[gd_scene load_steps=4 format=3 uid="uid://scenario_editor_001"]
 
 [ext_resource type="Theme" uid="uid://openquest_theme_001" path="res://theme/openquest_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://scripts/scenario_editor.gd" id="2_script"]
-[ext_resource type="PackedScene" path="res://scenes/shared/app_header.tscn" id="3_header"]
-[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="4_topbar"]
+[ext_resource type="PackedScene" path="res://scenes/shared/app_top_bar.tscn" id="3_topbar"]
 
 [node name="ScenarioEditor" type="Control"]
 layout_mode = 3
@@ -29,160 +28,841 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 16.0
-offset_right = -20.0
-offset_bottom = -16.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
-[node name="AppHeader" parent="MainLayout" instance=ExtResource("3_header")]
-layout_mode = 2
-compact = true
-
-[node name="TopBar" parent="MainLayout" instance=ExtResource("4_topbar")]
-unique_name_in_owner = true
+[node name="TopBar" parent="MainLayout" instance=ExtResource("3_topbar")]unique_name_in_owner = true
 layout_mode = 2
 crumb_text = "Hub › Scénarios › Éditeur"
 back_text = "← Retour"
 title_text = "✏️ Éditeur de scénario"
 
-[node name="LblStatus" type="Label" parent="MainLayout/TopBar/Actions"]
+[node name="ScenarioBadgePanel" type="PanelContainer" parent="MainLayout/TopBar" index="2"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"GoldLabel"
-text = "Prêt"
+size_flags_vertical = 4
 
-[node name="BtnAddScene" type="Button" parent="MainLayout/TopBar/Actions"]
-unique_name_in_owner = true
+[node name="BadgeBox" type="VBoxContainer" parent="MainLayout/TopBar/ScenarioBadgePanel"]
 layout_mode = 2
-text = "+ Scène"
+theme_override_constants/separation = 0
 
-[node name="BtnAddNpc" type="Button" parent="MainLayout/TopBar/Actions"]
+[node name="LblScenarioBadge" type="Label" parent="MainLayout/TopBar/ScenarioBadgePanel/BadgeBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "+ PNJ"
+theme_type_variation = &"MicroLabel"
+theme_override_font_sizes/font_size = 11
+text = "Brouillon"
+vertical_alignment = 1
+
+[node name="LblScenarioBadgeId" type="Label" parent="MainLayout/TopBar/ScenarioBadgePanel/BadgeBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+theme_override_font_sizes/font_size = 10
+text = ""
+vertical_alignment = 1
+
+[node name="TopSpacerL" type="Control" parent="MainLayout/TopBar" index="3"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnTopSearch" type="Button" parent="MainLayout/TopBar" index="4"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Rechercher une commande ou une scène (Ctrl+K)"
+text = "⌕  Commande ou scène…    Ctrl K"
+
+[node name="TopSpacerR" type="Control" parent="MainLayout/TopBar" index="5"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnHealthSummary" type="Button" parent="MainLayout/TopBar/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Résumé du graphe — cliquer pour rechercher une scène (Ctrl+K)"
+text = "✓ 0 scène · 0 branche"
+
+[node name="BtnValidation" type="Button" parent="MainLayout/TopBar/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Voir les problèmes du graphe"
+text = "✓ 0 erreur"
+
+[node name="BtnValidate" type="Button" parent="MainLayout/TopBar/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Vérifier branches cassées, orphelines et accessibilité"
+text = "Valider"
+
+[node name="BtnTest" type="Button" parent="MainLayout/TopBar/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Enregistrer puis lancer une partie de test"
+text = "▶ Tester"
 
 [node name="BtnSave" type="Button" parent="MainLayout/TopBar/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"AccentButton"
-text = "💾 Enregistrer"
+tooltip_text = "Enregistrer le scénario (Ctrl+Entrée)"
+text = "Enregistrer"
 
-[node name="BodySplit" type="HSplitContainer" parent="MainLayout"]
+[node name="SubBar" type="PanelContainer" parent="MainLayout"]
 layout_mode = 2
-size_flags_vertical = 3
-split_offset = 300
+theme_type_variation = &"ToolbarPanel"
 
-[node name="MetaScroll" type="ScrollContainer" parent="MainLayout/BodySplit"]
+[node name="SubBarHBox" type="HBoxContainer" parent="MainLayout/SubBar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ModeTabs" type="HBoxContainer" parent="MainLayout/SubBar/SubBarHBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="BtnModeGraph" type="Button" parent="MainLayout/SubBar/SubBarHBox/ModeTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+toggle_mode = true
+button_pressed = true
+tooltip_text = "Vue graphe (active)"
+text = "Graphe"
+
+[node name="BtnModeScenario" type="Button" parent="MainLayout/SubBar/SubBarHBox/ModeTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Vue Scénario"
+text = "Scénario"
+
+[node name="BtnModeNpc" type="Button" parent="MainLayout/SubBar/SubBarHBox/ModeTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Vue PNJ"
+text = "PNJ"
+
+[node name="BtnModeMaps" type="Button" parent="MainLayout/SubBar/SubBarHBox/ModeTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Vue Cartes"
+text = "Cartes"
+
+[node name="SubSep" type="VSeparator" parent="MainLayout/SubBar/SubBarHBox"]
+layout_mode = 2
+
+[node name="BtnAddScene" type="Button" parent="MainLayout/SubBar/SubBarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Ajouter une scène au graphe"
+text = "+ Scène"
+
+[node name="BtnAddNpc" type="Button" parent="MainLayout/SubBar/SubBarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Ajouter un PNJ au scénario"
+text = "+ PNJ"
+
+[node name="SubBarSpacer" type="Control" parent="MainLayout/SubBar/SubBarHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 2
 
-[node name="MetaVBox" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll"]
+[node name="LblStatus" type="Label" parent="MainLayout/SubBar/SubBarHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_type_variation = &"MicroLabel"
+text = "Prêt"
+horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
+
+[node name="BtnAutoLayout" type="Button" parent="MainLayout/SubBar/SubBarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Disposer automatiquement les scènes en couches depuis le départ"
+text = "Auto-layout"
+
+[node name="SubSep2" type="VSeparator" parent="MainLayout/SubBar/SubBarHBox"]
+layout_mode = 2
+
+[node name="LblGraphCount" type="Label" parent="MainLayout/SubBar/SubBarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "0 nœuds · 0 liens"
+vertical_alignment = 1
+
+[node name="BodySplit" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="CanvasHost" type="Control" parent="MainLayout/BodySplit"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="GraphPanel" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"InsetPanel"
+
+[node name="GraphVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CanvasHost/GraphPanel"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CanvasHost/GraphPanel/GraphVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 240)
+layout_mode = 2
+size_flags_vertical = 3
+right_disconnects = true
+show_grid = true
+snapping_enabled = true
+minimap_enabled = false
+
+[node name="CanvasOverlay" type="Control" parent="MainLayout/BodySplit/CanvasHost"]
+unique_name_in_owner = true
+z_index = 60
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ToolRail" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 6.0
+offset_top = 12.0
+offset_right = 48.0
+offset_bottom = 248.0
+
+[node name="RailBox" type="VBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ToolRail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+alignment = 1
+
+[node name="LegendPill" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+offset_left = 56.0
+offset_top = 12.0
+offset_right = 412.0
+offset_bottom = 44.0
+mouse_filter = 2
+
+[node name="LegendBox" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="LblLegendHealth" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "● graphe valide"
+vertical_alignment = 1
+
+[node name="LegendDefaultBox" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SwatchDefault" type="ColorRect" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendDefaultBox"]
+custom_minimum_size = Vector2(16, 2)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.788235, 0.643137, 0.298039, 1)
+
+[node name="LblDefault" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendDefaultBox"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "défaut"
+vertical_alignment = 1
+
+[node name="LegendBranchBox" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SwatchBranch" type="ColorRect" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendBranchBox"]
+custom_minimum_size = Vector2(16, 2)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.560784, 0.823529, 0.917647, 1)
+
+[node name="LblBranch" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendBranchBox"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "branche"
+vertical_alignment = 1
+
+[node name="LegendGmBox" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SwatchGm" type="ColorRect" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendGmBox"]
+custom_minimum_size = Vector2(16, 2)
+layout_mode = 2
+size_flags_vertical = 4
+color = Color(0.725490, 0.627451, 0.862745, 1)
+
+[node name="LblGm" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/LegendPill/LegendBox/LegendGmBox"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "MJ seul"
+vertical_alignment = 1
+
+[node name="ZoomPill" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -44.0
+offset_right = 152.0
+offset_bottom = -10.0
+
+[node name="ZoomBox" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ZoomPill"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="BtnZoomOut" type="Button" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ZoomPill/ZoomBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Dézoomer le graphe"
+text = "−"
+
+[node name="LblZoom" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ZoomPill/ZoomBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(46, 0)
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "100 %"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BtnZoomIn" type="Button" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ZoomPill/ZoomBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Zoomer le graphe"
+text = "+"
+
+[node name="BtnFitView" type="Button" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/ZoomPill/ZoomBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+theme_type_variation = &"ToolButton"
+tooltip_text = "Cadrer tout le graphe dans la vue (F)"
+text = "⛶"
+
+[node name="HintPill" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -236.0
+offset_top = -62.0
+offset_right = 236.0
+offset_bottom = -10.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="HintMargin" type="MarginContainer" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/HintPill"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 4
+
+[node name="LblHints" type="Label" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay/HintPill/HintMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+theme_override_font_sizes/font_size = 11
+text = "Molette : zoom · Maj + glisser : déplacer la vue · clic droit : retirer un lien · Ctrl+Entrée : enregistrer · Ctrl K palette"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="BtnProblemsPill" type="Button" parent="MainLayout/BodySplit/CanvasHost/CanvasOverlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -206.0
+offset_top = -44.0
+offset_right = -8.0
+offset_bottom = -10.0
+theme_type_variation = &"GhostButton"
+text = "⚠ Problèmes 0"
+
+[node name="DockPanel" type="PanelContainer" parent="MainLayout/BodySplit/CanvasHost"]
+unique_name_in_owner = true
+visible = false
+z_index = 120
+layout_mode = 1
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -212.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_type_variation = &"DockPanel"
+
+[node name="DockVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CanvasHost/DockPanel"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="DockTabs" type="HBoxContainer" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnDockIssues" type="Button" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+toggle_mode = true
+button_pressed = true
+tooltip_text = "Problèmes détectés dans le graphe"
+text = "Problèmes"
+
+[node name="LblIssueCount" type="Label" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "0"
+vertical_alignment = 1
+
+[node name="BtnDockHistory" type="Button" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Historique des modifications"
+text = "Historique"
+
+[node name="BtnDockJournal" type="Button" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Journal du graphe"
+text = "Journal du graphe"
+
+[node name="DockSpacer" type="Control" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SuccessLabel"
+text = "✓ Graphe"
+vertical_alignment = 1
+
+[node name="BtnDockClose" type="Button" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+tooltip_text = "Fermer le panneau (revenir au canevas ouvert)"
+text = "✕"
+
+[node name="DockSeparator" type="HSeparator" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox"]
+layout_mode = 2
+
+[node name="DockScroll" type="ScrollContainer" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="DockIssuesList" type="VBoxContainer" parent="MainLayout/BodySplit/CanvasHost/DockPanel/DockVBox/DockScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="DetailsPanel" type="PanelContainer" parent="MainLayout/BodySplit"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"InsetPanel"
+
+[node name="DetailsVBox" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="DetailsTabs" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="BtnDetailsScene" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"GhostButton"
+toggle_mode = true
+button_pressed = true
+tooltip_text = "Champs de la scène sélectionnée"
+text = "Scène"
+
+[node name="BtnDetailsBranches" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"GhostButton"
+toggle_mode = true
+tooltip_text = "Branches sortantes de la scène"
+text = "Branches"
+
+[node name="BtnDetailsMeta" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsTabs"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"GhostButton"
+toggle_mode = true
+tooltip_text = "Métadonnées du scénario et PNJ"
+text = "Métadonnées"
+
+[node name="DetailsSeparator" type="HSeparator" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox"]
+layout_mode = 2
+
+[node name="DetailsScroll" type="ScrollContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="DetailsMargin" type="MarginContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="DetailsContent" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="DetailsSceneTab" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LblNoSelection" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Cliquez un nœud du graphe pour éditer la scène, ou ajoutez-en une avec « + Scène »."
+autowrap_mode = 3
+
+[node name="SceneEditor" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SceneHeaderRow" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LblMeta" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="SceneHeaderLeft" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneHeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="LblSceneKicker" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneHeaderRow/SceneHeaderLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "SCÈNE — / —"
+autowrap_mode = 3
+
+[node name="LblSceneTitleBig" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneHeaderRow/SceneHeaderLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 24
+text = "Scène"
+autowrap_mode = 3
+
+[node name="SceneIdChip" type="PanelContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneHeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneHeaderRow/SceneIdChip"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "—"
+
+[node name="SceneTagChips" type="HFlowContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"SectionLabel"
+text = "★ Scène"
+
+[node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "TITRE"
+
+[node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Titre de la scène"
+
+[node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "TAGS"
+
+[node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "acte-1, carrefour, fin"
+
+[node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "CONTENU LU / MONTRÉ AUX JOUEURS"
+
+[node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 108)
+layout_mode = 2
+placeholder_text = "Texte lu / montré aux joueurs à l'entrée de cette scène…"
+wrap_mode = 1
+
+[node name="SceneTwoCols" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SceneMapsCol" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols/SceneMapsCol"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "CARTES LIÉES"
+
+[node name="SceneMapChips" type="HFlowContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols/SceneMapsCol"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols/SceneMapsCol"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+select_mode = 2
+allow_reselect = true
+
+[node name="SceneNpcCol" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="LblSceneNpcs" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols/SceneNpcCol"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "PNJ PRÉSENTS"
+
+[node name="SceneNpcChips" type="HFlowContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsSceneTab/SceneEditor/SceneTwoCols/SceneNpcCol"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="DetailsBranchesTab" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LblTransitions" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsBranchesTab"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 18
+text = "BRANCHES SORTANTES"
+
+[node name="LblBranchesHint" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsBranchesTab"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Sélectionnez une scène dans le graphe pour afficher ses branches."
+autowrap_mode = 3
+
+[node name="TransitionsList" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsBranchesTab"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnAddTransition" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsBranchesTab"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"GhostButton"
+text = "+ Ajouter une branche"
+
+[node name="LblBranchesSemantics" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsBranchesTab"]
+layout_mode = 2
+theme_type_variation = &"MicroLabel"
+text = "★ branche par défaut  ·  → branche normale  ·  👁 branche réservée au MJ"
+autowrap_mode = 3
+
+[node name="DetailsMetaTab" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LblMeta" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 text = "📋 Métadonnées"
 
-[node name="MetaTitle" type="LineEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaTitle" type="LineEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "Titre du scénario"
 
-[node name="LblSynopsis" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="LblSynopsis" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 layout_mode = 2
-text = "Synopsis"
+theme_type_variation = &"MicroLabel"
+text = "SYNOPSIS"
 
-[node name="MetaSynopsis" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaSynopsis" type="TextEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 70)
 layout_mode = 2
 
-[node name="LblSetting" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="LblSetting" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 layout_mode = 2
-text = "Cadre / ambiance"
+theme_type_variation = &"MicroLabel"
+text = "CADRE / AMBIANCE"
 
-[node name="MetaSetting" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaSetting" type="TextEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 
-[node name="MetaFormatRow" type="HBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaFormatRow" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="MetaFormat" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/MetaFormatRow"]
+[node name="MetaFormat" type="OptionButton" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/MetaFormatRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="MetaRoster" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/MetaFormatRow"]
+[node name="MetaRoster" type="OptionButton" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/MetaFormatRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="LblMystery" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="LblMystery" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Énigme centrale (enquête)"
+theme_type_variation = &"MicroLabel"
+text = "ÉNIGME CENTRALE (ENQUÊTE)"
 
-[node name="MetaMystery" type="TextEdit" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaMystery" type="TextEdit" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
 
-[node name="LblStart" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="LblStart" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 layout_mode = 2
-text = "Scène de départ"
+theme_type_variation = &"MicroLabel"
+text = "SCÈNE DE DÉPART"
 
-[node name="MetaStartScene" type="OptionButton" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="MetaStartScene" type="OptionButton" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="NpcPanel" type="PanelContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox"]
+[node name="NpcPanel" type="PanelContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"InsetPanel"
 
-[node name="NpcPanelMargin" type="MarginContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel"]
+[node name="NpcPanelMargin" type="MarginContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
 
-[node name="NpcPanelVBox" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin"]
+[node name="NpcPanelVBox" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="NpcHeader" type="HBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
+[node name="NpcHeader" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
+[node name="LblNpcs" type="Label" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 size_flags_horizontal = 3
 text = "👤 PNJ"
 
-[node name="BtnAddNpcPanel" type="Button" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
+[node name="BtnAddNpcPanel" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcHeader"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "+ Ajouter"
 
-[node name="NpcScroll" type="ScrollContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
+[node name="NpcScroll" type="ScrollContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin/NpcPanelVBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
@@ -191,207 +871,56 @@ size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
-[node name="NpcList" type="VBoxContainer" parent="MainLayout/BodySplit/MetaScroll/MetaVBox/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcScroll"]
+[node name="NpcList" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/DetailsScroll/DetailsMargin/DetailsContent/DetailsMetaTab/NpcPanel/NpcPanelMargin/NpcPanelVBox/NpcScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="CenterSplit" type="HSplitContainer" parent="MainLayout/BodySplit"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_stretch_ratio = 2.0
-split_offset = 520
-
-[node name="GraphPanel" type="PanelContainer" parent="MainLayout/BodySplit/CenterSplit"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="GraphVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/GraphPanel"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 4
-
-[node name="GraphHeader" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="LblGraph" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
-layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-size_flags_horizontal = 3
-text = "🕸️ Graphe narratif"
-
-[node name="BtnAutoLayout" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Disposer automatiquement les scènes en couches depuis le départ"
-text = "Auto-layout"
-
-[node name="BtnFitView" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Cadrer tout le graphe dans la vue"
-text = "Cadrer"
-
-[node name="BtnValidate" type="Button" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox/GraphHeader"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Vérifier branches cassées, orphelines et accessibilité"
-text = "Valider"
-
-[node name="LblGraphHealth" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"SuccessLabel"
-text = "✓ Graphe"
-autowrap_mode = 3
-
-[node name="LblGraphLegend" type="Label" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
-layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "★ départ  ·  ⚑ fin  ·  ★→ défaut  ·  👁→ MJ seul  ·  clic scène → éditer  ·  glisser le fond → vue  ·  glisser un nœud → déplacer  ·  coin → redimensionner  ·  glisser un port → branche  ·  clic droit → aller à une scène"
-autowrap_mode = 3
-
-[node name="GraphEdit" type="GraphEdit" parent="MainLayout/BodySplit/CenterSplit/GraphPanel/GraphVBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 240)
-layout_mode = 2
-size_flags_vertical = 3
-right_disconnects = true
-show_grid = true
-snapping_enabled = true
-minimap_enabled = true
-
-[node name="ScenePanel" type="PanelContainer" parent="MainLayout/BodySplit/CenterSplit"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="SceneScroll" type="ScrollContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel"]
-layout_mode = 2
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 2
-
-[node name="SceneVBox" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="LblScenePanel" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
-layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-text = "📍 Scène sélectionnée"
-
-[node name="LblNoSelection" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_type_variation = &"MutedLabel"
-text = "Cliquez un nœud du graphe pour éditer la scène, ou ajoutez-en une avec « + Scène »."
-autowrap_mode = 3
-
-[node name="SceneEditor" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox"]
+[node name="SceneActionBar" type="VBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 0
 
-[node name="LblSceneBadge" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
+[node name="SceneActionSep" type="HSeparator" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar"]
 layout_mode = 2
-theme_type_variation = &"SectionLabel"
-text = "★ Scène"
 
-[node name="SceneIdRow" type="HBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+[node name="SceneActionsMargin" type="MarginContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="SceneActions" type="HBoxContainer" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar/SceneActionsMargin"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="LblSceneId" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
+[node name="BtnDuplicateScene" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar/SceneActionsMargin/SceneActions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"MicroLabel"
-size_flags_horizontal = 3
-text = "id: —"
+theme_type_variation = &"GhostButton"
+tooltip_text = "Dupliquer cette scène et ses branches"
+text = "Dupliquer"
 
-[node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
+[node name="BtnDeleteScene" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar/SceneActionsMargin/SceneActions"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Définir cette scène comme point d'entrée"
-text = "★ Départ"
-
-[node name="BtnDeleteScene" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor/SceneIdRow"]
-unique_name_in_owner = true
-layout_mode = 2
+theme_type_variation = &"DangerButton"
 tooltip_text = "Supprimer la scène et nettoyer les liens"
 text = "Supprimer"
 
-[node name="LblSceneTitle" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+[node name="SceneActionsSpacer" type="Control" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar/SceneActionsMargin/SceneActions"]
 layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "Titre"
+size_flags_horizontal = 3
 
-[node name="SceneTitle" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
+[node name="BtnSetStart" type="Button" parent="MainLayout/BodySplit/DetailsPanel/DetailsVBox/SceneActionBar/SceneActionsMargin/SceneActions"]
 unique_name_in_owner = true
 layout_mode = 2
-placeholder_text = "Titre de la scène"
-
-[node name="LblSceneTags" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "Tags"
-
-[node name="SceneTags" type="LineEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
-layout_mode = 2
-placeholder_text = "acte-1, carrefour, fin"
-
-[node name="LblSceneMaps" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "Cartes liées"
-
-[node name="SceneMaps" type="ItemList" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 110)
-layout_mode = 2
-select_mode = 2
-allow_reselect = true
-
-[node name="LblSceneMapsHint" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "Clique pour lier/délier une carte. La première cochée devient la carte active en jeu."
-autowrap_mode = 3
-
-[node name="LblSceneContent" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-layout_mode = 2
-theme_type_variation = &"MicroLabel"
-text = "Narration"
-
-[node name="SceneContent" type="TextEdit" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 160)
-layout_mode = 2
-placeholder_text = "Texte lu / montré aux joueurs à l'entrée de cette scène…"
-wrap_mode = 1
-
-[node name="LblTransitions" type="Label" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-layout_mode = 2
-theme_type_variation = &"GoldLabel"
-text = "Branches sortantes"
-
-[node name="TransitionsList" type="VBoxContainer" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BtnAddTransition" type="Button" parent="MainLayout/BodySplit/CenterSplit/ScenePanel/SceneScroll/SceneVBox/SceneEditor"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "+ Ajouter une branche"
+theme_type_variation = &"GhostButton"
+tooltip_text = "Définir cette scène comme point d'entrée"
+text = "★ Départ"
 
 [node name="ConfirmDiscard" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true

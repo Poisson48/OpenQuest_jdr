@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D — Paramètres : recherche &amp; cartes · OpenQuest</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ---------- Variante D : palette de recherche + cartes de réglages ---------- */
+
+  .palette {
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(1180px, calc(100vw - 64px));
+    height: min(800px, calc(100vh - 64px));
+    display: flex;
+    flex-direction: column;
+    background:
+      radial-gradient(100% 60% at 50% 0%, rgba(242, 196, 108, 0.07), transparent 70%),
+      var(--panel-solid);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+
+  /* ---- Barre de recherche principale ---- */
+  .search-zone {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .search-big {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    height: 46px;
+    padding: 0 14px;
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 0 0 3px rgba(242, 196, 108, 0.07);
+  }
+  .search-big:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(242, 196, 108, 0.16); }
+  .search-big .ico { color: var(--accent); font-size: 16px; }
+  .search-big input {
+    flex: 1; min-width: 0;
+    border: 0; outline: 0; background: transparent;
+    color: var(--text); font-family: var(--font); font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+  .search-big input::placeholder { color: var(--disabled); }
+  .search-big .keycap { height: 22px; min-width: 22px; font-size: 10px; }
+
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 11px;
+    flex-wrap: wrap;
+  }
+  .filters .chip .n { font-family: var(--mono); font-size: 10px; opacity: 0.75; }
+  .filters .spacer { flex: 1; }
+  .quick-preset { display: flex; align-items: center; gap: 8px; }
+  .quick-preset .seg > button { padding: 4px 11px; font-size: 11.5px; }
+
+  /* ---- Grille de cartes ---- */
+  .grid-wrap { flex: 1; min-height: 0; padding: 14px 18px 6px; }
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-content: start;
+  }
+  .card {
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-panel);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 60%),
+      rgba(20, 17, 11, 0.34);
+    overflow: hidden;
+    transition: border-color 0.14s ease;
+  }
+  .card:hover { border-color: rgba(107, 87, 58, 0.95); }
+  .card.span2 { grid-column: span 2; }
+  .card.hidden { display: none; }
+  .card-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(107, 87, 58, 0.3);
+    background: rgba(41, 34, 24, 0.5);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .card-head .changed {
+    margin-left: auto;
+    font-size: 10px;
+    letter-spacing: .02em;
+    text-transform: none;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .card-head .changed b { color: var(--accent); font-family: var(--mono); }
+  .card-body { padding: 2px 12px 6px; }
+  .card-body .row { padding: 8px 0; }
+  .card-body .seg > button { padding: 4px 9px; font-size: 11.5px; }
+  .card-body .slider { min-width: 130px; }
+  .card-body .slider .value { min-width: 48px; font-size: 11px; }
+
+  /* Preset large */
+  .preset-card { padding: 13px 14px 11px; }
+  .preset-card .seg { width: 100%; }
+  .preset-card .seg > button { flex: 1; padding: 9px 6px; font-size: 12.5px; }
+  .preset-card p { margin: 9px 0 0; }
+
+  /* grille de touches compacte */
+  .keys-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 18px;
+    padding: 4px 0 6px;
+  }
+  .krow {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(107, 87, 58, 0.18);
+    font-size: 12px;
+  }
+  .krow .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--secondary); }
+  .krow .keycap { height: 21px; min-width: 21px; padding: 0 5px; font-size: 10px; }
+
+  /* FPS hero dans la carte */
+  .fps-card-top { display: flex; align-items: flex-end; gap: 9px; padding: 10px 0 4px; }
+  .fps-card-top .fps-num { font-size: 30px; font-family: var(--mono); font-weight: 600; line-height: 1; color: var(--accent); }
+  .fps-card-top .unit { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .fps-card-top .spark { margin-left: auto; }
+
+  /* État vide */
+  .empty {
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 70px 20px; text-align: center; color: var(--muted);
+  }
+  .empty.show { display: flex; }
+  .empty .big { font-size: 28px; opacity: .5; }
+
+  /* Pied */
+  .pal-foot {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 18px;
+    border-top: 1px solid var(--border-soft);
+    background: rgba(20, 17, 11, 0.45);
+  }
+  #mod-count { color: var(--accent); font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="stage dim"></div>
+
+<div class="palette">
+
+  <!-- ================= Recherche ================= -->
+  <div class="search-zone">
+    <div class="search-big">
+      <span class="ico">⌕</span>
+      <input id="q" placeholder="Rechercher un réglage — ombres, fps, touche, thème…" autocomplete="off">
+      <span class="caption" style="margin-right:2px">Échap</span>
+      <span class="keycap">✕</span>
+    </div>
+
+    <div class="filters">
+      <button class="chip active" data-cat="all">Tous <span class="n">· 9</span></button>
+      <button class="chip" data-cat="gfx">🎨 Graphismes <span class="n">· 4</span></button>
+      <button class="chip" data-cat="disp">📊 Affichage &amp; FPS <span class="n">· 2</span></button>
+      <button class="chip" data-cat="keys">⌨ Touches <span class="n">· 1</span></button>
+      <button class="chip" data-cat="ui">🪟 Interface <span class="n">· 1</span></button>
+      <button class="chip" data-cat="sys">ℹ Système <span class="n">· 1</span></button>
+      <span class="spacer"></span>
+      <div class="quick-preset">
+        <span class="caption">Preset</span>
+        <div class="seg" data-seg="preset">
+          <button data-value="performance">Perf</button>
+          <button class="active" data-value="equilibre">Équilibré</button>
+          <button data-value="cinema">Cinéma</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Cartes ================= -->
+  <div class="grid-wrap scroll">
+    <div class="cards" id="cards">
+
+      <!-- ---- Preset (pleine largeur) ---- -->
+      <section class="card span2" data-cat="gfx" data-search="preset graphique performance equilibre cinema qualite rendu ombres aa">
+        <div class="card-head"><span>✨</span> Preset graphique <span class="changed">appliqué en direct</span></div>
+        <div class="preset-card">
+          <div class="seg" data-seg="preset">
+            <button data-value="performance">Performance</button>
+            <button class="active" data-value="equilibre">Équilibré</button>
+            <button data-value="cinema">Cinéma</button>
+          </div>
+          <p class="caption" id="preset-note">Équilibré — ombres moyennes, MSAA 2×, végétation normale, échelle 100 %.</p>
+        </div>
+      </section>
+
+      <!-- ---- Ombres & AA ---- -->
+      <section class="card" data-cat="gfx" data-search="ombres ombre ssao ssil occlusion anti aliasing msaa taa pcf qualite portee">
+        <div class="card-head"><span>🪄</span> Ombres &amp; netteté <span class="changed">0 modif.</span></div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-main"><div class="row-label">Qualité des ombres</div></div>
+            <div class="row-ctl">
+              <select class="field" style="width:112px">
+                <option>Désactivées</option><option>Basses</option>
+                <option selected>Moyennes</option><option>Hautes</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Portée</div></div>
+            <div class="row-ctl">
+              <div class="slider"><input type="range" min="6" max="24" step="1" value="12" data-unit="cases"><span class="value">12 cases</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Anti-aliasing</div></div>
+            <div class="row-ctl">
+              <select class="field" style="width:112px">
+                <option>Aucun</option><option selected>MSAA 2×</option>
+                <option>MSAA 4×</option><option>TAA</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Occlusion ambiante</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Eau & nature ---- -->
+      <section class="card" data-cat="gfx" data-search="eau reflets vegetation nature lentilles particules ambiance">
+        <div class="card-head"><span>🌊</span> Eau &amp; nature <span class="changed">0 modif.</span></div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-main"><div class="row-label">Réflexions de l'eau</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Qualité</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="refl"><button data-value="low">Basse</button><button class="active" data-value="high">Haute</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Végétation</div></div>
+            <div class="row-ctl">
+              <div class="slider"><input type="range" min="0" max="3" step="0.1" value="1" data-fmt="x"><span class="value">1.0×</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Particules</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- FPS & mesure ---- -->
+      <section class="card" data-cat="disp" data-search="fps images compteur ms draw calls graphe frametime perf performance limite vsync">
+        <div class="card-head"><span>📊</span> FPS &amp; mesure <span class="changed">0 modif.</span></div>
+        <div class="card-body">
+          <div class="fps-card-top">
+            <span class="fps-num good">118</span><span class="unit">FPS</span>
+            <span class="value" style="font-size:11px" data-fps-ms>8.5 ms</span>
+            <div class="spark"></div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Afficher les FPS</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="fps-display">
+                <button data-value="never">Jamais</button>
+                <button data-value="editor">Éditeur</button>
+                <button class="active" data-value="always">Toujours</button>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">ms · draw calls</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Graphe frametime</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Limite d'images</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="fps-cap">
+                <button data-value="30">30</button><button data-value="60">60</button>
+                <button data-value="120">120</button><button class="active" data-value="0">∞</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Fenêtre ---- -->
+      <section class="card" data-cat="disp" data-search="fenetre resolution plein ecran vsync echelle rendu bordure">
+        <div class="card-head"><span>🖥</span> Fenêtre &amp; rendu <span class="changed">0 modif.</span></div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-main"><div class="row-label">Mode</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="display-mode">
+                <button class="active" data-value="windowed">Fenêtré</button>
+                <button data-value="borderless">Sans bordure</button>
+                <button data-value="fullscreen">Plein écran</button>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Résolution</div></div>
+            <div class="row-ctl">
+              <select class="field" style="width:158px">
+                <option>1920 × 1080 (native)</option>
+                <option>2560 × 1440</option>
+                <option>1280 × 720</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Échelle de rendu 3D</div></div>
+            <div class="row-ctl">
+              <div class="slider"><input type="range" min="50" max="100" step="5" value="100" data-fmt="pct"><span class="value">100 %</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">VSync</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Touches (pleine largeur) ---- -->
+      <section class="card span2" data-cat="keys" data-search="touches raccourcis clavier keybind remap annuler enregistrer selection outil mur chemin relief">
+        <div class="card-head"><span>⌨</span> Touches <span class="changed">42 raccourcis · cliquez pour remplacer</span></div>
+        <div class="card-body">
+          <div class="keys-grid">
+            <div class="krow"><span class="lbl">Annuler</span><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>Z</span></div>
+            <div class="krow"><span class="lbl">Rétablir</span><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>Y</span></div>
+            <div class="krow"><span class="lbl">Enregistrer</span><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>S</span></div>
+            <div class="krow"><span class="lbl">Sélection</span><span class="keycap" data-key>V</span></div>
+            <div class="krow"><span class="lbl">Chemin</span><span class="keycap" data-key>P</span></div>
+            <div class="krow"><span class="lbl">Mur 3D</span><span class="keycap" data-key>W</span></div>
+            <div class="krow"><span class="lbl">Relief</span><span class="keycap" data-key>U</span></div>
+            <div class="krow"><span class="lbl">Objet 3D</span><span class="keycap" data-key>O</span></div>
+            <div class="krow"><span class="lbl">Végétation</span><span class="keycap" data-key>G</span></div>
+            <div class="krow"><span class="lbl">Masquer les panneaux</span><span class="keycap" data-key>Tab</span></div>
+            <div class="krow"><span class="lbl">Cadrer</span><span class="keycap" data-key>F</span></div>
+            <div class="krow"><span class="lbl">Plein écran</span><span class="keycap" data-key>F11</span></div>
+            <div class="krow"><span class="lbl">Paramètres</span><span class="keycap" data-key>F10</span></div>
+            <div class="krow"><span class="lbl">Inspecteur</span><span class="keycap" data-key>I</span></div>
+            <div class="krow"><span class="lbl">Calques</span><span class="keycap" data-key>L</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Interface ---- -->
+      <section class="card" data-cat="ui" data-search="theme or jade langue francais anglais taille interface infobulle animations confirmation">
+        <div class="card-head"><span>🪟</span> Interface <span class="changed">0 modif.</span></div>
+        <div class="card-body">
+          <div class="row stack">
+            <div class="row-main"><div class="row-label">Thème</div></div>
+            <div class="seg" data-seg="theme" style="align-self:flex-start">
+              <button class="active" data-value="or">Cartographe Or</button>
+              <button data-value="jade">Cartographe Jade</button>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Langue</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="lang"><button class="active" data-value="fr">FR</button><button data-value="en">EN</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Taille</div></div>
+            <div class="row-ctl">
+              <div class="seg" data-seg="ui-scale"><button data-value="90">90</button><button class="active" data-value="100">100</button><button data-value="110">110</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Délai des infobulles</div></div>
+            <div class="row-ctl">
+              <div class="slider"><input type="range" min="0" max="2" step="0.05" value="0.45" data-unit="s"><span class="value">0.5 s</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main"><div class="row-label">Confirmer la suppression</div></div>
+            <div class="row-ctl"><label class="switch"><input type="checkbox"><span class="track"></span></label></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Système ---- -->
+      <section class="card" data-cat="sys" data-search="systeme version gpu diagnostic dossier utilisateur materiel">
+        <div class="card-head"><span>ℹ</span> Système <span class="changed">diagnostic</span></div>
+        <div class="card-body">
+          <div class="row"><div class="row-main"><div class="row-label">Version</div></div><div class="row-ctl"><span class="value">0.9 · Godot 4.7</span></div></div>
+          <div class="row"><div class="row-main"><div class="row-label">Rendu</div></div><div class="row-ctl"><span class="value">Forward+</span></div></div>
+          <div class="row"><div class="row-main"><div class="row-label">GPU</div></div><div class="row-ctl"><span class="value">RTX 3060</span></div></div>
+          <div class="row" style="padding-top:10px">
+            <div class="row-ctl" style="flex:1;gap:6px">
+              <button class="btn sm grow">Exporter un diagnostic</button>
+              <button class="btn sm danger">↺ Tout réinitialiser</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- État vide -->
+    <div class="empty" id="empty">
+      <span class="big">⌕</span>
+      <b>Aucun réglage ne correspond</b>
+      <span class="caption">Essayez « ombres », « fps », « touche » ou effacez la recherche.</span>
+    </div>
+  </div>
+
+  <!-- ================= Pied ================= -->
+  <footer class="pal-foot">
+    <span class="hint-line">
+      <span><kbd>↑</kbd><kbd>↓</kbd> parcourir</span>
+      <span><kbd>Entrée</kbd> ouvrir</span>
+      <span><kbd>Échap</kbd> fermer</span>
+    </span>
+    <div class="grow"></div>
+    <span class="caption"><span id="mod-count">0</span> modification(s) — enregistrées dans <span class="mono">user://app_settings.cfg</span></span>
+    <button class="btn ghost">Annuler</button>
+    <button class="btn primary">Terminer</button>
+  </footer>
+</div>
+
+<div class="mock-tag"><b>Proposition D</b> · Palette de recherche + cartes</div>
+<script src="_mock.js"></script>
+<script>
+  (function () {
+    var q = document.getElementById("q");
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".card"));
+    var chips = Array.prototype.slice.call(document.querySelectorAll(".filters .chip"));
+    var empty = document.getElementById("empty");
+    var currentCat = "all";
+
+    /* Le champ de recherche est le point d'entrée : focus immédiat */
+    q.focus();
+
+    function apply() {
+      var term = q.value.trim().toLowerCase();
+      var shown = 0;
+      cards.forEach(function (card) {
+        var okCat = currentCat === "all" || card.dataset.cat === currentCat;
+        var okTerm = !term || (card.dataset.search || card.textContent).toLowerCase().indexOf(term) >= 0;
+        var visible = okCat && okTerm;
+        card.classList.toggle("hidden", !visible);
+        if (visible) shown++;
+      });
+      empty.classList.toggle("show", shown === 0);
+    }
+
+    q.addEventListener("input", apply);
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        chips.forEach(function (c) { c.classList.remove("active"); });
+        chip.classList.add("active");
+        currentCat = chip.dataset.cat;
+        apply();
+      });
+    });
+
+    /* Compteur de modifications + pastille sur la carte concernée */
+    var mods = 0;
+    var count = document.getElementById("mod-count");
+    document.addEventListener("mock:seg", function (ev) {
+      if (ev.detail.group === "preset") return; /* le preset n'est pas « une modification » */
+      markChanged(ev.target);
+    });
+    document.addEventListener("input", function (ev) {
+      if (ev.target.matches('input[type="range"], input[type="checkbox"]')) {
+        markChanged(ev.target.closest(".card"));
+      }
+    });
+    document.addEventListener("change", function (ev) {
+      if (ev.target.matches("select")) markChanged(ev.target.closest(".card"));
+    });
+    function markChanged(node) {
+      var card = node && node.closest ? node.closest(".card") : null;
+      if (!card) return;
+      mods++;
+      count.textContent = String(mods);
+      var tag = card.querySelector(".card-head .changed");
+      if (tag && /modif/.test(tag.textContent)) {
+        tag.innerHTML = "<b>" + (parseInt(tag.textContent, 10) + 1) + "</b> modif.";
+      }
+    }
+    /* Compteur de modification des segmented : on cible le bouton cliqué */
+    document.querySelectorAll(".seg").forEach(function (seg) {
+      seg.addEventListener("click", function (ev) {
+        var btn = ev.target.closest("button");
+        if (!btn) return;
+        markChanged(seg);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

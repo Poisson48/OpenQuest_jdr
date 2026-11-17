@@ -1,12 +1,30 @@
 /**
- * Serveur de pooling v1 — matchmaking par salons à code 4 chiffres.
- * Ne gère pas la logique de jeu : le P2P ENet/WebRTC prend le relais en Phase 1+.
+ * Serveur de pooling v2 — matchmaking par salons à code 4 chiffres.
+ *
+ * Ne gère pas la logique de jeu : le P2P ENet/WebRTC prend le relais.
+ * Ajouts v2 (lot « session » du plan d'adaptation) :
+ * - validation zod de chaque message (`RATE_LIMITED`, `INVALID_PAYLOAD`…) ;
+ * - `req_id` renvoyé tel quel dans la réponse ou l'erreur (corrélation) ;
+ * - limitation de fréquence par (joueur, type) avec fermeture au double seuil ;
+ * - ticket de session à durée de vie (reprise d'identité après coupure) ;
+ * - version de protocole annoncée dans `welcome`.
  */
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { getLanAddresses } from "../lan_utils.js";
 import { RoomManager } from "../lobby/rooms.js";
+import {
+  ErrorCode,
+  PROTOCOL_VERSION,
+  fail,
+  withReqId,
+  type ErrorCodeValue,
+} from "../lobby/protocol.js";
+import type { RoomState } from "../lobby/types.js";
+import { RateLimiter, ruleFor } from "../lobby/rate_limit.js";
+import { SessionTickets } from "../lobby/tickets.js";
+import { parseClientMessage } from "../lobby/validate.js";
 import type { PoolingClient, PoolingClientMessage, PoolingServerMessage } from "../lobby/types.js";
 
 export interface PoolingServerOptions {
@@ -16,6 +34,17 @@ export interface PoolingServerOptions {
 
 const clients = new Map<string, PoolingClient>();
 const roomManager = new RoomManager();
+const rateLimiter = new RateLimiter();
+const tickets = new SessionTickets();
+
+/** Code d'erreur correspondant au refus du RoomManager. */
+function roomErrorCode(message: string): string {
+  if (message.includes("déjà dans un salon")) return ErrorCode.AlreadyInRoom;
+  if (message.includes("introuvable")) return ErrorCode.RoomNotFound;
+  if (message.includes("complet")) return ErrorCode.RoomFull;
+  if (message.includes("Code de salon invalide")) return ErrorCode.InvalidPayload;
+  return ErrorCode.JoinFailed;
+}
 
 /** STUN publics (+ TURN optionnel via env) pour le P2P WebRTC. */
 function getIceServers(): Array<{
@@ -44,6 +73,7 @@ function welcomePayload(playerId: string, playerName: string): PoolingServerMess
     playerId,
     playerName,
     iceServers: getIceServers(),
+    protocol: PROTOCOL_VERSION,
   };
 }
 
@@ -84,13 +114,36 @@ function broadcastRoom(code: string, excludeId?: string): void {
   }
 }
 
-function sendRoomTo(client: PoolingClient): void {
+function sendRoomTo(
+  client: PoolingClient,
+  reply: (message: PoolingServerMessage) => void,
+): void {
   const room = roomManager.getClientRoom(client);
   if (!room) {
-    send(client.ws, { type: "lobby_update", rooms: roomManager.listRooms() });
+    reply({ type: "lobby_update", rooms: roomManager.listRooms() });
     return;
   }
-  send(client.ws, { type: "room_update", room: roomManager.toState(room) });
+  reply({ type: "room_update", room: roomManager.toState(room) });
+}
+
+/** Émet un ticket de reprise pour ce client dans ce salon. */
+function issueTicket(
+  client: PoolingClient,
+  roomCode: string,
+  reply: (message: PoolingServerMessage) => void,
+): void {
+  const issued = tickets.issue({
+    playerId: client.id,
+    playerName: client.name,
+    roomCode,
+    character: client.registeredCharacter,
+  });
+  reply({
+    type: "session_ticket",
+    ticket: issued.ticket,
+    expiresAt: issued.expiresAt,
+    roomCode,
+  });
 }
 
 function notifyRoomClosed(
@@ -134,12 +187,73 @@ function handleClientLeave(client: PoolingClient, disconnectReason?: "gm_disconn
   broadcastLobby();
 }
 
+/** Reprise d'identité : mêmes id/nom/personnage, place dans le salon si possible. */
+function resumeSession(
+  client: PoolingClient,
+  record: { playerId: string; playerName: string; roomCode: string; character: PoolingClient["registeredCharacter"] },
+  reply: (message: PoolingServerMessage) => void,
+): void {
+  clients.delete(client.id);
+  client.id = record.playerId;
+  client.name = record.playerName;
+  client.registeredCharacter = record.character ?? null;
+  clients.set(client.id, client);
+
+  let roomState: RoomState | null = null;
+  const room = roomManager.getRoom(record.roomCode);
+  if (room) {
+    try {
+      roomState = roomManager.joinRoom(client, record.roomCode);
+    } catch {
+      roomState = null;
+    }
+  }
+
+  reply({
+    type: "resumed",
+    playerId: client.id,
+    playerName: client.name,
+    room: roomState,
+  });
+
+  if (roomState) {
+    issueTicket(client, roomState.code, reply);
+    broadcastRoom(roomState.code);
+    broadcastLobby();
+  }
+}
+
 function handleMessage(client: PoolingClient, raw: string, setName: (name: string) => void): void {
-  let message: PoolingClientMessage;
+  let rawMessage: unknown;
   try {
-    message = JSON.parse(raw) as PoolingClientMessage;
+    rawMessage = JSON.parse(raw);
   } catch {
-    send(client.ws, { type: "error", message: "JSON invalide" });
+    send(client.ws, fail(ErrorCode.BadJson, "JSON invalide"));
+    return;
+  }
+
+  const parsed = parseClientMessage(rawMessage);
+  if (!parsed.ok) {
+    send(client.ws, fail(parsed.code, parsed.error, parsed.reqId));
+    return;
+  }
+
+  const message = parsed.message;
+  const reqId = parsed.reqId;
+  const reply = (body: PoolingServerMessage) =>
+    send(client.ws, withReqId(body as Record<string, unknown>, reqId) as PoolingServerMessage);
+
+  const rate = rateLimiter.check(`${client.id}:${message.type}`, ruleFor(message.type));
+  if (rate.verdict !== "ok") {
+    reply(
+      fail(
+        ErrorCode.RateLimited,
+        `Trop de requêtes '${message.type}' (réessayez dans ${Math.ceil(rate.retryAfterMs / 1000)} s).`,
+      ),
+    );
+    if (rate.verdict === "block") {
+      client.ws.close(1008, "rate limit");
+    }
     return;
   }
 
@@ -153,8 +267,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
           const player = room.players.get(client.id);
           if (player) player.playerName = client.name;
         }
-        send(client.ws, welcomePayload(client.id, client.name));
-        sendRoomTo(client);
+        reply(welcomePayload(client.id, client.name));
+        sendRoomTo(client, reply);
         broadcastLobby();
       }
       break;
@@ -162,16 +276,12 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
 
     case "get_lobby":
     case "list_rooms":
-      sendRoomTo(client);
+      sendRoomTo(client, reply);
       break;
 
     case "create_room": {
       if (message.role !== "gm") {
-        send(client.ws, {
-          type: "error",
-          message: "Seul le MJ peut créer une partie.",
-          code: "GM_ONLY",
-        });
+        reply(fail(ErrorCode.GmOnly, "Seul le MJ peut créer une partie."));
         break;
       }
       try {
@@ -180,12 +290,9 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
           maxPlayers: message.maxPlayers,
           p2pHost: message.p2pHost,
         });
-        send(client.ws, {
-          type: "host_assigned",
-          hostId: client.id,
-          p2pHost: room.p2pHost,
-        });
-        send(client.ws, { type: "room_update", room });
+        reply({ type: "host_assigned", hostId: client.id, p2pHost: room.p2pHost });
+        reply({ type: "room_update", room });
+        issueTicket(client, room.code, reply);
         broadcastLobby();
         for (const playerId of roomManager.getRoomPlayerIds(room.code, client.id)) {
           const other = getClientById(playerId);
@@ -199,10 +306,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
           }
         }
       } catch (err) {
-        send(client.ws, {
-          type: "error",
-          message: err instanceof Error ? err.message : "Impossible de créer le salon",
-        });
+        const text = err instanceof Error ? err.message : "Impossible de créer le salon";
+        reply(fail(roomErrorCode(text) as ErrorCodeValue, text));
       }
       break;
     }
@@ -211,7 +316,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
     case "rejoin_room": {
       try {
         const room = roomManager.joinRoom(client, message.code);
-        send(client.ws, { type: "room_update", room });
+        reply({ type: "room_update", room });
+        issueTicket(client, room.code, reply);
         broadcastLobby();
         broadcastRoom(room.code, client.id);
         for (const playerId of roomManager.getRoomPlayerIds(room.code, client.id)) {
@@ -226,25 +332,29 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
           }
         }
         if (room.hostId !== client.id) {
-          send(client.ws, {
-            type: "host_assigned",
-            hostId: room.hostId,
-            p2pHost: room.p2pHost,
-          });
+          reply({ type: "host_assigned", hostId: room.hostId, p2pHost: room.p2pHost });
         }
       } catch (err) {
-        send(client.ws, {
-          type: "error",
-          message: err instanceof Error ? err.message : "Impossible de rejoindre le salon",
-          code: "JOIN_FAILED",
-        });
+        const text = err instanceof Error ? err.message : "Impossible de rejoindre le salon";
+        reply(fail(roomErrorCode(text) as ErrorCodeValue, text));
       }
       break;
     }
 
+    case "resume_session": {
+      const record = tickets.redeem(message.ticket);
+      if (!record) {
+        reply(fail(ErrorCode.TicketInvalid, "Ticket de session invalide ou expiré."));
+        break;
+      }
+      resumeSession(client, record, reply);
+      break;
+    }
+
     case "leave_room": {
+      tickets.revokePlayer(client.id);
       handleClientLeave(client);
-      send(client.ws, { type: "lobby_update", rooms: roomManager.listRooms() });
+      reply({ type: "lobby_update", rooms: roomManager.listRooms() });
       break;
     }
 
@@ -253,10 +363,9 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
         const room = roomManager.updateCharacter(client, message.character);
         broadcastRoom(room.code);
       } catch (err) {
-        send(client.ws, {
-          type: "error",
-          message: err instanceof Error ? err.message : "Erreur enregistrement personnage",
-        });
+        const text =
+          err instanceof Error ? err.message : "Erreur enregistrement personnage";
+        reply(fail(roomErrorCode(text) as ErrorCodeValue, text));
       }
       break;
     }
@@ -266,10 +375,8 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
         const room = roomManager.setP2pHost(client, message.address);
         broadcastRoom(room.code);
       } catch (err) {
-        send(client.ws, {
-          type: "error",
-          message: err instanceof Error ? err.message : "Erreur adresse P2P",
-        });
+        const text = err instanceof Error ? err.message : "Erreur adresse P2P";
+        reply(fail(roomErrorCode(text) as ErrorCodeValue, text));
       }
       break;
     }
@@ -277,7 +384,7 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
     case "signal": {
       const target = getClientById(message.targetPlayerId);
       if (!target || target.roomCode !== client.roomCode) {
-        send(client.ws, { type: "error", message: "Destinataire signal introuvable." });
+        reply(fail(ErrorCode.TargetNotFound, "Destinataire signal introuvable."));
         return;
       }
       send(target.ws, {
@@ -290,18 +397,15 @@ function handleMessage(client: PoolingClient, raw: string, setName: (name: strin
     }
 
     case "ping":
-      send(client.ws, { type: "pong" });
+      reply({ type: "pong" });
       break;
 
     default:
-      send(client.ws, {
-        type: "error",
-        message: `Type inconnu: ${(message as PoolingClientMessage).type}`,
-      });
+      reply(fail(ErrorCode.UnknownType, "Type inconnu."));
   }
 }
 
-export function startPoolingServer(options: PoolingServerOptions): void {
+export function startPoolingServer(options: PoolingServerOptions): Server {
   const { port: PORT, host: HOST } = options;
 
   const httpServer = createServer((_req, res) => {
@@ -310,13 +414,21 @@ export function startPoolingServer(options: PoolingServerOptions): void {
       JSON.stringify({
         status: "ok",
         service: "OpenQuest JDR (pooling)",
-        mode: "pooling-v1",
+        mode: "pooling-v2",
+        protocol: PROTOCOL_VERSION,
         rooms: roomManager.listRooms().length,
       }),
     );
   });
 
   const wss = new WebSocketServer({ server: httpServer });
+
+  // Entretien des structures temporelles (tickets expirés, fenêtres de rate-limit).
+  const sweep = setInterval(() => {
+    tickets.purge();
+    rateLimiter.purge();
+  }, 30_000);
+  sweep.unref?.();
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
@@ -349,14 +461,16 @@ export function startPoolingServer(options: PoolingServerOptions): void {
 
     ws.on("close", () => {
       handleClientLeave(client, "gm_disconnected");
-      clients.delete(id);
-      console.log(`[pool -] ${playerName} (${id.slice(0, 8)})`);
+      clients.delete(client.id);
+      console.log(`[pool -] ${playerName} (${client.id.slice(0, 8)})`);
     });
   });
 
   httpServer.listen(PORT, HOST, () => {
-    console.log(`OpenQuest serveur POOLING v1 sur ws://${HOST}:${PORT}`);
-    console.log(`Mode : matchmaking par salons (codes 4 chiffres) + relais P2P`);
+    console.log(`OpenQuest serveur POOLING v2 sur ws://${HOST}:${PORT}`);
+    console.log(
+      `Mode : matchmaking par salons (codes 4 chiffres) + relais P2P + reprise de session`,
+    );
     console.log(`Joueur hôte (Godot) : ws://127.0.0.1:${PORT}`);
     const lanIps = getLanAddresses();
     if (lanIps.length > 0) {
@@ -368,4 +482,6 @@ export function startPoolingServer(options: PoolingServerOptions): void {
       console.log("Aucune IP LAN détectée — vérifiez WiFi/Ethernet ou pare-feu Windows.");
     }
   });
+
+  return httpServer;
 }

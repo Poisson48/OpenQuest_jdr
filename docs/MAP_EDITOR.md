@@ -518,6 +518,24 @@ Fichiers : `game/assets/maps/valbois_village_night.png`, `place_du_marche_night.
 
 ---
 
+## 8 ter. Menu Paramètres (application)
+
+`F10`, le bouton **⚙ Paramètres** de l'en-tête (à droite de **Commandes**) ou
+l'entrée **⚙ Paramètres…** du menu **Échap** ouvrent l'atelier plein écran :
+graphismes (presets, AA, ombres, résolution avec confirmation, eau), compteur
+FPS, remap des 48 raccourcis, **thème or / jade**, **taille de l'interface**,
+langue, confirmations et diagnostic système.
+
+Le menu ne règle que des **préférences de machine** (`user://app_settings.cfg`,
+surcharges réductrices et neutralisables) : tout ce qui définit l'identité
+visuelle d'une carte reste dans l'onglet **Carte**. Le preset de qualité CS2 y
+est aussi modifiable, mais il est alors enregistré **avec la carte**.
+
+Détail complet, captures et points d'application :
+[MENU_PARAMETRES.md](./MENU_PARAMETRES.md).
+
+---
+
 ## 9. Raccourcis clavier
 
 | Touches | Action |
@@ -538,6 +556,11 @@ Fichiers : `game/assets/maps/valbois_village_night.png`, `place_du_marche_night.
 | Molette | Zoom · clic milieu : déplacer la vue |
 | `Espace` maintenu | Navigation temporaire |
 | `V H 1..0 B G U R T L M K E O` | Sélection directe d'un outil |
+| `F10` | Ouvrir / fermer le menu Paramètres |
+| `F11` | Plein écran |
+
+> Ces raccourcis sont remappables depuis **F10 → Touches**
+> (voir [MENU_PARAMETRES.md](./MENU_PARAMETRES.md)).
 
 ---
 

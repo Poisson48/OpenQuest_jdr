@@ -1,6 +1,8 @@
 extends VBoxContainer
 class_name MapEditorInspector
 
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+
 const DocumentScript := preload("res://scripts/maps/editor/map_edit_document.gd")
 const MapVisionScript := preload("res://scripts/maps/map_vision.gd")
 const MapEffectPresetsScript := preload("res://scripts/maps/map_effect_presets.gd")
@@ -362,7 +364,7 @@ func _build_links(elem: Dictionary) -> void:
 		var lbl := Label.new()
 		lbl.text = "← %s" % doc.get_element(source_id).get("label", source_id)
 		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+		lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 		add_child(lbl)
 
 # ===========================================================================
@@ -374,7 +376,7 @@ func _layer_selector(current: int) -> void:
 	var lbl := Label.new()
 	lbl.text = "Calque"
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	row.add_child(lbl)
 	var option := OptionButton.new()
 	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -447,7 +449,7 @@ func _prop_asset_preview(asset_path: String) -> void:
 	var size_lbl := Label.new()
 	size_lbl.text = "%d × %d px" % [pixels.x, pixels.y] if pixels != Vector2i.ZERO else "image introuvable"
 	size_lbl.add_theme_font_size_override("font_size", 10)
-	size_lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	size_lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	info.add_child(size_lbl)
 
 ## Remet le décor à ses proportions d'origine, après un redimensionnement
@@ -811,7 +813,7 @@ func _stamp_light_selection() -> void:
 func _title(text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	lbl.add_theme_font_size_override("font_size", 14)
 	add_child(lbl)
 
@@ -820,7 +822,7 @@ func _section(text: String) -> void:
 	add_child(sep)
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_color_override("font_color", ThemeColors.GOLD_LIGHT)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("accent_light"))
 	lbl.add_theme_font_size_override("font_size", 12)
 	add_child(lbl)
 
@@ -829,7 +831,7 @@ func _add_note(text: String) -> void:
 	lbl.text = text
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	add_child(lbl)
 
 func _text_button(parent: Control, text: String, action: Callable) -> Button:
@@ -859,7 +861,7 @@ func _spin(parent: HBoxContainer, label_text: String, min_v: float, max_v: float
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	col.add_child(lbl)
 	var spin := SpinBox.new()
 	spin.min_value = min_v
@@ -887,7 +889,7 @@ func _line_edit(label_text: String, value: String, on_change: Callable) -> LineE
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(76, 0)
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	row.add_child(lbl)
 	var edit := LineEdit.new()
 	edit.text = value
@@ -902,7 +904,7 @@ func _multiline(label_text: String, value: String, on_change: Callable) -> TextE
 	var lbl := Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	add_child(lbl)
 	var edit := TextEdit.new()
 	edit.text = value
@@ -981,7 +983,7 @@ func _color_field(label_text: String, value: String, on_change: Callable) -> voi
 	lbl.text = label_text
 	lbl.custom_minimum_size = Vector2(76, 0)
 	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", ThemeColors.TEXT_MUTED)
+	lbl.add_theme_color_override("font_color", CartographerThemeScript.color("muted"))
 	row.add_child(lbl)
 	var picker := ColorPickerButton.new()
 	picker.custom_minimum_size = Vector2(56, 26)

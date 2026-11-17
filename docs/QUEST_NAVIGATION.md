@@ -110,6 +110,86 @@ Scène Godot : `game/scenes/scenario_editor.tscn`
 
 Accès : Hub → Bibliothèque de scénarios → **+ Nouveau scénario** ou **✏️ Modifier**.
 
+### Lisibilité des branches
+
+Les connexions natives de `GraphEdit` sont tracées **sous** les cartes : dès que
+deux scènes se chevauchent, une branche passe derrière une carte et devient
+introuvable. L'éditeur superpose donc un calque dédié
+(`game/scripts/scenario_editor/panels/graph_link_overlay.gd`) qui :
+
+- redessine **toutes** les branches **au-dessus** des cartes (halo sombre + trait contrasté) ;
+- **sépare au port** (peigne vertical : chaque branche part d'un point distinct) ;
+- **code par sens** : or = chemin par défaut, bleu = branche, pointillé violet = suggestion MJ (`gmOnly`) ;
+- **contourne les cartes** par un routage orthogonal A* (`AStarGrid2D`, grille
+  reconstruite à chaque rebuild, blocage strict 5 px + bande de confort 13 px) :
+  les câbles ne traversent plus une carte ; ils longent les couloirs libres avec
+  des coins arrondis. Repli Bézier conservé pour les graphes très denses à la
+  vue d'ensemble (18+ scènes, couloirs plus étroits que la cellule de routage) ;
+- affiche les **cadres d'actes** (pointillés) **sous** les cartes, déduits des
+  tags `acte-1`, `acte-2`… (aucun cadre si les scènes n'ont pas de tag d'acte) ;
+- affiche le **libellé** de la branche au survol et pour les branches sortantes de la scène sélectionnée ;
+- suit les déplacements/zoom/pan en direct (rebuild ~40 ms pour 27 liens) ;
+- dessine ses propres pastilles de port (liens et ports natifs masqués par des
+  couleurs de slot transparentes et une activité de connexion à 0).
+
+Clic droit sur un lien visible = retirer la branche.
+
+### Refonte de la page (2026-11)
+
+La page suit une direction **mix « Atelier × Console de nœuds »** : le **côté
+ouvert d'Atelier** (grand canevas, panneaux flottants, inspecteur latéral) avec
+la richesse de la Console de nœuds (palette, validation, branches en cartes).
+
+- **barre haute slim** : ← Retour, fil d'Ariane, titre, badge scénario
+  (`Brouillon / id`) ; au centre le champ **« ⌕ Commande ou scène… Ctrl K »**
+  (ouvre la palette) ; à droite le résumé cliquable `✓ N scènes · M branches`,
+  les badges `0 erreur` / `N suggestions` (→ Problèmes), **Valider**, **▶ Tester**
+  (enregistre puis lance une partie sur ce scénario), **Enregistrer** (or) ;
+- **sous-barre** : modes Graphe / Scénario / PNJ / Cartes, +Scène / +PNJ,
+  Auto-layout, compteur nœuds · liens ;
+- **canevas ouvert** : le graphe occupe toute la hauteur (plus de dock fixe,
+  zoom de fit ~77 % à 1600×1000 au lieu de 58 %) ;
+  - **fond de page uniforme** très sombre (`#0a0910`) avec **trame de points**
+    sur toute la fenêtre, **sans dégradé** : le `GraphEdit` est rendu transparent
+    (ni panneau `InsetPanel`, ni grille native), la trame de page traverse le
+    canevas ; les cartes de scène ont une barre de titre fondue dans la carte ;
+  - **rail d'outils vertical flottant** à gauche : sélection, lien, note, cadre,
+    séparateur, zoom − / + et cadrer ;
+  - **pilule légende** en haut-gauche (départ / fin / défaut / branche / MJ seul) ;
+  - **pilule zoom** en bas-gauche (au-dessus de la minimap) ;
+  - **minimap « PLAN D'ENSEMBLE »** flottante en bas-gauche (plan des nœuds et
+    liens, clic pour recentrer) ;
+  - **pilule d'aide** en bas-centre (molette, Maj+glisser, clic droit, Ctrl K…) ;
+  - **dock rétractable** : pill « ⚠ Problèmes N » en bas-droite, panneau flottant
+    Problèmes / Historique / Journal du graphe avec bouton de fermeture ;
+  - **cadres d'actes** dessinés derrière les cartes uniquement si les scènes ont
+    des tags `acte-N` ou des cadres créés à la main (aucun acte inventé) ;
+- **inspecteur droit (~380 px)** façon Atelier : kicker « SCÈNE n / N · ACTE n »
+  + chip id, grand titre, chips de tags, champs en petites capitales,
+  onglet **Branches** en cartes colorées (« BRANCHES SORTANTES N », badge
+  DÉFAUT / BRANCHE / MJ), colonnes **CARTES LIÉES** et **PNJ PRÉSENTS** en chips,
+  actions en bas **Dupliquer / Supprimer / Scène de départ** ;
+- **modes alternatifs** (mêmes vues qu'avant) : Scénario (liste éditable),
+  PNJ (nom / rôle / description), Cartes (rattachement des cartes aux scènes) ;
+- **palette de commandes** (Ctrl+K) : recherche de scène ou de commande, Entrée
+  exécute (sélectionne, change d'outil/mode, auto-layout, cadrage, validation…),
+  Échap ferme ;
+- **raccourcis** : F cadrer, V sélection, L lien, N note, C cadre, Ctrl+K palette ;
+- **outils d'annotation** : *Lien* (clic source puis cible = nouvelle branche),
+  *Note* (clic sur le plan = note éditable, clic droit la supprime) et *Cadre*
+  (glisser un rectangle = cadre libre). Notes et cadres sont stockés dans le
+  scénario (`editorNotes`, `editorFrames`) et dessinés par l'overlay.
+  Les libellés de liens ne s'affichent qu'au **survol** pour garder le canevas
+  lisible (ils sont bornés dans le canevas).
+
+Tests : `scenario_graph_routing_test.gd` (contournement, non-superposition,
+cadres), `scenario_editor_test.gd` (comportement de l'éditeur),
+`scenario_editor_refonte_shot_test.gd` (UI complète + captures
+`docs/screenshots/scenario_editor_refonte04*.png` : principal, branches,
+palette, dock ouvert, historique, journal, modes), `command_palette_test.gd`
+(ouverture/filtre/exécution), `editor_minimap_test.gd` (position, couleurs,
+navigation) et `editor_views_test.gd` (3 vues et mutations).
+
 ---
 
 | Phase | Contenu |
@@ -128,7 +208,9 @@ Accès : Hub → Bibliothèque de scénarios → **+ Nouveau scénario** ou **�
 |---------|------|
 | `game/scripts/quest_navigation.gd` | Normalisation + helpers graphe |
 | `game/scripts/autoload/game_data.gd` | État + `go_to_scene` / `advance_scene` |
-| `game/scripts/session.gd` | UI MJ navigation |
+| `game/scripts/scenario_editor.gd` | Éditeur de graphe (GraphEdit, scènes, branches) |
+| `game/scripts/scenario_editor/panels/graph_link_overlay.gd` | Rendu des liens au-dessus des cartes |
+| `game/scripts/session/session_shell.gd` | UI MJ navigation (console scène) |
 | `game/scenes/session/session.tscn` | Contrôles panneau MJ |
 | `game/data/scenarios/*.json` | Données scénarios |
 

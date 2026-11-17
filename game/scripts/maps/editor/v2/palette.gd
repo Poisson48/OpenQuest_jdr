@@ -1,6 +1,8 @@
 class_name MapEditorPaletteV2
 extends VBoxContainer
 
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+
 ## Palette d'outils compacte (refonte UI v2) : icônes seules, empilées en
 ## colonne étroite, groupes séparés par un filet. Les libellés et raccourcis
 ## ne vivent que dans l'infobulle → beaucoup moins de bruit visuel.
@@ -72,6 +74,10 @@ func _make_button(tool_data: Dictionary) -> Button:
 	var icon := str(tool_data.get("icon", ""))
 	var label := str(tool_data.get("label", ""))
 	var shortcut := str(tool_data.get("shortcut", ""))
+	# Remap des raccourcis (menu Paramètres) : l'infobulle suit la touche réelle.
+	var remapped := AppSettings.shortcut_label_for_tool(id)
+	if not remapped.is_empty():
+		shortcut = remapped
 
 	var b := Button.new()
 	b.toggle_mode = true
@@ -91,14 +97,14 @@ func _make_button(tool_data: Dictionary) -> Button:
 	# Style d'état (spec UI v2) : transparent au repos, hover #36434A,
 	# actif (toggle on) #263C3A + bordure 1px #55D6BE, focus = anneau #55D6BE.
 	b.add_theme_stylebox_override("normal", _tool_style(Color(0, 0, 0, 0)))
-	b.add_theme_stylebox_override("hover", _tool_style(Color("#36434A")))
-	b.add_theme_stylebox_override("pressed", _tool_style(Color("#263C3A"), Color("#55D6BE"), 1))
-	b.add_theme_stylebox_override("focus", _tool_style(Color(0, 0, 0, 0), Color("#55D6BE"), 1))
+	b.add_theme_stylebox_override("hover", _tool_style(CartographerThemeScript.color("hover")))
+	b.add_theme_stylebox_override("pressed", _tool_style(CartographerThemeScript.color("selection"), CartographerThemeScript.color("accent"), 1))
+	b.add_theme_stylebox_override("focus", _tool_style(Color(0, 0, 0, 0), CartographerThemeScript.color("accent"), 1))
 	# Teintes d'icône (texture comme emoji vectorisé).
-	b.add_theme_color_override("icon_normal_color", Color("#A1AFB2"))
-	b.add_theme_color_override("icon_hover_color", Color("#E1E8E8"))
-	b.add_theme_color_override("icon_pressed_color", Color("#55D6BE"))
-	b.add_theme_color_override("icon_focus_color", Color("#55D6BE"))
+	b.add_theme_color_override("icon_normal_color", CartographerThemeScript.color("secondary"))
+	b.add_theme_color_override("icon_hover_color", CartographerThemeScript.color("text"))
+	b.add_theme_color_override("icon_pressed_color", CartographerThemeScript.color("accent"))
+	b.add_theme_color_override("icon_focus_color", CartographerThemeScript.color("accent"))
 	b.pressed.connect(_on_pressed.bind(id))
 	_buttons[id] = b
 	return b

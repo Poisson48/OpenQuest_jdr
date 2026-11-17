@@ -36,6 +36,19 @@ Direction artistique validée. L'interface doit disparaître derrière la carte.
 - Polices : Inter (texte) / JetBrains Mono (valeurs). Icônes Lucide, trait 1.8 px.
 - Rayons : panneaux 8, boutons 6, champs 5. Espacement 8, padding 12. Ombre dock `0 4px 16px rgba(0,0,0,.25)`.
 
+### Variantes de thème
+
+Source unique : `game/scripts/theme/cartographer_theme.gd` (`palette()`, `color()`).
+
+- **`jade`** (cette palette, chrome ardoise froide) — variante proposée dans le
+  menu Paramètres de l'éditeur.
+- **`or`** (défaut de l'éditeur immersif) — fonds brun profond (#1A160F, #292218,
+  #32291D), accent or #F2C46C, sélection #4A381C : la carte est mise en avant par
+  une chrome chaude, plus discrète sur les tons verts des cartes.
+
+Le menu Paramètres (`F10`) bascule entre les deux à chaud, sans toucher aux
+couleurs de la carte : voir [MENU_PARAMETRES.md](./MENU_PARAMETRES.md).
+
 ## Raccourcis clés
 
 - `Tab` masquer/restaurer les panneaux · `Shift+Tab` immersion · `F11` plein écran · `F` cadrer la carte · `Home` recentrer.

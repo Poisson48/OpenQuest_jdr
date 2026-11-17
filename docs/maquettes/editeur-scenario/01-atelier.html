@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refonte 1 — L'Atelier · Éditeur de scénario</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  /* ============ REFONTE 1 — « L'ATELIER » (canvas d'abord, panneaux flottants) ============ */
+  body { --accent: #c9a44c; }
+  .topbar {
+    height: 58px; display: flex; align-items: center; gap: 14px;
+    padding: 0 18px; border-bottom: 1px solid var(--hairline);
+    background: rgba(13, 11, 18, 0.85); backdrop-filter: blur(10px); position: relative; z-index: 20;
+  }
+  .back { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: transparent; }
+  .back:hover { background: rgba(255,255,255,.05); }
+  .crumbs { font-size: 11.5px; color: var(--muted-2); letter-spacing: .04em; }
+  .crumbs b { color: var(--muted); font-weight: 500; }
+  .doc-title { font-family: var(--serif); font-size: 17px; color: var(--gold-light); }
+  .doc-badge { margin-left: 2px; }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .canvas-wrap { position: absolute; inset: 58px 0 0 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(201,164,76,.16) 1px, transparent 0),
+      radial-gradient(900px 600px at 55% 30%, rgba(43,36,64,.55), transparent 70%);
+    background-size: 26px 26px, auto; overflow: hidden; }
+  .canvas { position: absolute; left: 74px; right: 402px; top: 0; bottom: 0; overflow: hidden; }
+  .toolrail {
+    position: absolute; left: 14px; top: 16px; bottom: 16px; width: 46px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 8px 0; border-radius: 12px; border: 1px solid var(--hairline);
+    background: rgba(23,19,32,.86); backdrop-filter: blur(8px); z-index: 12;
+  }
+  .toolrail button { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; border: 0; background: transparent; color: var(--muted); }
+  .toolrail button:hover { background: rgba(255,255,255,.06); color: var(--text); }
+  .toolrail button.on { background: rgba(201,164,76,.16); color: var(--gold-light); box-shadow: inset 0 0 0 1px rgba(201,164,76,.45); }
+  .toolrail .sep { width: 22px; height: 1px; background: var(--hairline); margin: 4px 0; }
+  .panel {
+    position: absolute; z-index: 14; border-radius: 14px; border: 1px solid var(--border);
+    background: rgba(26,22,36,.94); backdrop-filter: blur(12px); box-shadow: var(--shadow);
+  }
+  .legend { left: 74px; top: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--muted); }
+  .legend .health { margin-right: 6px; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .line { width: 20px; height: 2px; border-radius: 2px; display: inline-block; }
+  .legend .l-default { background: var(--gold); }
+  .legend .l-branch { background: var(--bot); }
+  .legend .l-gm { background: repeating-linear-gradient(90deg, var(--npc) 0 5px, transparent 5px 9px); }
+  .inspector-panel { right: 16px; top: 16px; bottom: 16px; width: 372px; display: flex; flex-direction: column; overflow: hidden; }
+  .tabs { display: flex; gap: 2px; padding: 10px 10px 0; border-bottom: 1px solid var(--hairline); }
+  .tabs button { flex: 1; padding: 9px 6px; border: 0; background: transparent; color: var(--muted-2); font-size: 12px; border-bottom: 2px solid transparent; }
+  .tabs button.on { color: var(--gold-light); border-bottom-color: var(--gold); }
+  .ins-scroll { overflow: auto; padding: 16px; flex: 1; }
+  .zoom { left: 74px; bottom: 16px; display: flex; align-items: center; gap: 4px; padding: 6px; }
+  .zoom button { width: 30px; height: 30px; border-radius: 7px; border: 0; background: rgba(255,255,255,.04); color: var(--muted); }
+  .zoom button:hover { background: rgba(255,255,255,.1); color: var(--text); }
+  .zoom .pct { width: 52px; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .minimap { left: 74px; bottom: 62px; width: 210px; height: 128px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .minimap .kicker { font-size: 9.5px; }
+  .minimap .mini-graph { flex: 1; overflow: hidden; border-radius: 8px; background: rgba(13,11,18,.6); }
+  .hint {
+    left: 50%; transform: translateX(-50%); bottom: 16px; padding: 8px 16px;
+    font-size: 11.5px; color: var(--muted-2); display: flex; gap: 16px; align-items: center;
+  }
+  .hint .k { font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border: 1px solid var(--hairline); border-radius: 4px; color: var(--muted); }
+  .meta-title { font-family: var(--serif); font-size: 20px; color: var(--gold-light); margin-bottom: 12px; }
+  .npc-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--hairline); }
+  .npc-avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: rgba(185,160,220,.15); color: var(--npc); font-size: 11px; }
+  .npc-name { font-size: 12.5px; }
+  .npc-role { font-size: 10.5px; color: var(--muted-2); }
+  .frame-note { position: absolute; z-index: 2; color: rgba(143,210,234,.35); font-size: 11px; letter-spacing: .2em; }
+</style>
+</head>
+<body data-variant="atelier">
+  <header class="topbar">
+    <button class="back">← Retour</button>
+    <div class="crumbs">Hub › <b>Scénarios</b> › Éditeur</div>
+    <div class="doc-title" id="doc-title">Retour à Valbois</div>
+    <span class="badge doc-badge">Brouillon</span>
+    <span class="spacer"></span>
+    <span class="badge badge--gold" id="health"></span>
+    <div class="top-actions">
+      <button class="btn btn--ghost">Valider</button>
+      <button class="btn btn--ghost">▶ Tester</button>
+      <button class="btn btn--gold">Enregistrer</button>
+    </div>
+  </header>
+
+  <main class="canvas-wrap">
+    <div class="canvas" id="graph"></div>
+
+    <div class="toolrail">
+      <button class="on" title="Sélection">◉</button>
+      <button title="Créer une branche">⟜</button>
+      <button title="Note">✎</button>
+      <button title="Cadre / acte">▭</button>
+      <div class="sep"></div>
+      <button title="Zoom +">＋</button>
+      <button title="Zoom −">−</button>
+      <button title="Cadrer">⤢</button>
+    </div>
+
+    <div class="panel legend">
+      <span class="health"><span class="health-dot"></span>Graphe valide</span>
+      <span class="key"><span class="line l-default"></span>défaut</span>
+      <span class="key"><span class="line l-branch"></span>branche</span>
+      <span class="key"><span class="line l-gm"></span>MJ seul</span>
+    </div>
+
+    <div class="panel inspector-panel">
+      <div class="tabs" id="tabs">
+        <button class="on" data-tab="scene">Scène</button>
+        <button data-tab="meta">Métadonnées</button>
+        <button data-tab="npc">PNJ</button>
+      </div>
+      <div class="ins-scroll" id="inspector"></div>
+    </div>
+
+    <div class="panel minimap">
+      <div class="kicker">Plan d'ensemble</div>
+      <div class="mini-graph" id="mini"></div>
+    </div>
+
+    <div class="panel zoom">
+      <button id="z-out">−</button>
+      <span class="pct" id="z-pct">100 %</span>
+      <button id="z-in">＋</button>
+      <button id="z-fit">⤢</button>
+    </div>
+
+    <div class="panel hint">
+      <span>Molette : zoom</span><span class="k">Maj + glisser</span><span>déplacer la vue</span>
+      <span class="k">Clic droit</span><span>retirer un lien</span>
+      <span class="k">Ctrl + Entrée</span><span>enregistrer</span>
+    </div>
+  </main>
+
+  <script src="assets/mock.js"></script>
+  <script>
+    (function () {
+      const M = window.MOCK;
+      const S = M.scenario;
+      document.getElementById("doc-title").textContent = S.title;
+      document.getElementById("health").textContent = "✓ " + S.health.scenes + " scènes · " + S.health.branches + " branches";
+
+      const graph = M.mountGraph(document.getElementById("graph"), { w: 1360, h: 820, zoom: true, pan: true, pad: [10, 78, 10, 200] });
+      const mini = M.mountGraph(document.getElementById("mini"), { w: 1360, h: 820, mini: true, dim: false });
+
+      const ins = document.getElementById("inspector");
+      let tab = "scene";
+
+      function metaHTML() {
+        return `<div class="meta-title">Métadonnées</div>
+          <label class="field"><span class="field-label">Titre</span><input class="input" value="${M.esc(S.title)}"></label>
+          <label class="field" style="margin-top:12px"><span class="field-label">Synopsis</span><textarea class="textarea" rows="3">${M.esc(S.synopsis)}</textarea></label>
+          <label class="field" style="margin-top:12px"><span class="field-label">Cadre / ambiance</span><textarea class="textarea" rows="3">${M.esc(S.setting)}</textarea></label>
+          <div class="ins-two" style="margin-top:12px">
+            <label class="field"><span class="field-label">Format</span><input class="input" value="${M.esc(S.format)}"></label>
+            <label class="field"><span class="field-label">Roster</span><input class="input" value="${M.esc(S.roster)}"></label>
+          </div>
+          <label class="field" style="margin-top:12px"><span class="field-label">Mystère (enquête)</span><textarea class="textarea" rows="2">${M.esc(S.mystery)}</textarea></label>
+          <div class="field" style="margin-top:14px"><span class="field-label">Scène de départ</span>
+            <div class="chips"><span class="chip">★ ${M.esc(M.scene(S.start).title)}</span></div>
+          </div>`;
+      }
+      function npcHTML() {
+        return `<div class="meta-title">PNJ <span class="badge" style="margin-left:6px">${S.npcs.length}</span></div>` +
+          S.npcs.map((n) => `<div class="npc-row"><div class="npc-avatar">${M.esc(n.name[0])}</div>
+            <div><div class="npc-name">${M.esc(n.name)}</div><div class="npc-role">${M.esc(n.role)} · ${M.esc(n.scenes)}</div></div></div>`).join("");
+      }
+      function render() {
+        if (tab === "scene") ins.innerHTML = M.inspectorHTML(S.selected);
+        else if (tab === "meta") ins.innerHTML = metaHTML();
+        else ins.innerHTML = npcHTML();
+        ins.querySelectorAll("input,textarea").forEach((el) => el.addEventListener("change", () => {}));
+      }
+      document.querySelectorAll("#tabs button").forEach((b) => b.addEventListener("click", () => {
+        tab = b.dataset.tab;
+        document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+        render();
+      }));
+
+      M.onSelect((id) => { graph.refreshSelection(); mini.select(id); render(); });
+      render();
+
+      document.getElementById("z-in").onclick = () => { graph.zoomIn(); syncZoom(); };
+      document.getElementById("z-out").onclick = () => { graph.zoomOut(); syncZoom(); };
+      document.getElementById("z-fit").onclick = () => { graph.fit(); syncZoom(); };
+      function syncZoom() { document.getElementById("z-pct").textContent = Math.round(graph.getZoom() * 100) + " %"; }
+      syncZoom();
+      window.addEventListener("resize", () => { graph.fit(); syncZoom(); });
+    })();
+  </script>
+</body>
+</html>

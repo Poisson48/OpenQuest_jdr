@@ -678,6 +678,8 @@ func _configure_stage(state: Dictionary, ctx: Dictionary, map_id: String) -> voi
 		payload["effects"] = view.get("effects", [])
 		payload["zones"] = view.get("zones", [])
 		payload["fog_revealed"] = view.get("fogRevealed", [])
+		payload["visible_now"] = GameData.get_visible_now_cells(map_id)
+		payload["vision_polygons"] = GameData.get_map_visibility_polygons(map_id)
 		payload["view_state"] = GameData.get_map_view_state(map_id)
 		payload["selected_token"] = GameData.get_selected_token_id(map_id)
 		payload["tool"] = SessionToolRegistry.to_complex_tool(_tool)

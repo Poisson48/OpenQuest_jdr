@@ -7,7 +7,7 @@ extends RefCounted
 const NODE_WIDTH := 220.0
 const NODE_HEIGHT := 120.0
 const LAYOUT_H_GAP := 280.0
-const LAYOUT_V_GAP := 150.0
+const LAYOUT_V_GAP := 210.0
 const LAYOUT_ORIGIN := Vector2(48, 48)
 
 static func normalize_scenario(scenario: Dictionary) -> Dictionary:

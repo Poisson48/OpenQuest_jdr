@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B — Paramètres : volet latéral live · OpenQuest</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ---------- Variante B : volet latéral plein cadre ---------- */
+
+  .drawer {
+    position: fixed;
+    z-index: 30;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: 468px;
+    display: flex;
+    flex-direction: column;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0) 140px),
+      var(--panel-translucent);
+    backdrop-filter: blur(9px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+  /* petit liseré d'accroche côté carte */
+  .drawer::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 44px;
+    bottom: 44px;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, transparent, var(--accent), transparent);
+    opacity: 0.5;
+  }
+
+  .d-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 14px 11px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .d-head .crest {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: 7px;
+    background: var(--header-surface);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 14px;
+  }
+  .d-head .titles { display: flex; flex-direction: column; gap: 0; }
+  .d-head .eyebrow { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+  .d-head .h1 { font-size: 16px; }
+
+  /* Bandeau aperçu live */
+  .live {
+    margin: 12px 14px 0;
+    padding: 10px 12px;
+    border-radius: var(--r-panel);
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(140% 120% at 0% 0%, rgba(242, 196, 108, 0.1), transparent 58%),
+      rgba(20, 17, 11, 0.55);
+  }
+  .live-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .live-scene {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; color: var(--secondary);
+    padding: 3px 8px; border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-soft);
+  }
+  .live-scene .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  .live-metrics {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .live-metrics .fps-num { font-size: 17px; color: var(--accent); font-weight: 600; }
+  .live-foot {
+    display: flex; align-items: center; gap: 8px; margin-top: 8px;
+    font-size: 10.5px; color: var(--muted);
+  }
+
+  /* Recherche */
+  .d-search { padding: 11px 14px 8px; }
+
+  /* Accordéons */
+  .d-scroll { flex: 1; min-height: 0; padding: 0 14px 14px; }
+  details.acc {
+    margin-bottom: 8px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-panel);
+    background: rgba(20, 17, 11, 0.3);
+    overflow: hidden;
+  }
+  details.acc[open] { border-color: rgba(107, 87, 58, 0.9); background: rgba(20, 17, 11, 0.45); }
+  details.acc > summary {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--secondary);
+    user-select: none;
+  }
+  details.acc > summary::-webkit-details-marker { display: none; }
+  details.acc > summary:hover { background: rgba(242, 196, 108, 0.06); }
+  details.acc[open] > summary { color: var(--accent); border-bottom: 1px solid var(--border-soft); }
+  details.acc > summary .ico { font-size: 13px; }
+  details.acc > summary .chev {
+    margin-left: auto;
+    transition: transform 0.16s ease;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  details.acc[open] > summary .chev { transform: rotate(180deg); }
+  .acc-body { padding: 3px 12px 9px; }
+
+  /* Lignes compactes (volet étroit) */
+  .acc-body .row { gap: 10px; padding: 8px 0; }
+  .acc-body .row .row-label { font-size: 12.5px; }
+  .acc-body .row .row-hint { font-size: 10.5px; }
+  .acc-body .slider { min-width: 118px; }
+  .acc-body .slider .value { min-width: 46px; font-size: 11px; }
+  .acc-body .seg > button { padding: 4px 8px; font-size: 11px; }
+
+  /* Preset compact */
+  .preset-mini { display: flex; flex-direction: column; gap: 7px; padding: 2px 0 9px; }
+  .preset-mini .seg { width: 100%; }
+  .preset-mini .seg > button { flex: 1; padding: 6px 4px; font-size: 11.5px; }
+  .preset-mini .caption { line-height: 1.4; }
+
+  /* Touches dans le volet */
+  .kmini { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid rgba(107,87,58,.18); }
+  .kmini:last-child { border-bottom: 0; }
+  .kmini .lbl { flex: 1; font-size: 12px; }
+  .kmini .keycap { height: 22px; min-width: 22px; font-size: 10.5px; padding: 0 6px; }
+
+  /* Pied */
+  .d-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-top: 1px solid var(--border-soft);
+    background: rgba(20, 17, 11, 0.5);
+  }
+  .d-foot .btn { flex: 0 0 auto; }
+  .d-foot .btn.primary { flex: 1; }
+
+  /* Repère côté carte : « cliquez puis la carte change » */
+  .side-hint {
+    position: fixed;
+    right: 494px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--r-pill);
+    background: rgba(20, 17, 11, 0.8);
+    border: 1px solid var(--border-soft);
+    font-size: 11.5px;
+    color: var(--secondary);
+    backdrop-filter: blur(5px);
+  }
+  .side-hint .arrow { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="stage"></div>
+
+<div class="side-hint"><span class="arrow">→</span> La carte reste visible et se met à jour en direct</div>
+
+<aside class="drawer">
+
+  <!-- ============ En-tête ============ -->
+  <header class="d-head">
+    <div class="crest">⚙</div>
+    <div class="titles">
+      <span class="eyebrow">Éditeur 3D</span>
+      <h1 class="h1">Paramètres</h1>
+    </div>
+    <div class="grow"></div>
+    <button class="btn ghost icon" title="Fermer (F10)">✕</button>
+  </header>
+
+  <!-- ============ Aperçu live ============ -->
+  <div class="live">
+    <div class="live-top">
+      <span class="live-scene"><span class="dot"></span> Valbois — Place du Marché</span>
+      <span class="badge">2.5D</span>
+      <div class="grow"></div>
+      <span class="caption mono">F10</span>
+    </div>
+    <div class="live-metrics">
+      <span class="fps-num good">118</span><span>FPS</span>
+      <span data-fps-ms>8.5 ms</span>
+      <span><span data-fps-dc>482</span> dc</span>
+      <div class="grow"></div>
+      <div class="spark"></div>
+    </div>
+    <div class="live-foot">
+      <span>◉</span><span>Le preset actif s'applique à la scène pendant que vous réglez.</span>
+    </div>
+  </div>
+
+  <!-- ============ Recherche ============ -->
+  <div class="d-search">
+    <div class="field">
+      <span class="ico">⌕</span>
+      <input placeholder="Filtrer les réglages — ombres, fps, touches…">
+    </div>
+  </div>
+
+  <!-- ============ Sections ============ -->
+  <div class="d-scroll scroll">
+
+    <details class="acc" open>
+      <summary><span class="ico">🎨</span> Graphismes <span class="chev">▾</span></summary>
+      <div class="acc-body">
+        <div class="preset-mini">
+          <div class="seg" data-seg="preset">
+            <button data-value="performance">Performance</button>
+            <button class="active" data-value="equilibre">Équilibré</button>
+            <button data-value="cinema">Cinéma</button>
+          </div>
+          <p class="caption" id="preset-note">Équilibré — ombres moyennes, MSAA 2×, végétation normale, échelle 100 %.</p>
+        </div>
+
+        <div class="row">
+          <div class="row-main"><div class="row-label">Échelle de rendu 3D</div></div>
+          <div class="row-ctl">
+            <div class="slider">
+              <input type="range" min="50" max="100" step="5" value="100" data-fmt="pct">
+              <span class="value">100 %</span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Ombres</div></div>
+          <div class="row-ctl">
+            <select class="field" style="width:104px">
+              <option>Off</option><option>Basses</option>
+              <option selected>Moyennes</option><option>Hautes</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Portée des ombres</div></div>
+          <div class="row-ctl">
+            <div class="slider">
+              <input type="range" min="6" max="24" step="1" value="12" data-unit="cases">
+              <span class="value">12 cases</span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Anti-aliasing</div></div>
+          <div class="row-ctl">
+            <select class="field" style="width:104px">
+              <option>Aucun</option><option selected>MSAA 2×</option>
+              <option>MSAA 4×</option><option>TAA</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Occlusion ambiante</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Réflexions de l'eau</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Végétation</div></div>
+          <div class="row-ctl">
+            <div class="slider">
+              <input type="range" min="0" max="3" step="0.1" value="1" data-fmt="x">
+              <span class="value">1.0×</span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Particules d'ambiance</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main">
+            <div class="row-label">Ombres douces + AO/SSIL</div>
+            <div class="row-hint">Preset CS2 « Cinéma » de la carte courante.</div>
+          </div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox"><span class="track"></span></label></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc" open>
+      <summary><span class="ico">📊</span> Affichage &amp; FPS <span class="chev">▾</span></summary>
+      <div class="acc-body">
+        <div class="row">
+          <div class="row-main"><div class="row-label">Compteur de FPS</div></div>
+          <div class="row-ctl">
+            <div class="seg" data-seg="fps-display">
+              <button data-value="never">Jamais</button>
+              <button data-value="editor">Éditeur</button>
+              <button class="active" data-value="always">Toujours</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">ms · draw calls · triangles</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Graphe de frametime</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">VSync</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Limite d'images</div></div>
+          <div class="row-ctl">
+            <div class="seg" data-seg="fps-cap">
+              <button data-value="30">30</button>
+              <button data-value="60">60</button>
+              <button data-value="120">120</button>
+              <button class="active" data-value="0">∞</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Mini-carte</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Coordonnées &amp; zoom</div></div>
+          <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="ico">⌨</span> Touches <span class="badge neutral" style="height:17px">42</span> <span class="chev">▾</span></summary>
+      <div class="acc-body">
+        <p class="caption" style="margin:2px 0 8px">Cliquez une touche, appuyez sur la nouvelle. Échap annule.</p>
+        <div class="kmini"><span class="lbl">Annuler</span><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>Z</span></div>
+        <div class="kmini"><span class="lbl">Enregistrer</span><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>S</span></div>
+        <div class="kmini"><span class="lbl">Sélection</span><span class="keycap" data-key>V</span></div>
+        <div class="kmini"><span class="lbl">Chemin</span><span class="keycap" data-key>P</span></div>
+        <div class="kmini"><span class="lbl">Mur 3D</span><span class="keycap" data-key>W</span></div>
+        <div class="kmini"><span class="lbl">Relief</span><span class="keycap" data-key>U</span></div>
+        <div class="kmini"><span class="lbl">Cadrer</span><span class="keycap" data-key>F</span></div>
+        <div class="kmini"><span class="lbl">Masquer les panneaux</span><span class="keycap" data-key>Tab</span></div>
+        <div class="kmini"><span class="lbl">Plein écran</span><span class="keycap" data-key>F11</span></div>
+        <div class="kmini"><span class="lbl">Paramètres</span><span class="keycap" data-key>F10</span></div>
+        <button class="btn sm" style="margin-top:9px;width:100%">Voir les 42 raccourcis →</button>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="ico">🪟</span> Interface <span class="chev">▾</span></summary>
+      <div class="acc-body">
+        <div class="row stack">
+          <div class="row-main"><div class="row-label">Thème</div></div>
+          <div class="seg" data-seg="theme" style="align-self:stretch">
+            <button class="active" data-value="or" style="flex:1">Cartographe Or</button>
+            <button data-value="jade" style="flex:1">Cartographe Jade</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Langue</div></div>
+          <div class="row-ctl">
+            <div class="seg" data-seg="lang">
+              <button class="active" data-value="fr">FR</button>
+              <button data-value="en">EN</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Taille de l'interface</div></div>
+          <div class="row-ctl">
+            <div class="seg" data-seg="ui-scale">
+              <button data-value="90">90</button>
+              <button class="active" data-value="100">100</button>
+              <button data-value="110">110</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main"><div class="row-label">Délai des infobulles</div></div>
+          <div class="row-ctl">
+            <div class="slider">
+              <input type="range" min="0" max="2" step="0.05" value="0.45" data-unit="s">
+              <span class="value">0.5 s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary><span class="ico">ℹ</span> Système <span class="chev">▾</span></summary>
+      <div class="acc-body">
+        <div class="row"><div class="row-main"><div class="row-label">Version</div></div><div class="row-ctl"><span class="value">0.9 · Godot 4.7</span></div></div>
+        <div class="row"><div class="row-main"><div class="row-label">Rendu</div></div><div class="row-ctl"><span class="value">Forward+ · Vulkan</span></div></div>
+        <div class="row"><div class="row-main"><div class="row-label">GPU</div></div><div class="row-ctl"><span class="value">RTX 3060</span></div></div>
+        <button class="btn sm" style="width:100%;margin-top:6px">Exporter un diagnostic</button>
+      </div>
+    </details>
+
+    <div class="note" style="margin-top:4px">
+      <span class="ico">ⓘ</span>
+      <span>Grille, brouillard, éclairage, dimensions : ce sont des réglages <b>de la carte</b>,
+      et ils restent dans l'onglet <b>Carte</b>.</span>
+    </div>
+  </div>
+
+  <!-- ============ Pied ============ -->
+  <footer class="d-foot">
+    <button class="btn ghost sm" style="color:var(--muted)">↺</button>
+    <button class="btn">Fermer</button>
+    <button class="btn primary">Tout appliquer</button>
+  </footer>
+</aside>
+
+<div class="mock-tag"><b>Proposition B</b> · Volet latéral live</div>
+<script src="_mock.js"></script>
+</body>
+</html>

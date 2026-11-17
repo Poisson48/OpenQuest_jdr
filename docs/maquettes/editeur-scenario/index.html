@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 refontes — Éditeur de scénario · OpenQuest JDR</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  body { overflow: auto; background: radial-gradient(1200px 700px at 50% -10%, #241d34 0%, transparent 60%), linear-gradient(180deg, #0d0b12, #14111c 60%); }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 40px 32px 80px; }
+  header.hero { display: flex; align-items: flex-end; gap: 18px; margin-bottom: 8px; }
+  .hero h1 { font-size: 34px; color: var(--gold-light); line-height: 1.1; }
+  .hero .kicker { margin-bottom: 6px; }
+  .hero p { color: var(--muted); max-width: 72ch; line-height: 1.6; margin: 10px 0 0; font-size: 14px; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 28px 0; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: rgba(26,22,36,.72); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .card:hover { border-color: #54466e; }
+  .thumb { position: relative; height: 300px; overflow: hidden; border-bottom: 1px solid var(--hairline); background: #0d0b12; }
+  .thumb iframe { position: absolute; top: 0; left: 0; width: 1600px; height: 1000px; transform-origin: 0 0; border: 0; pointer-events: none; }
+  .thumb .tagtop { position: absolute; left: 14px; top: 14px; z-index: 2; }
+  .body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .name { display: flex; align-items: baseline; gap: 10px; }
+  .name h2 { font-size: 23px; color: var(--gold-light); }
+  .name .num { font-family: var(--mono); color: var(--muted-2); font-size: 12px; }
+  .principle { color: var(--muted); line-height: 1.55; font-size: 13.5px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 12.5px; }
+  .cols h3 { font-family: var(--sans); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); margin-bottom: 6px; }
+  .cols ul { margin: 0; padding-left: 16px; color: var(--muted); line-height: 1.55; }
+  .cols li { margin-bottom: 3px; }
+  .cols .plus li::marker { color: var(--success); }
+  .cols .minus li::marker { color: #d98a5a; }
+  .foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--hairline); }
+  .foot .open { margin-left: auto; text-decoration: none; }
+  .best { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .best b { color: var(--gold-light); font-weight: 600; }
+  .reco { margin-top: 30px; border: 1px solid rgba(201,164,76,.4); border-radius: 16px; background: rgba(201,164,76,.06); padding: 22px 24px; }
+  .reco h2 { font-size: 22px; color: var(--gold-light); margin-bottom: 10px; }
+  .reco p { color: var(--muted); line-height: 1.65; margin: 0 0 8px; max-width: 100ch; }
+  .reco .stack { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .note { color: var(--muted-2); font-size: 12px; margin-top: 18px; line-height: 1.6; }
+  a.btn { text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="kicker">OpenQuest JDR · maquettes · éditeur de scénario</div>
+      <h1>4 refontes totales de la page Éditeur</h1>
+      <p>Même scénario de démo (<b>Retour à Valbois</b>, 9 scènes, 27 branches), même palette « grimoire »,
+      même rendu des liens que le jeu (liens au-dessus des cartes, peignes, ★ défaut / MJ seul).
+      Seule change l'organisation de la page : quatre modèles mentaux différents. Clique « Ouvrir » pour tester
+      le survol des liens, le zoom (molette) et le changement de scène.</p>
+    </div>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="grid">
+    <!-- 01 -->
+    <article class="card">
+      <div class="thumb">
+        <span class="badge tagtop">01 · canvas d'abord</span>
+        <iframe src="01-atelier.html" tabindex="-1" onload="this.style.transform='scale('+(this.parentElement.clientWidth/1600)+')'"></iframe>
+      </div>
+      <div class="body">
+        <div class="name"><span class="num">01</span><h2>L'Atelier</h2></div>
+        <div class="principle">Le graphe EST la page : canvas plein écran, outils en rail vertical, inspecteur flottant, minimap et zoom comme dans Figma/FigJam. Tout le reste est secondaire.</div>
+        <div class="cols">
+          <div><h3>Points forts</h3><ul class="plus">
+            <li>Maximum de surface pour les scènes et les liens</li>
+            <li>Édition rapide : clic scène → inspecteur flottant</li>
+            <li>Zoom/pan naturels, minimap permanente</li>
+          </ul></div>
+          <div><h3>À surveiller</h3><ul class="minus">
+            <li>Les métadonnées/PNJ passent en onglets (moins visibles)</li>
+            <li>Moins « livre de jeu », plus « outil »</li>
+          </ul></div>
+        </div>
+        <div class="foot"><span class="best">Idéal pour <b>les cartographes de graphe</b></span><a class="btn btn--gold open" href="01-atelier.html" target="_blank">Ouvrir →</a></div>
+      </div>
+    </article>
+
+    <!-- 02 -->
+    <article class="card">
+      <div class="thumb">
+        <span class="badge tagtop">02 · écriture d'abord</span>
+        <iframe src="02-scenarimage.html" tabindex="-1" onload="this.style.transform='scale('+(this.parentElement.clientWidth/1600)+')'"></iframe>
+      </div>
+      <div class="body">
+        <div class="name"><span class="num">02</span><h2>Le Scénarimage</h2></div>
+        <div class="principle">Le scénario se lit comme un découpage : scènes en « panneaux » verticaux groupés par actes, sorties affichées sous chaque scène. Le graphe devient un plan d'appui (mini-carte + fiche à droite).</div>
+        <div class="cols">
+          <div><h3>Points forts</h3><ul class="plus">
+            <li>On écrit et on relit le scénario, pas des nœuds</li>
+            <li>Structure en actes évidente, vue d'ensemble lisible</li>
+            <li>Idéal one-shots et campagnes à texte dense</li>
+          </ul></div>
+          <div><h3>À surveiller</h3><ul class="minus">
+            <li>Manipuler les branches demande de passer par la fiche</li>
+            <li>Perd le plaisir « graphe » du glisser-déposer</li>
+          </ul></div>
+        </div>
+        <div class="foot"><span class="best">Idéal pour <b>les MJ écrivains</b></span><a class="btn btn--gold open" href="02-scenarimage.html" target="_blank">Ouvrir →</a></div>
+      </div>
+    </article>
+
+    <!-- 03 -->
+    <article class="card">
+      <div class="thumb">
+        <span class="badge tagtop">03 · écran de MJ</span>
+        <iframe src="03-table-mj.html" tabindex="-1" onload="this.style.transform='scale('+(this.parentElement.clientWidth/1600)+')'"></iframe>
+      </div>
+      <div class="body">
+        <div class="name"><span class="num">03</span><h2>La Table du MJ</h2></div>
+        <div class="principle">Une double page de livre : à gauche le sommaire et le plan, à droite la scène telle qu'on la raconte (texte, sorties, notes privées). Onglets en signets pour Préparation / Plan / Session / Validation.</div>
+        <div class="cols">
+          <div><h3>Points forts</h3><ul class="plus">
+            <li>Continuité visuelle avec le HUD de session</li>
+            <li>Lecture confortable, notes MJ par scène</li>
+            <li>Met en valeur le contenu, pas la plomberie</li>
+          </ul></div>
+          <div><h3>À surveiller</h3><ul class="minus">
+            <li>Graphe relégué au rôle de plan (moins éditable)</li>
+            <li>Double page dense sur petits écrans</li>
+          </ul></div>
+        </div>
+        <div class="foot"><span class="best">Idéal pour <b>préparer et raconter</b></span><a class="btn btn--gold open" href="03-table-mj.html" target="_blank">Ouvrir →</a></div>
+      </div>
+    </article>
+
+    <!-- 04 -->
+    <article class="card">
+      <div class="thumb">
+        <span class="badge tagtop">04 · éditeur pro</span>
+        <iframe src="04-blueprint.html" tabindex="-1" onload="this.style.transform='scale('+(this.parentElement.clientWidth/1600)+')'"></iframe>
+      </div>
+      <div class="body">
+        <div class="name"><span class="num">04</span><h2>La Console de nœuds</h2></div>
+        <div class="principle">Un éditeur de graphe dense façon Blueprint/VS Code : palette de commandes (Ctrl K), cadres d'actes, inspecteur à onglets, dock de problèmes cliquable, minimap et raccourcis clavier.</div>
+        <div class="cols">
+          <div><h3>Points forts</h3><ul class="plus">
+            <li>Puissant sur les gros scénarios (18+ scènes)</li>
+            <li>Diagnostics intégrés (branches, inatteignables)</li>
+            <li>Raccourcis : création de lien très rapide</li>
+          </ul></div>
+          <div><h3>À surveiller</h3><ul class="minus">
+            <li>Courbe d'apprentissage pour un MJ occasionnel</li>
+            <li>Densité d'information élevée</li>
+          </ul></div>
+        </div>
+        <div class="foot"><span class="best">Idéal pour <b>les power users / grosses campagnes</b></span><a class="btn btn--gold open" href="04-blueprint.html" target="_blank">Ouvrir →</a></div>
+      </div>
+    </article>
+  </div>
+
+  <section class="reco">
+    <h2>Ma recommandation</h2>
+    <p><b>01 L'Atelier</b> est le meilleur compromis pour la V1 : on garde le graphe comme cœur de la page (c'est la
+    fonctionnalité qu'on vient d'améliorer), on gagne de la surface, et l'inspecteur flottant reste simple à
+    adapter depuis l'actuel panneau de droite. <b>02 Le Scénarimage</b> est le plus séduisant pour les MJ
+    écrivains mais demanderait une bascule d'édition scène → graphe plus lourde.</p>
+    <p><b>Piste hybride</b> : partir de 01, puis reprendre de 02 les « panneaux scène » comme second mode d'affichage
+    (bouton « Vue texte / Vue plan »), et de 04 le dock de validation cliquable. 03 est un excellent mode
+    « Préparation » séparé, à garder pour plus tard.</p>
+    <div class="stack">
+      <span class="badge badge--gold">Recommandé : 01</span>
+      <span class="badge">02 en second mode</span>
+      <span class="badge">04 pour le dock de validation</span>
+      <span class="badge">03 en mode préparation</span>
+    </div>
+  </section>
+
+  <div class="note">
+    Ces maquettes sont des fichiers HTML autonomes (dossier <span class="mono">docs/maquettes/editeur-scenario/</span>)
+    avec un socle partagé <span class="mono">assets/mock.css</span> + <span class="mono">assets/mock.js</span>.
+    Le graphe est rendu par le même algorithme que l'overlay du jeu : liens au-dessus des cartes, peignes de ports,
+    détours, et couleurs ★ défaut / branche / MJ seul. Après ton choix, je reproduis la maquette retenue en Godot
+    (thème, panneaux, signaux) en conservant la logique existante.
+  </div>
+</div>
+</body>
+</html>

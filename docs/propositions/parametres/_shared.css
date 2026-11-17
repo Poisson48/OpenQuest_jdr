@@ -1,0 +1,643 @@
+/* ==========================================================================
+   OpenQuest — maquettes « Menu Paramètres » de l'éditeur de cartes 3D
+   Design system partagé. Tokens = palette « Dark Cartographer » immersive
+   (variante or/brun) telle quelle est construite par
+   game/scripts/theme/cartographer_theme.gd (build(true)).
+   ========================================================================== */
+
+:root {
+  /* Fonds */
+  --bg: #1a160f;
+  --bg-deep: #14110b;
+  --panel: #292218;
+  --panel-solid: #292218;
+  --panel-translucent: rgba(41, 34, 24, 0.95);
+  --surface: #32291d;
+  --surface-2: #3a2f21;
+  --header-surface: #241f17;
+  --dock-surface: #262016;
+  --hover: #473923;
+  --field: #201a12;
+  --field-2: #1b1610;
+
+  /* Lignes */
+  --border: #6b573a;
+  --border-soft: #4a3d28;
+  --hairline: rgba(242, 196, 108, 0.14);
+
+  /* Texte */
+  --text: #f1e3cc;
+  --secondary: #d2bd9e;
+  --muted: #a59173;
+  --disabled: #877758;
+
+  /* Accent */
+  --accent: #f2c46c;
+  --accent-soft: #daaf56;
+  --accent-dim: rgba(242, 196, 108, 0.16);
+  --selection: #4a381c;
+  --selection-soft: rgba(74, 56, 28, 0.55);
+  --danger: #e2866b;
+  --success: #9fd49b;
+  --info: #8fcbb6;
+
+  /* Formes / rythme */
+  --r-panel: 8px;
+  --r-btn: 6px;
+  --r-field: 5px;
+  --r-pill: 999px;
+  --gap: 8px;
+  --pad: 12px;
+  --shadow-dock: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.55), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
+
+  /* Typo */
+  --font: "Segoe UI", "Noto Sans", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "Cascadia Mono", "Consolas", "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Décor : capture réelle de l'éditeur, assombrie pour lire l'interface
+   -------------------------------------------------------------------------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  background: #0b0906 url("../../screenshots/carte_25d_editeur.png") center / cover no-repeat;
+}
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(10, 8, 5, 0.12) 0%, rgba(10, 8, 5, 0.78) 78%),
+    linear-gradient(rgba(12, 10, 7, 0.35), rgba(12, 10, 7, 0.35));
+}
+.stage.dim::after {
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(10, 8, 5, 0.45) 0%, rgba(10, 8, 5, 0.88) 80%),
+    linear-gradient(rgba(12, 10, 7, 0.55), rgba(12, 10, 7, 0.55));
+}
+
+/* Bandeau discret rappelant que c'est une maquette */
+.mock-tag {
+  position: fixed;
+  left: 14px;
+  bottom: 12px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  background: rgba(20, 17, 11, 0.82);
+  border: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+}
+.mock-tag b { color: var(--accent); font-weight: 600; }
+
+/* --------------------------------------------------------------------------
+   Surfaces
+   -------------------------------------------------------------------------- */
+
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(0, 0, 0, 0) 42%),
+    var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-dock);
+}
+
+.inset {
+  background: var(--field);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-field);
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-soft) 12%, var(--border-soft) 88%, transparent);
+  border: 0;
+  margin: 10px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Typographie
+   -------------------------------------------------------------------------- */
+
+.h1 {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0;
+  color: var(--text);
+}
+.h2 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.section-title .rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-soft), transparent);
+}
+.subtle { color: var(--muted); }
+.caption {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.value {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   Boutons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.btn:hover { background: var(--hover); border-color: var(--accent-soft); }
+.btn:active { background: var(--selection); border-color: var(--accent); color: var(--accent); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(242, 196, 108, 0.55); }
+.btn.active {
+  background: var(--selection);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(242, 196, 108, 0.12) inset;
+}
+.btn[disabled] { color: var(--disabled); background: var(--bg); border-color: var(--border-soft); cursor: not-allowed; }
+
+.btn.primary {
+  background: linear-gradient(180deg, #f6cf83, #e0ac4f);
+  border-color: #f7d795;
+  color: #2a1e0a;
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 2px 10px rgba(224, 172, 79, 0.22);
+}
+.btn.primary:hover { background: linear-gradient(180deg, #ffd995, #e9b559); color: #221706; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--secondary); }
+.btn.ghost:hover { background: rgba(242, 196, 108, 0.1); border-color: var(--border-soft); }
+.btn.danger { color: var(--danger); border-color: #5e3527; }
+.btn.danger:hover { background: rgba(226, 134, 107, 0.12); border-color: var(--danger); }
+.btn.sm { min-height: 25px; padding: 0 8px; font-size: 12px; }
+.btn.icon { width: 30px; padding: 0; }
+
+/* --------------------------------------------------------------------------
+   Interrupteurs (switch) — pure CSS
+   -------------------------------------------------------------------------- */
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 21px;
+  cursor: pointer;
+}
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-pill);
+  background: var(--field);
+  border: 1px solid var(--border);
+  transition: background 0.16s ease, border-color 0.16s ease;
+  pointer-events: none;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.16s cubic-bezier(0.3, 0.7, 0.4, 1), background 0.16s ease;
+}
+.switch input:checked + .track { background: var(--selection); border-color: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(17px); background: var(--accent); }
+.switch input:focus-visible + .track { box-shadow: 0 0 0 2px rgba(242, 196, 108, 0.4); }
+.switch input:disabled + .track { opacity: 0.45; }
+
+/* --------------------------------------------------------------------------
+   Rangée de réglage
+   -------------------------------------------------------------------------- */
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 9px 2px;
+  border-bottom: 1px solid rgba(107, 87, 58, 0.22);
+}
+.row:last-child { border-bottom: 0; }
+.row .row-main { flex: 1; min-width: 0; }
+.row .row-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.row .row-hint { margin-top: 2px; font-size: 11px; color: var(--muted); }
+.row .row-ctl {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.row.stack { flex-direction: column; align-items: stretch; gap: 7px; }
+
+/* --------------------------------------------------------------------------
+   Curseurs
+   -------------------------------------------------------------------------- */
+
+.slider { display: flex; align-items: center; gap: 10px; min-width: 190px; }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) var(--fill, 50%), var(--field) var(--fill, 50%));
+  border: 1px solid var(--border-soft);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid #8c7448;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--field);
+  border: 1px solid var(--border-soft);
+}
+input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid #8c7448;
+}
+.slider .value {
+  min-width: 54px;
+  text-align: right;
+  color: var(--secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Contrôle segmenté (presets, choix exclusif)
+   -------------------------------------------------------------------------- */
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn);
+}
+.seg > button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--secondary);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.seg > button:hover { background: rgba(242, 196, 108, 0.1); color: var(--text); }
+.seg > button.active {
+  background: var(--selection);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+/* --------------------------------------------------------------------------
+   Puces / badges / keycaps
+   -------------------------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-soft);
+  background: var(--header-surface);
+  color: var(--secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--accent-soft); color: var(--text); }
+.chip.active { background: var(--selection); border-color: var(--accent); color: var(--accent); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(242, 196, 108, 0.35);
+}
+.badge.danger { background: rgba(226, 134, 107, 0.14); color: var(--danger); border-color: rgba(226, 134, 107, 0.4); }
+.badge.neutral { background: rgba(140, 160, 165, 0.12); color: var(--secondary); border-color: var(--border-soft); }
+.badge.success { background: rgba(159, 212, 155, 0.12); color: var(--success); border-color: rgba(159, 212, 155, 0.35); }
+
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 25px;
+  padding: 0 7px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #3a3021, #2b2318);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+.keycap:hover { border-color: var(--accent-soft); color: var(--accent); }
+.keycap.wide { min-width: 58px; }
+.keycap.capturing {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--selection);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+.keycap.conflict { border-color: var(--danger); color: var(--danger); border-bottom-color: #7a3b2c; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 196, 108, 0.32); }
+  50% { box-shadow: 0 0 0 4px rgba(242, 196, 108, 0.05); }
+}
+
+/* --------------------------------------------------------------------------
+   Champs de saisie / recherche
+   -------------------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 31px;
+  padding: 0 10px;
+  background: var(--field);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-field);
+  color: var(--text);
+}
+.field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(242, 196, 108, 0.25); }
+.field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+}
+.field input::placeholder { color: var(--disabled); }
+.field .ico { color: var(--muted); font-size: 13px; }
+
+select.field {
+  width: 100%;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 13px, calc(100% - 10px) 13px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   Onglets
+   -------------------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.tabs > button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--secondary);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 9px 14px 8px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.tabs > button:hover { color: var(--text); background: rgba(242, 196, 108, 0.06); }
+.tabs > button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* --------------------------------------------------------------------------
+   Barre de défilement discrète
+   -------------------------------------------------------------------------- */
+
+.scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scroll::-webkit-scrollbar { width: 9px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb {
+  background: #3d3324;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scroll::-webkit-scrollbar-thumb:hover { background: #5a4a30; background-clip: content-box; }
+
+/* --------------------------------------------------------------------------
+   Mesure FPS / graphe de frametime
+   -------------------------------------------------------------------------- */
+
+.fps-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--r-btn);
+  background: rgba(20, 17, 11, 0.55);
+  border: 1px solid var(--border-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--secondary);
+}
+.fps-box .fps-num { color: var(--accent); font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+.fps-box .fps-num.good { color: var(--success); }
+.fps-box .fps-num.warn { color: var(--accent-soft); }
+.fps-box .fps-num.bad { color: var(--danger); }
+.fps-box .sep { width: 1px; height: 16px; background: var(--border-soft); }
+
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 26px;
+}
+.spark > i {
+  display: block;
+  width: 3px;
+  border-radius: 1px 1px 0 0;
+  background: linear-gradient(180deg, var(--accent), rgba(242, 196, 108, 0.25));
+  opacity: 0.85;
+}
+
+/* --------------------------------------------------------------------------
+   Utilitaires
+   -------------------------------------------------------------------------- */
+
+.flex { display: flex; }
+.col { display: flex; flex-direction: column; }
+.center { align-items: center; }
+.between { justify-content: space-between; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.grow { flex: 1; min-width: 0; }
+.wrap { flex-wrap: wrap; }
+.hidden { display: none !important; }
+.right { margin-left: auto; }
+.nowrap { white-space: nowrap; }
+
+/* Scrim (fond de modale) */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 6, 4, 0.55);
+  backdrop-filter: blur(1.5px);
+  z-index: 20;
+}
+
+/* Astuce clavier en bas */
+.hint-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.hint-line kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--secondary);
+}
+
+/* Note « ce qui reste dans l'onglet Carte » */
+.note {
+  display: flex;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: var(--r-field);
+  background: rgba(143, 203, 182, 0.07);
+  border: 1px solid rgba(143, 203, 182, 0.24);
+  color: #bcd8ce;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.note .ico { flex: 0 0 auto; }

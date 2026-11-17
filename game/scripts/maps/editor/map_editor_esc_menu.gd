@@ -10,6 +10,7 @@ signal undo_pressed
 signal redo_pressed
 signal fit_view_pressed
 signal clear_selection_pressed
+signal settings_pressed
 signal import_json_pressed
 signal export_json_pressed
 signal save_policy_selected(policy: String, label: String)
@@ -34,6 +35,10 @@ func _ready() -> void:
 	%BtnClearSel.pressed.connect(func():
 		clear_selection_pressed.emit()
 		hide()
+	)
+	%BtnParametres.pressed.connect(func():
+		hide()
+		settings_pressed.emit()
 	)
 	%BtnImportJson.pressed.connect(func():
 		hide()

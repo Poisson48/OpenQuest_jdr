@@ -1,13 +1,27 @@
 /**
- * dice.ts — Moteur de lancer de dés (formules type 2d6+3, 1d20).
- * Port TypeScript de js/dice.js.
+ * dice.ts — Façade historique du moteur de dés (interface conservée pour
+ * `ai-gm.ts`, `game_session.ts` et `types.ts`).
+ *
+ * La logique vit dans `./rules/dice_engine.ts` : grammaire enrichie
+ * (modificateurs, tests de dés à poids, tags), RNG injectable, miroir du moteur
+ * GDScript `game/scripts/core/rules/dice_engine.gd`.
  */
+
+import { formatDiceResult, rollDice, type DiceRollOutcome } from "./rules/dice_engine.js";
 
 export interface DiceRollResult {
   formula: string;
   rolls: number[];
   modifier: number;
   total: number;
+  /** Champs enrichis (arbre de résultat) — optionnels pour la compatibilité. */
+  kind?: "number" | "dice" | "comparison";
+  tags?: string[];
+  values?: number[];
+  kept?: number[];
+  dropped?: number[];
+  success?: number;
+  failure?: number;
 }
 
 export interface DiceRollError {
@@ -22,54 +36,48 @@ export function isDiceError(result: DiceResult): result is DiceRollError {
 
 export const Dice = {
   /**
-   * Parse une formule de dés (ex: "2d6+3") et retourne le résultat.
+   * Parse une formule de dés et retourne le résultat.
+   * Formules de base : "1d20", "2d6+3", "1d8-1", "d%".
+   * Extensions : "4d6keeph3", "1d20adv", "2d6expl", "5d10>=6{6:2}", tags "[degats]".
    */
   roll(formula: string): DiceResult {
-    const cleaned = formula.trim().toLowerCase().replace(/\s/g, "");
-
-    const match = cleaned.match(/^(\d+)d(\d+)([+-]\d+)?$/);
-    if (!match) {
-      return { error: "Formule invalide. Exemples : 1d20, 2d6+3, 1d8-1" };
+    const outcome = rollDice(formula);
+    if (!outcome.ok) {
+      return { error: outcome.error };
     }
-
-    const count = parseInt(match[1], 10);
-    const sides = parseInt(match[2], 10);
-    const modifier = match[3] ? parseInt(match[3], 10) : 0;
-
-    if (count < 1 || count > 100 || sides < 2 || sides > 1000) {
-      return { error: "Valeurs hors limites (max 100d1000)." };
-    }
-
-    const rolls: number[] = [];
-    for (let i = 0; i < count; i += 1) {
-      rolls.push(Math.floor(Math.random() * sides) + 1);
-    }
-
-    const sum = rolls.reduce((a, b) => a + b, 0);
-    const total = sum + modifier;
-
     return {
-      formula: `${count}d${sides}${modifier >= 0 ? (modifier ? `+${modifier}` : "") : modifier}`,
-      rolls,
-      modifier,
-      total,
+      formula: outcome.formula,
+      rolls: outcome.rolls,
+      modifier: outcome.modifier,
+      total: outcome.total,
+      kind: outcome.kind,
+      tags: outcome.tags,
+      values: outcome.values,
+      kept: outcome.kept,
+      dropped: outcome.dropped,
+      success: outcome.success,
+      failure: outcome.failure,
     };
   },
 
   formatResult(result: DiceResult): string {
-    if (isDiceError(result)) return result.error;
-
-    let text = `🎲 **${result.total}** (${result.formula})`;
-    if (result.rolls.length > 1) {
-      text += ` — dés : ${result.rolls.join(", ")}`;
-      if (result.modifier) {
-        text += ` ${result.modifier > 0 ? "+" : ""}${result.modifier}`;
-      }
-    } else if (result.modifier) {
-      text += ` — ${result.rolls[0]} ${result.modifier > 0 ? "+" : ""}${result.modifier}`;
-    } else if (result.rolls.length === 1) {
-      text += ` — dé : ${result.rolls[0]}`;
+    if (isDiceError(result)) {
+      return result.error;
     }
-    return text;
+    const outcome: DiceRollOutcome = {
+      ok: true,
+      formula: result.formula,
+      kind: result.kind ?? "number",
+      total: result.total,
+      tags: result.tags ?? [],
+      rolls: result.rolls,
+      modifier: result.modifier,
+      values: result.values,
+      kept: result.kept,
+      dropped: result.dropped,
+      success: result.success,
+      failure: result.failure,
+    };
+    return formatDiceResult(outcome);
   },
 };

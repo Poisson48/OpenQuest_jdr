@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu Paramètres — 4 propositions · OpenQuest</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { overflow: auto; }
+  .page {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 30px 24px 70px;
+  }
+
+  /* En-tête de la page */
+  .hero { margin-bottom: 26px; }
+  .hero .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .hero .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .hero h1 { font-size: 31px; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .hero h1 em { color: var(--accent); font-style: normal; }
+  .hero p { max-width: 780px; margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--secondary); }
+  .hero .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  /* Cartes de proposition */
+  .cards { display: grid; grid-template-columns: 580px 580px; gap: 20px; justify-content: center; }
+
+  .prop {
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    background: rgba(25, 21, 14, 0.72);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .16s ease, transform .16s ease;
+  }
+  .prop:hover { border-color: var(--border); transform: translateY(-2px); }
+
+  .shot { position: relative; height: 363px; overflow: hidden; background: #0b0906; border-bottom: 1px solid var(--border-soft); }
+  .shot iframe {
+    width: 1440px; height: 900px;
+    transform: scale(0.40278);
+    transform-origin: top left;
+    border: 0;
+    pointer-events: none;
+    display: block;
+  }
+  .shot .open {
+    position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: flex-end;
+    padding: 12px; text-decoration: none;
+    background: linear-gradient(180deg, transparent 60%, rgba(10, 8, 5, .55));
+    opacity: 0; transition: opacity .16s ease;
+  }
+  .prop:hover .shot .open { opacity: 1; }
+  .shot .open span {
+    padding: 7px 13px; border-radius: 6px;
+    background: rgba(32, 26, 18, .95); border: 1px solid var(--accent);
+    color: var(--accent); font-size: 12px; font-weight: 600;
+  }
+  .shot .letter {
+    position: absolute; left: 12px; top: 12px;
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border-radius: 7px; font-family: var(--mono); font-size: 14px; font-weight: 700;
+    background: rgba(32, 26, 18, .92); border: 1px solid var(--accent); color: var(--accent);
+  }
+
+  .prop-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+  .prop-body h2 { margin: 0; font-size: 16px; }
+  .prop-body .tagline { font-size: 12px; color: var(--accent); letter-spacing: .02em; }
+  .prop-body p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--secondary); }
+  .prop-body ul { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  .prop-body li { display: flex; gap: 8px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+  .prop-body li b { color: var(--secondary); font-weight: 600; }
+  .prop-body li .mark { flex: 0 0 auto; width: 13px; text-align: center; }
+  .prop-body .foot { display: flex; gap: 8px; margin-top: auto; padding-top: 6px; }
+
+  /* Tableau comparatif */
+  h2.section { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin: 38px 0 12px; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.cmp th, table.cmp td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(107, 87, 58, .3); vertical-align: top; }
+  table.cmp thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  table.cmp tbody th { color: var(--text); font-weight: 500; width: 190px; }
+  table.cmp td { color: var(--secondary); }
+  .dots { letter-spacing: 2px; color: var(--accent); font-size: 12px; }
+  .dots .off { color: #463a26; }
+
+  /* Recommandation */
+  .reco {
+    margin-top: 14px;
+    display: grid; grid-template-columns: 1fr 300px; gap: 16px;
+    border: 1px solid rgba(242, 196, 108, .35);
+    border-radius: 10px;
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(242, 196, 108, .1), transparent 55%),
+      rgba(25, 21, 14, .8);
+    padding: 16px 18px;
+  }
+  .reco h3 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .reco p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.55; color: var(--secondary); }
+  .reco .list { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+  .reco .list div { font-size: 12px; color: var(--muted); display: flex; gap: 8px; }
+  .reco .list b { color: var(--text); font-weight: 600; }
+  .reco .side { border-left: 1px solid var(--border-soft); padding-left: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .reco .side .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .reco .side .v { font-size: 12.5px; color: var(--text); }
+
+  .checklist { margin-top: 26px; border: 1px solid var(--border-soft); border-radius: 10px; padding: 15px 18px; background: rgba(25, 21, 14, .55); }
+  .checklist h3 { margin: 0 0 10px; font-size: 14px; }
+  .checklist ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--secondary); line-height: 1.5; }
+  .checklist code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); background: rgba(242, 196, 108, .08); padding: 1px 5px; border-radius: 4px; }
+
+  .foot-note { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--border-soft); font-size: 11.5px; color: var(--disabled); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ================= En-tête ================= -->
+  <header class="hero">
+    <span class="eyebrow"><span class="dot"></span> Éditeur de cartes 3D · maquettes à valider</span>
+    <h1>Menu <em>Paramètres</em> — 4 propositions</h1>
+    <p>
+      Quatre directions pour un menu de paramètres dans l'éditeur 3D : graphismes, touches, FPS et
+      confort d'usage. Toutes partent de la palette réelle de l'éditeur
+      (« Dark Cartographer » or, <span class="mono">cartographer_theme.gd</span>) et de la capture
+      de Valbois comme décor. Les maquettes sont cliquables : changez un preset, remappez une touche,
+      filtrez les réglages.
+    </p>
+    <div class="meta">
+      <span class="badge">4 directions</span>
+      <span class="badge neutral">graphismes · touches · FPS</span>
+      <span class="badge neutral">prêt à porter en Godot 4.7</span>
+    </div>
+  </header>
+
+  <!-- ================= Les 4 cartes ================= -->
+  <div class="cards">
+
+    <!-- A -->
+    <article class="prop">
+      <div class="shot">
+        <iframe src="01-modale-onglets.html" loading="lazy" title="Proposition A"></iframe>
+        <span class="letter">A</span>
+        <a class="open" href="01-modale-onglets.html" target="_blank"><span>Ouvrir en grand ↗</span></a>
+      </div>
+      <div class="prop-body">
+        <h2>A — Modale centrée à onglets</h2>
+        <div class="tagline">Le classique lisible : rail à gauche, contenu à droite.</div>
+        <p>
+          Une fenêtre au centre de l'écran, un rail de catégories (Graphismes, Affichage &amp; FPS,
+          Touches, Interface, Système) et un pied de page avec Annuler / Appliquer. Tout tient dans
+          une seule fenêtre, on sait toujours où on est.
+        </p>
+        <ul>
+          <li><span class="mark">＋</span><span><b>Zéro surprise</b> — même vocabulaire que les fenêtres du jeu, aucune nouvelle habitude.</span></li>
+          <li><span class="mark">＋</span><span><b>Dense mais rangé</b> — 5 catégories, 42 raccourcis, sans scroll interminable.</span></li>
+          <li><span class="mark">＋</span><span><b>Directement testable</b> — structure proche du <span class="mono">esc_menu.tscn</span> existant.</span></li>
+          <li><span class="mark">−</span><span>La carte est masquée sur ~60 % de l'écran quand le menu est ouvert.</span></li>
+        </ul>
+        <div class="foot">
+          <a class="btn primary" href="01-modale-onglets.html" target="_blank">Voir en grand</a>
+          <span class="badge neutral" style="margin-left:auto">implémentation la plus simple</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- B -->
+    <article class="prop">
+      <div class="shot">
+        <iframe src="02-volet-lateral.html" loading="lazy" title="Proposition B"></iframe>
+        <span class="letter">B</span>
+        <a class="open" href="02-volet-lateral.html" target="_blank"><span>Ouvrir en grand ↗</span></a>
+      </div>
+      <div class="prop-body">
+        <h2>B — Volet latéral live</h2>
+        <div class="tagline">Régler en regardant la carte.</div>
+        <p>
+          Un panneau glissé sur la droite, à la manière du dock d'inspecteur déjà flottant. Sections
+          repliables, bandeau d'aperçu avec FPS et frametime en haut : on voit l'effet de chaque
+          réglage sans quitter la scène.
+        </p>
+        <ul>
+          <li><span class="mark">＋</span><span><b>La carte reste visible</b> — indispensable pour juger ombres, AA, eau.</span></li>
+          <li><span class="mark">＋</span><span><b>Cohérent avec l'éditeur</b> — les palettes flottantes sont déjà l'identité de l'outil.</span></li>
+          <li><span class="mark">＋</span><span><b>Léger</b> — on peut le laisser ouvert pendant tout le travail de décor.</span></li>
+          <li><span class="mark">−</span><span>L'accordéon demande un clic de plus pour atteindre les touches.</span></li>
+        </ul>
+        <div class="foot">
+          <a class="btn primary" href="02-volet-lateral.html" target="_blank">Voir en grand</a>
+          <span class="badge neutral" style="margin-left:auto">meilleur pour compenser</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- C -->
+    <article class="prop">
+      <div class="shot">
+        <iframe src="03-plein-ecran-atelier.html" loading="lazy" title="Proposition C"></iframe>
+        <span class="letter">C</span>
+        <a class="open" href="03-plein-ecran-atelier.html" target="_blank"><span>Ouvrir en grand ↗</span></a>
+      </div>
+      <div class="prop-body">
+        <h2>C — Atelier plein écran</h2>
+        <div class="tagline">Les réglages comme une salle de mesure.</div>
+        <p>
+          Le menu prend tout l'écran : catégories à gauche, réglages au centre, et surtout une
+          colonne d'aperçu à droite avec comparaison A/B, FPS, temps d'image, draw calls et
+          avertissements de coût sur la carte courante.
+        </p>
+        <ul>
+          <li><span class="mark">＋</span><span><b>Mesurable</b> — on voit le budget de la carte et l'impact de chaque cran.</span></li>
+          <li><span class="mark">＋</span><span><b>Comparaison A/B</b> — le meilleur moyen de trancher un preset.</span></li>
+          <li><span class="mark">＋</span><span><b>Évolutif</b> — place pour profils matériels et futures options.</span></li>
+          <li><span class="mark">−</span><span>Le plus lourd à construire : aperçu, mesures, profils. Sort de l'éditeur.</span></li>
+        </ul>
+        <div class="foot">
+          <a class="btn primary" href="03-plein-ecran-atelier.html" target="_blank">Voir en grand</a>
+          <span class="badge neutral" style="margin-left:auto">le plus ambitieux</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- D -->
+    <article class="prop">
+      <div class="shot">
+        <iframe src="04-recherche-cartes.html" loading="lazy" title="Proposition D"></iframe>
+        <span class="letter">D</span>
+        <a class="open" href="04-recherche-cartes.html" target="_blank"><span>Ouvrir en grand ↗</span></a>
+      </div>
+      <div class="prop-body">
+        <h2>D — Recherche &amp; cartes</h2>
+        <div class="tagline">Taper « ombres » et y être.</div>
+        <p>
+          Une palette de recherche en haut, des filtres par domaine, et des cartes de réglages en
+          grille. On tape ce qu'on cherche, on modifie sur place, le compteur de modifications suit.
+          Les raccourcis se remappent directement dans leur carte.
+        </p>
+        <ul>
+          <li><span class="mark">＋</span><span><b>Rapide pour l'expert</b> — aucune navigation, la recherche amène au réglage.</span></li>
+          <li><span class="mark">＋</span><span><b>Tout au même niveau</b> — pas de hiérarchie à apprendre.</span></li>
+          <li><span class="mark">＋</span><span><b>Bonne base</b> — la recherche peut ensuite être ajoutée à A.</span></li>
+          <li><span class="mark">−</span><span>Moins évocateur pour un nouveau venu : où sont les « graphismes » ?</span></li>
+        </ul>
+        <div class="foot">
+          <a class="btn primary" href="04-recherche-cartes.html" target="_blank">Voir en grand</a>
+          <span class="badge neutral" style="margin-left:auto">le plus « outil »</span>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- ================= Comparaison ================= -->
+  <h2 class="section">Comparaison</h2>
+  <table class="cmp">
+    <thead>
+      <tr>
+        <th>Critère</th>
+        <th>A · Onglets</th>
+        <th>B · Volet live</th>
+        <th>C · Atelier</th>
+        <th>D · Recherche</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><th>Découvrabilité (nouveau MJ)</th><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●●○</span></td><td><span class="dots">●●●●○</span></td><td><span class="dots">●●○○○</span></td></tr>
+      <tr><th>Vitesse de réglage</th><td><span class="dots">●●●●○</span></td><td><span class="dots">●●●●○</span></td><td><span class="dots">●●●○○</span></td><td><span class="dots">●●●●●</span></td></tr>
+      <tr><th>Voir l'effet sur la carte</th><td><span class="dots">●○○○○</span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●○○○</span></td></tr>
+      <tr><th>Surface écran consommée</th><td><span class="dots">●●●○○</span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●○○○○</span></td><td><span class="dots">●●●○○</span></td></tr>
+      <tr><th>Place pour 40+ raccourcis</th><td><span class="dots">●●●●○</span></td><td><span class="dots">●●●○○</span></td><td><span class="dots">●●●●●</span></td><td><span class="dots">●●●●●</span></td></tr>
+      <tr><th>Coût d'implémentation Godot</th><td><span class="dots">●●●●●</span> faible</td><td><span class="dots">●●●●○</span></td><td><span class="dots">●●○○○</span> élevé</td><td><span class="dots">●●●○○</span></td></tr>
+      <tr><th>Risque de test/régression</th><td><span class="dots">●●●●●</span> faible</td><td><span class="dots">●●●●○</span></td><td><span class="dots">●●○○○</span></td><td><span class="dots">●●●○○</span></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= Recommandation ================= -->
+  <h2 class="section">Recommandation</h2>
+  <div class="reco">
+    <div>
+      <h3>🎯 Partir de A, y injecter le meilleur de C et D.</h3>
+      <p>
+        A est le seul qui s'appuie sans friction sur ce que l'éditeur fait déjà (fenêtres
+        <span class="mono">PopupPanel</span>, <span class="mono">TabContainer</span>, pieds de panneau),
+        donc le plus sûr à livrer et à tester. Deux greffes valent le détour sans changer la direction :
+      </p>
+      <div class="list">
+        <div><b>1.</b><span>Un bandeau FPS/ms compact dans l'en-tête de A (venu de B/C) : on règle les ombres en regardant le compteur.</span></div>
+        <div><b>2.</b><span>Un champ de recherche qui filtre les lignes de la page courante (venu de D) — pas la peine de copier la grille de cartes.</span></div>
+        <div><b>3.</b><span>Un bouton <b>Aperçu A/B</b> en pied de modale qui masque temporairement le menu pour comparer la carte : le bénéfice de B pour le coût d'un bouton.</span></div>
+      </div>
+    </div>
+    <div class="side">
+      <div>
+        <span class="k">Direction retenue</span>
+        <div class="v">A — Modale centrée à onglets</div>
+      </div>
+      <div>
+        <span class="k">Ouverture</span>
+        <div class="v">F10 · bouton « ⚙ Paramètres » dans l'en-tête · entrée dans le menu Échap</div>
+      </div>
+      <div>
+        <span class="k">Réglages couverts</span>
+        <div class="v">Graphismes, ombres, eau, végétation, FPS/limite/VSync, touches remappables, thème, langue, système</div>
+      </div>
+      <div>
+        <span class="k">Hors périmètre</span>
+        <div class="v">Tout ce qui appartient à la carte (grille, brouillard, éclairage, dimensions) reste dans l'onglet Carte</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Si validé ================= -->
+  <div class="checklist">
+    <h3>Si vous validez (ex. « A ») — ce que je livre côté jeu</h3>
+    <ol>
+      <li>Un autoload <code>AppSettings</code> qui persiste dans <code>user://app_settings.cfg</code> (même fichier que <code>LocaleSettings</code>), sections graphismes / affichage / touches.</li>
+      <li>Les scènes et scripts <code>game/scenes/map_editor/parametres.tscn</code> + <code>game/scripts/maps/editor/map_editor_parametres.gd</code>, dans le style de <code>esc_menu.tscn</code>.</li>
+      <li>Ouverture par **F10**, bouton dans l'en-tête à côté de « Commandes », et entrée dans le menu Échap.</li>
+      <li>Application réelle : limite FPS et VSync, plein écran, MSAA de la vue 3D, preset de qualité, compteur FPS affichable/masquable, densités eau/végétation, langue et thème.</li>
+      <li>Remap des raccourcis de l'éditeur, sans réécrire le gestionnaire clavier (couche de traduction touche → action au-dessus de <code>_unhandled_key_input</code>).</li>
+      <li>Un test headless qui charge l'éditeur, ouvre le menu et vérifie l'application d'un réglage — dans l'esprit de <code>map_editor_ui_v2_test.gd</code>.</li>
+    </ol>
+  </div>
+
+  <p class="foot-note">
+    Maquettes statiques (HTML/CSS/JS) destinées à la validation de direction — elles ne sont pas
+    branchées au jeu. Le décor est une capture réelle de l'éditeur. Les valeurs affichées (FPS,
+    GPU, draw calls) sont indicatives.
+  </p>
+</div>
+
+</body>
+</html>

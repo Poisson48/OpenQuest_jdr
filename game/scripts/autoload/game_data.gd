@@ -20,6 +20,7 @@ const EXTRA_SCENARIO_IDS := ["demo-kharak"]
 
 const QuestNavigation = preload("res://scripts/quest_navigation.gd")
 const MapVision = preload("res://scripts/maps/map_vision.gd")
+const DiceEngineScript = preload("res://scripts/core/rules/dice_engine.gd")
 
 var characters: Array = []
 var scenarios: Array = []
@@ -2412,9 +2413,11 @@ const MAP_OP_FOG_HIDE := "fog_hide"
 const MAP_OP_DOOR := "door"
 const MAP_OP_EFFECT_TRIGGER := "effect_trigger"
 const MAP_OP_SELECT := "select"
+const MAP_OP_SET_BAR := "set_bar"
+const MAP_OP_SET_AURA := "set_aura"
 
 ## Opérations qu'un joueur non-MJ peut demander de son propre chef.
-const PLAYER_ALLOWED_OPS := [MAP_OP_MOVE_TOKEN, MAP_OP_DOOR, MAP_OP_SELECT]
+const PLAYER_ALLOWED_OPS := [MAP_OP_MOVE_TOKEN, MAP_OP_DOOR, MAP_OP_SELECT, MAP_OP_SET_BAR]
 
 ## Point d'entrée unique de l'UI. En P2P côté joueur, l'opération part au MJ ;
 ## sinon elle est appliquée localement puis rediffusée si l'on est hôte.
@@ -2440,7 +2443,7 @@ func can_apply_map_op(map_id: String, op: Dictionary, player_id: String) -> bool
 	var type := str(op.get("type", ""))
 	if not PLAYER_ALLOWED_OPS.has(type):
 		return false
-	if type == MAP_OP_MOVE_TOKEN:
+	if type == MAP_OP_MOVE_TOKEN or type == MAP_OP_SET_BAR:
 		return _player_owns_token(map_id, str(op.get("tokenId", "")), player_id)
 	return true
 
@@ -2511,6 +2514,23 @@ func apply_map_op(map_id: String, op: Dictionary) -> bool:
 					break
 		MAP_OP_SELECT:
 			entry["selectedTokenId"] = str(op.get("tokenId", ""))
+		MAP_OP_SET_BAR:
+			if not set_token_bar(
+				map_id,
+				str(op.get("tokenId", "")),
+				str(op.get("barId", "")),
+				int(op.get("value", 0)),
+				int(op.get("max", -1)),
+			):
+				return false
+		MAP_OP_SET_AURA:
+			var aura_token := str(op.get("tokenId", ""))
+			var aura_data = op.get("aura", {})
+			if aura_data is Dictionary and not (aura_data as Dictionary).is_empty():
+				if not set_token_aura(map_id, aura_token, aura_data):
+					return false
+			elif not clear_token_aura(map_id, aura_token):
+				return false
 		_:
 			return false
 	return true
@@ -2532,6 +2552,396 @@ func apply_complex_map_click_local(map_id: String, gx: float, gy: float, tool: D
 			place_map_effect(map_id, tool.get("preset", "fire"), gx, gy, float(tool.get("radius", 1.0)))
 		"zone":
 			place_map_zone(map_id, gx, gy, "circle", float(tool.get("radius", 1.5)), tool.get("label", ""))
+
+# ===========================================================================
+# Modèle de session (lot 4) : barres/aura, journal, ordre de tour, quickbar
+# ===========================================================================
+#
+# Adapté des idées de table de Let's Role, réimplémenté pour notre jeu :
+# - barres de token **liées à la fiche** (PV, mana…), aura 3D optionnelle ;
+# - journal de campagne en dossiers/pages avec visibilité MJ/table ;
+# - ordre de tour à valeur **optionnel** (le tour narratif reste le défaut) ;
+# - quickbar de 10 emplacements par personnage.
+# Tout vit dans `active_game` et suit la sauvegarde / la diffusion d'état.
+
+const SESSION_BAR_MAX_COUNT := 3
+const SESSION_QUICKBAR_SLOTS := 10
+const SESSION_QUICKBAR_ACTIONS := ["roll", "action", "note"]
+const SESSION_VISIBILITIES := ["table", "gm"]
+
+## Initialise paresseusement les sous-structures de session.
+func session_model() -> Dictionary:
+	if active_game.is_empty():
+		return {}
+	if not active_game.get("journal") is Dictionary:
+		active_game["journal"] = { "folders": [] }
+	if not active_game.get("turnOrder") is Dictionary:
+		active_game["turnOrder"] = { "open": true, "direction": 1, "items": [], "index": 0 }
+	if not active_game.get("quickbars") is Dictionary:
+		active_game["quickbars"] = {}
+	return active_game
+
+func _find_play_token(map_id: String, token_id: String) -> Dictionary:
+	if map_id.is_empty() or token_id.is_empty() or active_game.is_empty():
+		return {}
+	for token_variant in get_map_play_entry(map_id).get("tokens", []):
+		if not token_variant is Dictionary:
+			continue
+		var token: Dictionary = token_variant
+		if str(token.get("id", "")) == token_id:
+			return token
+	return {}
+
+# --- Barres et aura de token ------------------------------------------------
+
+func get_token_bars(map_id: String, token_id: String) -> Array:
+	var token := _find_play_token(map_id, token_id)
+	var bars_variant: Variant = token.get("bars", [])
+	var bars: Array = bars_variant if bars_variant is Array else []
+	return bars
+
+func get_token_bar(map_id: String, token_id: String, bar_id: String) -> Dictionary:
+	for bar_variant in get_token_bars(map_id, token_id):
+		if not bar_variant is Dictionary:
+			continue
+		var bar: Dictionary = bar_variant
+		if str(bar.get("id", "")) == bar_id:
+			return bar
+	return {}
+
+## Fixe la valeur d'une barre (créée si absente). `max_value` < 0 conserve le max.
+func set_token_bar(
+	map_id: String,
+	token_id: String,
+	bar_id: String,
+	value: int,
+	max_value: int = -1
+) -> bool:
+	var token := _find_play_token(map_id, token_id)
+	if token.is_empty() or bar_id.is_empty():
+		return false
+	if not token.has("bars") or not token["bars"] is Array:
+		token["bars"] = []
+	var bars: Array = token["bars"]
+	var existing: Dictionary = {}
+	for bar_variant in bars:
+		if bar_variant is Dictionary and str((bar_variant as Dictionary).get("id", "")) == bar_id:
+			existing = bar_variant
+			break
+	if existing.is_empty():
+		if bars.size() >= SESSION_BAR_MAX_COUNT:
+			return false
+		existing = {
+			"id": bar_id,
+			"label": bar_id,
+			"value": 0,
+			"max": maxi(value, 1),
+			"color": "#c0392b",
+			"link": "",
+		}
+		bars.append(existing)
+	var limit := max_value if max_value >= 0 else int(existing.get("max", 0))
+	if limit > 0:
+		existing["max"] = limit
+		existing["value"] = clampi(value, 0, limit)
+	else:
+		existing["value"] = maxi(value, 0)
+	return true
+
+func get_token_aura(map_id: String, token_id: String) -> Dictionary:
+	var token := _find_play_token(map_id, token_id)
+	var aura_variant: Variant = token.get("aura", {})
+	return aura_variant if aura_variant is Dictionary else {}
+
+## Pose une aura (halo d'effet) sur un token ; `{}` ou vide l'efface.
+func set_token_aura(map_id: String, token_id: String, aura: Dictionary) -> bool:
+	var token := _find_play_token(map_id, token_id)
+	if token.is_empty():
+		return false
+	var color := str(aura.get("color", "#66ccff"))
+	var radius := clampf(float(aura.get("radius", 1.5)), 0.25, 8.0)
+	token["aura"] = {
+		"color": color,
+		"radius": radius,
+		"pulse": bool(aura.get("pulse", true)),
+		"label": str(aura.get("label", "")),
+	}
+	return true
+
+func clear_token_aura(map_id: String, token_id: String) -> bool:
+	var token := _find_play_token(map_id, token_id)
+	if token.is_empty():
+		return false
+	token.erase("aura")
+	return true
+
+## Crée les barres PV des tokens rattachés à un membre du groupe (si absentes).
+func sync_token_bars_from_party(map_id: String) -> int:
+	if active_game.is_empty() or not active_game.get("mapPlayState") is Dictionary:
+		return 0
+	var entry := get_map_play_entry(map_id)
+	var party: Array = active_game.get("party", []) if active_game.get("party") is Array else []
+	var synced := 0
+	for token_variant in entry.get("tokens", []):
+		if not token_variant is Dictionary:
+			continue
+		var token: Dictionary = token_variant
+		var member_id := str(token.get("memberId", ""))
+		if member_id.is_empty():
+			continue
+		if not get_token_bars(map_id, str(token.get("id", ""))).is_empty():
+			continue
+		for member_variant in party:
+			if not member_variant is Dictionary:
+				continue
+			var member: Dictionary = member_variant
+			if str(member.get("id", "")) != member_id:
+				continue
+			var hp := int(member.get("hp", 0))
+			var max_hp := int(member.get("maxHp", member.get("hp", 10)))
+			var token_id := str(token.get("id", ""))
+			if set_token_bar(map_id, token_id, "hp", hp, maxi(max_hp, 1)):
+				var bar := get_token_bar(map_id, token_id, "hp")
+				bar["label"] = "PV"
+				bar["link"] = "member:%s:hp" % member_id
+				synced += 1
+			break
+	return synced
+
+# --- Journal de campagne (dossiers / pages) --------------------------------
+
+func get_campaign_journal() -> Dictionary:
+	var model := session_model()
+	if model.is_empty():
+		return { "folders": [] }
+	return model.get("journal", { "folders": [] })
+
+func create_journal_folder(title: String) -> String:
+	var journal := get_campaign_journal()
+	var folder_id := generate_id("folder")
+	journal["folders"].append({
+		"id": folder_id,
+		"title": title.strip_edges() if not title.strip_edges().is_empty() else "Dossier",
+		"pages": [],
+	})
+	return folder_id
+
+func create_journal_page(
+	folder_id: String,
+	title: String,
+	body: String = "",
+	visibility: String = "table"
+) -> String:
+	var journal := get_campaign_journal()
+	for folder_variant in journal.get("folders", []):
+		var folder: Dictionary = folder_variant
+		if str(folder.get("id", "")) != folder_id:
+			continue
+		var page_id := generate_id("page")
+		folder["pages"].append({
+			"id": page_id,
+			"title": title.strip_edges() if not title.strip_edges().is_empty() else "Page",
+			"body": body,
+			"visibility": visibility if SESSION_VISIBILITIES.has(visibility) else "table",
+			"updatedAt": int(Time.get_unix_time_from_system()),
+		})
+		return page_id
+	return ""
+
+func find_journal_page(page_id: String) -> Dictionary:
+	for folder_variant in get_campaign_journal().get("folders", []):
+		var folder: Dictionary = folder_variant
+		for page_variant in folder.get("pages", []):
+			var page: Dictionary = page_variant
+			if str(page.get("id", "")) == page_id:
+				return page
+	return {}
+
+func update_journal_page(page_id: String, patch: Dictionary) -> bool:
+	var page := find_journal_page(page_id)
+	if page.is_empty():
+		return false
+	if patch.has("title"):
+		page["title"] = str(patch["title"]).strip_edges()
+	if patch.has("body"):
+		page["body"] = str(patch["body"])
+	if patch.has("visibility") and SESSION_VISIBILITIES.has(str(patch["visibility"])):
+		page["visibility"] = str(patch["visibility"])
+	page["updatedAt"] = int(Time.get_unix_time_from_system())
+	return true
+
+func delete_journal_page(page_id: String) -> bool:
+	for folder_variant in get_campaign_journal().get("folders", []):
+		var folder: Dictionary = folder_variant
+		var pages: Array = folder.get("pages", [])
+		for i in range(pages.size() - 1, -1, -1):
+			if str((pages[i] as Dictionary).get("id", "")) == page_id:
+				pages.remove_at(i)
+				return true
+	return false
+
+## Journal tel que le voit un joueur : les pages `gm` disparaissent.
+func filter_journal_for_player(viewer_is_gm: bool) -> Dictionary:
+	var journal: Dictionary = get_campaign_journal().duplicate(true)
+	if viewer_is_gm:
+		return journal
+	for folder_variant in journal.get("folders", []):
+		var folder: Dictionary = folder_variant
+		var visible_pages: Array = []
+		for page_variant in folder.get("pages", []):
+			var page: Dictionary = page_variant
+			if str(page.get("visibility", "table")) != "gm":
+				visible_pages.append(page)
+		folder["pages"] = visible_pages
+	return journal
+
+# --- Ordre de tour (initiative optionnelle) --------------------------------
+
+func get_turn_order() -> Dictionary:
+	var model := session_model()
+	if model.is_empty():
+		return { "open": true, "direction": 1, "items": [], "index": 0 }
+	return model.get("turnOrder", {})
+
+func set_turn_order_patch(patch: Dictionary) -> void:
+	var order := get_turn_order()
+	if patch.has("open"):
+		order["open"] = bool(patch["open"])
+	if patch.has("direction"):
+		order["direction"] = 1 if int(patch["direction"]) >= 0 else -1
+	if patch.has("items") and patch["items"] is Array:
+		order["items"] = patch["items"]
+		order["index"] = 0
+
+func add_turn_order_item(
+	name: String,
+	value: int,
+	member_id: String = "",
+	color: String = ""
+) -> String:
+	var order := get_turn_order()
+	var item_id := generate_id("turn")
+	var items: Array = order.get("items", [])
+	items.append({
+		"id": item_id,
+		"name": name.strip_edges() if not name.strip_edges().is_empty() else "Combattant",
+		"value": value,
+		"memberId": member_id,
+		"color": color,
+	})
+	order["items"] = items
+	sort_turn_order()
+	return item_id
+
+func remove_turn_order_item(item_id: String) -> bool:
+	var order := get_turn_order()
+	var items: Array = order.get("items", [])
+	for i in range(items.size() - 1, -1, -1):
+		if str((items[i] as Dictionary).get("id", "")) == item_id:
+			items.remove_at(i)
+			order["index"] = 0
+			return true
+	return false
+
+## Trie les items dans le sens courant (direction 1 = décroissant).
+func sort_turn_order() -> Array:
+	var order := get_turn_order()
+	var items: Array = order.get("items", [])
+	var descending := int(order.get("direction", 1)) >= 0
+	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var va := int(a.get("value", 0))
+		var vb := int(b.get("value", 0))
+		if va == vb:
+			return str(a.get("name", "")) < str(b.get("name", ""))
+		return va > vb if descending else va < vb
+	)
+	order["items"] = items
+	return items
+
+func current_turn_order_item() -> Dictionary:
+	var order := get_turn_order()
+	var items: Array = order.get("items", [])
+	if items.is_empty():
+		return {}
+	var index := clampi(int(order.get("index", 0)), 0, items.size() - 1)
+	order["index"] = index
+	return items[index]
+
+func next_turn_order_item() -> Dictionary:
+	var order := get_turn_order()
+	var items: Array = order.get("items", [])
+	if items.is_empty():
+		return {}
+	order["index"] = (int(order.get("index", 0)) + 1) % items.size()
+	return items[int(order["index"])]
+
+# --- Quickbar par personnage ----------------------------------------------
+
+func get_character_quickbar(character_id: String) -> Array:
+	var model := session_model()
+	if model.is_empty() or character_id.is_empty():
+		return []
+	var quickbars: Dictionary = model.get("quickbars", {})
+	var slots_variant: Variant = quickbars.get(character_id, [])
+	var slots: Array = slots_variant if slots_variant is Array else []
+	return slots.duplicate(true)
+
+func _sanitize_quickbar_slot(slot: Dictionary) -> Dictionary:
+	var action := str(slot.get("action", "action"))
+	if not SESSION_QUICKBAR_ACTIONS.has(action):
+		action = "action"
+	var visibility := str(slot.get("visibility", "table"))
+	if not SESSION_VISIBILITIES.has(visibility):
+		visibility = "table"
+	return {
+		"label": str(slot.get("label", "")).strip_edges().left(40),
+		"action": action,
+		"formula": str(slot.get("formula", "")).strip_edges().left(120),
+		"visibility": visibility,
+		"icon": str(slot.get("icon", "")).left(8),
+	}
+
+func set_character_quickbar(character_id: String, slots: Array) -> void:
+	if character_id.is_empty():
+		return
+	var model := session_model()
+	if model.is_empty():
+		return
+	var quickbars: Dictionary = model["quickbars"]
+	var clean: Array = []
+	for slot_variant in slots:
+		if clean.size() >= SESSION_QUICKBAR_SLOTS:
+			break
+		if slot_variant is Dictionary:
+			clean.append(_sanitize_quickbar_slot(slot_variant))
+	quickbars[character_id] = clean
+
+func set_quickbar_slot(character_id: String, index: int, slot: Dictionary) -> bool:
+	if index < 0 or index >= SESSION_QUICKBAR_SLOTS:
+		return false
+	var slots := get_character_quickbar(character_id)
+	while slots.size() <= index:
+		slots.append({})
+	slots[index] = _sanitize_quickbar_slot(slot)
+	set_character_quickbar(character_id, slots)
+	return true
+
+func clear_quickbar_slot(character_id: String, index: int) -> bool:
+	var slots := get_character_quickbar(character_id)
+	if index < 0 or index >= slots.size():
+		return false
+	slots.remove_at(index)
+	set_character_quickbar(character_id, slots)
+	return true
+
+## Quickbar telle que la voit un joueur : les emplacements `gm` disparaissent.
+func filter_quickbar_for_player(character_id: String, viewer_is_gm: bool) -> Array:
+	var out: Array = []
+	for slot_variant in get_character_quickbar(character_id):
+		var slot: Dictionary = slot_variant
+		if viewer_is_gm or str(slot.get("visibility", "table")) != "gm":
+			out.append(slot)
+	return out
 
 # ===========================================================================
 # Vue filtrée pour les joueurs
@@ -2605,11 +3015,26 @@ func get_visible_now_cells(map_id: String) -> Array:
 	var cells = entry.get("visibleNow", [])
 	return cells if cells is Array else []
 
+## Polygones de visibilité courants (un par source de vision), pour le rendu du
+## brouillard lissé. Non persistés : recalculés à la demande, côté hôte.
+func get_map_visibility_polygons(map_id: String) -> Array:
+	var map_def := get_map_with_door_states(map_id)
+	if map_def.is_empty():
+		return []
+	var entry := get_map_play_entry(map_id)
+	var sources: Array = MapVision.vision_sources_from_tokens(entry.get("tokens", []))
+	sources.append_array(MapVision.vision_sources_from_lights(map_def))
+	return MapVision.visibility_polygons(map_def, sources)
+
 ## Recalcule le champ de vision et l'ajoute au brouillard déjà révélé.
 ##
 ## `fogRevealed` est la **mémoire** de la partie : une case vue une fois le
 ## reste (exploration). `visibleNow` est ce qui est éclairé à l'instant t, pour
 ## que le rendu puisse assombrir le souvenir sans le masquer.
+##
+## Le calcul des cases révélées garde le test rayon-par-case (mesuré plus rapide
+## que l'échantillonnage radial sur nos tailles de carte) ; les polygones de
+## visibilité sont exposés séparément pour le rendu du brouillard lissé.
 func recompute_dynamic_fog(map_id: String) -> Array:
 	if not is_los_enabled(map_id):
 		return []
@@ -4148,60 +4573,10 @@ func get_session_display_map(active_map_id: String) -> Dictionary:
 # ==============================================================================
 
 func roll_dice(formula: String) -> Dictionary:
-	var cleaned := formula.strip_edges().to_lower().replace(" ", "")
-	var regex := RegEx.new()
-	regex.compile("^(\\d+)d(\\d+)([+-]\\d+)?$")
-	var match_res := regex.search(cleaned)
-	
-	if not match_res:
-		return { "error": "Formule invalide. Exemples : 1d20, 2d6+3, 1d8-1" }
-	
-	var count := match_res.get_string(1).to_int()
-	var sides := match_res.get_string(2).to_int()
-	var mod_str := match_res.get_string(3)
-	var modifier := mod_str.to_int() if not mod_str.is_empty() else 0
-	
-	if count < 1 or count > 100 or sides < 2 or sides > 1000:
-		return { "error": "Valeurs hors limites (max 100d1000)." }
-	
-	var rolls: Array = []
-	var sum := 0
-	for i in range(count):
-		var val := randi() % sides + 1
-		rolls.append(val)
-		sum += val
-	
-	var total := sum + modifier
-	var mod_repr := ""
-	if modifier > 0:
-		mod_repr = "+%d" % modifier
-	elif modifier < 0:
-		mod_repr = "%d" % modifier
-		
-	var norm_formula := "%dd%d%s" % [count, sides, mod_repr]
-	
-	return {
-		"formula": norm_formula,
-		"rolls": rolls,
-		"modifier": modifier,
-		"total": total
-	}
+	return DiceEngineScript.roll(formula)
 
 func format_dice_result(res: Dictionary) -> String:
-	if res.has("error"):
-		return str(res["error"])
-	var text := "🎲 [b]%d[/b] (%s)" % [res.get("total", 0), res.get("formula", "")]
-	var rolls: Array = res.get("rolls", [])
-	var modifier: int = res.get("modifier", 0)
-	if rolls.size() > 1:
-		text += " — dés : " + ", ".join(rolls.map(func(v): return str(v)))
-		if modifier != 0:
-			text += " %s%d" % ["+" if modifier > 0 else "", modifier]
-	elif modifier != 0:
-		text += " — %d %s%d" % [rolls[0], "+" if modifier > 0 else "", modifier]
-	elif rolls.size() == 1:
-		text += " — dé : %d" % rolls[0]
-	return text
+	return DiceEngineScript.format(res)
 
 # ==============================================================================
 # UTILITAIRES

@@ -1,6 +1,8 @@
 class_name MapEditorToolFlyout
 extends PopupPanel
 
+const CartographerThemeScript := preload("res://scripts/theme/cartographer_theme.gd")
+
 ## Volant d'outils du mode carte (refonte UI v2) : popup 100 % autonome
 ## (aucun autoload, aucune scène externe, toute l'interface est construite en
 ## code). Affiche des outils groupés par catégorie sous forme de tuiles 62x56
@@ -40,21 +42,19 @@ const OPEN_ANIM_DURATION := 0.12
 const CLOSE_ANIM_DURATION := 0.08
 const SLIDE_OFFSET := 6.0
 
-const BG_COLOR := Color("#222A2F")
-const BORDER_COLOR := Color("#414E54")
 const CORNER_RADIUS := 8
 
 const FILTER_PLACEHOLDER := "Filtrer…"
 const FOOTER_TEXT := "Entrée : armer · Maj+clic : garder ouvert · Échap : fermer"
 
 const _ELLIPSIS := "…"
-const _TEXT_COLOR := Color(0.82, 0.87, 0.9)
-const _DIM_TEXT_COLOR := Color(0.55, 0.63, 0.68)
+
+## Couleur de la palette active (variante « or » ou « jade »).
+func _pal(key: String) -> Color:
+	return CartographerThemeScript.color(key)
 const _TILE_BG := Color(1, 1, 1, 0.03)
 const _TILE_BG_HOVER := Color(1, 1, 1, 0.1)
-const _TILE_BG_PRESSED := Color(0.31, 0.71, 0.86, 0.25)
 const _TILE_BORDER := Color(1, 1, 1, 0.06)
-const _ACCENT_BORDER := Color(0.42, 0.62, 0.72, 0.9)
 
 ## Normalisation des accents pour le filtre (après passage en minuscules).
 const _ACCENT_MAP := {
@@ -244,8 +244,8 @@ func _build_ui() -> void:
 	_filter.placeholder_text = FILTER_PLACEHOLDER
 	_filter.clear_button_enabled = true
 	_filter.custom_minimum_size = Vector2(0, 26)
-	_filter.add_theme_stylebox_override("normal", _input_style(Color(0, 0, 0, 0.25), BORDER_COLOR))
-	_filter.add_theme_stylebox_override("focus", _input_style(Color(0, 0, 0, 0.32), _ACCENT_BORDER))
+	_filter.add_theme_stylebox_override("normal", _input_style(Color(0, 0, 0, 0.25), _pal("border")))
+	_filter.add_theme_stylebox_override("focus", _input_style(Color(0, 0, 0, 0.32), _pal("accent")))
 	_filter.text_changed.connect(_on_filter_text_changed)
 	_filter.text_submitted.connect(_on_filter_text_submitted)
 	_filter.gui_input.connect(_on_filter_gui_input)
@@ -273,7 +273,7 @@ func _build_ui() -> void:
 	_footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_footer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_footer.add_theme_font_size_override("font_size", FOOTER_FONT_SIZE)
-	_footer.add_theme_color_override("font_color", _DIM_TEXT_COLOR)
+	_footer.add_theme_color_override("font_color", _pal("text"))
 	_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	footer_wrap.add_child(_footer)
 
@@ -294,7 +294,7 @@ func _add_section(category_name: String, entries: Array) -> void:
 	title.name = "CategoryTitle%d" % index
 	title.text = category_name.to_upper()
 	title.add_theme_font_size_override("font_size", 10)
-	title.add_theme_color_override("font_color", _DIM_TEXT_COLOR)
+	title.add_theme_color_override("font_color", _pal("text"))
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sections_box.add_child(title)
 
@@ -331,9 +331,9 @@ func _make_tile(entry: Dictionary) -> Button:
 	button.set_meta("tool_id", tool_id)
 	button.tooltip_text = label_text
 	button.add_theme_stylebox_override("normal", _tile_style(_TILE_BG, _TILE_BORDER))
-	button.add_theme_stylebox_override("hover", _tile_style(_TILE_BG_HOVER, _ACCENT_BORDER))
-	button.add_theme_stylebox_override("pressed", _tile_style(_TILE_BG_PRESSED, _ACCENT_BORDER))
-	button.add_theme_stylebox_override("focus", _tile_style(_TILE_BG, _ACCENT_BORDER))
+	button.add_theme_stylebox_override("hover", _tile_style(_TILE_BG_HOVER, _pal("accent")))
+	button.add_theme_stylebox_override("pressed", _tile_style(_pal("accent_dim"), _pal("accent")))
+	button.add_theme_stylebox_override("focus", _tile_style(_TILE_BG, _pal("accent")))
 	button.gui_input.connect(_on_tile_gui_input.bind(tool_id))
 
 	var stack := VBoxContainer.new()
@@ -364,7 +364,7 @@ func _make_tile(entry: Dictionary) -> Button:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
-	label.add_theme_color_override("font_color", _TEXT_COLOR)
+	label.add_theme_color_override("font_color", _pal("text"))
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Ellipsis appliquée manuellement pour garantir que le libellé tienne
 	# toujours dans la tuile, quel que soit le thème/la police courante.
@@ -546,9 +546,9 @@ func _emit_choice(tool_id: String, keep_open: bool) -> void:
 ## Style du panneau interne (fond + bordure + marges de contenu).
 func _panel_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = BG_COLOR
+	sb.bg_color = _pal("panel")
 	sb.set_border_width_all(1)
-	sb.border_color = BORDER_COLOR
+	sb.border_color = _pal("border")
 	sb.set_corner_radius_all(CORNER_RADIUS)
 	sb.set_content_margin_all(CONTENT_MARGIN)
 	return sb

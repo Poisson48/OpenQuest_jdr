@@ -28,6 +28,7 @@ signal view_changed
 ## Pas une colonne héros : le fallback doit laisser une carte jouable en 2x2 (~1720×696).
 const IMMERSIVE_INSET := Vector4(16.0, 52.0, 260.0, 120.0)
 const SpeechBubbles := preload("res://scripts/session/panels/speech_bubble_overlay.gd")
+const FogOverlayScript := preload("res://scripts/session/panels/fog_overlay.gd")
 
 @onready var _simple: Control = %SimpleMap
 @onready var _complex: Control = %ComplexMap
@@ -40,6 +41,7 @@ var _loaded_map_id: String = ""
 var _pending_fit: bool = false
 var _fit_size: Vector2 = Vector2.ZERO
 var _bubbles = null
+var _fog_overlay: Control = null
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", SessionStyle.flat_stylebox(ThemeColors.SURFACE_DEEP, 4))
@@ -72,7 +74,17 @@ func _ready() -> void:
 	if _complex.has_signal("area_activate_requested"):
 		_complex.area_activate_requested.connect(func(area: Dictionary): area_activate_requested.emit(area))
 	_complex.zoom_changed.connect(func(_z: float): view_changed.emit())
+	_complex.resized.connect(_redraw_fog_overlay)
 	resized.connect(_on_resized)
+
+	# Voile de brouillard « vision courante » : enfant du moteur 3D (donc
+	# au-dessus de son SubViewport), indépendant de ses couches internes.
+	if _fog_overlay == null:
+		_fog_overlay = FogOverlayScript.new()
+		_fog_overlay.name = "FogOverlay"
+		_complex.add_child(_fog_overlay)
+		_complex.zoom_changed.connect(func(_z: float): _redraw_fog_overlay())
+		_fog_overlay.visible = false
 
 # ---------------------------------------------------------------------------
 # Affichage
@@ -111,9 +123,25 @@ func configure(payload: Dictionary) -> void:
 			str(payload.get("selected_token", "")),
 		)
 		_complex.set_session_tool(payload.get("tool", {}))
+		# Préférences de confort machine (menu Paramètres) : même surcharge que
+		# dans l'éditeur, réappliquée après le configure de la session.
+		if AppSettings != null:
+			AppSettings.apply_to_engine(_complex)
 		if _complex.has_method("set_move_policy"):
 			_complex.set_move_policy(bool(payload.get("is_gm", false)), str(payload.get("owned_member_id", "")))
+		if _fog_overlay != null:
+			_fog_overlay.visible = true
+			_fog_overlay.configure(_complex, {
+				"map_id": map_id,
+				"is_gm": bool(payload.get("is_gm", false)),
+				"fog_enabled": bool(display_map.get("fogEnabled", true)),
+				"fog_revealed": payload.get("fog_revealed", []),
+				"visible_now": payload.get("visible_now", []),
+				"vision_polygons": payload.get("vision_polygons", []),
+			})
 	else:
+		if _fog_overlay != null:
+			_fog_overlay.visible = false
 		_simple.configure(
 			display_map,
 			payload.get("tokens", []),
@@ -272,6 +300,14 @@ func center_on_grid_smooth(gx: float, gy: float) -> void:
 
 func speech_bubble_count() -> int:
 	return _bubbles.visible_count() if _bubbles else 0
+
+## Voile de brouillard (tests / debug).
+func fog_overlay() -> Control:
+	return _fog_overlay
+
+func _redraw_fog_overlay() -> void:
+	if _fog_overlay != null:
+		_fog_overlay.queue_redraw()
 
 func _project_grid(grid: Vector2) -> Vector2:
 	var renderer := active_renderer()

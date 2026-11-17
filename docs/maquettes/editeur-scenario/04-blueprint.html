@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refonte 4 — La Console de nœuds · Éditeur de scénario</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  /* ============ REFONTE 4 — « LA CONSOLE DE NŒUDS » (éditeur pro, dense) ============ */
+  body { --accent: #7fd1c4; background: #0b0d12; }
+  .topbar { height: 46px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid #202736; background: #0e1118; }
+  .back { padding: 5px 10px; border-radius: 6px; border: 1px solid #26303f; background: transparent; font-size: 12px; }
+  .crumbs { font-size: 11px; color: #6f7f96; font-family: var(--mono); }
+  .doc-title { font-size: 13.5px; color: #d9e4f2; font-family: var(--sans); font-weight: 600; }
+  .palette { margin-left: 12px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; width: 280px; border-radius: 7px; border: 1px solid #26303f; background: #12151d; color: #6f7f96; font-size: 12px; }
+  .palette .k { margin-left: auto; font-family: var(--mono); font-size: 10px; border: 1px solid #2c3646; border-radius: 4px; padding: 1px 5px; }
+  .grow { flex: 1; }
+  .subbar { height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-bottom: 1px solid #202736; background: #0c0f15; }
+  .modes { display: flex; gap: 2px; }
+  .modes button { padding: 6px 12px; border-radius: 6px 6px 0 0; border: 0; background: transparent; color: #6f7f96; font-size: 12px; border-bottom: 2px solid transparent; }
+  .modes button.on { color: #9fe3d6; border-bottom-color: #54b3a4; background: rgba(84,179,164,.08); }
+  .tools { display: flex; gap: 2px; margin-left: 14px; padding-left: 14px; border-left: 1px solid #202736; }
+  .tools button { width: 30px; height: 28px; border-radius: 6px; border: 0; background: transparent; color: #6f7f96; }
+  .tools button.on { background: rgba(84,179,164,.14); color: #9fe3d6; }
+  .tools button:hover { background: rgba(255,255,255,.05); color: #c9d6e6; }
+  .zoom { margin-left: auto; display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: #6f7f96; }
+  .zoom button { width: 24px; height: 24px; border-radius: 5px; border: 1px solid #26303f; background: #12151d; color: #9fb0c6; }
+  .main { position: absolute; inset: 86px 0 158px 0; display: grid; grid-template-columns: 1fr 382px; }
+  .canvas { position: relative; overflow: hidden; background-image:
+      linear-gradient(rgba(84,179,164,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(84,179,164,.045) 1px, transparent 1px);
+    background-size: 24px 24px, 24px 24px; }
+  .canvas::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(700px 420px at 45% 40%, rgba(84,179,164,.06), transparent 70%); }
+  .mg-frame rect { fill: rgba(84,179,164,.028); stroke: rgba(84,179,164,.28); stroke-dasharray: 7 6; }
+  .mg-frame text { font-family: var(--mono); }
+  .mg { position: relative; z-index: 1; }
+  .details { border-left: 1px solid #202736; background: #0e1118; display: flex; flex-direction: column; min-height: 0; }
+  .det-tabs { display: flex; border-bottom: 1px solid #202736; }
+  .det-tabs button { flex: 1; padding: 10px 6px; border: 0; background: transparent; color: #6f7f96; font-size: 11.5px; border-bottom: 2px solid transparent; }
+  .det-tabs button.on { color: #9fe3d6; border-bottom-color: #54b3a4; }
+  .det-scroll { overflow: auto; padding: 14px; }
+  .details .inspector { gap: 12px; }
+  .details .ins-title { font-size: 17px; color: #d9e4f2; }
+  .details .ins-kicker { font-family: var(--mono); }
+  .details .input, .details .textarea { background: #0b0e13; border-color: #26303f; border-radius: 6px; }
+  .details .field-label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; color: #5d6c81; }
+  .details .tr-row { background: #0b0e13; border-color: #232c3a; border-radius: 6px; }
+  .details .ins-two { grid-template-columns: 1fr; }
+  .dock { position: absolute; left: 0; right: 0; bottom: 0; height: 158px; border-top: 1px solid #202736; background: #0c0f15; display: flex; flex-direction: column; }
+  .dock-tabs { display: flex; align-items: center; gap: 2px; padding: 0 12px; border-bottom: 1px solid #202736; height: 34px; }
+  .dock-tabs button { padding: 8px 12px; border: 0; background: transparent; color: #6f7f96; font-size: 11.5px; border-bottom: 2px solid transparent; }
+  .dock-tabs button.on { color: #d9e4f2; border-bottom-color: #54b3a4; }
+  .dock-tabs .count { font-family: var(--mono); font-size: 10px; color: #d9b36a; margin-left: 6px; }
+  .dock-body { overflow: auto; padding: 8px 12px; font-family: var(--mono); font-size: 11.5px; }
+  .issue { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 5px; }
+  .issue:hover { background: rgba(255,255,255,.03); }
+  .issue .ico { width: 14px; text-align: center; }
+  .issue .ico.warn { color: #d9b36a; }
+  .issue .ico.ok { color: #54b3a4; }
+  .issue .where { color: #7fd1c4; cursor: pointer; }
+  .issue .where:hover { text-decoration: underline; }
+  .issue .msg { color: #9fb0c6; }
+  .minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 136px; z-index: 3; border: 1px solid #26303f; border-radius: 8px; background: rgba(8,10,14,.88); padding: 6px; }
+  .minimap .body { height: 100%; }
+  .kbd-hints { position: absolute; left: 14px; bottom: 14px; z-index: 3; display: flex; gap: 10px; font-family: var(--mono); font-size: 10px; color: #5d6c81; }
+  .kbd-hints .k { border: 1px solid #26303f; border-radius: 4px; padding: 1px 5px; color: #8b9bb2; }
+  .nvp-hint { position: absolute; left: 14px; top: 14px; z-index: 3; font-family: var(--mono); font-size: 10.5px; color: #5d6c81; }
+</style>
+</head>
+<body data-variant="blueprint">
+  <header class="topbar">
+    <button class="back">←</button>
+    <span class="crumbs">hub / scénarios / éditeur</span>
+    <span class="doc-title">Retour à Valbois</span>
+    <span class="badge badge--mono" style="border-color:#26303f;color:#8b9bb2">demo-valbois</span>
+    <div class="palette">⌕ Commande ou scène…<span class="k">Ctrl K</span></div>
+    <span class="grow"></span>
+    <span class="badge" style="border-color:#26303f;color:#9fe3d6">✓ 0 erreur</span>
+    <span class="badge" style="border-color:#26303f;color:#d9b36a">3 suggestions</span>
+    <button class="btn btn--sm" style="border-color:#26303f">Valider</button>
+    <button class="btn btn--sm btn--gold">Enregistrer</button>
+  </header>
+
+  <div class="subbar">
+    <div class="modes"><button class="on">Graphe</button><button>Scénario</button><button>PNJ</button><button>Cartes</button></div>
+    <div class="tools">
+      <button class="on" title="Sélection">◉</button>
+      <button title="Branche">⟜</button>
+      <button title="Note">✎</button>
+      <button title="Cadre">▭</button>
+      <button title="Commentaire">💬</button>
+    </div>
+    <div class="zoom">
+      <button id="z-out">−</button><span id="z-pct">100 %</span><button id="z-in">＋</button><button id="z-fit">⤢</button>
+      <span style="margin-left:10px">9 nœuds · 27 liens</span>
+    </div>
+  </div>
+
+  <main class="main">
+    <section class="canvas" id="graph">
+      <div class="nvp-hint">graphe — glisser : pan · molette : zoom · clic droit : supprimer un lien</div>
+      <div class="minimap"><div class="body" id="mini"></div></div>
+      <div class="kbd-hints"><span class="k">Ctrl K</span> palette <span class="k">F</span> cadrer <span class="k">L</span> lien <span class="k">N</span> note <span class="k">Suppr</span> retirer</div>
+    </section>
+
+    <aside class="details">
+      <div class="det-tabs" id="det-tabs">
+        <button class="on" data-tab="scene">Scène</button>
+        <button data-tab="branches">Branches</button>
+        <button data-tab="meta">Métadonnées</button>
+      </div>
+      <div class="det-scroll" id="details"></div>
+    </aside>
+  </main>
+
+  <section class="dock">
+    <div class="dock-tabs">
+      <button class="on">Problèmes<span class="count">3</span></button>
+      <button>Historique</button>
+      <button>Journal du graphe</button>
+      <span class="spacer"></span>
+      <span style="font-family:var(--mono);font-size:10.5px;color:#5d6c81">analyse : 9 scènes · 27 branches · 8 carrefours · 0 branche cassée</span>
+    </div>
+    <div class="dock-body" id="dock"></div>
+  </section>
+
+  <script src="assets/mock.js"></script>
+  <script>
+    (function () {
+      const M = window.MOCK;
+      const S = M.scenario;
+      const frames = [
+        { label: "Acte I — Le retour", x: 14, y: 52, w: 606, h: 754 },
+        { label: "Acte II — La dette", x: 646, y: 52, w: 306, h: 754 },
+        { label: "Acte III — Le prix", x: 978, y: 52, w: 330, h: 620 },
+      ];
+      const graph = M.mountGraph(document.getElementById("graph"), { w: 1330, h: 830, zoom: true, pan: true, frames });
+      const mini = M.mountGraph(document.getElementById("mini"), { w: 1360, h: 820, mini: true, dim: false, interactive: true });
+      const det = document.getElementById("details");
+      let tab = "scene";
+
+      function branchesHTML() {
+        const s = M.scene(S.selected);
+        return `<div class="ins-head"><div><div class="ins-kicker">${M.esc(s.id)}</div><h2 class="ins-title">Branches sortantes</h2></div>
+          <span class="badge badge--mono" style="border-color:#26303f;color:#8b9bb2">${s.transitions.length}</span></div>
+          <div class="tr-list">${M.inspectorHTML(S.selected).match(/<div class="tr-list">([\s\S]*?)<\/div>\s*<button/) ? M.inspectorHTML(S.selected).match(/<div class="tr-list">([\s\S]*?)<\/div>\s*<button/)[1] : ""}</div>
+          <button class="btn btn--sm btn--ghost">+ Nouvelle branche</button>`;
+      }
+      function metaHTML() {
+        return `<div class="ins-head"><div><div class="ins-kicker">scénario</div><h2 class="ins-title">Métadonnées</h2></div></div>
+          <label class="field"><span class="field-label">titre</span><input class="input" value="${M.esc(S.title)}"></label>
+          <label class="field"><span class="field-label">synopsis</span><textarea class="textarea" rows="3">${M.esc(S.synopsis)}</textarea></label>
+          <label class="field"><span class="field-label">cadre / ambiance</span><textarea class="textarea" rows="3">${M.esc(S.setting)}</textarea></label>
+          <div class="ins-two"><label class="field"><span class="field-label">format</span><input class="input" value="${M.esc(S.format)}"></label>
+          <label class="field"><span class="field-label">roster</span><input class="input" value="${M.esc(S.roster)}"></label></div>
+          <label class="field"><span class="field-label">mystère</span><textarea class="textarea" rows="2">${M.esc(S.mystery)}</textarea></label>`;
+      }
+      function render() {
+        if (tab === "scene") det.innerHTML = M.inspectorHTML(S.selected);
+        else if (tab === "branches") det.innerHTML = branchesHTML();
+        else det.innerHTML = metaHTML();
+      }
+      document.querySelectorAll("#det-tabs button").forEach((b) => b.addEventListener("click", () => {
+        tab = b.dataset.tab;
+        document.querySelectorAll("#det-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+        render();
+      }));
+
+      const issues = [
+        { ico: "warn", scene: "denouement", msg: "scène terminale sans carte liée — la session restera sur la carte précédente" },
+        { ico: "warn", scene: "ruelles-nuit", msg: "6 branches entrantes (lisibilité) — envisager un carrefour nommé" },
+        { ico: "warn", scene: "taverne-cerf", msg: "branche MJ vers les ruelles : vérifier la cohérence avec l'acte II" },
+        { ico: "ok", scene: "retour-a-valbois", msg: "scène de départ atteignable, 3 sorties, aucune boucle" },
+      ];
+      document.getElementById("dock").innerHTML = issues.map((it) =>
+        `<div class="issue"><span class="ico ${it.ico}">${it.ico === "warn" ? "▲" : "●"}</span>
+         <span class="where" data-id="${it.scene}">${it.scene}</span><span class="msg">${M.esc(it.msg)}</span></div>`).join("");
+      document.querySelectorAll("#dock .where").forEach((el) => el.addEventListener("click", () => select(el.dataset.id)));
+
+      function select(id) {
+        if (id !== S.selected) M.emitSelect(id);
+        if (mini) mini.select(id);
+        render();
+      }
+      M.onSelect((id) => { graph.refreshSelection(); if (mini) mini.select(id); render(); });
+      render();
+
+      document.getElementById("z-in").onclick = () => { graph.zoomIn(); syncZoom(); };
+      document.getElementById("z-out").onclick = () => { graph.zoomOut(); syncZoom(); };
+      document.getElementById("z-fit").onclick = () => { graph.fit(); syncZoom(); };
+      const pct = document.getElementById("z-pct");
+      function syncZoom() { pct.textContent = Math.round(graph.getZoom() * 100) + " %"; }
+      syncZoom();
+      window.addEventListener("resize", () => { graph.fit(); syncZoom(); });
+    })();
+  </script>
+</body>
+</html>

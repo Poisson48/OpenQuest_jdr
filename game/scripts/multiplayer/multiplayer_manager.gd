@@ -48,6 +48,40 @@ var _webrtc: RefCounted = null ## WebRTCP2P
 var _is_p2p_active: bool = false
 var _transport_active: String = "" ## "webrtc" | "enet"
 
+## Délai avant de considérer une requête pooling sans réponse (secondes).
+const REQUEST_TIMEOUT := 8.0
+
+## Marge de sécurité sous laquelle un ticket de session est considéré expiré (ms).
+const TICKET_MARGIN_MS := 5000.0
+
+## Codes d'erreur du protocole v2 → texte joueur.
+const POOLING_ERRORS := {
+	"BAD_JSON": "Message réseau invalide.",
+	"UNKNOWN_TYPE": "Requête inconnue du serveur.",
+	"INVALID_PAYLOAD": "Données de requête invalides.",
+	"RATE_LIMITED": "Trop de requêtes — patientez un instant.",
+	"GM_ONLY": "Seul le MJ peut faire cela.",
+	"JOIN_FAILED": "Impossible de rejoindre la partie.",
+	"ROOM_FULL": "La partie est complète.",
+	"ROOM_NOT_FOUND": "Partie introuvable — vérifiez le code.",
+	"NOT_IN_ROOM": "Vous n'êtes dans aucune partie.",
+	"TARGET_NOT_FOUND": "Joueur introuvable.",
+	"TICKET_INVALID": "Session expirée — reconnectez-vous.",
+	"TICKET_EXPIRED": "Session expirée — reconnectez-vous.",
+	"ALREADY_IN_ROOM": "Vous êtes déjà dans une partie.",
+	"INTERNAL": "Erreur interne du serveur.",
+}
+
+## Ticket de reprise remis par le serveur de pooling (identité + salon).
+var session_ticket: String = ""
+var session_ticket_expires_at: float = 0.0
+## Version du protocole annoncée par le serveur (0 = pas de serveur v2).
+var protocol_version: int = 0
+
+var _req_counter: int = 0
+## req_id → { "type": String, "at": int, "deadline": int } (millisecondes moteur).
+var _pending_requests: Dictionary = {}
+
 func _ready() -> void:
 	load_settings()
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -66,6 +100,10 @@ func load_settings() -> void:
 	player_role = str(cfg.get_value("multiplayer", "player_role", player_role))
 	p2p_transport = str(cfg.get_value("multiplayer", "p2p_transport", p2p_transport))
 	last_room_code = str(cfg.get_value("multiplayer", "last_room_code", last_room_code))
+	session_ticket = str(cfg.get_value("multiplayer", "session_ticket", session_ticket))
+	session_ticket_expires_at = float(
+		cfg.get_value("multiplayer", "session_ticket_expires_at", session_ticket_expires_at)
+	)
 	_normalize_player_role()
 
 func _apply_profile_role_default() -> void:
@@ -89,6 +127,9 @@ func save_settings() -> void:
 	cfg.set_value("multiplayer", "p2p_transport", p2p_transport)
 	if not last_room_code.is_empty():
 		cfg.set_value("multiplayer", "last_room_code", last_room_code)
+	if not session_ticket.is_empty():
+		cfg.set_value("multiplayer", "session_ticket", session_ticket)
+		cfg.set_value("multiplayer", "session_ticket_expires_at", session_ticket_expires_at)
 	cfg.save(SETTINGS_PATH)
 
 func set_player_role(role: String) -> void:
@@ -220,6 +261,7 @@ func _on_webrtc_peer_ready() -> void:
 	var peer = _webrtc.get_multiplayer_peer()
 	if peer != null:
 		multiplayer.multiplayer_peer = peer
+		request_state_resync_from_host.call_deferred()
 
 func _on_webrtc_signal_out(target_player_id: String, signal_type: String, payload: Dictionary) -> void:
 	_send({
@@ -280,8 +322,7 @@ func create_room(room_name: String = "") -> void:
 	if not is_mj():
 		p2p_error.emit("Seul le MJ peut créer une partie.")
 		return
-	_send({
-		"type": "create_room",
+	_send_request("create_room", {
 		"role": "gm",
 		"roomName": room_name if not room_name.is_empty() else "Partie de %s" % player_name,
 	})
@@ -290,17 +331,18 @@ func join_room(code: String) -> void:
 	var normalized := code.strip_edges()
 	last_room_code = normalized
 	save_settings()
-	_send({ "type": "join_room", "code": normalized })
+	_send_request("join_room", { "code": normalized })
 
 func rejoin_room() -> void:
 	if last_room_code.is_empty():
 		p2p_error.emit("Aucun salon mémorisé pour reconnexion.")
 		return
-	_send({ "type": "rejoin_room", "code": last_room_code })
+	_send_request("rejoin_room", { "code": last_room_code })
 
 func leave_room() -> void:
 	if is_in_room():
 		_send({ "type": "leave_room" })
+	clear_session_ticket()
 	_reset_room_state()
 	room_left.emit()
 
@@ -313,10 +355,90 @@ func _reset_room_state() -> void:
 	stop_p2p()
 
 func register_character(character: Dictionary) -> void:
-	_send({ "type": "register_character", "character": character })
+	_send_request("register_character", { "character": character })
 
 func list_rooms() -> void:
-	_send({ "type": "list_rooms" })
+	_send_request("list_rooms")
+
+# ---------------------------------------------------------------------------
+# Protocole pooling v2 : corrélation req_id, tickets de session, erreurs typées
+# ---------------------------------------------------------------------------
+
+## Prochain identifiant de requête (unique par session de pooling).
+func _next_req_id() -> String:
+	_req_counter += 1
+	var prefix := player_id.left(8) if not player_id.is_empty() else "local"
+	return "%s-%d" % [prefix, _req_counter]
+
+## Envoie une requête corrélée et mémorise son échéance.
+## Retourne le `req_id`, ou "" si le pooling n'est pas connecté.
+func _send_request(type: String, data: Dictionary = {}) -> String:
+	if not _is_pooling_connected:
+		return ""
+	var req_id := _next_req_id()
+	var payload := data.duplicate()
+	payload["type"] = type
+	payload["req_id"] = req_id
+	_send(payload)
+	_track_request(req_id, type)
+	return req_id
+
+func _track_request(req_id: String, type: String, now_ms: int = -1) -> void:
+	var now := Time.get_ticks_msec() if now_ms < 0 else now_ms
+	_pending_requests[req_id] = {
+		"type": type,
+		"at": now,
+		"deadline": now + int(REQUEST_TIMEOUT * 1000.0),
+	}
+
+## Nombre de requêtes en attente de réponse (tests / debug).
+func pending_request_count() -> int:
+	return _pending_requests.size()
+
+## Purge les requêtes sans réponse ; émet une erreur par requête expirée.
+func _expire_pending(now_ms: int = -1) -> int:
+	var now := Time.get_ticks_msec() if now_ms < 0 else now_ms
+	var expired: Array = []
+	for req_id in _pending_requests.keys():
+		if now >= int(_pending_requests[req_id]["deadline"]):
+			expired.append(req_id)
+	for req_id in expired:
+		var pending: Dictionary = _pending_requests[req_id]
+		_pending_requests.erase(req_id)
+		p2p_error.emit(
+			"Pas de réponse du serveur pour « %s » (requête %s)." % [
+				str(pending.get("type", "?")), req_id,
+			]
+		)
+	return expired.size()
+
+## Marque une requête comme répondue (le serveur renvoie son req_id).
+func _resolve_request(req_id: String) -> void:
+	if not req_id.is_empty():
+		_pending_requests.erase(req_id)
+
+## Texte joueur correspondant à un code d'erreur serveur.
+func _pooling_error_text(code: String, fallback: String) -> String:
+	var text := str(POOLING_ERRORS.get(code, ""))
+	return fallback if text.is_empty() else text
+
+func store_session_ticket(ticket: String, expires_at: float, persist: bool = true) -> void:
+	session_ticket = ticket.strip_edges()
+	session_ticket_expires_at = expires_at
+	if persist:
+		save_settings()
+
+func has_valid_session_ticket(now_unix: float = -1.0) -> bool:
+	if session_ticket.is_empty():
+		return false
+	var now_ms := (
+		now_unix * 1000.0 if now_unix >= 0.0 else Time.get_unix_time_from_system() * 1000.0
+	)
+	return now_ms < session_ticket_expires_at - TICKET_MARGIN_MS
+
+func clear_session_ticket() -> void:
+	session_ticket = ""
+	session_ticket_expires_at = 0.0
 
 # --- API client Phase 3 ---
 
@@ -414,7 +536,8 @@ func _process(_delta: float) -> void:
 		WebSocketPeer.STATE_OPEN:
 			if not _is_pooling_connected:
 				_is_pooling_connected = true
-				_send({ "type": "register_player", "playerName": player_name })
+				_send_request("register_player", { "playerName": player_name })
+			_expire_pending()
 			_handle_incoming()
 		WebSocketPeer.STATE_CLOSED:
 			if _is_pooling_connected:
@@ -437,8 +560,13 @@ func _handle_message(data: Dictionary) -> void:
 	match data.get("type", ""):
 		"welcome":
 			player_id = data.get("playerId", "")
+			protocol_version = int(data.get("protocol", protocol_version))
 			if data.get("iceServers") is Array and not data["iceServers"].is_empty():
 				ice_servers = data["iceServers"]
+			# Reprise de session : le serveur nous rendra identité + place si le
+			# ticket est encore valide (voir `session_ticket`/`resumed`).
+			if has_valid_session_ticket():
+				_send_request("resume_session", { "ticket": session_ticket })
 		"lobby_update":
 			lobby_rooms = data.get("rooms", [])
 			lobby_rooms_updated.emit(lobby_rooms)
@@ -466,8 +594,35 @@ func _handle_message(data: Dictionary) -> void:
 		"room_closed":
 			var closed_code: String = data.get("roomCode", room_code)
 			var reason: String = data.get("reason", "gm_left")
+			clear_session_ticket()
 			_reset_room_state()
 			room_closed.emit(closed_code, reason)
+		"session_ticket":
+			store_session_ticket(
+				str(data.get("ticket", "")),
+				float(data.get("expiresAt", 0.0))
+			)
+		"resumed":
+			player_id = str(data.get("playerId", player_id))
+			var resumed_room = data.get("room", null)
+			if resumed_room is Dictionary and not (resumed_room as Dictionary).is_empty():
+				var room: Dictionary = resumed_room
+				current_room = room
+				room_code = str(room.get("code", ""))
+				last_room_code = room_code
+				is_room_host = str(room.get("hostId", "")) == player_id
+				is_gm = str(room.get("gmId", "")) == player_id
+				p2p_host_address = str(room.get("p2pHost", "")) if room.get("p2pHost") else ""
+				room_updated.emit(room)
+				room_joined.emit(room_code, room)
+				if not is_gm and not _is_p2p_active:
+					if _is_webrtc_address(p2p_host_address) or (
+						p2p_host_address.is_empty() and _wants_webrtc()
+					):
+						connect_p2p("webrtc")
+					elif not p2p_host_address.is_empty():
+						connect_p2p(p2p_host_address)
+				request_state_resync_from_host.call_deferred()
 		"host_assigned":
 			is_room_host = data.get("hostId", "") == player_id
 			is_gm = is_room_host
@@ -486,7 +641,9 @@ func _handle_message(data: Dictionary) -> void:
 				pass
 			list_rooms()
 		"error":
-			p2p_error.emit(data.get("message", "Erreur réseau"))
+			var code := str(data.get("code", ""))
+			_resolve_request(str(data.get("req_id", "")))
+			p2p_error.emit(_pooling_error_text(code, str(data.get("message", "Erreur réseau"))))
 
 func _on_room_created_side_effects(room: Dictionary) -> void:
 	room_code = room.get("code", "")
@@ -521,6 +678,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_connected_to_server() -> void:
 	p2p_connected.emit(multiplayer.get_unique_id())
+	request_state_resync_from_host.call_deferred()
 
 func _on_connection_failed() -> void:
 	p2p_error.emit("Connexion P2P ENet échouée.")
@@ -825,3 +983,25 @@ func notify_room_created(room: Dictionary) -> void:
 
 func notify_room_joined(room: Dictionary) -> void:
 	_on_room_joined_side_effects(room)
+
+# ---------------------------------------------------------------------------
+# Resynchronisation d'état après coupure (hôte → joueur)
+# ---------------------------------------------------------------------------
+
+## Demande de resynchronisation envoyée par un joueur ; l'hôte rediffuse l'état.
+@rpc("any_peer", "call_remote", "reliable")
+func request_state_resync(sender_player_id: String) -> void:
+	if not is_p2p_host() or GameData.active_game.is_empty():
+		return
+	if str(sender_player_id).is_empty():
+		return
+	broadcast_state()
+
+## Côté joueur : demande au MJ l'état complet (après (re)connexion P2P).
+func request_state_resync_from_host() -> bool:
+	if not _is_p2p_active or is_p2p_host() or GameData.active_game.is_empty():
+		return false
+	if multiplayer.multiplayer_peer == null:
+		return false
+	request_state_resync.rpc_id(1, player_id)
+	return true

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openquest.local/schemas/dice_roll.json",
+  "title": "OpenQuest Dice Roll Result",
+  "description": "Contrat de résultat du moteur de dés OpenQuest (game/scripts/core/rules/dice_engine.gd et server/src/rules/dice_engine.ts). Un jet produit un arbre : nœuds number (arithmétique), dice (pool) ou comparison (test de dés / comparaison de sommes).",
+  "type": "object",
+  "required": ["ok", "formula"],
+  "properties": {
+    "ok": {
+      "type": "boolean",
+      "description": "false si la formule est invalide ; le champ error est alors renseigné."
+    },
+    "formula": {
+      "type": "string",
+      "description": "Formule d'origine, nettoyée des espaces de bord.",
+      "maxLength": 255
+    },
+    "error": {
+      "type": "string",
+      "description": "Message d'erreur lisible (uniquement si ok = false)."
+    },
+    "kind": {
+      "enum": ["number", "dice", "comparison"],
+      "description": "Type du nœud racine."
+    },
+    "total": {
+      "type": "integer",
+      "description": "number : valeur de l'expression ; dice : somme des dés retenus ; comparison : succès (ou valeur comparée si les sommes sont comparées)."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Étiquettes du jet (ex. degats, critique), déclarées entre crochets dans la formule."
+    },
+    "rolls": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Compatibilité : valeurs retenues de tous les dés, dans l'ordre de tirage."
+    },
+    "modifier": {
+      "type": "integer",
+      "description": "Compatibilité : total - somme(rolls) pour un nœud number ; 0 pour une comparaison."
+    },
+    "sides": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 1000,
+      "description": "Nombre de faces (kind = dice)."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Nombre de dés demandés (kind = dice)."
+    },
+    "values": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Toutes les valeurs tirées, explosions comprises, avant sélection (kind = dice)."
+    },
+    "kept": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Valeurs conservées après modificateurs (kind = dice)."
+    },
+    "dropped": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Valeurs défaussées par keeph/keepl/adv/disadv (kind = dice)."
+    },
+    "op": {
+      "type": "string",
+      "enum": ["+", "-", "*", "/", ">=", "<=", ">", "<", "=", "==", "!="],
+      "description": "Opérateur du nœud (arithmétique ou comparaison)."
+    },
+    "children": {
+      "type": "array",
+      "items": { "$ref": "#" },
+      "description": "Sous-expressions d'un nœud arithmétique."
+    },
+    "left": { "$ref": "#", "description": "Opérande gauche d'une comparaison." },
+    "right": { "$ref": "#", "description": "Opérande droit d'une comparaison." },
+    "success": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Succès d'un test de dés (pondéré) ou 1/0 pour une comparaison de sommes."
+    },
+    "failure": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Échecs d'un test de dés ou 0/1 pour une comparaison de sommes."
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "description": "Poids par face pour un test de dés, ex. { \"6\": 2 } (déclaré {6:2}).",
+      "propertyNames": { "pattern": "^[0-9]+$" }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "ok": { "const": true } },
+        "required": ["ok"]
+      },
+      "then": {
+        "required": ["kind", "total", "tags", "rolls", "modifier"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "ok": { "const": false } },
+        "required": ["ok"]
+      },
+      "then": {
+        "required": ["error"]
+      }
+    }
+  ]
+}

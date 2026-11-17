@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A — Paramètres : modale à onglets · OpenQuest</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ---------- Variante A : modale centrée, rail d'onglets à gauche ---------- */
+  .modal {
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(1160px, calc(100vw - 80px));
+    height: min(720px, calc(100vh - 80px));
+    display: flex;
+    flex-direction: column;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0) 120px),
+      var(--panel-solid);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-modal);
+    overflow: hidden;
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 18px 13px;
+    border-bottom: 1px solid var(--border-soft);
+    background: linear-gradient(180deg, rgba(242, 196, 108, 0.055), transparent);
+  }
+  .modal-head .crest {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--header-surface);
+    color: var(--accent);
+    font-size: 16px;
+  }
+  .modal-head .titles { display: flex; flex-direction: column; gap: 1px; }
+  .modal-head .eyebrow {
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .modal-head .h1 { font-size: 18px; }
+
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  /* Rail */
+  .rail {
+    flex: 0 0 216px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px;
+    border-right: 1px solid var(--border-soft);
+    background: rgba(20, 17, 11, 0.32);
+    overflow-y: auto;
+  }
+  .rail-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    border-left: 2px solid transparent;
+    color: var(--secondary);
+    cursor: pointer;
+    text-align: left;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 13px;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  }
+  .rail-item .ico { width: 18px; text-align: center; opacity: 0.9; }
+  .rail-item:hover { background: rgba(242, 196, 108, 0.07); color: var(--text); }
+  .rail-item.active {
+    background: var(--selection);
+    border-color: rgba(242, 196, 108, 0.25);
+    border-left: 2px solid var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .rail-item .count { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+  .rail-label {
+    padding: 12px 11px 5px;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--disabled);
+  }
+  .rail-foot {
+    margin-top: auto;
+    padding: 10px 11px 2px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  /* Contenu */
+  .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .content-scroll { padding: 16px 22px 18px; flex: 1; min-height: 0; }
+  .group { margin-bottom: 18px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 26px;
+  }
+  .pair { display: flex; gap: 10px; align-items: center; }
+  .pair .inset { flex: 1; min-width: 0; }
+  .panel-inner {
+    background: rgba(20, 17, 11, 0.28);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-panel);
+    padding: 4px 14px;
+  }
+  .panel-inner .row { border-bottom: 1px solid rgba(107, 87, 58, 0.2); }
+  .panel-inner .row:last-child { border-bottom: 0; }
+
+  .preset-box {
+    padding: 12px 14px;
+    border-radius: var(--r-panel);
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(242, 196, 108, 0.1), transparent 60%),
+      rgba(20, 17, 11, 0.4);
+  }
+  .preset-box .seg > button { padding: 7px 18px; font-size: 12.5px; }
+
+  /* Onglet touches */
+  .keys-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .keys-group { margin-bottom: 14px; }
+  .keys-group .caption { margin-bottom: 5px; }
+  .key-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    border-bottom: 1px solid rgba(107, 87, 58, 0.18);
+  }
+  .key-row:hover { background: rgba(242, 196, 108, 0.05); }
+  .key-row .caps { display: flex; gap: 4px; flex: 0 0 168px; }
+  .key-row .action { flex: 1; color: var(--text); }
+  .key-row .scope { font-size: 10.5px; color: var(--muted); }
+
+  /* Pied de modale */
+  .modal-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    border-top: 1px solid var(--border-soft);
+    background: rgba(20, 17, 11, 0.42);
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgba(159, 212, 155, 0.14);
+  }
+</style>
+</head>
+<body>
+
+<div class="stage dim"></div>
+
+<div class="modal">
+
+  <!-- ================= En-tête ================= -->
+  <header class="modal-head">
+    <div class="crest">⚙</div>
+    <div class="titles">
+      <span class="eyebrow">Éditeur de cartes 3D</span>
+      <h1 class="h1">Paramètres</h1>
+    </div>
+    <div class="grow"></div>
+    <span class="badge neutral mono">Godot 4.7 · Forward+</span>
+    <div class="fps-box" style="margin-left:6px">
+      <span class="subtle">FPS</span>
+      <span class="fps-num good">118</span>
+      <span class="sep"></span>
+      <span data-fps-ms>8.5 ms</span>
+      <span class="sep"></span>
+      <span data-fps-dc>482</span><span class="subtle">dc</span>
+    </div>
+    <button class="btn ghost icon" title="Fermer (F10)">✕</button>
+  </header>
+
+  <!-- ================= Corps ================= -->
+  <div class="body" data-tabs>
+
+    <!-- ---------- Rail ---------- -->
+    <nav class="rail">
+      <span class="rail-label">Rendu</span>
+      <button class="rail-item active" data-tab="graphics"><span class="ico">🎨</span> Graphismes</button>
+      <button class="rail-item" data-tab="display"><span class="ico">📊</span> Affichage &amp; FPS</button>
+      <span class="rail-label">Contrôles</span>
+      <button class="rail-item" data-tab="keys"><span class="ico">⌨</span> Touches <span class="count">42</span></button>
+      <span class="rail-label">Application</span>
+      <button class="rail-item" data-tab="ui"><span class="ico">🪟</span> Interface</button>
+      <button class="rail-item" data-tab="system"><span class="ico">ℹ</span> Système</button>
+      <div class="rail-foot">
+        Les réglages de <b style="color:var(--secondary)">cette carte</b> (grille, brouillard,
+        éclairage, dimensions) restent dans l'onglet <b style="color:var(--accent)">Carte</b>.
+      </div>
+    </nav>
+
+    <!-- ---------- Contenu ---------- -->
+    <div class="content">
+
+      <!-- ======= GRAPHISMES ======= -->
+      <div class="content-scroll scroll" data-panel="graphics">
+
+        <section class="group">
+          <div class="section-title">✨ Preset graphique <span class="rule"></span></div>
+          <div class="preset-box">
+            <div class="flex between center gap-12">
+              <div class="seg" data-seg="preset" style="flex:0 0 auto">
+                <button data-value="performance">Performance</button>
+                <button class="active" data-value="equilibre">Équilibré</button>
+                <button data-value="cinema">Cinéma</button>
+              </div>
+              <span class="caption" style="text-align:right;max-width:420px">
+                Un seul clic règle ombres, AA, végétation et échelle de rendu.
+                Les réglages fins restent modifiables en dessous.
+              </span>
+            </div>
+            <p class="caption" id="preset-note" style="margin:9px 0 0">
+              Équilibré — ombres moyennes, MSAA 2×, végétation normale, échelle 100 %.
+            </p>
+          </div>
+        </section>
+
+        <section class="group">
+          <div class="section-title">🖥 Fenêtre &amp; résolution <span class="rule"></span></div>
+          <div class="panel-inner">
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Mode d'affichage</div>
+                <div class="row-hint">F11 bascule en plein écran sans passer par ce menu.</div>
+              </div>
+              <div class="row-ctl">
+                <div class="seg" data-seg="display-mode">
+                  <button class="active" data-value="windowed">Fenêtré</button>
+                  <button data-value="borderless">Sans bordure</button>
+                  <button data-value="fullscreen">Plein écran</button>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Résolution</div>
+              </div>
+              <div class="row-ctl">
+                <select class="field" style="width:186px">
+                  <option>1920 × 1080 (native)</option>
+                  <option>2560 × 1440</option>
+                  <option>1600 × 900</option>
+                  <option>1280 × 720</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Échelle de rendu 3D</div>
+                <div class="row-hint">Rend la carte en-dessous de la résolution puis agrandit : le gain de FPS le plus direct.</div>
+              </div>
+              <div class="row-ctl">
+                <div class="slider">
+                  <input type="range" min="50" max="100" step="5" value="100" data-fmt="pct">
+                  <span class="value">100 %</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Synchronisation verticale (VSync)</div>
+                <div class="row-hint">Limite l'image au taux de l'écran : supprime le déchirement, peut ajouter de la latence.</div>
+              </div>
+              <div class="row-ctl">
+                <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Limite d'images par seconde</div>
+                <div class="row-hint">« Illimité » laisse le GPU à fond ; 60 garde la machine silencieuse.</div>
+              </div>
+              <div class="row-ctl">
+                <div class="seg" data-seg="fps-cap">
+                  <button data-value="30">30</button>
+                  <button data-value="60">60</button>
+                  <button data-value="120">120</button>
+                  <button class="active" data-value="0">Illimité</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="grid-2">
+
+          <section class="group">
+            <div class="section-title">🪄 Qualité de rendu &amp; ombres <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row stack">
+                <div class="row-main">
+                  <div class="row-label">Qualité des objets 3D (preset CS2)</div>
+                  <div class="row-hint">« Cinéma » : ombres portées douces, AO/SSIL, matériaux éclairés, tonemap filmique.</div>
+                </div>
+                <div class="seg" data-seg="quality-preset" style="align-self:flex-start">
+                  <button class="active" data-value="classique">Classique</button>
+                  <button data-value="cinema">✨ Cinéma</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Anti-aliasing</div></div>
+                <div class="row-ctl">
+                  <select class="field" style="width:118px">
+                    <option>Aucun</option>
+                    <option>MSAA 2×</option>
+                    <option selected>MSAA 2× + TAA</option>
+                    <option>TAA seul</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Qualité des ombres</div></div>
+                <div class="row-ctl">
+                  <select class="field" style="width:118px">
+                    <option>Désactivées</option>
+                    <option>Basses</option>
+                    <option selected>Moyennes</option>
+                    <option>Hautes</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main">
+                  <div class="row-label">Portée des ombres</div>
+                  <div class="row-hint">Budget de cases ombrées autour de la caméra.</div>
+                </div>
+                <div class="row-ctl">
+                  <div class="slider" style="min-width:128px">
+                    <input type="range" min="6" max="24" step="1" value="12" data-unit="cases">
+                    <span class="value">12 cases</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Occlusion ambiante (SSAO / SSIL)</div></div>
+                <div class="row-ctl">
+                  <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="group">
+            <div class="section-title">🌊 Eau, nature &amp; ambiance <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row">
+                <div class="row-main">
+                  <div class="row-label">Réflexions de l'eau</div>
+                  <div class="row-hint">Le poste le plus coûteux sur les cartes avec lac ou rivière.</div>
+                </div>
+                <div class="row-ctl">
+                  <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Qualité des réflexions</div></div>
+                <div class="row-ctl">
+                  <div class="seg" data-seg="refl">
+                    <button data-value="low">Basse</button>
+                    <button class="active" data-value="high">Haute</button>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Densité de végétation</div></div>
+                <div class="row-ctl">
+                  <div class="slider" style="min-width:150px">
+                    <input type="range" min="0" max="3" step="0.1" value="1" data-fmt="x">
+                    <span class="value">1.0×</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Décor d'eau (lentilles, nénuphars)</div></div>
+                <div class="row-ctl">
+                  <div class="slider" style="min-width:150px">
+                    <input type="range" min="0" max="3" step="0.1" value="1" data-fmt="x">
+                    <span class="value">1.0×</span>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Particules d'ambiance</div></div>
+                <div class="row-ctl">
+                  <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="note" style="margin-top:2px">
+          <span class="ico">ⓘ</span>
+          <span>Un réglage par carte (nuit, brouillard de guerre, éclairage, qualité CS2 de la carte
+          courante) reste dans l'onglet <b>Carte</b> : il voyage avec le fichier JSON de la carte.</span>
+        </div>
+      </div>
+
+      <!-- ======= AFFICHAGE & FPS ======= -->
+      <div class="content-scroll scroll hidden" data-panel="display">
+        <div class="grid-2">
+          <section class="group">
+            <div class="section-title">📈 Compteur de performance <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row">
+                <div class="row-main">
+                  <div class="row-label">Afficher les FPS</div>
+                  <div class="row-hint">Aujourd'hui le compteur est toujours visible en bas de l'éditeur.</div>
+                </div>
+                <div class="row-ctl">
+                  <div class="seg" data-seg="fps-display">
+                    <button data-value="never">Jamais</button>
+                    <button data-value="editor">Éditeur</button>
+                    <button class="active" data-value="always">Toujours</button>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Position du compteur</div></div>
+                <div class="row-ctl">
+                  <select class="field" style="width:176px">
+                    <option selected>Barre d'état (droite)</option>
+                    <option>Coin supérieur droit</option>
+                    <option>Près du curseur (flottant)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main">
+                  <div class="row-label">Statistiques détaillées</div>
+                  <div class="row-hint">ms/image, draw calls, triangles — utile pour juger un preset.</div>
+                </div>
+                <div class="row-ctl">
+                  <label class="switch"><input type="checkbox" checked><span class="track"></span></label>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Graphe de frametime</div></div>
+                <div class="row-ctl">
+                  <label class="switch"><input type="checkbox"><span class="track"></span></label>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main">
+                  <div class="row-label">Avertir sous</div>
+                  <div class="row-hint">Passe le compteur en alerte au-dessous de ce seuil.</div>
+                </div>
+                <div class="row-ctl">
+                  <div class="slider" style="min-width:150px">
+                    <input type="range" min="15" max="90" step="5" value="45" data-unit="FPS">
+                    <span class="value">45 FPS</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="group">
+            <div class="section-title">🧭 Repères dans l'éditeur <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row">
+                <div class="row-main"><div class="row-label">Mini-carte</div></div>
+                <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Coordonnées de la souris</div></div>
+                <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Zoom en pourcentage</div></div>
+                <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Noms des éléments au survol</div></div>
+                <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="group">
+          <div class="section-title">🐢 Confort de travail <span class="rule"></span></div>
+          <div class="panel-inner">
+            <div class="row">
+              <div class="row-main">
+                <div class="row-label">Délai avant les infobulles</div>
+                <div class="row-hint">Les outils de la colonne gauche n'affichent que des icônes : l'infobulle est essentielle.</div>
+              </div>
+              <div class="row-ctl">
+                <div class="slider" style="min-width:200px">
+                  <input type="range" min="0" max="2" step="0.05" value="0.45" data-unit="s">
+                  <span class="value">0.5 s</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-main"><div class="row-label">Animations de l'interface</div></div>
+              <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+            </div>
+            <div class="row">
+              <div class="row-main"><div class="row-label">Confirmer avant de supprimer</div></div>
+              <div class="row-ctl"><label class="switch"><input type="checkbox"><span class="track"></span></label></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ======= TOUCHES ======= -->
+      <div class="content-scroll scroll hidden" data-panel="keys">
+        <div class="keys-head">
+          <div class="field grow" style="max-width:340px">
+            <span class="ico">⌕</span>
+            <input placeholder="Rechercher une action ou une touche…">
+          </div>
+          <span class="badge neutral">42 raccourcis</span>
+          <div class="grow"></div>
+          <button class="btn sm">↺ Raccourcis par défaut</button>
+        </div>
+
+        <div class="note" style="margin-bottom:14px">
+          <span class="ico">⌨</span>
+          <span>Cliquez sur une touche puis appuyez sur la nouvelle. <b>Échap</b> annule la captation.
+          Un raccourci déjà pris affiche un avertissement avant d'être remplacé.</span>
+        </div>
+
+        <section class="keys-group">
+          <div class="caption" style="letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Fichier &amp; édition</div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>Z</span></div><span class="action">Annuler</span><span class="scope">global</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>Y</span></div><span class="action">Rétablir</span><span class="scope">global</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>S</span></div><span class="action">Enregistrer la carte</span><span class="scope">global</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Ctrl</span><span class="keycap" data-key>D</span></div><span class="action">Dupliquer la sélection</span><span class="scope">sélection</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Suppr</span></div><span class="action">Supprimer la sélection</span><span class="scope">sélection</span></div>
+        </section>
+
+        <section class="keys-group">
+          <div class="caption" style="letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Outils</div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>V</span></div><span class="action">Sélection</span><span class="scope">outil</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>P</span></div><span class="action">Chemin</span><span class="scope">outil</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>W</span></div><span class="action">Mur 3D</span><span class="scope">outil</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>U</span></div><span class="action">Relief (monter / baisser)</span><span class="scope">outil</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>O</span></div><span class="action">Objet 3D</span><span class="scope">outil</span></div>
+        </section>
+
+        <section class="keys-group">
+          <div class="caption" style="letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Affichage</div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>Tab</span></div><span class="action">Masquer / restaurer les panneaux</span><span class="scope">vue</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>F</span></div><span class="action">Cadrer sur la sélection</span><span class="scope">vue</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>F11</span></div><span class="action">Plein écran</span><span class="scope">fenêtre</span></div>
+          <div class="key-row"><div class="caps"><span class="keycap" data-key>F10</span></div><span class="action">Ouvrir ces paramètres</span><span class="scope">fenêtre</span></div>
+        </section>
+      </div>
+
+      <!-- ======= INTERFACE ======= -->
+      <div class="content-scroll scroll hidden" data-panel="ui">
+        <div class="grid-2">
+          <section class="group">
+            <div class="section-title">🎛 Apparence <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row stack">
+                <div class="row-main">
+                  <div class="row-label">Thème de l'interface</div>
+                  <div class="row-hint">Les deux palettes existent déjà dans le thème « Cartographer ».</div>
+                </div>
+                <div class="seg" data-seg="theme" style="align-self:flex-start">
+                  <button class="active" data-value="or">Cartographe Or</button>
+                  <button data-value="jade">Cartographe Jade</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Taille de l'interface</div></div>
+                <div class="row-ctl">
+                  <div class="seg" data-seg="ui-scale">
+                    <button data-value="90">90 %</button>
+                    <button class="active" data-value="100">100 %</button>
+                    <button data-value="110">110 %</button>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Langue</div></div>
+                <div class="row-ctl">
+                  <div class="seg" data-seg="lang">
+                    <button class="active" data-value="fr">Français</button>
+                    <button data-value="en">English</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="group">
+            <div class="section-title">💾 Sauvegarde <span class="rule"></span></div>
+            <div class="panel-inner">
+              <div class="row stack">
+                <div class="row-main">
+                  <div class="row-label">Politique par défaut des nouvelles cartes</div>
+                  <div class="row-hint">Chaque carte garde son propre réglage, modifiable dans l'onglet Carte et le menu Échap.</div>
+                </div>
+                <select class="field" style="max-width:270px">
+                  <option selected>Manuelle</option>
+                  <option>À chaque modification</option>
+                  <option>Périodique (30 s)</option>
+                </select>
+              </div>
+              <div class="row">
+                <div class="row-main"><div class="row-label">Sauvegarde de sécurité avant test</div></div>
+                <div class="row-ctl"><label class="switch"><input type="checkbox" checked><span class="track"></span></label></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ======= SYSTÈME ======= -->
+      <div class="content-scroll scroll hidden" data-panel="system">
+        <section class="group">
+          <div class="section-title">🖥 Système &amp; diagnostic <span class="rule"></span></div>
+          <div class="panel-inner">
+            <div class="row"><div class="row-main"><div class="row-label">Version</div></div><div class="row-ctl"><span class="value">OpenQuest 0.9 · Godot 4.7</span></div></div>
+            <div class="row"><div class="row-main"><div class="row-label">Moteur de rendu</div></div><div class="row-ctl"><span class="value">Forward+ (Vulkan)</span></div></div>
+            <div class="row"><div class="row-main"><div class="row-label">Carte graphique</div></div><div class="row-ctl"><span class="value">NVIDIA GeForce RTX 3060</span></div></div>
+            <div class="row"><div class="row-main"><div class="row-label">Dossier des cartes</div></div><div class="row-ctl"><span class="value subtle">…/OpenQuest/maps.json</span><button class="btn sm">Ouvrir</button></div></div>
+          </div>
+        </section>
+        <section class="group">
+          <div class="section-title">🩺 Outils <span class="rule"></span></div>
+          <div class="flex gap-8 wrap">
+            <button class="btn">Exporter un diagnostic</button>
+            <button class="btn">Réinitialiser l'affichage des panneaux</button>
+            <button class="btn danger">Réinitialiser tous les réglages</button>
+          </div>
+          <p class="caption" style="margin-top:9px">Le diagnostic copie version, GPU, presets et derniers logs dans un fichier texte à transmettre au MJ.</p>
+        </section>
+      </div>
+
+      <!-- ======= Pied ======= -->
+      <footer class="modal-foot">
+        <span class="live-dot"></span>
+        <span class="caption">Appliqué en direct — <b style="color:var(--secondary)">aucun</b> redémarrage nécessaire</span>
+        <div class="grow"></div>
+        <button class="btn ghost">Réinitialiser cette page</button>
+        <button class="btn">Annuler</button>
+        <button class="btn primary">Fermer · Échap</button>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<div class="mock-tag"><b>Proposition A</b> · Modale centrée à onglets</div>
+<script src="_mock.js"></script>
+</body>
+</html>
