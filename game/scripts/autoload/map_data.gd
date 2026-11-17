@@ -7,6 +7,7 @@ const MAP_ASSETS_DIR := "user://map_assets/"
 const SCHEMA_VERSION := 5
 ## Schéma de carte (phase 2.8) : normalisation pure dans `core/maps/map_schema.gd`.
 const MapSchema := preload("res://scripts/core/maps/map_schema.gd")
+const DemoCatalog := preload("res://scripts/core/maps/demo_catalog.gd")
 const RENDER_MODE_SIMPLE = MapSchema.RENDER_MODE_SIMPLE
 const RENDER_MODE_COMPLEX := "complex"
 ## Type de sol d'une carte 2.5D : vrai terrain 3D (heightfield) ou fond illustré plat.
@@ -20,14 +21,13 @@ const MATERIAL_STONE := 2
 const MATERIAL_SNOW := 3
 const MATERIAL_SAND := 4
 const MATERIAL_IDS := [MATERIAL_GRASS, MATERIAL_DIRT, MATERIAL_STONE, MATERIAL_SNOW, MATERIAL_SAND]
-const DEMO_MAP_IDS := ["demo-valbois-village", "demo-valbois-place", "demo-crypte-brumeval",
-	"demo-cite-skyline"]
+const DEMO_MAP_IDS = DemoCatalog.DEMO_MAP_IDS
 ## Carte démo « Cité des Saules » : mêmes dimensions et graine que la scène de
 ## debug `cite_boot.gd`, mais matérialisée dans le catalogue du Hub.
-const CITE_DEMO_ID := "demo-cite-skyline"
-const CITE_DEMO_SEED := 20261112
-const CITE_DEMO_WIDTH := 44
-const CITE_DEMO_HEIGHT := 32
+const CITE_DEMO_ID = DemoCatalog.CITE_DEMO_ID
+const CITE_DEMO_SEED = DemoCatalog.CITE_DEMO_SEED
+const CITE_DEMO_WIDTH = DemoCatalog.CITE_DEMO_WIDTH
+const CITE_DEMO_HEIGHT = DemoCatalog.CITE_DEMO_HEIGHT
 const ProceduralCityScript := preload("res://scripts/maps/construction/procedural_city.gd")
 ## Traitement d'image (phase 2.8) : cutout alpha, nuit procédurale, vignettes.
 const CutoutScript := preload("res://scripts/core/image/cutout.gd")
@@ -1454,123 +1454,45 @@ func get_location_link_at(map_data: Dictionary, x: int, y: int) -> Dictionary:
 func _load_default_maps() -> Array:
 	return _build_demo_catalog()
 
-const VILLAGE_PNG := "res://assets/maps/valbois_village.png"
-const PLACE_PNG := "res://assets/maps/place_du_marche.png"
-const VILLAGE_NIGHT_PNG := "res://assets/maps/valbois_village_night.png"
-const PLACE_NIGHT_PNG := "res://assets/maps/place_du_marche_night.png"
+const VILLAGE_PNG = DemoCatalog.VILLAGE_PNG
+const PLACE_PNG = DemoCatalog.PLACE_PNG
+const VILLAGE_NIGHT_PNG = DemoCatalog.VILLAGE_NIGHT_PNG
+const PLACE_NIGHT_PNG = DemoCatalog.PLACE_NIGHT_PNG
 
+## Construit le catalogue de cartes de démo : les DONNÉES pures vivent dans
+## `core/maps/demo_catalog.gd` ; ici on garde l'orchestration et l'I/O
+## (dimensions depuis les PNG, import des images, affects `maps`, sauvegarde).
 func _build_demo_catalog() -> Array:
+	var build_plan := func(w: int, h: int, seed_value: int, density: float) -> Dictionary:
+		return ProceduralCityScript.generate(w, h, seed_value, density)
+	var build_elements := func(plan: Dictionary, w: int, h: int) -> Dictionary:
+		return ProceduralCityScript.build_city_elements(plan, w, h)
+	var deps := {
+		"ensure_schema": ensure_map_schema,
+		"grid_config": get_grid_config,
+		"lighting_config": get_lighting_config,
+		"character_sprite_path": get_character_sprite_path,
+		"is_usable_sprite": is_usable_sprite,
+		"build_plan": build_plan,
+		"build_elements": build_elements,
+		"schema_version": SCHEMA_VERSION,
+		"render_mode_complex": RENDER_MODE_COMPLEX,
+		"material_grass": MATERIAL_GRASS,
+		"material_sand": MATERIAL_SAND,
+	}
 	var list: Array = []
-	list.append(ensure_map_schema(_brumeval_cemetery_map()))
+	list.append(ensure_map_schema(DemoCatalog.brumeval_cemetery_map(deps)))
 
 	var village_src := ProjectSettings.globalize_path(VILLAGE_PNG)
 	var place_src := ProjectSettings.globalize_path(PLACE_PNG)
 	var cells_v := suggest_cells_from_image(village_src, 70) if FileAccess.file_exists(village_src) else Vector2i(24, 16)
 	var cells_p := suggest_cells_from_image(place_src, 70) if FileAccess.file_exists(place_src) else Vector2i(20, 14)
 
-	var village := ensure_map_schema({
-		"id": "demo-valbois-village",
-		"title": "Valbois — Village de l'Ouest",
-		"description": "Carte complexe illustrée — cliquez la Place du Marché pour zoomer.",
-		"roster": "general",
-		"mapKind": "local",
-		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "2.5d",
-		"scenarioId": "demo-valbois",
-		"width": cells_v.x,
-		"height": cells_v.y,
-		"tiles": [],
-		"markers": [],
-		"locationLinks": [],
-		"areas": _valbois_village_areas(cells_v),
-		"fogEnabled": false,
-		"parentMapId": "",
-		"schemaVersion": SCHEMA_VERSION,
-	})
-	var tiles_v: Array = []
-	tiles_v.resize(cells_v.x * cells_v.y)
-	tiles_v.fill("grass")
-	village["tiles"] = tiles_v
-	var grid_v: Dictionary = get_grid_config(village).duplicate(true)
-	grid_v["show"] = false
-	village["grid"] = grid_v
-	village["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
-	village["backgroundImage"] = VILLAGE_PNG
-	village["backgroundImageNight"] = VILLAGE_NIGHT_PNG
-	var village_light: Dictionary = get_lighting_config(village).duplicate(true)
-	village_light["nightMode"] = false
-	village_light["nightAmbient"] = 0.22
-	village["lighting"] = village_light
-	var village_tokens: Array = [{
-		"id": "tok-kael",
-		"x": float(cells_v.x) * 0.28,
-		"y": float(cells_v.y) * 0.38,
-		"kind": "member",
-		"memberId": "char-kael",
-		"label": "Kael",
-		"scale": 1.0,
-	}]
-	for npc in _valbois_village_npcs(cells_v):
-		village_tokens.append(_valbois_npc_token(npc))
-	village["playDefaults"] = {
-		"tokens": village_tokens,
-		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
-	}
-	list.append(village)
-
-	var place := ensure_map_schema({
-		"id": "demo-valbois-place",
-		"title": "Place du Marché",
-		"description": "Détail de la Place du Marché — tokens, lieux, Kael.",
-		"roster": "general",
-		"mapKind": "local",
-		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "2.5d",
-		"scenarioId": "demo-valbois",
-		"width": cells_p.x,
-		"height": cells_p.y,
-		"tiles": [],
-		"markers": [],
-		"locationLinks": [],
-		"areas": _valbois_place_areas(cells_p),
-		"fogEnabled": false,
-		"parentMapId": "demo-valbois-village",
-		"schemaVersion": SCHEMA_VERSION,
-	})
-	var tiles_p: Array = []
-	tiles_p.resize(cells_p.x * cells_p.y)
-	tiles_p.fill("floor")
-	place["tiles"] = tiles_p
-	var grid_p: Dictionary = get_grid_config(place).duplicate(true)
-	grid_p["show"] = false
-	place["grid"] = grid_p
-	place["atmosphere"] = {"enabled": false, "tint": "#1a1410", "opacity": 0.0, "vignette": 0.0}
-	place["backgroundImage"] = PLACE_PNG
-	place["backgroundImageNight"] = PLACE_NIGHT_PNG
-	var place_light: Dictionary = get_lighting_config(place).duplicate(true)
-	place_light["nightMode"] = false
-	place_light["nightAmbient"] = 0.22
-	place["lighting"] = place_light
-	var place_tokens: Array = [{
-		"id": "tok-kael-place",
-		"x": float(cells_p.x) * 0.50,
-		"y": float(cells_p.y) * 0.55,
-		"kind": "member",
-		"memberId": "char-kael",
-		"label": "Kael",
-		"scale": 1.0,
-	}]
-	for npc in _valbois_place_npcs(cells_p):
-		place_tokens.append(_valbois_npc_token(npc))
-	place["playDefaults"] = {
-		"tokens": place_tokens,
-		"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
-	}
-	list.append(place)
-
+	list.append(DemoCatalog.valbois_village(cells_v, deps))
+	list.append(DemoCatalog.valbois_place(cells_p, deps))
 	# Vitrine 2.5D « qualité CS2 » : la cité composée de vrais assets 3D, générée
 	# à graine fixe par le MÊME convertisseur pur que l'éditeur.
-	list.append(_cite_skyline_map())
+	list.append(DemoCatalog.cite_skyline_map(deps))
 
 	maps = list
 	var portrait_src := ProjectSettings.globalize_path("res://assets/portraits/voleur_kael.png")
@@ -1591,349 +1513,6 @@ func _build_demo_catalog() -> Array:
 		import_background_image("demo-valbois-place", place_src)
 	return maps
 
-## Carte vitrine « Cité des Saules » : catalogue du Hub → Cartes.
-##
-## Elle est **matérialisée** à la construction du catalogue (pas de génération
-## paresseuse) avec le même convertisseur pur que l'éditeur
-## (`ProceduralCity.build_city_elements`) : la carte du Hub et celle générée par
-## `cite_boot.gd` (même graine) sont identiques, et l'utilisateur peut l'ouvrir
-## dans l'éditeur (Modifier) ou la tester, avec les vrais GLB 3D et le preset
-## qualité « cinéma ».
-func _cite_skyline_map() -> Dictionary:
-	var plan: Dictionary = ProceduralCityScript.generate(CITE_DEMO_WIDTH,
-		CITE_DEMO_HEIGHT, CITE_DEMO_SEED, 1.0)
-	var built: Dictionary = ProceduralCityScript.build_city_elements(plan,
-		CITE_DEMO_WIDTH, CITE_DEMO_HEIGHT)
-	# --- Éléments 3D (mêmes champs qu'un document d'éditeur) ------------------
-	# L'éditeur normalise les éléments à son chargement (`_ingest`), la session
-	# 3D lit directement x/y/w/h/asset/display/elevation. On ne stocke donc que
-	# les champs utiles + un id déterministe (le catalogue est reconstruit à
-	# chaque démarrage, les ids doivent être stables).
-	var meshes: Array = []
-	var index := 0
-	for entry_variant in built.get("elements", []):
-		var entry: Dictionary = entry_variant
-		var raw: Dictionary = (entry.get("elem", {}) as Dictionary).duplicate(true)
-		if raw.is_empty():
-			continue
-		raw["id"] = "cite-%04d" % index
-		raw["hidden"] = false
-		index += 1
-		meshes.append(raw)
-	# --- Sols : matières peintes par le plan (rues pavées, place, approches) ---
-	var terrain: Dictionary = built.get("terrain", {})
-	var materials: Array = []
-	materials.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
-	materials.fill(MATERIAL_GRASS)
-	for cell_variant in terrain.keys():
-		var cell: Vector2i = cell_variant
-		if cell.x < 0 or cell.y < 0 or cell.x >= CITE_DEMO_WIDTH \
-				or cell.y >= CITE_DEMO_HEIGHT:
-			continue
-		materials[cell.y * CITE_DEMO_WIDTH + cell.x] = clampi(
-			int(terrain[cell_variant]), MATERIAL_GRASS, MATERIAL_SAND)
-	var tiles: Array = []
-	tiles.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
-	tiles.fill("floor")
-	var map := ensure_map_schema({
-		"id": CITE_DEMO_ID,
-		"title": "Cité des Saules",
-		"description": "Vitrine 2.5D « qualité CS2 » : cité composée de vrais assets 3D (bâtiments, toits, façades, marché, tours), générée à graine fixe. Modifiable dans l'éditeur.",
-		"roster": "general",
-		"mapKind": "local",
-		"renderMode": RENDER_MODE_COMPLEX,
-		"renderStyle": "2.5d",
-		"scenarioId": "",
-		"parentMapId": "",
-		"width": CITE_DEMO_WIDTH,
-		"height": CITE_DEMO_HEIGHT,
-		"tiles": tiles,
-		"markers": [],
-		"locationLinks": [],
-		"backgroundImage": "",
-		"backgroundImageNight": "",
-		"groundMode": GROUND_TERRAIN3D,
-		"fogEnabled": false,
-		"perspective": PERSPECTIVE_TOPDOWN,
-		"elevationLayers": [],
-		# Même éclairage que `cite_boot.gd` (correctif Lead : soleil jour + ombres
-		# franches au lieu du preset pastel tiny_glade qui lavait la cité).
-		"lighting": {"enabled": true, "preset": "jour", "direction": "nw",
-			"intensity": 0.35, "sources": []},
-		"qualityPreset": "cinema",
-		# Brume fine de distance, composante hauteur neutralisée.
-		"atmosphericFog": {"enabled": true, "density": 0.04, "heightDensity": 0.0},
-		"atmosphere": {"enabled": false, "tint": "#1a1410", "opacity": 0.0,
-			"vignette": 0.0},
-		"terrainHeights": _cite_relief_heights(),
-		"terrainMaterials": materials,
-		"meshes": meshes,
-		"zoneX": 0,
-		"zoneY": 0,
-		"zoneW": CITE_DEMO_WIDTH,
-		"zoneH": CITE_DEMO_HEIGHT,
-		"schemaVersion": SCHEMA_VERSION,
-	})
-	var grid: Dictionary = get_grid_config(map).duplicate(true)
-	grid["show"] = false
-	map["grid"] = grid
-	return map
-
-## Relief doux des marges (identique à `cite_boot`) : le cœur de la cité reste
-## plat pour que les bâtiments soient droits, les ceintures ondulent doucement.
-func _cite_relief_heights() -> Array:
-	var heights: Array = []
-	heights.resize(CITE_DEMO_WIDTH * CITE_DEMO_HEIGHT)
-	for y in range(CITE_DEMO_HEIGHT):
-		for x in range(CITE_DEMO_WIDTH):
-			var in_city := x >= 2 and x <= CITE_DEMO_WIDTH - 3 \
-				and y >= 2 and y <= CITE_DEMO_HEIGHT - 3
-			var value := 0.0
-			if not in_city:
-				value = 0.16 * sin(float(x) * 0.52) * cos(float(y) * 0.44) \
-					+ 0.06 * sin(float(x + y) * 0.85) + 0.04
-			heights[y * CITE_DEMO_WIDTH + x] = value
-	return heights
-
-## Cimetière de Brumeval : sol texturé, décors PNG, quelques jetons — pas d'emojis.
-func _brumeval_cemetery_map() -> Dictionary:
-	var w := 16
-	var h := 12
-	var tiles := _brumeval_cemetery_tiles(w, h)
-	var tokens: Array = []
-	for npc in _brumeval_on_map_npcs():
-		var image := get_character_sprite_path(str(npc.role), str(npc.name))
-		var tok := {
-			"id": "tok-npc-%s" % str(npc.id),
-			"x": float(npc.x),
-			"y": float(npc.y),
-			"kind": "npc",
-			"markerType": "npc",
-			"label": str(npc.name),
-			"role": str(npc.role),
-			"scale": 1.0,
-		}
-		if not image.is_empty():
-			tok["image"] = image
-		tokens.append(tok)
-	var door := "res://data/props/objects/porte_bois.png"
-	var props: Array = _brumeval_cemetery_props()
-	if is_usable_sprite(door):
-		props.append(_map_prop("prop-porte", door, 1.0, 5.0, 1.15, 1.35))
-	return {
-		"id": "demo-crypte-brumeval",
-		"title": "Brumeval — Cimetière",
-		"description": "Cimetière villageois de la quête « La Crypte Oubliée ».",
-		"scenarioId": "demo-crypte",
-		"renderMode": RENDER_MODE_SIMPLE,
-		"mapKind": "local",
-		"roster": "general",
-		"parentMapId": "",
-		"width": w,
-		"height": h,
-		"tiles": tiles,
-		"markers": [],
-		"locationLinks": [],
-		"props": props,
-		"areas": [
-			{
-				"id": "area-exit-village",
-				"x": 1.0, "y": 5.0, "w": 1.2, "h": 1.2,
-				"label": "",
-				"category": "exit",
-				"icon": "",
-				"showCallout": false,
-				"targetMapId": "",
-			},
-			{
-				"id": "area-crypte",
-				"x": 10.5, "y": 3.0, "w": 2.4, "h": 2.2,
-				"label": "",
-				"category": "poi",
-				"icon": "",
-				"showCallout": false,
-				"targetMapId": "",
-			},
-		],
-		"fogEnabled": false,
-		"playDefaults": {
-			"tokens": tokens,
-			"effects": [], "zones": [], "fogRevealed": [], "lightRevealed": [], "viewState": {},
-		},
-	}
-
-func _brumeval_cemetery_tiles(w: int, h: int) -> Array:
-	var tiles: Array = []
-	tiles.resize(w * h)
-	for y in range(h):
-		for x in range(w):
-			var id := "grass"
-			if x == 0 or y == 0 or x == w - 1 or y == h - 1:
-				id = "forest"
-			elif y == 5 and x >= 1 and x <= 12:
-				id = "road"
-			elif x >= 3 and x <= 5 and y >= 2 and y <= 3:
-				id = "water"
-			elif x >= 9 and x <= 12 and y >= 2 and y <= 4:
-				id = "stone"
-			elif x >= 10 and x <= 12 and y >= 8 and y <= 9:
-				id = "stone"
-			tiles[y * w + x] = id
-	return tiles
-
-func _brumeval_cemetery_props() -> Array:
-	var chapel := "res://data/props/buildings/temple_eliandre.png"
-	if not is_usable_sprite(chapel):
-		chapel = "res://data/props/buildings/temple_pierre.png"
-	return [
-		_map_prop("prop-chapelle", chapel, 10.6, 2.7, 3.0, 3.0),
-		_map_prop("prop-arbre-n", "res://data/props/nature/arbre_valbois.png", 4.2, 1.6, 2.2, 2.2),
-		_map_prop("prop-chene", "res://data/props/nature/chene_isole.png", 7.2, 8.6, 2.0, 2.2),
-		_map_prop("prop-sapin", "res://data/props/nature/sapin.png", 13.2, 6.4, 1.8, 2.4),
-		_map_prop("prop-arbre-s", "res://data/props/nature/arbre_valbois.png", 2.4, 9.2, 2.0, 2.0),
-		_map_prop("prop-fleurs", "res://data/props/nature/fleurs_sauvages.png", 6.4, 3.6, 1.4, 1.2),
-		_map_prop("prop-foin", "res://data/props/nature/tas_foin.png", 12.4, 8.6, 1.5, 1.3),
-		_map_prop("prop-panneau", "res://data/props/objects/panneau_bois.png", 2.3, 4.2, 1.0, 1.2),
-		_map_prop("prop-fontaine", "res://data/props/objects/fontaine.png", 7.6, 6.6, 1.4, 1.4),
-		_map_prop("prop-puits", "res://data/props/objects/puits.png", 5.4, 8.2, 1.3, 1.5),
-		_map_prop("prop-buisson", "res://data/props/nature/buisson.png", 8.6, 4.6, 1.2, 1.1),
-		_map_prop("prop-rocher", "res://data/props/nature/rocher.png", 4.8, 7.0, 1.1, 1.0),
-		_map_prop("prop-torche", "res://data/props/objects/torche.png", 9.2, 4.2, 0.7, 1.0),
-	]
-
-func _map_prop(id: String, asset: String, x: float, y: float, pw: float, ph: float) -> Dictionary:
-	return {
-		"id": id,
-		"asset": asset,
-		"x": x, "y": y, "w": pw, "h": ph,
-		"hidden": false,
-		"display": {"opacity": 1.0},
-	}
-
-## Personnages visibles sur la carte (le reste du casting reste dans le scénario).
-func _brumeval_on_map_npcs() -> Array:
-	return [
-		{"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "x": 3, "y": 5},
-		{"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "x": 2, "y": 2},
-		{"id": "myrrha", "name": "Sœur Myrrha", "role": "Prêtresse", "x": 10, "y": 2},
-		{"id": "tomas", "name": "Tomas", "role": "Adjoint", "x": 6, "y": 5},
-		{"id": "lila", "name": "Lila la veuve", "role": "Témoin", "x": 12, "y": 7},
-	]
-
-## Roster complet (console / dialogues) — plus posé sur la carte.
-func _brumeval_crowd_npcs() -> Array:
-	return [
-		{"id": "eldric", "name": "Eldric le fossoyeur", "role": "Informateur", "emoji": "🪦", "x": 3, "y": 5},
-		{"id": "myrrha", "name": "Sœur Myrrha", "role": "Prêtresse", "emoji": "⛪", "x": 10, "y": 2},
-		{"id": "rhen", "name": "Capitaine Rhen", "role": "Garde", "emoji": "🛡️", "x": 2, "y": 2},
-		{"id": "tomas", "name": "Tomas", "role": "Adjoint", "emoji": "🕯️", "x": 6, "y": 5},
-		{"id": "lila", "name": "Lila la veuve", "role": "Témoin", "emoji": "🖤", "x": 12, "y": 7},
-	]
-
-func _valbois_npc_token(npc: Dictionary) -> Dictionary:
-	var image := get_character_sprite_path(str(npc.get("role", "")), str(npc.get("name", "")))
-	var tok := {
-		"id": "tok-npc-%s" % str(npc.get("id", "x")),
-		"x": float(npc.get("x", 0)),
-		"y": float(npc.get("y", 0)),
-		"kind": "npc",
-		"markerType": "npc",
-		"label": str(npc.get("name", "PNJ")),
-		"role": str(npc.get("role", "PNJ")),
-		"scale": 1.0,
-	}
-	if not image.is_empty():
-		tok["image"] = image
-	return tok
-
-func _valbois_village_npcs(cells: Vector2i) -> Array:
-	var w := float(cells.x)
-	var h := float(cells.y)
-	return [
-		{"id": "lyse", "name": "Lyse", "role": "Garde", "x": w * 0.22, "y": h * 0.40},
-		{"id": "pere-alain", "name": "Père Alain", "role": "Prêtre", "x": w * 0.34, "y": h * 0.18},
-		{"id": "gareth", "name": "Gareth", "role": "Forgeron", "x": w * 0.20, "y": h * 0.50},
-		{"id": "renard", "name": "Renard", "role": "Tavernier", "x": w * 0.38, "y": h * 0.54},
-		{"id": "hugo", "name": "Hugo", "role": "Palefrenier", "x": w * 0.74, "y": h * 0.66},
-		{"id": "odo", "name": "Odo", "role": "Meunier", "x": w * 0.16, "y": h * 0.24},
-		{"id": "elise", "name": "Dame Élise", "role": "Épouse du maire", "x": w * 0.68, "y": h * 0.46},
-		{"id": "tom", "name": "Tom le gamin", "role": "Villageois", "x": w * 0.48, "y": h * 0.36},
-	]
-
-func _valbois_place_npcs(cells: Vector2i) -> Array:
-	var w := float(cells.x)
-	var h := float(cells.y)
-	return [
-		{"id": "marta", "name": "Marta l'étalière", "role": "Marchande", "x": w * 0.36, "y": h * 0.40},
-		{"id": "clara", "name": "Clara", "role": "Marchande", "x": w * 0.42, "y": h * 0.52},
-		{"id": "nina", "name": "Nina", "role": "Boulangère", "x": w * 0.30, "y": h * 0.58},
-		{"id": "sura", "name": "Sura", "role": "Herboriste", "x": w * 0.58, "y": h * 0.60},
-		{"id": "capitaine", "name": "Capitaine Ord", "role": "Garde", "x": w * 0.62, "y": h * 0.36},
-		{"id": "ombre", "name": "L'Homme hoodé", "role": "Informateur", "x": w * 0.70, "y": h * 0.48},
-		{"id": "maire", "name": "Maire Corbin", "role": "Maire", "x": w * 0.78, "y": h * 0.42},
-	]
-
-## Lieux légendés Valbois (callouts) + Place liée + sorties village (P3-B).
-func _valbois_village_areas(cells: Vector2i) -> Array:
-	var w := float(cells.x)
-	var h := float(cells.y)
-	return [
-		_valbois_area("area-place-marche", w * 0.50, h * 0.42, 4.2, 3.2,
-			"Place du Marché", "poi", "⭐", true, "demo-valbois-place"),
-		_valbois_area("area-moulin", w * 0.16, h * 0.22, 3.2, 2.8,
-			"Moulin", "poi", "🌬️", true, ""),
-		_valbois_area("area-temple", w * 0.34, h * 0.16, 3.4, 2.8,
-			"Temple d'Éliandre", "poi", "⛪", true, ""),
-		_valbois_area("area-forge", w * 0.20, h * 0.48, 3.0, 2.6,
-			"Forge", "poi", "🔨", true, ""),
-		_valbois_area("area-taverne", w * 0.38, h * 0.52, 3.2, 2.6,
-			"Taverne du Cerf", "poi", "🍺", true, ""),
-		_valbois_area("area-boulangerie", w * 0.44, h * 0.32, 2.8, 2.4,
-			"Boulangerie", "poi", "🥖", true, ""),
-		_valbois_area("area-librairie", w * 0.58, h * 0.26, 2.8, 2.4,
-			"Librairie", "poi", "📚", true, ""),
-		_valbois_area("area-maire", w * 0.68, h * 0.44, 3.4, 2.8,
-			"Maison du Maire", "poi", "🏛️", true, ""),
-		_valbois_area("area-ecuries", w * 0.74, h * 0.64, 3.2, 2.6,
-			"Écuries", "poi", "🐴", true, ""),
-		_valbois_area("area-epicerie", w * 0.56, h * 0.54, 2.6, 2.2,
-			"Épicerie", "poi", "🧺", true, ""),
-		_valbois_area("area-pharmacie", w * 0.48, h * 0.62, 2.6, 2.2,
-			"Pharmacie", "poi", "🌿", true, ""),
-		_valbois_area("area-exit-foret", w * 0.08, h * 0.72, 3.0, 2.2,
-			"Chemin de la Forêt", "exit", "🚪", true, ""),
-		_valbois_area("area-exit-capitale", w * 0.92, h * 0.52, 3.0, 2.2,
-			"Chemin de la Capitale", "exit", "🚪", true, ""),
-	]
-
-func _valbois_place_areas(cells: Vector2i) -> Array:
-	var w := float(cells.x)
-	var h := float(cells.y)
-	return [
-		_valbois_area("area-fontaine", w * 0.50, h * 0.48, 2.4, 2.4,
-			"Fontaine", "poi", "⛲", true, ""),
-		_valbois_area("area-etals", w * 0.38, h * 0.40, 3.0, 2.2,
-			"Étals", "poi", "🛒", true, ""),
-		_valbois_area("area-halle", w * 0.62, h * 0.42, 2.8, 2.2,
-			"Halle", "poi", "🏪", true, ""),
-	]
-
-func _valbois_area(
-	id: String, x: float, y: float, aw: float, ah: float,
-	label: String, category: String, icon: String,
-	show_callout: bool, target_map_id: String
-) -> Dictionary:
-	return {
-		"id": id,
-		"x": x, "y": y,
-		"w": aw, "h": ah,
-		"label": label,
-		"category": category,
-		"icon": icon,
-		"showCallout": show_callout,
-		"targetMapId": target_map_id,
-		"labelOffset": {"x": 0.0, "y": -(ah * 0.5 + 0.7)},
-	}
 
 func _load_json(path: String) -> Variant:
 	if not FileAccess.file_exists(path):
