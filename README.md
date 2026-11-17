@@ -10,6 +10,7 @@ Création de personnages, scénarios et cartes, puis session solo ou à plusieur
 | **Serveur Node (pooling)** | Opérationnel (LAN) | `.\scripts\dev-server.sh` ou `cd server && npm run dev` |
 
 > **État des lieux** : section [TODO](#todo--état-des-lieux) ci-dessous (source de vérité). Audits détaillés dans `docs/`.
+> **Chantier de refactorisation en cours** (lancé le 2026-11-17) : phase 0 livrée, phase 1 en cours — index, plan, audits, baseline et outillage dans [docs/refactor/README.md](docs/refactor/README.md).
 
 ---
 
@@ -26,6 +27,8 @@ Création de personnages, scénarios et cartes, puis session solo ou à plusieur
 - **Carte 2.5D & monde de zones (façon Dofus)** — terrain 3D simple (relief, 5 matières de sol dont neige/sable, eau, ambiances), 80 objets 3D (bâtiments, intérieurs, PNJ, toits/façades) avec import GLB, **onglet Monde multi-mondes** (zones de tailles différentes et thèmes habités, liens de bords, création/nommage/suppression/export d'un monde, Tester en session), figurines 3D de tokens, session avec **déplacement au clic (Pas/D)**, **mini-carte (C)** et carte du monde nommée (M). **Construction façon Sims / Tiny Glade** : murs 3D (hauteur) connectés (coins L, T), **tracé organique freehand** (Catmull-Rom), pièces + coins, dallage, toits, portes/fenêtres avec ouvertures réelles, maison rapide, escaliers, clôtures, chemins, mobilier et **végétation au pinceau** — avec collisions RPG et **intérieurs liés de taille indépendante** (outil 🚪 Intérieur). **Éclairage** : presets Jour/Matin/Coucher/Nuit/Donjon, soleil coloré + ombres, torches/lanternes vacillantes et fog de profondeur. **Navigation 3D éditeur** : orbite au clic milieu, pan Maj+clic milieu, zoom molette. Guide : [`docs/GUIDE_CARTE_25D.md`](docs/GUIDE_CARTE_25D.md).
 - **Scénarios non linéaires** — graphe de scènes, navigation MJ
 - **Serveur pooling** — salons + signalisation ; jeu P2P ENet en LAN (pas Internet)
+
+> **Archivé (2026-11-17)** : le **moteur de jeu TypeScript** et le **serveur MCP (MJ IA)** sont archivés dans [`server/legacy/`](server/legacy/README.md) — hors compilation et hors imports. Le serveur Node ne fait plus que du pooling ; toute la logique de jeu est côté hôte Godot. Voir aussi [docs/MCP.md](docs/MCP.md) (bandeau d'archive) et [docs/refactor/AUDIT_SERVEUR.md](docs/refactor/AUDIT_SERVEUR.md).
 
 ---
 
@@ -64,9 +67,9 @@ OpenQuest_jdr/
 │   ├── data/scenarios/   # JSON scénarios (catalogue filtré à 2 démos)
 │   ├── scenes/           # Menus, hub, session, boots debug
 │   └── scripts/          # Autoloads, maps 3D, UI, tests headless
-├── server/               # Pooling WebSocket (TypeScript)
+├── server/               # Pooling WebSocket (TypeScript) — moteur de jeu TS archivé dans server/legacy/
 ├── data/                 # Jeu de données partagé (scénarios historiques, bots, tiles)
-├── docs/                 # Audits, architecture, cartes, multijoueur
+├── docs/                 # Audits, architecture, cartes, multijoueur, chantier refactor (docs/refactor/)
 └── scripts/              # play-godot*.ps1 / .sh, setup, captures
 ```
 
@@ -101,6 +104,8 @@ Ou ouvrir `game/` dans l’éditeur Godot → F5 (`scenes/main_menu.tscn`).
 ```
 
 Écoute `ws://0.0.0.0:8080`. Salon depuis le menu → **Salon multijoueur (P2P)**.
+
+> Le serveur ne fait que **pooling + matchmaking + signalisation** : aucune logique de jeu. Le moteur de jeu TypeScript (état de partie, bots, MJ IA, MCP) est **archivé** dans [`server/legacy/`](server/legacy/README.md) et n'est plus compilé ni importé (voir [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md)).
 
 ### Tests headless
 
@@ -142,8 +147,8 @@ Client Godot 4.7                    Serveur Node (pooling)
 └── ENet (hôte = MJ)  ◄──────────►  clients (LAN)
 ```
 
-Détails : [docs/STACK.md](docs/STACK.md), [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md), [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md).  
-Note : `STACK.md` décrit encore en partie l’ancien modèle « serveur autoritaire » ; le runtime actuel est **P2P + pooling** (voir `MULTIPLAYER.md`).
+Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md), [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md).  
+Note : `docs/STACK.md` est un **document historique** (bandeau en tête) qui décrit l'ancien modèle « serveur autoritaire » ; le runtime réel est **hôte Godot autoritaire + pooling**, et le moteur de jeu TS est archivé dans `server/legacy/`.
 
 ---
 
@@ -162,15 +167,27 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 - [x] HUD joueur immersif (`player_session_hud.gd`)
 - [x] Navigation narrative non linéaire (graphe + tests)
 - [x] Serveur pooling + docs multijoueur LAN
-- [x] Suite de tests cartes (dont `map_camera_test`) — voir aussi [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md)
+- [x] Suite de tests cartes (dont `map_camera_test`) — voir aussi [docs/archive/AUDIT_CARTES.md](docs/archive/AUDIT_CARTES.md)
+
+### Chantier de refactorisation (lancé le 2026-11-17)
+
+Suivi détaillé : [docs/refactor/README.md](docs/refactor/README.md) · plan et ADR : [docs/refactor/PLAN_REFACTORISATION.md](docs/refactor/PLAN_REFACTORISATION.md).
+
+- [x] **Phase 0 — filets & vert** : porte de compilation client (477 fichiers scripts + scènes, 0 échec), `tools/refactor/verify.ps1` + `metrics.ps1` + socle rapide de tests, build serveur réparé (`typecheck`/`build`/`test` verts), 13 fichiers TS morts archivés dans `server/legacy/`, 6 scripts cassés réparés ou supprimés, 3 audits + inventaire + baseline, docs réalignées
+- [ ] **Phase 1 — purge du code mort** (en cours) : `core/` mort et périmé, 4 modules d'éditeur morts, 6 scripts legacy de `maps/`, sonde `zz_probe_grid.gd` — −2 639 lignes en phase 1, −3 276 au total avec la phase 0
+- [ ] **Phase 2** — tests de contrat, découpage de `game_data.gd`, `map_data.gd`, `map_workspace.gd`, `SessionViewModel`
+- [ ] **Phase 3** — éditeur de scénario : routeur de liens pur dans `core/`, `scenario_editor.gd` découpé
+- [ ] **Phase 4** — éditeur de cartes 2.5D en 5 vagues (document → couches 3D → construction/moteur → contrôleur)
+- [ ] **Phase 5** — serveur et contrat de données : une seule implémentation de dés, `data/schemas/` validé
+- [ ] **Phase 6** — CI GitHub Actions, consolidation documentaire, métriques finales
 
 ### En cours / WIP récent
 
 - [ ] **Qualité cartes Valbois HD** — fond parfois soft / cache `user://map_assets` + import Godot (`*.import`, compression 3D) ; recharger les PNG `res://assets/maps/` proprement
-- [ ] **Clarté UI / bugs visuels** — audit dédié : [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) *(disponible — base de travail pour AslanUsko)* ; s’appuyer aussi sur [docs/UI_UX.md](docs/UI_UX.md)
+- [ ] **Clarté UI / bugs visuels** — audit dédié : [docs/archive/AUDIT_UI_CLARTE.md](docs/archive/AUDIT_UI_CLARTE.md) *(disponible — base de travail pour AslanUsko)* ; s’appuyer aussi sur [docs/UI_UX.md](docs/UI_UX.md)
 - [ ] **HUD joueur vs session MJ** — divergences de layout, marges carte sous le HUD, messages d’échelle / tooltips lieux
 - [ ] **Token Kael** — échelle découpe (`scale` village / place), un seul token (dédoublonnage party ↔ `playDefaults` encore fragile)
-- [ ] Correctifs caméra perspective / VTT orthographique restants ([AUDIT_CARTES](docs/AUDIT_CARTES.md) P1 — partie déjà traitée dans le moteur)
+- [ ] Correctifs caméra perspective / VTT orthographique restants ([AUDIT_CARTES](docs/archive/AUDIT_CARTES.md) P1 — partie déjà traitée dans le moteur)
 
 ### À faire (priorité)
 
@@ -190,8 +207,10 @@ Priorisé. Le README reste la source de vérité ; les audits détaillent le « 
 
 | Fichier | Contenu |
 |---------|---------|
-| [docs/AUDIT_CARTES.md](docs/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 |
-| [docs/AUDIT_UI_CLARTE.md](docs/AUDIT_UI_CLARTE.md) | Audit clarté UI *(disponible)* |
+| [docs/refactor/README.md](docs/refactor/README.md) | **Chantier de refactorisation** — index, plan, audits, baseline, outillage |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture réelle + cible (runtime hôte Godot autoritaire + pooling) |
+| [docs/archive/AUDIT_CARTES.md](docs/archive/AUDIT_CARTES.md) | Audit moteur diorama / caméra / P1–P3 *(archivé)* |
+| [docs/archive/AUDIT_UI_CLARTE.md](docs/archive/AUDIT_UI_CLARTE.md) | Audit clarté UI *(archivé, disponible)* |
 | [docs/MAP_DIORAMA_PLAN.md](docs/MAP_DIORAMA_PLAN.md) | Plan diorama 2.5D (appliqué) |
 | [docs/INTERACTIVE_MAPS.md](docs/INTERACTIVE_MAPS.md) | Dual-mode simple / complexe |
 | [docs/MAP_EDITOR.md](docs/MAP_EDITOR.md) | Éditeur battlemap 3D |

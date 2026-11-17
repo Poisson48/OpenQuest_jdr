@@ -1,5 +1,13 @@
 # MCP — Maître du Jeu IA
 
+> **⚠️ Archivé (2026-11-17).** Le serveur MCP et le moteur narratif serveur sont
+> archivés dans `server/legacy/` : ils ne compilent plus depuis le commit
+> `8ecbfe2` (classe `AiGM` supprimée sans migration de ses appelants) et ne sont
+> importés par aucun code actif. Le runtime retenu est **hôte Godot autoritaire +
+> serveur de pooling sans logique de jeu**. Ce document décrit l'état visé d'un
+> chantier futur, pas l'état courant. Voir `server/legacy/README.md` et
+> `docs/refactor/AUDIT_SERVEUR.md`.
+
 Le MJ IA OpenQuest expose un **serveur MCP** pour les agents (Cursor, Claude Desktop, etc.).
 
 ## Lancer

@@ -1,0 +1,10 @@
+﻿2026-11-17 19:23:21 
+2026-11-17 19:23:21 > openquest-server@0.1.0 typecheck
+2026-11-17 19:23:21 > tsc --noEmit
+2026-11-17 19:23:21 
+2026-11-17 19:23:22 src/game_session.ts(9,10): error TS2305: Module '"./ai-gm.js"' has no exported member 'AiGM'.
+2026-11-17 19:23:22 src/mcp/gm_server.ts(16,10): error TS2305: Module '"../ai-gm.js"' has no exported member 'AiGM'.
+2026-11-17 19:23:22 src/narrative/world_state.ts(58,28): error TS2353: Object literal may only specify known properties, and 'category' does not exist in type 'WorldFact'.
+2026-11-17 19:23:22 src/narrative/world_state.ts(58,50): error TS2339: Property 'turn' does not exist on type 'AiState'.
+2026-11-17 19:23:22 src/narrative/world_state.ts(65,22): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+TYPECHECK_EXIT=1 WALL_SECONDS=1.9

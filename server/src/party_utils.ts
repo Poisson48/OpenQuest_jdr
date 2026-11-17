@@ -1,5 +1,20 @@
 import type { PartyMember, Stats } from "./game_types.js";
-import type { ConnectedClient } from "./types.js";
+
+/**
+ * Client connecté au serveur historique (protocole « serveur autoritaire »).
+ *
+ * Cette interface vivait dans `types.ts`, archivé dans `server/legacy/` avec le
+ * moteur de jeu TS. Elle est conservée ici car `party_utils.ts` la référence,
+ * et `party_utils.ts` reste compilé (types partagés du lobby de pooling).
+ */
+export interface ConnectedClient {
+  id: string;
+  name: string;
+  gameId: string | null;
+  connectedAt: number;
+  registeredCharacter: ClientPartyMember | null;
+  ws: import("ws").WebSocket;
+}
 
 export interface ClientPartyMember {
   id?: string;

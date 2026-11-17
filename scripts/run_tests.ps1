@@ -58,8 +58,11 @@ if ($tests.Count -eq 0) {
     exit 1
 }
 
-$outFile = Join-Path ([System.IO.Path]::GetTempPath()) 'openquest_tests_out.txt'
-$errFile = Join-Path ([System.IO.Path]::GetTempPath()) 'openquest_tests_err.txt'
+# Noms de fichiers temporaires UNIQUES par run : deux runners lancés en
+# parallèle (ou un run resté bloqué) ne se marchent plus dessus.
+$runId = '{0}_{1}' -f $PID, (Get-Date -Format 'HHmmss')
+$outFile = Join-Path ([System.IO.Path]::GetTempPath()) "openquest_tests_out_$runId.txt"
+$errFile = Join-Path ([System.IO.Path]::GetTempPath()) "openquest_tests_err_$runId.txt"
 $results = @()
 $failed = 0
 
@@ -89,7 +92,14 @@ foreach ($test in $tests) {
         # alors à la sortie (PASS/FAIL) plutôt qu'au code.
         if ($null -eq $code -or [string]::IsNullOrWhiteSpace([string]$code)) { $code = 0 }
     } else {
-        try { $proc.Kill($true) } catch { }
+        # PowerShell 5.1 / .NET Framework : Process.Kill(bool) n'existe pas.
+        # On force la fin de l'arbre de processus pour ne pas laisser de Godot
+        # orphelin qui fausserait les runs suivants.
+        try { $proc.Kill($true) } catch {
+            try { $proc.Kill() } catch { }
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch { }
+        }
+        try { $proc.WaitForExit(5000) | Out-Null } catch { }
     }
     $stdout = if (Test-Path $outFile) { Get-Content $outFile -Raw -ErrorAction SilentlyContinue } else { '' }
     $stderr = if (Test-Path $errFile) { Get-Content $errFile -Raw -ErrorAction SilentlyContinue } else { '' }

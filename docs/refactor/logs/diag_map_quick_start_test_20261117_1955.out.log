@@ -1,0 +1,8 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+  PASS village_created
+  PASS terrain_mode
+  PASS lighting_tiny_glade
+  PASS render_style
+  PASS lighting_changed
+map_quick_start_test:PASS

@@ -126,7 +126,8 @@ func _reveal_demo_markers(gd: Node, world_maps: Array) -> void:
 			gd.reveal_map_marker(map_id, int(round(float(marker.get("x", 0.0)))),
 				int(round(float(marker.get("y", 0.0)))))
 
-## Ajoute un PNJ pacifique (figurine 3D choisie d'après le label).func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float,
+## Ajoute un PNJ pacifique (figurine 3D choisie d'après le label).
+func _add_npc_token(gd: Node, map_id: String, label: String, x: float, y: float,
 		dialogue: String = "") -> void:
 	if map_id.is_empty():
 		return

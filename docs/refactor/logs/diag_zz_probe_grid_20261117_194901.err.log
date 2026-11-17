@@ -1,0 +1,4 @@
+SCRIPT ERROR: Invalid call. Nonexistent function 'get_theme_item_list' in base 'GraphEdit'.
+   at: _init (res://scripts/tests/zz_probe_grid.gd:15)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://scripts/tests/zz_probe_grid.gd:15)

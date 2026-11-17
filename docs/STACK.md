@@ -1,7 +1,13 @@
 # Rapport technique — OpenQuest JDR
 
+> ⚠️ **Document partiellement obsolète — conservé comme historique.**
+> Rédigé en septembre 2026, il décrit l'**ancien modèle « serveur autoritaire »** (le serveur Node fait autorité sur l'état du monde, protocole v0.1 `join` / `player_input`).
+> Le **runtime réel** est un **hôte Godot autoritaire + serveur de pooling sans logique de jeu** ([MULTIPLAYER.md](./MULTIPLAYER.md), [SESSION_PROTOCOLE.md](./SESSION_PROTOCOLE.md)) : le serveur ne gère que salons, tickets, rate-limit et signalisation WebRTC.
+> Le **moteur de jeu TypeScript et le serveur MCP (MJ IA)** sont **archivés** dans [`server/legacy/`](../server/legacy/README.md) — hors compilation, non importés (voir [AUDIT_SERVEUR.md](./refactor/AUDIT_SERVEUR.md) et le [plan de refactorisation](./refactor/PLAN_REFACTORISATION.md)).
+> Ce qui reste valable ci-dessous : stack technique (Node/Godot, WebSocket), installation Godot, commandes serveur, configuration. Le contenu n'est pas supprimé pour garder l'historique des décisions.
+> Dernière mise à jour du contenu : septembre 2026 · bandeau d'obsolescence ajouté le 2026-11-17.
+
 > Document de référence pour l'environnement de développement multijoueur.
-> Dernière mise à jour : septembre 2026
 
 ---
 
@@ -21,6 +27,8 @@ OpenQuest JDR est un jeu multijoueur en temps réel avec une architecture **clie
 ```
 
 Le serveur Node est l'**autorité** : il reçoit les inputs des joueurs, met à jour l'état du monde, et diffuse la position de chacun. Les clients Godot n'affichent que ce que le serveur leur envoie.
+
+> **⚠️ Obsolète.** Le code ne fonctionne pas ainsi : le **serveur Node n'est qu'un serveur de pooling** (salons, matchmaking, signalisation WebRTC) et **l'hôte Godot est l'autorité** de la partie ([MULTIPLAYER.md](./MULTIPLAYER.md) §1). Le protocole `player_input` / `state_sync` décrit plus bas n'existe plus (protocole pooling v2 dans `server/src/lobby/types.ts`). Le moteur de jeu serveur correspondant est archivé dans [`server/legacy/`](../server/legacy/README.md).
 
 ---
 
@@ -75,7 +83,9 @@ game/
     └── tests/            # Tests headless
 ```
 
-### Protocole réseau (v0.1)
+### Protocole réseau (v0.1) — obsolète
+
+> Conservé comme historique : ce protocole n'est plus émis par aucun client. Le protocole réel est le **pooling v2** (`server/src/lobby/types.ts` + `protocol.ts` : `create_room`, `join_room`, `signal`, `resume_session`…).
 
 Messages JSON échangés entre client et serveur.
 
@@ -144,6 +154,8 @@ cd server && npm run dev
 | **v0.4** | Lanceur de dés côté serveur (anti-triche) |
 | **v0.5** | Fog of war, tokens MJ, scènes / salles |
 | **v1.0** | Auth simple, sauvegarde de parties, déploiement serveur |
+
+> **⚠️ Obsolète** : cette roadmap décrit la direction « serveur autoritaire » abandonnée (ADR-001 du [plan](./refactor/PLAN_REFACTORISATION.md)). En particulier, la v0.4 « lanceur de dés côté serveur » est **contredite par ADR-005** : l'hôte Godot calcule les dés et `game/scripts/core/rules/dice_engine.gd` est l'unique implémentation exécutable.
 
 ---
 

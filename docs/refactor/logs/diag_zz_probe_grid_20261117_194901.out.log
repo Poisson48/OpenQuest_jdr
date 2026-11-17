@@ -1,0 +1,15 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+--- properties ---
+  show_behind_parent type=1
+  show_grid type=1
+  grid_pattern type=2
+  snapping_enabled type=1
+  snapping_distance type=2
+  show_menu type=1
+  show_zoom_label type=1
+  show_zoom_buttons type=1
+  show_grid_buttons type=1
+  show_minimap_button type=1
+  show_arrange_button type=1
+--- theme items ---

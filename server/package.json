@@ -12,21 +12,20 @@
     "test:dice": "tsx scripts/test_dice_engine.ts",
     "test:lobby": "tsx scripts/test_lobby.ts",
     "test:lobby:net": "tsx scripts/test_lobby_integration.ts",
-    "test": "npm run test:dice && npm run test:lobby && npm run test:lobby:net",
-    "mcp": "tsx src/mcp/run.ts"
+    "test": "npm run test:dice && npm run test:lobby && npm run test:lobby:net"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "dotenv": "^17.4.2",
+    "ws": "^8.21.3",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/ws": "^8.18.1",
-    "dotenv": "^17.4.2",
     "tsx": "^4.23.13",
-    "typescript": "^7.0.2",
-    "ws": "^8.21.3"
+    "typescript": "^7.0.2"
   }
 }

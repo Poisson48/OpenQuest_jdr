@@ -1,0 +1,10 @@
+OpenQuest serveur POOLING v2 sur ws://0.0.0.0:8080
+Mode : matchmaking par salons (codes 4 chiffres) + relais P2P + reprise de session
+Joueur hôte (Godot) : ws://127.0.0.1:8080
+Joueurs LAN (autre PC / même WiFi) :
+  ws://192.168.0.105:8080
+  ws://172.28.144.1:8080
+[pool +] Joueur (e268da13)
+[pool +] Joueur (e7fdd717)
+[pool -] E2E_MJ (e268da13)
+[pool -] E2E_PJ (e7fdd717)

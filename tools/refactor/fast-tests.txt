@@ -1,0 +1,34 @@
+# Socle rapide de tests headless (tools/refactor/verify.ps1)
+#
+# Liste de noms de fichiers de test SANS extension, un par ligne. Un test doit
+# rester RAPIDE et ne pas dépendre d'un rendu fenêtré : c'est le filet minimal
+# avant chaque commit du refactor. Compléter la suite lourde avec
+# `scripts/run_tests.ps1 -Filter <domaine>` ou `verify.ps1 -FullTests`.
+#
+# Liste mesurée par docs/refactor/BASELINE_TESTS.md §11 : 23 tests ≈ 102 s sur
+# AMD Ryzen 5 3600 (hors serveur). Objectif : < 2 minutes au total.
+# Mise à jour : ajuster après chaque phase.
+
+dice_engine_test
+ruleset_test
+semantic_move_test
+session_model_test
+session_protocol_test
+session_minimap_test
+session_turn_test
+command_palette_test
+keyboard_nav_test
+map_editor_ui_v2_test
+map_editor_parametres_test
+map_terrain_materials_test
+terrain_carve_test
+terrain_sculpt_test
+scenario_graph_links_test
+scenario_library_draft_test
+water_bodies_test
+visibility_polygon_test
+world_zones_test
+webrtc_stun_test
+table_model_loader_test
+fog_overlay_test
+map_token_figurine_test
