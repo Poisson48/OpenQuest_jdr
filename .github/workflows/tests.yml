@@ -62,3 +62,17 @@ jobs:
         run: "$GODOT_BIN --headless --path game --import"
       - name: Porte de vérification (compilation + scènes + socle rapide)
         run: pwsh -NoLogo -File ./tools/refactor/verify.ps1 -Scenes -SkipServer
+
+  data:
+    name: Contrat data/schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Auto-test + schémas conformes (gate)
+        run: python tools/refactor/validate_data.py --only bot,ruleset
+      - name: Dérive complète (informatif, cf. RAPPORT_SCHEMAS.md)
+        continue-on-error: true
+        run: python tools/refactor/validate_data.py

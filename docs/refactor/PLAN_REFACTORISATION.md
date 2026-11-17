@@ -188,7 +188,7 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 |---|---|---|
 | 5.1 | Archiver la chaîne de jeu TS + MCP (ADR-001) | ✅ phase 0 |
 | 5.2 | Dés : chaîne TS archivée (`server/legacy/`), `dice_cases.json` seul exécuté côté GDScript — ✅ (commits serveur, 0 import de dés actif) | ✅ |
-| 5.3 | `data/schemas/` : validateur générique + script `tools/refactor/validate_data.ps1` branché dans `verify.ps1` ; réaligner ou archiver les 3 schémas en dérive (`save_game`, `scenario`, `map`) | ⏳ |
+| 5.3 | `data/schemas/` : validateur générique `tools/refactor/validate_data.py` (0 dépendance, 27 auto-tests) branché dans `verify.ps1` (gate bot+ruleset, dérive complète informative) + [RAPPORT_SCHEMAS.md](RAPPORT_SCHEMAS.md) (666 erreurs néanmoins : 0/12 scénarios et 0/3 cartes conformes ; realignement/archivage à décider) | ✅ outillé, réalignement ⏳ |
 | 5.4 | Protocole pooling : figer `lobby/types.ts` + `protocol.ts` comme contrat v2 et ajouter un test de sérialisation (déjà 18 vérifications d'intégration) | ⏳ |
 | 5.5 | Documentation serveur : `STACK.md` (ADRs), `MULTIPLAYER.md`, `MOTEUR_DES.md` alignés sur l'état réel | ⏳ |
 

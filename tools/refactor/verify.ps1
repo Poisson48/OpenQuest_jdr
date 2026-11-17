@@ -36,6 +36,7 @@ param(
     [switch]$Scenes,
     [switch]$SkipTests,
     [switch]$SkipServer,
+    [switch]$SkipData,
     [switch]$FullTests,
     [string]$TestFilter = ''
 )
@@ -85,7 +86,7 @@ if ($null -eq $godot) {
 Write-Host "Godot : $godot" -ForegroundColor DarkGray
 # run_tests.ps1 lit GODOT_BIN : on le propage pour que le socle de tests utilise le même binaire.
 $env:GODOT_BIN = $godot
-Write-Host "`n=== 1/3 Compilation Godot (scripts$(if ($Scenes) { ' + scènes' })) ===" -ForegroundColor Cyan
+Write-Host "`n=== 1/4 Compilation Godot (scripts$(if ($Scenes) { ' + scènes' })) ===" -ForegroundColor Cyan
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $gateArgs = @('--headless', '--path', $gameDir, '--scene', 'res://scenes/debug/compile_check.tscn')
 if ($Scenes) { $gateArgs += @('--', '--scenes') }
@@ -103,7 +104,7 @@ if ($gateCode -ne 0) {
 
 # ---------------------------------------------------------------- 2. Typecheck serveur
 if (-not $SkipServer) {
-    Write-Host "`n=== 2/3 Typecheck serveur (tsc --noEmit) ===" -ForegroundColor Cyan
+    Write-Host "`n=== 2/4 Typecheck serveur (tsc --noEmit) ===" -ForegroundColor Cyan
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     Push-Location $serverDir
     try {
@@ -122,12 +123,42 @@ if (-not $SkipServer) {
 }
 else {
     Add-Result 'Typecheck serveur' $true 'ignoré (-SkipServer)' 0
-    Write-Host "`n=== 2/3 Typecheck serveur : ignoré ===" -ForegroundColor DarkGray
+    Write-Host "`n=== 2/4 Typecheck serveur : ignoré ===" -ForegroundColor DarkGray
 }
 
+# ---------------------------------------------------------------- 2bis. Contrat data/schemas
+$validatorPath = Join-Path $root 'tools\refactor\validate_data.py'
+if ($SkipData) {
+    Write-Host "`n=== 3/4 Contrat data/schemas : ignoré ===" -ForegroundColor DarkGray
+}
+elseif (-not (Test-Path $validatorPath)) {
+    Write-Host "`n=== 3/4 Contrat data/schemas : validateur absent (ignoré) ===" -ForegroundColor DarkGray
+}
+else {
+    Write-Host "`n=== 3/4 Contrat data/schemas (gate : bot + ruleset) ===" -ForegroundColor Cyan
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $py = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $py) {
+        Add-Result 'Contrat data/schemas' $true 'python absent — étape ignorée' 0
+        Write-Host '  python introuvable : étape ignorée.' -ForegroundColor Yellow
+    }
+    else {
+        Push-Location $root
+        try {
+            $valOut = & python $validatorPath --only bot,ruleset *>&1
+            $valCode = $LASTEXITCODE
+        }
+        finally {
+            Pop-Location
+        }
+        $sw.Stop()
+        Add-Result 'Contrat data/schemas' ($valCode -eq 0) ("bot+ruleset : " + $(if ($valCode -eq 0) { 'conformes' } else { 'dérive (voir sortie)' }) + ' ; dérive complète : python tools/refactor/validate_data.py') $sw.Elapsed.TotalSeconds
+        if ($valCode -ne 0) { $valOut | Select-Object -Last 15 | ForEach-Object { Write-Host "  $_" -ForegroundColor Red } }
+    }
+}
 # ---------------------------------------------------------------- 3. Socle de tests
 if (-not $SkipTests) {
-    Write-Host "`n=== 3/3 Socle de tests headless ===" -ForegroundColor Cyan
+    Write-Host "`n=== 4/4 Socle de tests headless ===" -ForegroundColor Cyan
     $filter = $TestFilter
     if ([string]::IsNullOrWhiteSpace($filter)) {
         if ($FullTests) {
@@ -164,7 +195,7 @@ if (-not $SkipTests) {
 }
 else {
     Add-Result 'Tests headless' $true 'ignoré (-SkipTests)' 0
-    Write-Host "`n=== 3/3 Socle de tests : ignoré ===" -ForegroundColor DarkGray
+    Write-Host "`n=== 4/4 Socle de tests : ignoré ===" -ForegroundColor DarkGray
 }
 
 # ---------------------------------------------------------------- Résumé
