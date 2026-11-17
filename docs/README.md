@@ -14,6 +14,7 @@ Voir l'index dédié : [`refactor/README.md`](refactor/README.md) (plan, audits,
 |---|---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture réelle (hôte Godot autoritaire + pooling) et cible du chantier, écart mesuré aux principes | à jour |
 | [refactor/PLAN_REFACTORISATION.md](refactor/PLAN_REFACTORISATION.md) | Plan consolidé : ADR-001 à ADR-009, phases 0-6, portes de qualité, métriques cibles | à jour |
+| [refactor/ADR-004-schemas.md](refactor/ADR-004-schemas.md) | Décision sur `data/schemas/` : état 4/8, options, recommandation, critères de sortie | à jour |
 | [refactor/AUDIT_GODOT.md](refactor/AUDIT_GODOT.md) | Audit client Godot : god files, violations, code mort, top 10 des cibles | historique |
 | [refactor/AUDIT_EDITEUR_CARTE.md](refactor/AUDIT_EDITEUR_CARTE.md) | Audit des god files de l'éditeur de cartes 2.5D/3D + contrat de test | historique |
 | [refactor/AUDIT_SERVEUR.md](refactor/AUDIT_SERVEUR.md) | Audit serveur Node/TS et contrat `data/schemas` | historique |
@@ -27,6 +28,8 @@ Voir l'index dédié : [`refactor/README.md`](refactor/README.md) (plan, audits,
 ---
 
 ## 2. Architecture et état courant
+
+> **Docs serveur alignés (phase 5.5, 2026-11-17)** : hôte Godot autoritaire + pooling sans logique de jeu ; une seule implémentation de dés (GDScript, ADR-005) ; serveur MCP archivé ; contrat de protocole v2 testé (`server/scripts/test_lobby_protocol.ts`). La décision sur les schémas en dérive est documentée dans [refactor/ADR-004-schemas.md](refactor/ADR-004-schemas.md).
 
 | Document | Contenu | Statut |
 |---|---|---|

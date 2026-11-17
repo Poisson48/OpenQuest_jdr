@@ -39,7 +39,7 @@ OpenQuest_jdr/
 │   ├── data/                           # scénarios, cartes, bots, cas de dés partagés
 │   └── assets/ · scenes/
 ├── server/                             # Node/TS — pooling uniquement
-│   ├── src/                            # index, pooling/, lobby/, game_types, party_utils, dice + rules/ (à archiver en phase 5)
+│   ├── src/                            # index, pooling/, lobby/, game_types, party_utils (dés TS archivés en phase 5.2)
 │   └── legacy/                         # moteur de jeu TS + MCP archivés (non compilés, non importés)
 ├── data/schemas/                       # 8 schémas JSON : contrat CIBLE, lu par aucun code aujourd'hui (§5)
 ├── tools/refactor/                     # verify.ps1, metrics.ps1, fast-tests.txt
@@ -111,8 +111,7 @@ server/legacy/ : archivé, hors compilation
 
 ## 5. Contrat de données (état réel)
 
-- **`data/schemas/` = documentation, pas contrat exécuté** : 8 schémas (`character`, `scenario`, `map`, `bot`, `ruleset`, `dice_roll`, `session_model`, `save_game`) lus par **aucun** code — le client n'en a aucune référence, le serveur valide en **zod** à la main (`server/src/lobby/validate.ts`). Trois schémas au moins dérivent des données réelles (`save_game`, `scenario`, `map`).
-- En attendant le validateur générique (**ADR-004**, phase 5), la validation réelle est assurée par des **normaliseurs manuels dispersés** : `map_data.gd` `ensure_map_schema()`, `game_data.gd` `normalize_character()`, `quest_navigation.gd` `normalize_scenario()`, etc.
+- **`data/schemas/` = contrat cible, branché en partie seulement** : 8 schémas (`character`, `scenario`, `map`, `bot`, `ruleset`, `dice_roll`, `session_model`, `save_game`). Depuis la phase 5.3, le validateur [`tools/refactor/validate_data.py`](../tools/refactor/validate_data.py) est outillé et branché en porte (CI + `verify.ps1`) sur les 2 schémas conformes (`bot`, `ruleset`) ; les 2 schémas avec données mais en dérive (`scenario`, `map`) sont mesurés de façon informative ([RAPPORT_SCHEMAS.md](refactor/RAPPORT_SCHEMAS.md)) et les 4 sans données versionnées sont non couverts. Décision et critères de sortie : [ADR-004-schemas.md](refactor/ADR-004-schemas.md). Le client, lui, continue de valider par des **normaliseurs manuels** (`map_data.gd` `ensure_map_schema()`, `game_data.gd` `normalize_character()`, `quest_navigation.gd` `normalize_scenario()`, etc.).
 - **Convention d'état de carte** : `mapPlayState` (camelCase), figée par **ADR-003**. L'ancienne clé `map_play` du code mort est proscrite.
 - **Cas de dés partagés** : `game/data/tests/dice_cases.json` (29 cas) est la spécification exécutée par `dice_engine_test.gd` ; `data/schemas/dice_roll.json` décrit le résultat.
 
@@ -133,11 +132,11 @@ server/legacy/ : archivé, hors compilation
 
 ## 7. Serveur (état réel)
 
-- **Seule chaîne exécutée** : `server/src/index.ts` → `startPoolingServer` (`pooling/server.ts`, 487 l.) : salons, tickets, rate-limit, relais `signal` WebRTC. Types partagés : `game_types.ts`, `party_utils.ts`, `lobby/*`.
-- **Moteur de dés TS** : `server/src/rules/dice_engine.ts` + `dice.ts` existent encore et passent leurs tests, mais ne sont atteignables par aucun flux de jeu ; **archivage prévu en phase 5** (ADR-005 : une seule implémentation exécutable, GDScript).
-- **`server/legacy/`** : 13 fichiers archivés (moteur narratif, `game_session`, `bots`, MCP), hors `tsconfig` et hors imports ; procédure de restauration dans [`server/legacy/README.md`](../server/legacy/README.md).
-- `npm run typecheck`, `npm run build` et `npm test` sont **verts** depuis la phase 0 (`tsconfig` : `noEmitOnError`, `ws`/`dotenv` en dépendances).
-- **Aucune CI** à ce jour : la porte locale `tools/refactor/verify.ps1` en tient lieu jusqu'à la phase 6.
+- **Seule chaîne exécutée** : `server/src/index.ts` → `startPoolingServer` (`pooling/server.ts`, 487 l.) : salons, tickets, rate-limit, relais `signal` WebRTC. Types partagés : `game_types.ts`, `party_utils.ts`, `lobby/*`. Contrat de protocole v2 gelé par `server/scripts/test_lobby_protocol.ts` ([MULTIPLAYER.md §3.3](MULTIPLAYER.md)).
+- **Moteur de dés** : l'unique implémentation exécutable est GDScript (`game/scripts/core/rules/dice_engine.gd`, ADR-005) ; la chaîne TypeScript (`dice.ts`, `rules/dice_engine.ts`, `scripts/test_dice_engine.ts`) est **archivée dans `server/legacy/`** depuis la phase 5.2 — plus compilée, plus testée, plus atteignable.
+- **`server/legacy/`** : 16 fichiers archivés — 13 en phase 0 (moteur narratif, `game_session`, `bots`, MCP) + 3 dès la phase 5.2 (moteur de dés TS et son test) — hors `tsconfig` et hors imports ; procédure de restauration dans [`server/legacy/README.md`](../server/legacy/README.md).
+- `npm run typecheck`, `npm run build` et `npm test` sont **verts** depuis la phase 0 (`tsconfig` : `noEmitOnError`, `ws`/`dotenv` en dépendances). `npm test` couvre le pooling : `test:lobby` (81 vérif.) + `test:protocol` (contrat v2, 302 vérif. au 2026-11-17) + `test:lobby:net` (18 vérif.).
+- **CI GitHub Actions** (`.github/workflows/tests.yml`, phase 6.1) : 3 jobs — serveur (typecheck/build/tests), Godot (compilation + scènes + socle rapide) et contrat `data/schemas` (gate `bot`+`ruleset`, dérive complète informative). La porte locale `tools/refactor/verify.ps1` reste la vérification de chaque commit (ADR-008).
 
 ---
 
@@ -149,8 +148,8 @@ Le plan fait foi : [PLAN_REFACTORISATION.md](refactor/PLAN_REFACTORISATION.md). 
 2. **Phase 2** — contrats de test puis découpage de `game_data.gd`, `map_data.gd`, `map_workspace.gd`, `SessionViewModel`.
 3. **Phase 3** — éditeur de scénario : routeur de liens pur dans `core/graph/`, `scenario_editor.gd` ≤ 800 l.
 4. **Phase 4** — éditeur de cartes en 5 vagues : document/terrain/options → couches 3D → construction/moteur → contrôleur ≤ 1 000 l. → nettoyage.
-5. **Phase 5** — serveur et contrat de données : un seul moteur de dés, validateur `data/schemas/`.
-6. **Phase 6** — CI, consolidation documentaire, métriques finales.
+5. **Phase 5** — serveur et contrat de données : un seul moteur de dés ✅ (ADR-005) ; validateur `data/schemas/` outillé et branché en gate sur `bot`/`ruleset` ; réalignement `scenario`/`map` et arbitrage des 4 schémas sans données selon [ADR-004-schemas.md](refactor/ADR-004-schemas.md).
+6. **Phase 6** — CI ✅, consolidation documentaire, métriques finales.
 
 Objectifs chiffrés (plan §9) : 0 fichier `.gd` > 1 000 lignes, `game_data.gd` ≤ 400 l. en façade, `map_complex_editor.gd` ≤ 1 000 l., `complex_map_engine_3d.gd` ≤ 700 l., `scenario_editor.gd` ≤ 800 l., une seule implémentation de dés, build serveur vert, CI active.
 

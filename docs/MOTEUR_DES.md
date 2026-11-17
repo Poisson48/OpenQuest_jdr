@@ -15,8 +15,8 @@
 >   `npm test` et plus atteignable par aucun flux de jeu. Restauration :
 >   `server/legacy/README.md`.
 > - Le test de référence est `game/scripts/tests/dice_engine_test.gd` ; côté
->   serveur, `npm test` ne couvre plus que le lobby (`test:lobby` +
->   `test:lobby:net`).
+>   serveur, `npm test` ne couvre plus que le pooling (lobby + contrat de
+>   protocole v2 + intégration réseau).
 >
 > Les sections ci-dessous décrivent l'état historique (deux implémentations) et
 > restent utiles comme spécification du comportement ; les blocs TypeScript y
@@ -128,8 +128,9 @@ $env:GODOT_BIN = 'C:\...\Godot_v4.7.2-stable_win64_console.exe'
 Le test de référence lit `game/data/tests/dice_cases.json` : toute évolution de
 la grammaire doit ajouter un cas à ce fichier.
 
-Côté serveur, `npm test` ne lance plus que le lobby (`test:lobby` +
-`test:lobby:net`). L'ancien test TS, archivé, reste lançable manuellement
+Côté serveur, `npm test` ne lance plus les dés : il couvre le pooling
+(`test:lobby` + `test:protocol` + `test:lobby:net`, aucun test de dés).
+L'ancien test TS, archivé, reste lançable manuellement
 (hors CI) après restauration ou directement :
 
 ```powershell

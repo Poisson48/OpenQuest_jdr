@@ -113,7 +113,7 @@ Tests de protection : `map_meshes_3d_test`, `map_editor_snap_test`, `map_render_
 
 1. `editor_drag_perf_test` (existant) : vérifier qu'il reste vert ; le compléter d'un seuil sur le release.
 2. Nouveau `editor_commit_perf_test.gd` : sur la carte démo « Cité », mesurer `_sync_engine` après (a) ajout d'un mesh, (b) modification, (c) suppression, (d) fin de drag simulée ; **seuils** : ≤ 100 ms (a/b/c), ≤ 150 ms (d) en headless. Échoue si dépassé (test de non-régression perf).
-3. `map_editor_snap_test` : réactiver la synchro 3D (elle est aujourd'hui suspendue pour tenir sous le timeout) une fois le gain obtenu → le test redevient un vrai test de bout en bout.
+3. ✅ `map_editor_snap_test` : la synchro 3D a été RÉACTIVÉE (round 6) — le test redevient un vrai test de bout en bout avec la synchro complète : **PASS en ~75 s** (contre 257 s avant la phase 4b, pour laquelle il avait dû être suspendu).
 4. Profilage ponctuel via `game/scripts/debug/perf_probe_*.gd` (déjà versionnés) pour les contre-performances (`_rebuild_layers` par couche).
 
 ## 9. Séquencement et risques

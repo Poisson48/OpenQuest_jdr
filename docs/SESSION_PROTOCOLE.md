@@ -80,12 +80,22 @@ arrive en cours de partie.
 |---|---|
 | serveur | `src/lobby/protocol.ts`, `src/lobby/validate.ts`, `src/lobby/rate_limit.ts`, `src/lobby/tickets.ts`, `src/pooling/server.ts`, `src/lobby/types.ts` |
 | client | `game/scripts/multiplayer/multiplayer_manager.gd` |
-| tests | `server/scripts/test_lobby.ts` (unités, 81 vérif.), `server/scripts/test_lobby_integration.ts` (bout en bout, 18 vérif.), `game/scripts/tests/session_protocol_test.gd` |
+| tests | `server/scripts/test_lobby.ts` (unités, 81 vérif.), `server/scripts/test_lobby_protocol.ts` (**contrat de protocole v2**, 302 vérif. au 2026-11-17, pur, sans port), `server/scripts/test_lobby_integration.ts` (bout en bout, 18 vérif.), `game/scripts/tests/session_protocol_test.gd` — les comptes évoluent avec les tests |
+
+Le contrat v2 (13 types client→serveur, 12 types serveur→client, codes d'erreur,
+tickets, rate-limit) est **gelé** par `test_lobby_protocol.ts` et décrit dans
+[MULTIPLAYER.md §3.3](MULTIPLAYER.md#33-contrat-de-protocole-v2-référence).
 
 ```powershell
-cd server; npm test          # dés + lobby (unités) + lobby (bout en bout)
+cd server; npm test          # lobby (unités) + contrat de protocole + lobby (bout en bout)
 ./scripts/run_tests.ps1 -Filter 'session_protocol_test'
 ```
+
+Les **dés ne sont plus testés côté serveur** : `npm test` ne couvre que le pooling
+(lobby + protocole + intégration). L'unique implémentation exécutable est le
+moteur GDScript `game/scripts/core/rules/dice_engine.gd`, testé par
+`dice_engine_test.gd` sur la spec `game/data/tests/dice_cases.json` (la chaîne
+TypeScript est archivée dans `server/legacy/`, ADR-005 — voir [MOTEUR_DES.md](MOTEUR_DES.md)).
 
 ## Hors périmètre v2
 

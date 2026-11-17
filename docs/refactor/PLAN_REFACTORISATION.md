@@ -18,7 +18,7 @@ Le projet a grossi par accumulation de fonctionnalités : **20 fichiers dépasse
 |---|---|
 | **Porte de compilation** du client (391 scripts + 86 scènes) | 477 fichiers chargés en ~12 s, **0 échec** (`game/scripts/debug/compile_check.gd`) |
 | **Porte de vérification unifiée** | [`verify.ps1`](../../tools/refactor/verify.ps1) : compilation + typecheck serveur + socle rapide de tests |
-| **Build serveur réparé** | `npm run typecheck` et `npm run build` **verts** ; `npm test` **vert** (211 vérifications) |
+| **Build serveur réparé** | `npm run typecheck` et `npm run build` **verts** ; `npm test` **vert** (401 vérifications : lobby 81 + protocole 302 + intégration 18) |
 | **Chaîne de jeu serveur archivée** | 13 fichiers TS morts → `server/legacy/` (hors compilation), `AiGM`/MCP documentés comme archivés |
 | **6 scripts qui ne compilaient pas** | 4 réparés, 2 dead/broken supprimés (voir §6) |
 | **Mesure reproductible** | [`metrics.ps1`](../../tools/refactor/metrics.ps1) → [inventaire](INVENTAIRE_TECHNIQUE.md) |
@@ -32,8 +32,8 @@ Phase 1  Purge du code mort               ✅ 2026-11-17  (−3 276 lignes, 27 s
 Phase 2  Contrats & cœur client           ✅ 2.0-2.7 livrés (+ 2.8 image) ; reste 2.8 schéma/démos
 Phase 3  Éditeur de scénario              🔄 3.1-3.2 livrées (routeur, style) ; slices graph/panneaux à suivre
 Phase 4  Éditeur de cartes 2.5D (5 vagues)🔄 4a-4b livrées : synchro ciblée ×33 (commit 1 506→45 ms), release −50 % ; 4d-4f à suivre
-Phase 5  Serveur & contrat de données     🔄 5.2-5.3 livrées (dés uniques, validateur schemas) ; 5.4-5.5 à suivre
-Phase 6  Industrialisation & docs         🔄 6.1 livrée (CI GitHub Actions) ; docs/métriques finales à suivre
+Phase 5  Serveur & contrat de données     ✅ 5.2-5.5 livrées (dés uniques, validateur, contrat v2, ADR-004)
+Phase 6  Industrialisation & docs         🔄 6.1-6.3 livrées (CI, index docs, CONTRIBUTING) ; 6.4 métriques finales à suivre
 ```
 
 ---
@@ -64,7 +64,7 @@ Phase 6  Industrialisation & docs         🔄 6.1 livrée (CI GitHub Actions) ;
 | **ADR-001** | **Architecture serveur : hôte Godot autoritaire + serveur de pooling sans logique de jeu.** La chaîne de jeu TS (`game_session`, `bots`, `ai-gm`, `narrative/*`, `mcp/*`, …) est archivée dans `server/legacy/`. | C'est le modèle réellement codé (`src/index.ts` ne démarre que le pooling ; `MULTIPLAYER.md`/`SESSION_PROTOCOLE.md` décrivent l'hôte autoritaire). Le serveur autoritaire + MCP est une direction non financée qui a pourri pendant deux mois. | Oui : `server/legacy/README.md` décrit la restauration (git history). |
 | **ADR-002** | **`core/` : supprimer les modules morts et périmés, conserver les modules exécutés.** Suppression de `core/persistence/**`, `core/session/**`, `core/maps/`, `core/navigation/{investigation,semantic_move}.gd`, `core/rules/{stats,dice}.gd` (si non référencés) ; conservation de `core/rules/{dice_engine,formula,ruleset}.gd` et `core/los/visibility_polygon.gd`. | 72 % de `core/` n'est jamais exécuté et travaille sur un modèle périmé (`map_play` vs `mapPlayState`) : le « rebrancher » coûterait une réécriture complète. Le supprimer rend la règle « `core/` pur » honnête et évite d'entretenir une fausse architecture. | Oui (git revert). |
 | **ADR-003** | **Convention d'état de carte figée : `mapPlayState` (camelCase).** Tout nouveau code de brouillard/vision/navigation/état de session utilise cette clé. `map_play` est proscrit. | C'est la convention de la production (`game_data.gd:1743`), contre laquelle le code mort a divergé. | Non (convention stable). |
-| **ADR-004** | **`data/schemas/` reste le contrat cible**, mais n'est pas bloquant : un validateur générique sera branché en phase 5 ; d'ici là, les normaliseurs manuels restent la référence et le dit schéma sera réaligné (ou archivé) explicitement. | Les 8 schémas ne sont lus par aucun code et dérivent déjà ; les brancher d'un bloc introduirait des régressions massives. | Oui. |
+| **ADR-004** | **`data/schemas/` reste le contrat cible**, mais n'est pas bloquant : validateur générique branché en phase 5 (gate CI bot+ruleset, dérive scenario/map informative) ; pas de migration de données ; schéma réaligné en P1 plutôt que les données. Décision complète : [ADR-004-schemas.md](ADR-004-schemas.md). | Les 8 schémas ne sont lus par aucun code et dérivent déjà ; les brancher d'un bloc introduirait des régressions massives. | Oui. |
 | **ADR-005** | **Dés : une seule implémentation exécutable, le moteur GDScript** (`game/scripts/core/rules/dice_engine.gd`). Le formatage est client (BBCode Godot). `game/data/tests/dice_cases.json` + `data/schemas/dice_roll.json` sont la **spécification**. La chaîne TS de jeu (`server/src/dice.ts`, `server/src/rules/dice_engine.ts`) est archivée en phase 5, une fois ses tests migrés. | L'hôte P2P autoritaire calcule les dés (ADR-001) ; deux moteurs divergents (Markdown vs BBCode, RNG seedé non compatible) sans contrat inter-langages sont un piège. | Oui (archive, historique git). |
 | **ADR-006** | **Les tests sont le contrat d'API de l'éditeur.** On gèle la liste des membres atteints par les tests (`docs/refactor/CONTRAT_EDITEUR.md`, généré) et on ajoute des tests de contrat explicites ; un membre privé ne bouge jamais sans son test dans le même commit. | 50 tests atteignent 169 membres de l'éditeur (dont 153 privés) : le contrat réel est privé et invisible. | Oui. |
 | **ADR-007** | **Aucune sonde dans `game/scripts/tests/`.** Les sondes de debug vont dans `game/scripts/debug/` (hors runner) ; le runner ne doit compter que de vrais tests avec `:PASS`. | `tests/zz_probe_grid.gd` ne peut pas produire `PASS` → FAIL artificiel qui pollue la baseline et masque les vrais échecs. | Oui. |
@@ -81,7 +81,7 @@ Phase 6  Industrialisation & docs         🔄 6.1 livrée (CI GitHub Actions) ;
 | Vérification complète | [`tools/refactor/verify.ps1`](../../tools/refactor/verify.ps1) | < 3 min | compilation + `tsc --noEmit` serveur + socle rapide (18 tests < 2 min) |
 | Suite complète headless | [`scripts/run_tests.ps1`](../../scripts/run_tests.ps1) | 15-30 min | 178 tests déclarés, 121 exécutés en headless (57 exclusions : 44 `*_shot_test` + 13 écrivant `save_png`) |
 | Captures / rendu | `scripts/run_tests.ps1 -IncludeShots` (fenêtre cachée) | variable | 57 tests `*_shot_test` — obligatoire avant tout refactor de rendu |
-| Serveur | `cd server; npm run typecheck; npm run build; npm test` | ~15 s | build TS + 211 vérifications (dés, lobby, intégration pooling) |
+| Serveur | `cd server; npm run typecheck; npm run build; npm test` | ~15 s | build TS + 401 vérifications (lobby, contrat de protocole v2, intégration pooling) |
 | Mesure | [`tools/refactor/metrics.ps1`](../../tools/refactor/metrics.ps1) | ~30 s | volumétrie, god files, code mort, régression de taille |
 
 **Règle** : aucun commit du chantier sans `verify.ps1` vert ; après toute extraction d'un god file, relancer les tests du domaine (`-Filter <domaine>`) et comparer avec la [baseline](BASELINE_TESTS.md).
@@ -96,7 +96,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 |---|---|---|
 | Suite Godot headless (121 tests, captures exclues) | **116 PASS / 5 FAIL / 0 SKIP** | 24 min 35 s |
 | Échecs Godot (tous expliqués, aucun n'est une régression du refactor) | `map_editor_snap_test` (timeout sous charge), `map_editor_v2_palette_test` (artefact de compilation sous charge), `map_quality_cs2_test` (assertion `msaa` liée à l'environnement graphique), `webrtc_pooling_e2e_test` (pas de serveur LAN), `zz_probe_grid` (sonde sans `PASS` → ADR-007) | — |
-| Suite serveur `npm test` | **PASS** (112 + 81 + 18 = 211 vérifications) | 5,2 s |
+| Suite serveur `npm test` | **PASS** (81 + 302 + 18 = 401 vérifications) | ~8 s |
 | Typecheck serveur au commit de baseline | **rouge** (5 erreurs TS) — **corrigé en phase 0** | — |
 | Socle rapide (adopté par `fast-tests.txt`) | 23 tests ≈ 102 s (voir `BASELINE_TESTS.md` §11) | — |
 
@@ -177,7 +177,7 @@ Voir [BASELINE_TESTS.md](BASELINE_TESTS.md) pour le détail complet (par test, d
 | V3 | `complex_map_engine_3d.gd` (3 sous-vagues : rendu → caméra → tokens) | 4 230 | 500-700 | **Élevé** |
 | V4 | `map_complex_editor.gd` par slices (builders UI → layout → settings → commandes → terrain/eau → placement) | 5 359 | ~900 | **Très élevé** |
 | V0 | **Étape (a)** : couches sales (`DirtyLayers`, signal `layers_changed`, 173 vérifs) + instrumentation par couche — ✅ comportement inchangé | — | — | Faible |
-| V0 | **Étape (b)** : `MapMeshes3D.sync()` diff-based + `update_meshes_layer()` + dispatch ciblé meshes — ✅ commit d'édition **1 506 → 45 ms** (−97 %, ×33) ; parité d'état prouvée (42 modules) ; garde-fou `editor_commit_perf_test` (seuil 150 ms) | — | — | Moyen |
+| V0 | **Étape (b)** : `MapMeshes3D.sync()` diff-based + `update_meshes_layer()` + dispatch ciblé meshes — ✅ commit d'édition **1 506 → 45 ms** (−97 %, ×33) ; parité d'état prouvée (42 modules) ; garde-fou `editor_commit_perf_test` (seuil 150 ms) ; `map_editor_snap_test` réactivé en synchro complète (PASS 75 s vs 257 s) | — | — | Moyen |
 | V0 | **Étape (d, partielle)** : suppression du `_sync_engine()` complet redondant au release de ROTATION (la synchro ciblée du commit suffit) — ✅ tests éditeur 5/5 | — | — | Faible |
 | V5 | Nettoyage : grille outils v1 masquée, palette environnement masquée, docs périmées | — | — | Faible |
 
@@ -193,13 +193,13 @@ Règles : **jamais deux god files dans le même commit** ; conserver les wrapper
 | 5.2 | Dés : chaîne TS archivée (`server/legacy/`), `dice_cases.json` seul exécuté côté GDScript — ✅ (commits serveur, 0 import de dés actif) | ✅ |
 | 5.3 | `data/schemas/` : validateur générique `tools/refactor/validate_data.py` (0 dépendance, 27 auto-tests) branché dans `verify.ps1` (gate bot+ruleset, dérive complète informative) + [RAPPORT_SCHEMAS.md](RAPPORT_SCHEMAS.md) (666 erreurs néanmoins : 0/12 scénarios et 0/3 cartes conformes ; realignement/archivage à décider) | ✅ outillé, réalignement ⏳ |
 | 5.4 | Protocole pooling : figer `lobby/types.ts` + `protocol.ts` comme contrat v2 et ajouter un test de sérialisation (déjà 18 vérifications d'intégration) | ⏳ |
-| 5.5 | Documentation serveur : `STACK.md` (ADRs), `MULTIPLAYER.md`, `MOTEUR_DES.md` alignés sur l'état réel | ⏳ |
+| 5.5 | Documentation serveur : `STACK.md`, `MULTIPLAYER.md` (contrat v2), `MOTEUR_DES.md`, `MCP.md`, `SESSION_PROTOCOLE.md`, `ARCHITECTURE.md` alignés — ✅ 455 liens vérifiés, 0 cassé ; [ADR-004-schemas.md](ADR-004-schemas.md) documente la décision data/schemas | ✅ |
 
 ### Phase 6 — Industrialisation & dette documentaire ⏳
 
 | Lot | Contenu |
 |---|---|
-| 6.1 | CI GitHub Actions : `tsc --noEmit` + `npm test` + compilation Godot headless (binaire téléchargé) + tests rapides — ✅ `.github/workflows/tests.yml` (2 jobs) |
+| 6.1 | CI GitHub Actions : `tsc --noEmit` + `npm test` + compilation Godot headless (binaire téléchargé) + tests rapides + job data/schemas — ✅ `.github/workflows/tests.yml` (3 jobs) |
 | 6.2 | Consolider les ≈70 docs `docs/` : index, archives datées, documents obsolètes déplacés dans `docs/archive/` |
 | 6.3 | Règle de frontière de propriété (ADR-009) + porte de vérification + règles de tests/schémas dans `CONTRIBUTING.md` — ✅ |
 | 6.4 | Métriques finales : comparer [inventaire](INVENTAIRE_TECHNIQUE.md) avant/après ; objectif : 0 fichier > 1 000 lignes, 0 code mort |

@@ -14,9 +14,9 @@
 ## Table des matières
 
 1. [Résumé exécutif](#1-résumé-exécutif)
-2. [Problèmes critiques (CRITIQUE)](#2-problèmes-critiques)
-3. [Problèmes élevés (ÉLEVÉ)](#3-problèmes-élevés)
-4. [Problèmes moyens (MOYEN)](#4-problèmes-moyens)
+2. [Problèmes critiques (CRITIQUE)](#2-problèmes-critiques-critique)
+3. [Problèmes élevés (ÉLEVÉ)](#3-problèmes-élevés-élevé)
+4. [Problèmes moyens (MOYEN)](#4-problèmes-moyens-moyen)
 5. [Analyse page par page](#5-analyse-page-par-page)
 6. [Composants et moteur](#6-composants-et-moteur)
 7. [Recommandations prioritaires](#7-recommandations-prioritaires)

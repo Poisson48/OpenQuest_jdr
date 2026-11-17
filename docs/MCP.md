@@ -10,12 +10,17 @@
 
 Le MJ IA OpenQuest expose un **serveur MCP** pour les agents (Cursor, Claude Desktop, etc.).
 
-## Lancer
+> **État archivé (phase 0)** : la commande `npm run mcp` a été **retirée de
+> `server/package.json`** — elle lançait `server/legacy/mcp/run.ts`, qui ne
+> compile plus (import `AiGM` cassé) et n'est plus importé. Procédure de
+> restauration : [`server/legacy/README.md`](../server/legacy/README.md).
+
+## Lancer (historique — ne fonctionne plus tel quel)
 
 ```bash
 cd server
 npm install
-npm run mcp
+npm run mcp   # ⚠️ script supprimé de package.json (phase 0), cf. server/legacy/README.md
 ```
 
 ## Outils exposés
@@ -27,6 +32,11 @@ npm run mcp
 | `roll_dice` | Lance des dés (1d20+3…) |
 | `resolve_action` | Résout une action via le moteur narratif |
 | `opening_narration` | Génère l'intro d'une partie |
+
+> **État archivé** : le serveur MCP n'expose en réalité que **4 outils**
+> (`classify_action`, `suggest_roll`, `resolve_action`, `opening_narration`) —
+> `roll_dice` n'existe pas dans `server/legacy/mcp/gm_server.ts` (voir
+> [refactor/AUDIT_SERVEUR.md](refactor/AUDIT_SERVEUR.md) §5.3).
 
 ## Enrichissement LLM (optionnel)
 

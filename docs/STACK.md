@@ -3,7 +3,7 @@
 > ⚠️ **Document partiellement obsolète — conservé comme historique.**
 > Rédigé en septembre 2026, il décrit l'**ancien modèle « serveur autoritaire »** (le serveur Node fait autorité sur l'état du monde, protocole v0.1 `join` / `player_input`).
 > Le **runtime réel** est un **hôte Godot autoritaire + serveur de pooling sans logique de jeu** ([MULTIPLAYER.md](./MULTIPLAYER.md), [SESSION_PROTOCOLE.md](./SESSION_PROTOCOLE.md)) : le serveur ne gère que salons, tickets, rate-limit et signalisation WebRTC.
-> Le **moteur de jeu TypeScript et le serveur MCP (MJ IA)** sont **archivés** dans [`server/legacy/`](../server/legacy/README.md) — hors compilation, non importés (voir [AUDIT_SERVEUR.md](./refactor/AUDIT_SERVEUR.md) et le [plan de refactorisation](./refactor/PLAN_REFACTORISATION.md)).
+> Le **moteur de jeu TypeScript et le serveur MCP (MJ IA)** sont **archivés** dans [`server/legacy/`](../server/legacy/README.md) — hors compilation, non importés (voir [AUDIT_SERVEUR.md](./refactor/AUDIT_SERVEUR.md) et le [plan de refactorisation](./refactor/PLAN_REFACTORISATION.md)). La **chaîne de dés TypeScript** l'est aussi depuis la phase 5.2 (ADR-005 : une seule implémentation exécutable, GDScript — [MOTEUR_DES.md](./MOTEUR_DES.md)).
 > Ce qui reste valable ci-dessous : stack technique (Node/Godot, WebSocket), installation Godot, commandes serveur, configuration. Le contenu n'est pas supprimé pour garder l'historique des décisions.
 > Dernière mise à jour du contenu : septembre 2026 · bandeau d'obsolescence ajouté le 2026-11-17.
 
